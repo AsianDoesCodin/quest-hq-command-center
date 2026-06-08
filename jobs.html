@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+    <meta http-equiv="Pragma" content="no-cache" />
+    <meta http-equiv="Expires" content="0" />
+    <title>Jobs | Quest HQ</title>
+    <link rel="stylesheet" href="assets/quest-hq.css" />
+  </head>
+  <body data-page="jobs.html" data-module="jobs">
+    <div class="app-shell">
+      <aside class="sidebar">
+        <a class="brand" href="index.html">
+          <span class="brand-mark">Q</span>
+          <span><strong>Quest HQ</strong><small>Operations Command</small></span>
+        </a>
+        <div class="build-badge">Static HTML Systems v8</div>
+        <nav class="nav-list" aria-label="Main navigation">
+          <a class="nav-item " href="index.html"><span>CC</span>Command Center</a><a class="nav-item active" href="jobs.html"><span>JB</span>Jobs</a><a class="nav-item " href="task-management.html"><span>TM</span>TaskManagement</a><a class="nav-item " href="crm.html"><span>CR</span>CRM</a><a class="nav-item " href="forms.html"><span>FS</span>Forms & Surveys</a><a class="nav-item " href="tickets.html"><span>TK</span>Tickets</a><a class="nav-item " href="files.html"><span>FL</span>Files</a><a class="nav-item " href="finance.html"><span>FN</span>Finance</a><a class="nav-item " href="knowledge.html"><span>KB</span>Knowledge Base</a><a class="nav-item " href="automations.html"><span>AU</span>Automations</a><a class="nav-item " href="dashboards.html"><span>DB</span>Dashboards</a><a class="nav-item " href="templates.html"><span>TP</span>Templates</a><a class="nav-item " href="admin.html"><span>AD</span>Admin</a>
+        </nav>
+        <div class="sidebar-card">
+          <strong>Work Execution</strong>
+          <p>TaskManagement remains the task engine. Quest HQ owns jobs, clients, files, forms, finance, and operations context.</p>
+        </div>
+      </aside>
+      <main class="main">
+        <section class="workspace">
+    <div class="page-heading"><div><div class="eyebrow">Jobs</div><h1>Job Center</h1><p>Jobs are parent containers for client, site, scope, files, forms, estimates, invoices, and linked tasks.</p></div><button class="primary-button" data-add-record>Add Job</button></div>
+    <div class="metric-grid"><div class="metric"><span>Active</span><strong>18</strong></div><div class="metric"><span>Urgent</span><strong>3</strong></div><div class="metric"><span>Linked tasks</span><strong>64</strong></div><div class="metric"><span>Revenue</span><strong>$126K</strong></div></div>
+    <div class="tabs" role="tablist"><button class="active" data-tab="list">Job List</button><button data-tab="profile">Profile</button><button data-tab="editor">Job Editor</button></div>
+    <section class="tab-panel active" data-panel="list"><div class="panel"><h2>Job Pipeline</h2><div class="table"><div><strong>Mesa Storage Roof Repair</strong><span>Roofing</span><span>Production</span><span>High</span><span>$46K</span></div><div><strong>Queen Creek Leak Follow-up</strong><span>Roofing</span><span>Inspection</span><span>Urgent</span><span>$8K</span></div><div><strong>Drafting Permit Package</strong><span>Drafting</span><span>QA Review</span><span>Medium</span><span>$14K</span></div><div><strong>Lumen Campaign Setup</strong><span>Lumen</span><span>Estimate Approved</span><span>Medium</span><span>$22K</span></div></div></div></section>
+    <section class="tab-panel" data-panel="profile"><div class="hero-card" style="background-image:url('https://images.unsplash.com/photo-1503387762-592deb58ef4e?auto=format&fit=crop&w=1400&q=80')"><strong>Mesa Storage Roof Repair</strong><span>Client, scope, site, files, forms, finance, and TaskManagement link.</span></div></section>
+    <section class="tab-panel" data-panel="editor"><div class="record-system panel" data-record-system="jobs">
+    <div class="record-toolbar"><h2>Local Jobs Records</h2><button class="secondary-button" data-add-record>Add</button></div>
+    <div class="record-layout">
+      <div class="record-list" data-record-list></div>
+      <form class="record-editor" data-record-editor>
+        <label>Title<input name="title" /></label>
+        <label>Status<input name="status" /></label>
+        <label>Owner<input name="owner" /></label>
+        <label>Job / Context<input name="job" /></label>
+        <label class="span-2">Notes<textarea name="notes" rows="6"></textarea></label>
+        <div class="form-actions"><button class="primary-button" type="submit">Save Locally</button><button class="secondary-button" type="button" data-duplicate-record>Duplicate</button><button class="danger-button" type="button" data-delete-record>Delete</button></div>
+      </form>
+    </div>
+  </div></section>
+  </section>
+      </main>
+    </div>
+    <script type="application/json" id="record-seed">[{"title":"Mesa Storage Roof Repair","status":"Production","owner":"Roofing","job":"$46K","notes":"High priority job."},{"title":"Queen Creek Leak Follow-up","status":"Inspection","owner":"Roofing","job":"$8K","notes":"Urgent priority job."},{"title":"Drafting Permit Package","status":"QA Review","owner":"Drafting","job":"$14K","notes":"Medium priority job."},{"title":"Lumen Campaign Setup","status":"Estimate Approved","owner":"Lumen","job":"$22K","notes":"Medium priority job."}]</script>
+    <script src="assets/quest-hq.js" defer></script>
+  </body>
+</html>

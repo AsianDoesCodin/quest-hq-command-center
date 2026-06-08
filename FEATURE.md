@@ -57,6 +57,7 @@ The existing TaskManagement app remains the work execution layer.
 - [x] Presentation build keeps data local-first in browser storage; backend/database work is intentionally deferred until after the first demo
 - [x] Each module uses a simpler page-specific layout instead of the same shared placeholder/table layout
 - [x] Each module has its own tabbed sub-system layout so workspaces, supporting workflows, and editors can expand separately
+- [x] Presentation build is now plain multi-page HTML/CSS/vanilla JS with direct pages like `tickets.html`, `files.html`, and `finance.html`; JSX/React is no longer used
 
 ---
 

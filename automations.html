@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+    <meta http-equiv="Pragma" content="no-cache" />
+    <meta http-equiv="Expires" content="0" />
+    <title>Rule Builder and Run Log | Quest HQ</title>
+    <link rel="stylesheet" href="assets/quest-hq.css" />
+  </head>
+  <body data-page="automations.html" data-module="automations">
+    <div class="app-shell">
+      <aside class="sidebar">
+        <a class="brand" href="index.html">
+          <span class="brand-mark">Q</span>
+          <span><strong>Quest HQ</strong><small>Operations Command</small></span>
+        </a>
+        <div class="build-badge">Static HTML Systems v8</div>
+        <nav class="nav-list" aria-label="Main navigation">
+          <a class="nav-item " href="index.html"><span>CC</span>Command Center</a><a class="nav-item " href="jobs.html"><span>JB</span>Jobs</a><a class="nav-item " href="task-management.html"><span>TM</span>TaskManagement</a><a class="nav-item " href="crm.html"><span>CR</span>CRM</a><a class="nav-item " href="forms.html"><span>FS</span>Forms & Surveys</a><a class="nav-item " href="tickets.html"><span>TK</span>Tickets</a><a class="nav-item " href="files.html"><span>FL</span>Files</a><a class="nav-item " href="finance.html"><span>FN</span>Finance</a><a class="nav-item " href="knowledge.html"><span>KB</span>Knowledge Base</a><a class="nav-item active" href="automations.html"><span>AU</span>Automations</a><a class="nav-item " href="dashboards.html"><span>DB</span>Dashboards</a><a class="nav-item " href="templates.html"><span>TP</span>Templates</a><a class="nav-item " href="admin.html"><span>AD</span>Admin</a>
+        </nav>
+        <div class="sidebar-card">
+          <strong>Work Execution</strong>
+          <p>TaskManagement remains the task engine. Quest HQ owns jobs, clients, files, forms, finance, and operations context.</p>
+        </div>
+      </aside>
+      <main class="main">
+        <section class="workspace module-page">
+    <div class="page-heading"><div><div class="eyebrow">Automations</div><h1>Rule Builder and Run Log</h1><p>Local triggers, conditions, actions, enablement, and run logs show how backend automations will behave later.</p></div><button class="primary-button" data-add-record>Create Record</button></div>
+    <div class="metric-grid"><div class="metric"><span>Enabled</span><strong>7</strong></div><div class="metric"><span>Paused</span><strong>2</strong></div><div class="metric"><span>Runs today</span><strong>18</strong></div><div class="metric"><span>Failures</span><strong>0</strong></div></div>
+    <div class="hero-card" style="background-image:url('https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=1400&q=80')"><strong>Rule Builder and Run Log</strong><span>Local triggers, conditions, actions, enablement, and run logs show how backend automations will behave later.</span></div>
+    <div class="tabs" role="tablist"><button class="active" data-tab="rules">Rules</button><button class="" data-tab="run-log">Run Log</button><button class="" data-tab="rule-editor">Rule Editor</button></div>
+    <section class="tab-panel active" data-panel="rules"><div class="pipeline"><section><h3>Trigger</h3><button>New job created</button></section><section><h3>Condition</h3><button>Company is Roofing</button></section><section><h3>Action</h3><button>Create checklist</button></section><section><h3>Log</h3><button>Run saved</button></section></div></section><section class="tab-panel " data-panel="run-log"><div class="panel"><h2>Recent Runs</h2><div class="card-grid"><article class="mini-card"><strong>New roofing job created default checklist</strong><span>Saved locally for presentation mode.</span></article><article class="mini-card"><strong>Low survey rating created follow-up ticket</strong><span>Saved locally for presentation mode.</span></article><article class="mini-card"><strong>Invoice overdue notified admin</strong><span>Saved locally for presentation mode.</span></article></div></div></section><section class="tab-panel " data-panel="rule-editor"><div class="record-system panel" data-record-system="automations">
+    <div class="record-toolbar"><h2>Local Automations Records</h2><button class="secondary-button" data-add-record>Add</button></div>
+    <div class="record-layout">
+      <div class="record-list" data-record-list></div>
+      <form class="record-editor" data-record-editor>
+        <label>Title<input name="title" /></label>
+        <label>Status<input name="status" /></label>
+        <label>Owner<input name="owner" /></label>
+        <label>Job / Context<input name="job" /></label>
+        <label class="span-2">Notes<textarea name="notes" rows="6"></textarea></label>
+        <div class="form-actions"><button class="primary-button" type="submit">Save Locally</button><button class="secondary-button" type="button" data-duplicate-record>Duplicate</button><button class="danger-button" type="button" data-delete-record>Delete</button></div>
+      </form>
+    </div>
+  </div></section>
+  </section>
+      </main>
+    </div>
+    <script type="application/json" id="record-seed">[{"title":"New roofing job checklist","status":"Enabled","owner":"System","job":"Roofing jobs","notes":"Creates default inspection and estimate tasks later."},{"title":"Overdue invoice alert","status":"Enabled","owner":"Admin","job":"Finance","notes":"Notifies admin when invoice status becomes overdue."}]</script>
+    <script src="assets/quest-hq.js" defer></script>
+  </body>
+</html>

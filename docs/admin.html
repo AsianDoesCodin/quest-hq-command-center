@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+    <meta http-equiv="Pragma" content="no-cache" />
+    <meta http-equiv="Expires" content="0" />
+    <title>Users, Roles, and Settings | Quest HQ</title>
+    <link rel="stylesheet" href="assets/quest-hq.css" />
+  </head>
+  <body data-page="admin.html" data-module="admin">
+    <div class="app-shell">
+      <aside class="sidebar">
+        <a class="brand" href="index.html">
+          <span class="brand-mark">Q</span>
+          <span><strong>Quest HQ</strong><small>Operations Command</small></span>
+        </a>
+        <div class="build-badge">Static HTML Systems v8</div>
+        <nav class="nav-list" aria-label="Main navigation">
+          <a class="nav-item " href="index.html"><span>CC</span>Command Center</a><a class="nav-item " href="jobs.html"><span>JB</span>Jobs</a><a class="nav-item " href="task-management.html"><span>TM</span>TaskManagement</a><a class="nav-item " href="crm.html"><span>CR</span>CRM</a><a class="nav-item " href="forms.html"><span>FS</span>Forms & Surveys</a><a class="nav-item " href="tickets.html"><span>TK</span>Tickets</a><a class="nav-item " href="files.html"><span>FL</span>Files</a><a class="nav-item " href="finance.html"><span>FN</span>Finance</a><a class="nav-item " href="knowledge.html"><span>KB</span>Knowledge Base</a><a class="nav-item " href="automations.html"><span>AU</span>Automations</a><a class="nav-item " href="dashboards.html"><span>DB</span>Dashboards</a><a class="nav-item " href="templates.html"><span>TP</span>Templates</a><a class="nav-item active" href="admin.html"><span>AD</span>Admin</a>
+        </nav>
+        <div class="sidebar-card">
+          <strong>Work Execution</strong>
+          <p>TaskManagement remains the task engine. Quest HQ owns jobs, clients, files, forms, finance, and operations context.</p>
+        </div>
+      </aside>
+      <main class="main">
+        <section class="workspace module-page">
+    <div class="page-heading"><div><div class="eyebrow">Admin</div><h1>Users, Roles, and Settings</h1><p>User profiles, roles, permissions, company access, approvals, statuses, templates, and notification settings.</p></div><button class="primary-button" data-add-record>Create Record</button></div>
+    <div class="metric-grid"><div class="metric"><span>Users</span><strong>11</strong></div><div class="metric"><span>Pending</span><strong>2</strong></div><div class="metric"><span>Companies</span><strong>3</strong></div><div class="metric"><span>Roles</span><strong>5</strong></div></div>
+    <div class="hero-card" style="background-image:url('https://images.unsplash.com/photo-1552664730-d307ca884978?auto=format&fit=crop&w=1400&q=80')"><strong>Users, Roles, and Settings</strong><span>User profiles, roles, permissions, company access, approvals, statuses, templates, and notification settings.</span></div>
+    <div class="tabs" role="tablist"><button class="active" data-tab="users">Users</button><button class="" data-tab="settings">Settings</button><button class="" data-tab="access-editor">Access Editor</button></div>
+    <section class="tab-panel active" data-panel="users"><div class="panel"><h2>User Access</h2><div class="table"><div><span>Maya Rosales</span><span>Supervisor</span><span>Roofing</span><span>Approved</span></div><div><span>Noah Park</span><span>Worker</span><span>Drafting</span><span>Pending</span></div><div><span>Andre Lee</span><span>Admin</span><span>All companies</span><span>Approved</span></div></div></div></section><section class="tab-panel " data-panel="settings"><div class="panel"><h2>System Settings</h2><div class="card-grid"><article class="mini-card"><strong>Job stages</strong><span>Saved locally for presentation mode.</span></article><article class="mini-card"><strong>Ticket statuses</strong><span>Saved locally for presentation mode.</span></article><article class="mini-card"><strong>Lead statuses</strong><span>Saved locally for presentation mode.</span></article><article class="mini-card"><strong>Notification rules</strong><span>Saved locally for presentation mode.</span></article></div></div></section><section class="tab-panel " data-panel="access-editor"><div class="record-system panel" data-record-system="admin">
+    <div class="record-toolbar"><h2>Local Admin Records</h2><button class="secondary-button" data-add-record>Add</button></div>
+    <div class="record-layout">
+      <div class="record-list" data-record-list></div>
+      <form class="record-editor" data-record-editor>
+        <label>Title<input name="title" /></label>
+        <label>Status<input name="status" /></label>
+        <label>Owner<input name="owner" /></label>
+        <label>Job / Context<input name="job" /></label>
+        <label class="span-2">Notes<textarea name="notes" rows="6"></textarea></label>
+        <div class="form-actions"><button class="primary-button" type="submit">Save Locally</button><button class="secondary-button" type="button" data-duplicate-record>Duplicate</button><button class="danger-button" type="button" data-delete-record>Delete</button></div>
+      </form>
+    </div>
+  </div></section>
+  </section>
+      </main>
+    </div>
+    <script type="application/json" id="record-seed">[{"title":"Maya Rosales","status":"Approved","owner":"Owner","job":"Roofing","notes":"Supervisor access for roofing jobs and CRM."},{"title":"Noah Park","status":"Pending","owner":"Admin","job":"Drafting","notes":"Needs approval for drafting project files."}]</script>
+    <script src="assets/quest-hq.js" defer></script>
+  </body>
+</html>

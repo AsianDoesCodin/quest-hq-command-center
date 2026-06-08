@@ -4,17 +4,13 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "vite --host 127.0.0.1",
-    "build": "vite build",
-    "build:pages": "vite build --base /quest-hq-command-center/ --outDir docs",
+    "dev": "npm run build && vite --host 127.0.0.1",
+    "build": "node scripts/build-static-site.mjs",
+    "build:pages": "node scripts/build-static-site.mjs",
     "preview": "vite preview --host 127.0.0.1"
   },
-  "dependencies": {
-    "@vitejs/plugin-react": "^5.0.0",
-    "lucide-react": "^0.468.0",
-    "react": "^19.0.0",
-    "react-dom": "^19.0.0",
+  "dependencies": {},
+  "devDependencies": {
     "vite": "^7.0.0"
-  },
-  "devDependencies": {}
+  }
 }
