@@ -97,6 +97,20 @@ code {
   margin-top: 1px;
 }
 
+.build-badge {
+  margin: -10px 4px 16px;
+  min-height: 30px;
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid rgba(237, 78, 13, 0.5);
+  background: rgba(237, 78, 13, 0.14);
+  color: #ffffff;
+  border-radius: 999px;
+  padding: 0 10px;
+  font-size: 12px;
+  font-weight: 850;
+}
+
 .nav-list {
   display: grid;
   gap: 5px;
@@ -316,6 +330,49 @@ h3 {
 
 .mobile-only {
   display: none;
+}
+
+.functional-banner {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  align-items: center;
+  border: 1px solid color-mix(in srgb, var(--green), white 45%);
+  background: color-mix(in srgb, var(--green), white 88%);
+  color: #0f3d2b;
+  border-radius: 8px;
+  padding: 13px 15px;
+  margin: -8px 0 18px;
+  box-shadow: var(--shadow);
+}
+
+.functional-banner strong,
+.functional-banner span {
+  display: block;
+}
+
+.functional-banner strong {
+  font-size: 14px;
+}
+
+.functional-banner span {
+  color: #245744;
+  font-size: 13px;
+  line-height: 1.35;
+  margin-top: 3px;
+}
+
+.functional-banner > span {
+  flex: 0 0 auto;
+  min-height: 28px;
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  background: #ffffff;
+  border: 1px solid color-mix(in srgb, var(--green), white 55%);
+  padding: 0 10px;
+  font-weight: 850;
+  margin-top: 0;
 }
 
 .metric-grid {

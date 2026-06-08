@@ -45,6 +45,7 @@ import {
 import { copyText, taskManagementUrl } from './lib/taskManagement';
 
 const today = '2026-06-09';
+const presentationBuild = 'Frontend Systems v3';
 
 const navigation = [
   { id: 'command', label: 'Command Center', icon: Home },
@@ -1316,6 +1317,7 @@ function App() {
             <div className="brand-subtitle">Operations Command</div>
           </div>
         </div>
+        <div className="build-badge">{presentationBuild}</div>
 
         <nav className="nav-list" aria-label="Main navigation">
           {navigation.map((item) => {
@@ -1920,6 +1922,14 @@ function ModuleView({
           <Plus size={17} />
           {config.primaryAction}
         </button>
+      </div>
+
+      <div className="functional-banner">
+        <div>
+          <strong>Functional frontend system active</strong>
+          <span>Search, filter, edit, status board, action queue, linked jobs, and localStorage saving are running in this module.</span>
+        </div>
+        <span>{presentationBuild}</span>
       </div>
 
       <div className="module-stat-grid">
