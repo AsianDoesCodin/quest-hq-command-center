@@ -937,6 +937,29 @@ h3 {
   min-height: 48px;
 }
 
+.action-card {
+  width: 100%;
+  text-align: left;
+  cursor: pointer;
+}
+
+.action-card.selected,
+.action-card:hover {
+  border-color: var(--orange);
+  background: #fff8f5;
+}
+
+.action-card strong,
+.action-card small {
+  display: block;
+}
+
+.action-card small {
+  color: var(--muted);
+  margin-top: 4px;
+  line-height: 1.35;
+}
+
 .workflow-card + .workflow-card {
   margin-top: 8px;
 }
@@ -945,9 +968,31 @@ h3 {
   margin-top: 18px;
 }
 
+.module-ops-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.5fr) minmax(320px, 0.75fr);
+  gap: 18px;
+  margin-top: 18px;
+}
+
+.module-ops-grid > .module-workflow-panel {
+  margin-top: 0;
+}
+
+.module-ops-grid > .crm-directory-panel {
+  grid-column: 1 / -1;
+}
+
 .record-table {
   display: grid;
   gap: 8px;
+}
+
+.record-toolbar {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(180px, 0.35fr);
+  gap: 12px;
+  margin-bottom: 12px;
 }
 
 .record-row {
@@ -1121,6 +1166,51 @@ h3 {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 10px;
+}
+
+.action-queue {
+  display: grid;
+  gap: 10px;
+}
+
+.action-row {
+  border: 1px solid var(--line);
+  background: #fbfcfe;
+  border-radius: 8px;
+  padding: 12px;
+  display: grid;
+  gap: 10px;
+}
+
+.action-row > button {
+  border: 0;
+  background: transparent;
+  text-align: left;
+  padding: 0;
+  color: var(--text);
+  cursor: pointer;
+}
+
+.action-row > button strong,
+.action-row > button small {
+  display: block;
+}
+
+.action-row > button small {
+  color: var(--muted);
+  line-height: 1.35;
+  margin-top: 4px;
+}
+
+.action-row .record-actions {
+  gap: 7px;
+}
+
+.action-row .primary-button,
+.action-row .secondary-button {
+  min-height: 34px;
+  padding: 0 10px;
+  font-size: 13px;
 }
 
 .local-card-grid {
@@ -1438,6 +1528,7 @@ textarea:focus {
   .three-column,
   .jobs-layout,
   .module-grid,
+  .module-ops-grid,
   .module-grid-secondary,
   .module-special-grid,
   .crm-directory-grid,
@@ -1448,6 +1539,7 @@ textarea:focus {
   .module-stat-grid,
   .workflow-board,
   .record-row,
+  .record-toolbar,
   .question-type-grid,
   .ticket-type-grid,
   .form-analytics-grid,
@@ -1531,7 +1623,8 @@ textarea:focus {
   .profile-grid,
   .finance-grid,
   .stat-strip,
-  .module-stat-grid {
+  .module-stat-grid,
+  .record-toolbar {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
@@ -1546,6 +1639,7 @@ textarea:focus {
   .finance-grid,
   .stat-strip,
   .module-stat-grid,
+  .record-toolbar,
   .module-special-grid,
   .crm-directory-grid,
   .quick-grid,

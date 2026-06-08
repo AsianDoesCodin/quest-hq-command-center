@@ -1820,7 +1820,28 @@ function ModuleView({
   const roadmap = moduleRoadmap.find((module) => module.id === id) || moduleRoadmap.find((module) => module.id === id.replace('knowledge', 'kb'));
   const config = moduleConfigs[id];
   const [selectedRecordId, setSelectedRecordId] = useState(moduleRecords[0]?.id || null);
-  const selectedRecord = moduleRecords.find((record) => record.id === selectedRecordId) || moduleRecords[0] || null;
+  const [recordQuery, setRecordQuery] = useState('');
+  const [recordStatus, setRecordStatus] = useState('All');
+  const filteredModuleRecords = useMemo(() => {
+    const text = recordQuery.trim().toLowerCase();
+    return moduleRecords.filter((record) => {
+      const matchesText = !text || [
+        record.title,
+        record.status,
+        record.extra,
+        record.notes,
+        record.jobId ? getJobName(jobs, record.jobId) : ''
+      ].filter(Boolean).some((field) => String(field).toLowerCase().includes(text));
+      const matchesStatus = recordStatus === 'All' || record.status === recordStatus;
+      return matchesText && matchesStatus;
+    });
+  }, [jobs, moduleRecords, recordQuery, recordStatus]);
+  const recordStatuses = ['All', ...Array.from(new Set(moduleRecords.map((record) => record.status).filter(Boolean)))];
+  const selectedRecord = filteredModuleRecords.find((record) => record.id === selectedRecordId)
+    || moduleRecords.find((record) => record.id === selectedRecordId)
+    || filteredModuleRecords[0]
+    || moduleRecords[0]
+    || null;
 
   if (id === 'task-management') {
     return (
@@ -1902,7 +1923,7 @@ function ModuleView({
       </div>
 
       <div className="module-stat-grid">
-        {config.stats.map((stat) => (
+        {getModuleStats(id, moduleRecords, jobs).map((stat) => (
           <ModuleStat key={stat.label} label={stat.label} value={stat.value} icon={Icon} />
         ))}
       </div>
@@ -1912,9 +1933,22 @@ function ModuleView({
           <div className="panel-header">
             <div>
               <h2>Records</h2>
-              <p>{roadmap?.detail || config.summary}</p>
+              <p>{filteredModuleRecords.length} of {moduleRecords.length} records visible.</p>
             </div>
             <Icon size={18} />
+          </div>
+
+          <div className="record-toolbar">
+            <label>
+              Search
+              <input value={recordQuery} onChange={(event) => setRecordQuery(event.target.value)} placeholder={`Search ${config.eyebrow.toLowerCase()} records`} />
+            </label>
+            <label>
+              Status
+              <select value={recordStatus} onChange={(event) => setRecordStatus(event.target.value)}>
+                {recordStatuses.map((status) => <option key={status}>{status}</option>)}
+              </select>
+            </label>
           </div>
 
           <div className="record-table">
@@ -1924,7 +1958,7 @@ function ModuleView({
               <span>Related Job</span>
               <span>Updated</span>
             </div>
-            {moduleRecords.map((record) => (
+            {filteredModuleRecords.map((record) => (
               <button
                 className={`record-row ${selectedRecord?.id === record.id ? 'selected' : ''}`}
                 key={record.id}
@@ -1940,6 +1974,7 @@ function ModuleView({
               </button>
             ))}
             {moduleRecords.length === 0 && <EmptyState title="No records yet" text={`Use ${config.primaryAction} to create the first record in this module.`} />}
+            {moduleRecords.length > 0 && filteredModuleRecords.length === 0 && <EmptyState title="No matching records" text="Clear search or status filters to see saved records." />}
           </div>
         </section>
 
@@ -1961,67 +1996,362 @@ function ModuleView({
         </section>
       </div>
 
-      <ModuleWorkspaceDetail id={id} records={moduleRecords} jobs={jobs} onOpenJob={onOpenJob} />
+      <ModuleOperationsPanel
+        id={id}
+        records={moduleRecords}
+        jobs={jobs}
+        selectedRecordId={selectedRecord?.id}
+        onSelectRecord={setSelectedRecordId}
+        onUpdateRecord={(recordId, patch) => onUpdateRecord(id, recordId, patch)}
+        onOpenJob={onOpenJob}
+      />
+    </section>
+  );
+}
 
+function getModuleStats(id, records, jobs) {
+  const count = records.length;
+  const linked = records.filter((record) => record.jobId).length;
+  const converted = records.filter((record) => record.convertedTo || record.status === 'Converted').length;
+
+  if (id === 'crm') {
+    const leads = records.filter((record) => (record.structured?.recordType || 'Lead') === 'Lead').length;
+    const followUps = records.filter((record) => record.structured?.followUpDate && record.structured.followUpDate <= today).length;
+    const value = records.reduce((sum, record) => sum + safeNumber(record.structured?.dealValue), 0);
+    return [
+      { label: 'CRM records', value: count },
+      { label: 'Open leads', value: leads },
+      { label: 'Follow-ups due', value: followUps },
+      { label: 'Pipeline value', value: money(value) }
+    ];
+  }
+
+  if (id === 'forms') {
+    const responses = records.reduce((sum, record) => sum + safeNumber(record.structured?.responseCount || record.structured?.responses?.length), 0);
+    const publicForms = records.filter((record) => record.structured?.visibility === 'Public link').length;
+    const ratingTotal = records.reduce((sum, record) => sum + safeNumber(record.structured?.averageRating), 0);
+    return [
+      { label: 'Forms', value: count },
+      { label: 'Responses', value: responses },
+      { label: 'Public links', value: publicForms },
+      { label: 'Avg rating', value: count ? (ratingTotal / count).toFixed(1) : '0.0' }
+    ];
+  }
+
+  if (id === 'tickets') {
+    const urgent = records.filter((record) => record.structured?.priority === 'urgent' || record.status === 'Urgent').length;
+    const dueToday = records.filter((record) => record.structured?.dueDate && record.structured.dueDate <= today).length;
+    return [
+      { label: 'Tickets', value: count },
+      { label: 'Urgent', value: urgent },
+      { label: 'Due now', value: dueToday },
+      { label: 'Converted', value: converted }
+    ];
+  }
+
+  if (id === 'files') {
+    const categories = new Set(records.map((record) => record.structured?.category).filter(Boolean)).size;
+    const tagged = records.filter((record) => record.structured?.tags || record.status === 'Tagged').length;
+    return [
+      { label: 'Files', value: count },
+      { label: 'Linked jobs', value: linked },
+      { label: 'Categories', value: categories },
+      { label: 'Tagged', value: tagged }
+    ];
+  }
+
+  if (id === 'finance') {
+    const total = records.reduce((sum, record) => sum + financeRecordAmount(record, jobs).estimate, 0);
+    const paid = records.reduce((sum, record) => sum + financeRecordAmount(record, jobs).paid, 0);
+    const overdue = records.filter((record) => record.structured?.invoiceStatus === 'Overdue' || record.structured?.paymentStatus === 'Overdue').length;
+    return [
+      { label: 'Finance records', value: count },
+      { label: 'Open AR', value: money(Math.max(0, total - paid)) },
+      { label: 'Paid', value: money(paid) },
+      { label: 'Overdue', value: overdue }
+    ];
+  }
+
+  if (id === 'knowledge') {
+    return [
+      { label: 'Articles', value: count },
+      { label: 'Published', value: records.filter((record) => record.status === 'Published').length },
+      { label: 'Needs review', value: records.filter((record) => ['Review', 'In review', 'Draft'].includes(record.status)).length },
+      { label: 'Attached SOPs', value: converted }
+    ];
+  }
+
+  if (id === 'automations') {
+    const runs = records.reduce((sum, record) => sum + String(record.structured?.automationLog || '').split('\n').filter(Boolean).length, 0);
+    return [
+      { label: 'Rules', value: count },
+      { label: 'Enabled', value: records.filter((record) => record.status === 'Enabled' || record.structured?.enabled === 'Enabled').length },
+      { label: 'Paused', value: records.filter((record) => record.status === 'Paused' || record.structured?.enabled === 'Paused').length },
+      { label: 'Runs logged', value: runs }
+    ];
+  }
+
+  if (id === 'dashboards') {
+    return [
+      { label: 'Dashboards', value: count },
+      { label: 'Pinned', value: records.filter((record) => record.status === 'Pinned').length },
+      { label: 'Saved views', value: records.filter((record) => record.structured?.savedView || record.status === 'Saved').length },
+      { label: 'Active jobs', value: jobs.filter((job) => job.stage !== 'Completed').length }
+    ];
+  }
+
+  if (id === 'templates') {
+    return [
+      { label: 'Templates', value: count },
+      { label: 'Published', value: records.filter((record) => record.status === 'Published').length },
+      { label: 'Applied', value: records.filter((record) => record.status === 'Applied' || record.convertedTo).length },
+      { label: 'Linked jobs', value: linked }
+    ];
+  }
+
+  if (id === 'admin') {
+    return [
+      { label: 'Admin records', value: count },
+      { label: 'Approved', value: records.filter((record) => record.status === 'Approved' || record.structured?.approvalStatus === 'Approved').length },
+      { label: 'Pending', value: records.filter((record) => record.status === 'Pending approval' || record.structured?.approvalStatus === 'Pending approval').length },
+      { label: 'Companies', value: companies.length }
+    ];
+  }
+
+  return [
+    { label: 'Records', value: count },
+    { label: 'Linked jobs', value: linked },
+    { label: 'Converted', value: converted },
+    { label: 'Active jobs', value: jobs.length }
+  ];
+}
+
+function financeRecordAmount(record, jobs) {
+  const relatedJob = record.jobId ? jobs.find((job) => job.id === record.jobId) : null;
+  const estimate = safeNumber(record.structured?.amount) || safeNumber(relatedJob?.estimateTotal);
+  const paid = safeNumber(record.structured?.paidAmount) || safeNumber(relatedJob?.invoiceTotal);
+  return { estimate, paid, balance: Math.max(0, estimate - paid) };
+}
+
+function ModuleOperationsPanel({ id, records, jobs, selectedRecordId, onSelectRecord, onUpdateRecord, onOpenJob }) {
+  const statuses = Array.from(new Set(records.map((record) => record.status || 'New')));
+  const linkedJobs = Array.from(new Map(records
+    .filter((record) => record.jobId)
+    .map((record) => jobs.find((job) => job.id === record.jobId))
+    .filter(Boolean)
+    .map((job) => [job.id, job])).values());
+
+  return (
+    <div className="module-ops-grid">
       <section className="panel module-workflow-panel">
         <div className="panel-header">
           <div>
-            <h2>Workflow Board</h2>
-            <p>Checklist coverage for statuses, templates, conversions, and module-specific work stages.</p>
+            <h2>Status Board</h2>
+            <p>Click any saved record to edit it. Use the action queue to move records through the module.</p>
           </div>
           <Layers3 size={18} />
         </div>
-        <div className="workflow-board">
-          {config.lanes.map((lane) => (
-            <div className="workflow-lane" key={lane.title}>
-              <div className="workflow-lane-title">{lane.title}</div>
-              {lane.items.map((item) => (
-                <div className="workflow-card" key={item}>{item}</div>
+        <div className="workflow-board live-board">
+          {statuses.map((status) => (
+            <div className="workflow-lane" key={status}>
+              <div className="workflow-lane-title">{status}</div>
+              {records.filter((record) => (record.status || 'New') === status).map((record) => (
+                <button
+                  type="button"
+                  className={`workflow-card action-card ${selectedRecordId === record.id ? 'selected' : ''}`}
+                  key={record.id}
+                  onClick={() => onSelectRecord(record.id)}
+                >
+                  <strong>{record.title}</strong>
+                  <small>{record.jobId ? getJobName(jobs, record.jobId) : record.extra || 'No linked job'}</small>
+                </button>
               ))}
             </div>
           ))}
+          {!records.length && <EmptyState title="No records on board" text="Create a record to start using this module." />}
         </div>
       </section>
 
-      <div className="module-grid module-grid-secondary">
-        <section className="panel">
-          <div className="panel-header">
-            <div>
-              <h2>Connection Rules</h2>
-              <p>This keeps the module separate from TaskManagement while still tying work back to jobs.</p>
-            </div>
-            <ShieldCheck size={18} />
-          </div>
-          <div className="check-list">
-            <span><CheckCircle2 size={16} /> Attach records to a job id or client id</span>
-            <span><CheckCircle2 size={16} /> Convert only approved records into TaskManagement tasks</span>
-            <span><CheckCircle2 size={16} /> Emit activity events to the job timeline</span>
-            <span><CheckCircle2 size={16} /> Preserve TaskManagement as the work execution layer</span>
-          </div>
-        </section>
+      <section className="panel">
+        <ModuleActionQueue id={id} records={records} jobs={jobs} onSelectRecord={onSelectRecord} onUpdateRecord={onUpdateRecord} />
+      </section>
 
-        <section className="panel">
-          <div className="panel-header">
-            <div>
-              <h2>Related Jobs</h2>
-              <p>Records in this module can attach to these active job containers.</p>
+      <section className="panel">
+        <div className="panel-header">
+          <div>
+            <h2>Linked Jobs</h2>
+            <p>Records saved in this module that are attached to active job containers.</p>
+          </div>
+          <BriefcaseBusiness size={18} />
+        </div>
+        <div className="compact-list">
+          {linkedJobs.map((job) => (
+            <button className="compact-row" key={job.id} onClick={() => onOpenJob(job.id)}>
+              <span>
+                <strong>{job.name}</strong>
+                <small>{records.filter((record) => record.jobId === job.id).length} records - {getClient(job.clientId)?.name}</small>
+              </span>
+              <ChevronRight size={16} />
+            </button>
+          ))}
+          {!linkedJobs.length && <EmptyState title="No linked jobs" text="Attach a record to a job from the editor." />}
+        </div>
+      </section>
+
+      {id === 'crm' && <CrmDirectory records={records} jobs={jobs} />}
+    </div>
+  );
+}
+
+function ModuleActionQueue({ id, records, jobs, onSelectRecord, onUpdateRecord }) {
+  const queue = records.slice(0, 6);
+
+  return (
+    <>
+      <div className="panel-header">
+        <div>
+          <h2>{moduleActionTitle(id)}</h2>
+          <p>{moduleActionDescription(id)}</p>
+        </div>
+        <Workflow size={18} />
+      </div>
+      <div className="action-queue">
+        {queue.map((record) => (
+          <div className="action-row" key={record.id}>
+            <button type="button" onClick={() => onSelectRecord(record.id)}>
+              <strong>{record.title}</strong>
+              <small>{moduleRecordSummary(id, record, jobs)}</small>
+            </button>
+            <div className="record-actions">
+              {moduleQuickActions(id, record, jobs).map((action) => (
+                <button
+                  type="button"
+                  className={action.primary ? 'primary-button' : 'secondary-button'}
+                  key={action.label}
+                  onClick={() => onUpdateRecord(record.id, action.patch(record))}
+                >
+                  {action.label}
+                </button>
+              ))}
             </div>
           </div>
-          <div className="compact-list">
-            {jobs.slice(0, 3).map((job) => (
-              <button className="compact-row" key={job.id} onClick={() => onOpenJob(job.id)}>
-                <span>
-                  <strong>{job.name}</strong>
-                  <small>{getClient(job.clientId)?.name} - {job.stage}</small>
-                </span>
-                <ChevronRight size={16} />
-              </button>
-            ))}
-          </div>
-        </section>
+        ))}
+        {!queue.length && <EmptyState title="No action queue" text="Create a record and its next actions will appear here." />}
       </div>
-    </section>
+    </>
   );
+}
+
+function moduleActionTitle(id) {
+  const titles = {
+    crm: 'Pipeline Actions',
+    forms: 'Form Operations',
+    tickets: 'Ticket Triage Queue',
+    files: 'File Processing',
+    finance: 'Finance Queue',
+    knowledge: 'Knowledge Review',
+    automations: 'Automation Console',
+    dashboards: 'Dashboard Controls',
+    templates: 'Template Application',
+    admin: 'Admin Queue'
+  };
+  return titles[id] || 'Module Actions';
+}
+
+function moduleActionDescription(id) {
+  const descriptions = {
+    crm: 'Qualify leads, schedule follow-ups, and move records through the relationship pipeline.',
+    forms: 'Publish forms, log responses, and move intake records into downstream work.',
+    tickets: 'Triage requests, escalate urgent items, and mark accepted work for conversion.',
+    files: 'Tag, attach, and archive documents or photos.',
+    finance: 'Send estimates, convert invoices, mark payments, and watch AR.',
+    knowledge: 'Publish SOPs, schedule reviews, and attach articles to work.',
+    automations: 'Run local automation tests and pause or enable rules.',
+    dashboards: 'Pin dashboards and save filtered views.',
+    templates: 'Apply reusable operating templates to job setup.',
+    admin: 'Approve users, suspend access, and apply system settings.'
+  };
+  return descriptions[id] || 'Run saved-record actions in the frontend.';
+}
+
+function moduleRecordSummary(id, record, jobs) {
+  if (id === 'finance') {
+    const amount = financeRecordAmount(record, jobs);
+    return `${record.status} - ${money(amount.balance)} open AR`;
+  }
+  if (id === 'tickets') return `${record.structured?.priority || 'medium'} - due ${record.structured?.dueDate || 'unscheduled'}`;
+  if (id === 'automations') return `${record.structured?.trigger || 'Trigger'} -> ${record.structured?.action || 'Action'}`;
+  if (id === 'dashboards') return record.structured?.widgets || record.extra || record.status;
+  if (id === 'admin') return `${record.structured?.role || 'Role'} - ${record.structured?.companyAccess || 'Company access'}`;
+  return record.extra || record.status || 'Saved locally';
+}
+
+function moduleQuickActions(id, record, jobs) {
+  const todayText = new Date().toLocaleDateString('en-US');
+  if (id === 'finance') {
+    const amount = financeRecordAmount(record, jobs);
+    return [
+      { label: 'Send', patch: () => ({ status: 'Sent', conversionNote: `Estimate sent ${todayText}.`, structured: { ...(record.structured || {}), estimateStatus: 'Sent' } }) },
+      { label: 'Invoice', primary: true, patch: () => ({ status: 'Converted', convertedTo: 'Converted estimate to invoice', conversionNote: `Invoice created ${todayText}.`, structured: { ...(record.structured || {}), estimateStatus: 'Converted', invoiceStatus: 'Sent' } }) },
+      { label: 'Paid', patch: () => ({ status: 'Paid', conversionNote: `Payment recorded ${todayText}.`, structured: { ...(record.structured || {}), paidAmount: amount.estimate, paymentStatus: 'Paid', invoiceStatus: 'Paid' } }) }
+    ];
+  }
+  if (id === 'knowledge') {
+    return [
+      { label: 'Publish', primary: true, patch: () => ({ status: 'Published', conversionNote: `Article published ${todayText}.` }) },
+      { label: 'Attach', patch: () => ({ convertedTo: `Attached SOP to ${record.structured?.attachTarget || 'Job'}`, conversionNote: `SOP attached ${todayText}.` }) }
+    ];
+  }
+  if (id === 'automations') {
+    const enabled = record.structured?.enabled || record.status;
+    const runLine = `${new Date().toLocaleString('en-US')}: ${record.structured?.trigger || 'Trigger'} / ${record.structured?.condition || 'Condition'} / ${record.structured?.action || 'Action'}`;
+    return [
+      { label: 'Run', primary: true, patch: () => ({ status: enabled === 'Paused' ? 'Paused' : 'Enabled', convertedTo: 'Automation run logged', conversionNote: runLine, structured: { ...(record.structured || {}), automationLog: [runLine, record.structured?.automationLog].filter(Boolean).join('\n') } }) },
+      { label: enabled === 'Paused' ? 'Enable' : 'Pause', patch: () => ({ status: enabled === 'Paused' ? 'Enabled' : 'Paused', structured: { ...(record.structured || {}), enabled: enabled === 'Paused' ? 'Enabled' : 'Paused' } }) }
+    ];
+  }
+  if (id === 'dashboards') {
+    return [
+      { label: 'Pin', primary: true, patch: () => ({ status: 'Pinned', convertedTo: 'Dashboard view pinned', conversionNote: `Dashboard pinned ${todayText}.` }) },
+      { label: 'Save', patch: () => ({ status: 'Saved', structured: { ...(record.structured || {}), savedView: record.structured?.savedView || record.title } }) }
+    ];
+  }
+  if (id === 'templates') {
+    return [
+      { label: 'Apply', primary: true, patch: () => ({ status: 'Applied', convertedTo: 'Template applied to job setup', conversionNote: `Template applied ${todayText}.` }) },
+      { label: 'Review', patch: () => ({ status: 'Review' }) }
+    ];
+  }
+  if (id === 'admin') {
+    return [
+      { label: 'Approve', primary: true, patch: () => ({ status: 'Approved', convertedTo: 'User approved', conversionNote: `Approved ${todayText}.`, structured: { ...(record.structured || {}), approvalStatus: 'Approved' } }) },
+      { label: 'Suspend', patch: () => ({ status: 'Suspended', structured: { ...(record.structured || {}), approvalStatus: 'Suspended' } }) }
+    ];
+  }
+  if (id === 'tickets') {
+    return [
+      { label: 'Triage', primary: true, patch: () => ({ status: 'Triaged' }) },
+      { label: 'Urgent', patch: () => ({ status: 'Urgent', structured: { ...(record.structured || {}), priority: 'urgent' } }) },
+      { label: 'Convert', patch: () => ({ status: 'Converted', convertedTo: 'Converted ticket to TaskManagement task', conversionNote: `Task handoff recorded ${todayText}.` }) }
+    ];
+  }
+  if (id === 'forms') {
+    return [
+      { label: 'Publish', primary: true, patch: () => ({ status: 'Published', structured: { ...(record.structured || {}), visibility: 'Public link', internalOnly: false } }) },
+      { label: '+Response', patch: () => ({ structured: { ...(record.structured || {}), responseCount: safeNumber(record.structured?.responseCount) + 1 } }) },
+      { label: 'Convert', patch: () => ({ status: 'Converted', convertedTo: 'Converted response to downstream record', conversionNote: `Response conversion recorded ${todayText}.` }) }
+    ];
+  }
+  if (id === 'files') {
+    return [
+      { label: 'Tag', primary: true, patch: () => ({ status: 'Tagged', structured: { ...(record.structured || {}), tags: record.structured?.tags || 'reviewed, local' } }) },
+      { label: 'Attach', patch: () => ({ status: 'Attached', convertedTo: 'Attached file to selected record', conversionNote: `File attached ${todayText}.` }) }
+    ];
+  }
+  return [
+    { label: 'Qualify', primary: true, patch: () => ({ status: 'Qualified' }) },
+    { label: 'Follow Up', patch: () => ({ conversionNote: `Follow-up logged ${todayText}.` }) }
+  ];
 }
 
 function ModuleWorkspaceDetail({ id, records, jobs, onOpenJob }) {

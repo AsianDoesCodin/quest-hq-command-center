@@ -47,6 +47,7 @@ The existing TaskManagement app remains the work execution layer.
 - [x] Dashboards
 - [x] Admin
 - [x] Each non-task module has its own local-first record system, editor, actions, and saved state instead of a shared placeholder page
+- [x] Module pages include working frontend search, status filters, status boards, action queues, and linked-job views backed by local storage
 
 ---
 
