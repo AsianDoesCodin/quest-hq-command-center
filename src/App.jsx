@@ -45,7 +45,7 @@ import {
 import { copyText, taskManagementUrl } from './lib/taskManagement';
 
 const today = '2026-06-09';
-const presentationBuild = 'Stock Visuals v5';
+const presentationBuild = 'Simple Page Layouts v6';
 
 const navigation = [
   { id: 'command', label: 'Command Center', icon: Home },
@@ -1848,26 +1848,7 @@ function ModuleView({
   const roadmap = moduleRoadmap.find((module) => module.id === id) || moduleRoadmap.find((module) => module.id === id.replace('knowledge', 'kb'));
   const config = moduleConfigs[id];
   const [selectedRecordId, setSelectedRecordId] = useState(moduleRecords[0]?.id || null);
-  const [recordQuery, setRecordQuery] = useState('');
-  const [recordStatus, setRecordStatus] = useState('All');
-  const filteredModuleRecords = useMemo(() => {
-    const text = recordQuery.trim().toLowerCase();
-    return moduleRecords.filter((record) => {
-      const matchesText = !text || [
-        record.title,
-        record.status,
-        record.extra,
-        record.notes,
-        record.jobId ? getJobName(jobs, record.jobId) : ''
-      ].filter(Boolean).some((field) => String(field).toLowerCase().includes(text));
-      const matchesStatus = recordStatus === 'All' || record.status === recordStatus;
-      return matchesText && matchesStatus;
-    });
-  }, [jobs, moduleRecords, recordQuery, recordStatus]);
-  const recordStatuses = ['All', ...Array.from(new Set(moduleRecords.map((record) => record.status).filter(Boolean)))];
-  const selectedRecord = filteredModuleRecords.find((record) => record.id === selectedRecordId)
-    || moduleRecords.find((record) => record.id === selectedRecordId)
-    || filteredModuleRecords[0]
+  const selectedRecord = moduleRecords.find((record) => record.id === selectedRecordId)
     || moduleRecords[0]
     || null;
 
@@ -1937,7 +1918,7 @@ function ModuleView({
   const Icon = config.icon;
 
   return (
-    <section className="workspace">
+    <section className={`workspace module-page module-page-${id}`}>
       <div className="page-heading">
         <div>
           <div className="eyebrow">{config.eyebrow}</div>
@@ -1950,109 +1931,377 @@ function ModuleView({
         </button>
       </div>
 
-      <div className="functional-banner">
-        <div>
-          <strong>{config.eyebrow} local workspace</strong>
-          <span>{moduleRecords.length} saved records - {moduleRecords.filter((record) => record.jobId).length} linked jobs - changes save in this browser</span>
-        </div>
-        <span>{presentationBuild}</span>
-      </div>
-
       <div className="module-stat-grid">
         {getModuleStats(id, moduleRecords, jobs).map((stat) => (
           <ModuleStat key={stat.label} label={stat.label} value={stat.value} icon={Icon} />
         ))}
       </div>
 
-      <ModuleLiveWorkspace
+      <ModulePresentationLayout
         id={id}
+        config={config}
         records={moduleRecords}
         jobs={jobs}
         selectedRecordId={selectedRecord?.id}
+        selectedRecord={selectedRecord}
         onSelectRecord={setSelectedRecordId}
-        onUpdateRecord={(recordId, patch) => onUpdateRecord(id, recordId, patch)}
         onCreateRecord={() => onCreateRecord(id)}
-      />
-
-      <div className="module-grid">
-        <section className="panel wide-panel">
-          <div className="panel-header">
-            <div>
-              <h2>Records</h2>
-              <p>{filteredModuleRecords.length} of {moduleRecords.length} records visible.</p>
-            </div>
-            <Icon size={18} />
-          </div>
-
-          <div className="record-toolbar">
-            <label>
-              Search
-              <input value={recordQuery} onChange={(event) => setRecordQuery(event.target.value)} placeholder={`Search ${config.eyebrow.toLowerCase()} records`} />
-            </label>
-            <label>
-              Status
-              <select value={recordStatus} onChange={(event) => setRecordStatus(event.target.value)}>
-                {recordStatuses.map((status) => <option key={status}>{status}</option>)}
-              </select>
-            </label>
-          </div>
-
-          <div className="record-table">
-            <div className="record-row record-row-head">
-              <span>Name</span>
-              <span>Status</span>
-              <span>Related Job</span>
-              <span>Updated</span>
-            </div>
-            {filteredModuleRecords.map((record) => (
-              <button
-                className={`record-row ${selectedRecord?.id === record.id ? 'selected' : ''}`}
-                key={record.id}
-                onClick={() => setSelectedRecordId(record.id)}
-              >
-                <span>
-                  <strong>{record.title}</strong>
-                  <small>{record.notes || 'No notes yet'}</small>
-                </span>
-                <span>{record.status}</span>
-                <span>{record.jobId ? getJobName(jobs, record.jobId) : 'No job linked'}</span>
-                <span>{record.updatedAt ? new Date(record.updatedAt).toLocaleDateString('en-US') : new Date(record.createdAt || Date.now()).toLocaleDateString('en-US')}</span>
-              </button>
-            ))}
-            {moduleRecords.length === 0 && <EmptyState title="No records yet" text={`Use ${config.primaryAction} to create the first record in this module.`} />}
-            {moduleRecords.length > 0 && filteredModuleRecords.length === 0 && <EmptyState title="No matching records" text="Clear search or status filters to see saved records." />}
-          </div>
-        </section>
-
-        <section className="panel">
-          <ModuleRecordDetail
-            moduleId={id}
-            config={config}
-            record={selectedRecord}
-            jobs={jobs}
-            onUpdate={(recordId, patch) => onUpdateRecord(id, recordId, patch)}
-            onDelete={(recordId) => onDeleteRecord(id, recordId)}
-            onDuplicate={(recordId) => onDuplicateRecord(id, recordId)}
-            onConvert={(recordId) => onConvertRecord(id, recordId)}
-            onConvertCrmLeadToClient={onConvertCrmLeadToClient}
-            onConvertCrmLeadToJob={onConvertCrmLeadToJob}
-            onConvertTicketToJob={onConvertTicketToJob}
-            onOpenJob={onOpenJob}
-          />
-        </section>
-      </div>
-
-      <ModuleOperationsPanel
-        id={id}
-        records={moduleRecords}
-        jobs={jobs}
-        selectedRecordId={selectedRecord?.id}
-        onSelectRecord={setSelectedRecordId}
         onUpdateRecord={(recordId, patch) => onUpdateRecord(id, recordId, patch)}
+        onDeleteRecord={(recordId) => onDeleteRecord(id, recordId)}
+        onDuplicateRecord={(recordId) => onDuplicateRecord(id, recordId)}
+        onConvertRecord={(recordId) => onConvertRecord(id, recordId)}
+        onConvertCrmLeadToClient={onConvertCrmLeadToClient}
+        onConvertCrmLeadToJob={onConvertCrmLeadToJob}
+        onConvertTicketToJob={onConvertTicketToJob}
         onOpenJob={onOpenJob}
       />
     </section>
   );
+}
+
+function ModulePresentationLayout({
+  id,
+  config,
+  records,
+  jobs,
+  selectedRecordId,
+  selectedRecord,
+  onSelectRecord,
+  onCreateRecord,
+  onUpdateRecord,
+  onDeleteRecord,
+  onDuplicateRecord,
+  onConvertRecord,
+  onConvertCrmLeadToClient,
+  onConvertCrmLeadToJob,
+  onConvertTicketToJob,
+  onOpenJob
+}) {
+  const workspace = (
+    <ModuleLiveWorkspace
+      id={id}
+      records={records}
+      jobs={jobs}
+      selectedRecordId={selectedRecordId}
+      onSelectRecord={onSelectRecord}
+      onUpdateRecord={onUpdateRecord}
+      onCreateRecord={onCreateRecord}
+    />
+  );
+  const inspector = (
+    <SimpleModuleInspector
+      moduleId={id}
+      config={config}
+      record={selectedRecord}
+      records={records}
+      jobs={jobs}
+      onUpdate={onUpdateRecord}
+      onDelete={onDeleteRecord}
+      onDuplicate={onDuplicateRecord}
+      onConvert={onConvertRecord}
+      onConvertCrmLeadToClient={onConvertCrmLeadToClient}
+      onConvertCrmLeadToJob={onConvertCrmLeadToJob}
+      onConvertTicketToJob={onConvertTicketToJob}
+      onOpenJob={onOpenJob}
+    />
+  );
+
+  if (id === 'crm') {
+    return (
+      <div className="module-page-layout crm-page-layout">
+        {workspace}
+        {inspector}
+        <CrmDirectory records={records} jobs={jobs} />
+      </div>
+    );
+  }
+
+  if (id === 'files') {
+    return (
+      <div className="module-page-layout files-page-layout">
+        {workspace}
+        {inspector}
+      </div>
+    );
+  }
+
+  if (id === 'forms') {
+    return (
+      <div className="module-page-layout forms-page-layout">
+        {workspace}
+        {inspector}
+      </div>
+    );
+  }
+
+  if (id === 'tickets') {
+    return (
+      <div className="module-page-layout tickets-page-layout">
+        {workspace}
+        {inspector}
+      </div>
+    );
+  }
+
+  if (id === 'finance') {
+    return (
+      <div className="module-page-layout finance-page-layout">
+        {inspector}
+        {workspace}
+      </div>
+    );
+  }
+
+  if (id === 'knowledge') {
+    return (
+      <div className="module-page-layout knowledge-page-layout">
+        {workspace}
+        {inspector}
+      </div>
+    );
+  }
+
+  if (id === 'automations') {
+    return (
+      <div className="module-page-layout automations-page-layout">
+        {workspace}
+        {inspector}
+      </div>
+    );
+  }
+
+  if (id === 'dashboards') {
+    return (
+      <div className="module-page-layout dashboards-page-layout">
+        {workspace}
+        {inspector}
+      </div>
+    );
+  }
+
+  if (id === 'templates') {
+    return (
+      <div className="module-page-layout templates-page-layout">
+        {workspace}
+        {inspector}
+      </div>
+    );
+  }
+
+  return (
+    <div className="module-page-layout admin-page-layout">
+      {workspace}
+      {inspector}
+    </div>
+  );
+}
+
+const simpleStatusOptions = [
+  'New',
+  'Draft',
+  'Saved',
+  'Tagged',
+  'Published',
+  'Review',
+  'Qualified',
+  'Triaged',
+  'Urgent',
+  'In review',
+  'Approved',
+  'Sent',
+  'Partial',
+  'Paid',
+  'Overdue',
+  'Open',
+  'Closed',
+  'Pinned',
+  'Applied',
+  'Enabled',
+  'Paused'
+];
+
+function SimpleModuleInspector({
+  moduleId,
+  config,
+  record,
+  records,
+  jobs,
+  onUpdate,
+  onDelete,
+  onDuplicate,
+  onConvert,
+  onConvertCrmLeadToClient,
+  onConvertCrmLeadToJob,
+  onConvertTicketToJob,
+  onOpenJob
+}) {
+  if (!record) {
+    return (
+      <section className="panel module-inspector">
+        <EmptyState title="No record selected" text={`Create or select a ${config.eyebrow.toLowerCase()} record to edit it locally.`} />
+      </section>
+    );
+  }
+
+  const relatedJob = record.jobId ? jobs.find((job) => job.id === record.jobId) : null;
+  const structured = record.structured || {};
+  const updateStructured = (key, value) => onUpdate(record.id, { structured: { ...structured, [key]: value } });
+  const inspectorFields = getInspectorFields(moduleId, record);
+
+  return (
+    <section className="panel module-inspector">
+      <div className="panel-header">
+        <div>
+          <h2>{record.title}</h2>
+          <p>{config.sideTitle}</p>
+        </div>
+        <span className="build-chip">{presentationBuild}</span>
+      </div>
+
+      <div className="inspector-summary-grid">
+        <InfoBlock label="Saved records" value={records.length} />
+        <InfoBlock label="Linked job" value={relatedJob?.name || 'None'} />
+      </div>
+
+      <div className="inspector-fields">
+        <label>
+          Title
+          <input value={record.title} onChange={(event) => onUpdate(record.id, { title: event.target.value })} />
+        </label>
+        <label>
+          Status
+          <select value={record.status} onChange={(event) => onUpdate(record.id, { status: event.target.value })}>
+            {Array.from(new Set([record.status, ...simpleStatusOptions].filter(Boolean))).map((status) => <option key={status}>{status}</option>)}
+          </select>
+        </label>
+        <label>
+          Related job
+          <select value={record.jobId || ''} onChange={(event) => onUpdate(record.id, { jobId: event.target.value || null })}>
+            <option value="">No job linked</option>
+            {jobs.map((job) => <option value={job.id} key={job.id}>{job.name}</option>)}
+          </select>
+        </label>
+        <label>
+          Detail
+          <input value={record.extra || ''} onChange={(event) => onUpdate(record.id, { extra: event.target.value })} />
+        </label>
+        {inspectorFields.map((field) => (
+          <label key={field.key} className={field.type === 'textarea' ? 'span-2' : ''}>
+            {field.label}
+            {field.type === 'select' ? (
+              <select value={structured[field.key] ?? ''} onChange={(event) => updateStructured(field.key, event.target.value)}>
+                {Array.from(new Set([structured[field.key], ...field.options].filter(Boolean))).map((option) => <option key={option}>{option}</option>)}
+              </select>
+            ) : field.type === 'textarea' ? (
+              <textarea value={structured[field.key] ?? ''} rows={4} onChange={(event) => updateStructured(field.key, event.target.value)} />
+            ) : (
+              <input type={field.type || 'text'} value={structured[field.key] ?? ''} onChange={(event) => updateStructured(field.key, event.target.value)} />
+            )}
+          </label>
+        ))}
+        <label className="span-2">
+          Notes
+          <textarea value={record.notes || ''} rows={4} onChange={(event) => onUpdate(record.id, { notes: event.target.value })} />
+        </label>
+      </div>
+
+      <div className="record-actions">
+        {relatedJob && (
+          <button className="secondary-button" type="button" onClick={() => onOpenJob(relatedJob.id)}>
+            <ArrowUpRight size={16} />
+            Open Job
+          </button>
+        )}
+        {moduleId === 'crm' && record.structured?.recordType === 'Lead' && (
+          <>
+            <button className="secondary-button" type="button" onClick={() => onConvertCrmLeadToClient(record.id)}>Lead to Client</button>
+            <button className="secondary-button" type="button" onClick={() => onConvertCrmLeadToJob(record.id)}>Lead to Job</button>
+          </>
+        )}
+        {moduleId === 'tickets' && (
+          <button className="secondary-button" type="button" onClick={() => onConvertTicketToJob(record.id)}>Ticket to Job</button>
+        )}
+        <button className="secondary-button" type="button" onClick={() => onConvert(record.id)}>Mark Action</button>
+        <button className="secondary-button" type="button" onClick={() => onDuplicate(record.id)}>Duplicate</button>
+        <button className="danger-button" type="button" onClick={() => onDelete(record.id)}>Delete</button>
+      </div>
+    </section>
+  );
+}
+
+function getInspectorFields(moduleId, record) {
+  const structured = record?.structured || {};
+  if (moduleId === 'crm') {
+    return [
+      { key: 'recordType', label: 'Record type', type: 'select', options: ['Lead', 'Client', 'Contact', 'Opportunity'] },
+      { key: 'leadSource', label: 'Lead source' },
+      { key: 'followUpDate', label: 'Follow-up date', type: 'date' },
+      { key: 'dealValue', label: 'Deal value', type: 'number' }
+    ];
+  }
+  if (moduleId === 'forms') {
+    return [
+      { key: 'formType', label: 'Form type', type: 'select', options: ['Inspection', 'Approval', 'Survey', 'Intake', 'Checklist'] },
+      { key: 'assignedTo', label: 'Assigned to' },
+      { key: 'questionTypes', label: 'Question types', type: 'textarea' }
+    ];
+  }
+  if (moduleId === 'tickets') {
+    return [
+      { key: 'ticketType', label: 'Ticket type', type: 'select', options: ticketTypes },
+      { key: 'priority', label: 'Priority', type: 'select', options: ['Low', 'Medium', 'High', 'Urgent'] },
+      { key: 'slaDue', label: 'SLA due', type: 'date' }
+    ];
+  }
+  if (moduleId === 'files') {
+    return [
+      { key: 'fileCategory', label: 'Category', type: 'select', options: Object.keys(fileStockImages) },
+      { key: 'tags', label: 'Tags' },
+      { key: 'fileDescription', label: 'File description', type: 'textarea' }
+    ];
+  }
+  if (moduleId === 'finance') {
+    return [
+      { key: 'invoiceStatus', label: 'Invoice status', type: 'select', options: ['Draft', 'Sent', 'Partial', 'Paid', 'Overdue'] },
+      { key: 'amount', label: 'Amount', type: 'number' },
+      { key: 'paidAmount', label: 'Paid', type: 'number' },
+      { key: 'dueDate', label: 'Due date', type: 'date' }
+    ];
+  }
+  if (moduleId === 'knowledge') {
+    return [
+      { key: 'category', label: 'Category', type: 'select', options: ['Company SOPs', 'Roofing procedures', 'Drafting guidelines', 'Admin guides', 'Lumen Marketing processes', 'Training', 'FAQs'] },
+      { key: 'searchTerms', label: 'Search terms' },
+      { key: 'articleBody', label: 'Article body', type: 'textarea' }
+    ];
+  }
+  if (moduleId === 'automations') {
+    return [
+      { key: 'trigger', label: 'Trigger', type: 'select', options: localModulePanels.automations.fields[0][3] },
+      { key: 'condition', label: 'Condition', type: 'select', options: localModulePanels.automations.fields[1][3] },
+      { key: 'action', label: 'Action', type: 'select', options: localModulePanels.automations.fields[2][3] },
+      { key: 'enabled', label: 'State', type: 'select', options: ['Enabled', 'Paused'] }
+    ];
+  }
+  if (moduleId === 'dashboards') {
+    return [
+      { key: 'dashboardType', label: 'Dashboard type', type: 'select', options: localModulePanels.dashboards.fields[0][3] },
+      { key: 'dateRange', label: 'Date range' },
+      { key: 'widgets', label: 'Widgets', type: 'textarea' }
+    ];
+  }
+  if (moduleId === 'templates') {
+    return [
+      { key: 'templateType', label: 'Template type', type: 'select', options: localModulePanels.templates.fields[0][3] },
+      { key: 'exampleJob', label: 'Example job', type: 'select', options: localModulePanels.templates.fields[2][3] },
+      { key: 'templateOutput', label: 'Creates', type: 'textarea' }
+    ];
+  }
+  return [
+    { key: 'role', label: 'Role', type: 'select', options: ['Owner', 'Admin', 'Supervisor', 'Worker', 'Viewer'] },
+    { key: 'companyAccess', label: 'Company access', type: 'select', options: ['Roofing', 'Drafting', 'Lumen', 'All companies'] },
+    { key: 'permissions', label: 'Permissions', type: 'textarea' }
+  ].filter((field) => field.key !== 'role' || structured.role !== undefined || moduleId === 'admin');
 }
 
 function ModuleLiveWorkspace({ id, records, jobs, selectedRecordId, onSelectRecord, onUpdateRecord, onCreateRecord }) {

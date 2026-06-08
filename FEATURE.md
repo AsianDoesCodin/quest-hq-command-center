@@ -20,6 +20,10 @@ First presentation deployment:
 
 https://asiandoescodin.github.io/quest-hq-command-center/
 
+Planned production deployment target:
+
+GitHub repository connected to Vercel after the first presentation pass.
+
 ---
 
 # Product Goal
@@ -50,6 +54,8 @@ The existing TaskManagement app remains the work execution layer.
 - [x] Module pages include working frontend search, status filters, status boards, action queues, and linked-job views backed by local storage
 - [x] Module pages have distinct visual workspaces: CRM pipeline, form studio, ticket desk, file thumbnail library, finance ledger, knowledge browser, automation canvas, dashboard studio, template catalog, and admin access console
 - [x] Presentation build uses stock-style workspace imagery and category-aware file thumbnails, with uploaded image previews saved locally
+- [x] Presentation build keeps data local-first in browser storage; backend/database work is intentionally deferred until after the first demo
+- [x] Each module uses a simpler page-specific layout instead of the same shared placeholder/table layout
 
 ---
 
