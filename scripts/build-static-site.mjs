@@ -1,23 +1,23 @@
 import { mkdir, rm, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 
-const buildId = 'Static HTML Systems v8';
+const buildId = 'Static HTML v9';
 const targets = ['.', 'dist', 'docs'];
 
 const nav = [
-  ['index.html', 'Command Center', 'CC'],
-  ['jobs.html', 'Jobs', 'JB'],
-  ['task-management.html', 'TaskManagement', 'TM'],
-  ['crm.html', 'CRM', 'CR'],
-  ['forms.html', 'Forms & Surveys', 'FS'],
-  ['tickets.html', 'Tickets', 'TK'],
-  ['files.html', 'Files', 'FL'],
-  ['finance.html', 'Finance', 'FN'],
-  ['knowledge.html', 'Knowledge Base', 'KB'],
-  ['automations.html', 'Automations', 'AU'],
-  ['dashboards.html', 'Dashboards', 'DB'],
-  ['templates.html', 'Templates', 'TP'],
-  ['admin.html', 'Admin', 'AD']
+  ['index.html', 'Command Center', 'home'],
+  ['jobs.html', 'Jobs', 'briefcase'],
+  ['task-management.html', 'TaskManagement', 'kanban'],
+  ['crm.html', 'CRM', 'users'],
+  ['forms.html', 'Forms & Surveys', 'clipboard'],
+  ['tickets.html', 'Tickets', 'ticket'],
+  ['files.html', 'Files', 'folder'],
+  ['finance.html', 'Finance', 'receipt'],
+  ['knowledge.html', 'Knowledge Base', 'library'],
+  ['automations.html', 'Automations', 'workflow'],
+  ['dashboards.html', 'Dashboards', 'bar-chart'],
+  ['templates.html', 'Templates', 'layers'],
+  ['admin.html', 'Admin', 'settings']
 ];
 
 const jobs = [
@@ -221,7 +221,7 @@ function shell({ file, title, content, seed = [], moduleId = '' }) {
         </a>
         <div class="build-badge">${buildId}</div>
         <nav class="nav-list" aria-label="Main navigation">
-          ${nav.map(([href, label, icon]) => `<a class="nav-item ${href === file ? 'active' : ''}" href="${href}"><span>${icon}</span>${label}</a>`).join('')}
+          ${nav.map(([href, label, icon]) => `<a class="nav-item ${href === file ? 'active' : ''}" href="${href}"><span class="nav-icon">${iconSvg(icon)}</span><span class="nav-label">${label}</span></a>`).join('')}
         </nav>
         <div class="sidebar-card">
           <strong>Work Execution</strong>
@@ -236,6 +236,25 @@ function shell({ file, title, content, seed = [], moduleId = '' }) {
     <script src="assets/quest-hq.js" defer></script>
   </body>
 </html>`;
+}
+
+function iconSvg(name) {
+  const paths = {
+    home: '<path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V21h5v-6h4v6h5V9.5"/>',
+    briefcase: '<path d="M10 6V5a2 2 0 0 1 2-2h0a2 2 0 0 1 2 2v1"/><path d="M3 8h18v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2Z"/><path d="M3 13h18"/><path d="M9 13v2h6v-2"/>',
+    kanban: '<rect x="4" y="4" width="16" height="16" rx="2"/><path d="M9 8v8"/><path d="M15 8v4"/>',
+    users: '<path d="M16 21v-2a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v2"/><circle cx="9.5" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>',
+    clipboard: '<rect x="8" y="3" width="8" height="4" rx="1"/><path d="M9 5H6a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-3"/><path d="M8 12h8"/><path d="M8 16h5"/>',
+    ticket: '<path d="M2 9a3 3 0 0 0 0 6v3h20v-3a3 3 0 0 0 0-6V6H2Z"/><path d="M13 6v12"/><path d="M7 12h2"/>',
+    folder: '<path d="M3 7a2 2 0 0 1 2-2h5l2 2h7a2 2 0 0 1 2 2v2H3Z"/><path d="M3 11h18l-2 8H5Z"/>',
+    receipt: '<path d="M4 3v18l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V3Z"/><path d="M8 8h8"/><path d="M8 12h8"/><path d="M8 16h5"/>',
+    library: '<path d="M4 19V5"/><path d="M8 19V5"/><path d="M12 19V5"/><path d="m17 18-4-13"/><path d="m20 17-4-13"/>',
+    workflow: '<circle cx="6" cy="6" r="2"/><circle cx="18" cy="18" r="2"/><path d="M8 6h6a4 4 0 0 1 4 4v6"/><path d="M6 8v4a4 4 0 0 0 4 4h6"/>',
+    'bar-chart': '<path d="M4 20V10"/><path d="M10 20V4"/><path d="M16 20v-7"/><path d="M22 20H2"/>',
+    layers: '<path d="m12 3 9 5-9 5-9-5Z"/><path d="m3 12 9 5 9-5"/><path d="m3 16 9 5 9-5"/>',
+    settings: '<path d="M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7Z"/><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.88l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06A1.7 1.7 0 0 0 15 19.4a1.7 1.7 0 0 0-1 .6 1.7 1.7 0 0 0-.4 1.1V21a2 2 0 1 1-4 0v-.09A1.7 1.7 0 0 0 8.6 19.4a1.7 1.7 0 0 0-1.88.34l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.7 1.7 0 0 0 4.6 15a1.7 1.7 0 0 0-.6-1 1.7 1.7 0 0 0-1.1-.4H3a2 2 0 1 1 0-4h.09A1.7 1.7 0 0 0 4.6 8.6a1.7 1.7 0 0 0-.34-1.88l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.7 1.7 0 0 0 9 4.6a1.7 1.7 0 0 0 1-.6 1.7 1.7 0 0 0 .4-1.1V3a2 2 0 1 1 4 0v.09A1.7 1.7 0 0 0 15.4 4.6a1.7 1.7 0 0 0 1.88-.34l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.7 1.7 0 0 0 19.4 9c.1.35.3.7.6 1 .3.25.7.4 1.1.4H21a2 2 0 1 1 0 4h-.09a1.7 1.7 0 0 0-1.51.6Z"/>'
+  };
+  return `<svg viewBox="0 0 24 24" aria-hidden="true">${paths[name] || paths.home}</svg>`;
 }
 
 function commandPage() {
@@ -399,6 +418,8 @@ function fileImage(category) {
 
 const css = `:root{--ink:#121826;--muted:#617089;--line:#d9e0ea;--soft:#f5f7fb;--surface:#fff;--orange:#f45d22;--red:#dc2626;--shadow:0 18px 50px rgba(24,35,55,.08)}*{box-sizing:border-box}body{margin:0;background:#eef2f7;color:var(--ink);font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}a{color:inherit;text-decoration:none}button,input,textarea{font:inherit}.app-shell{display:block;min-height:100vh}.sidebar{position:fixed;inset:0 auto 0 0;width:300px;height:100dvh;overflow-y:auto;background:#111a27;color:#eaf1fb;padding:18px;display:flex;flex-direction:column;gap:14px;z-index:20}.brand{display:flex;gap:12px;align-items:center;flex:0 0 auto}.brand-mark{display:grid;place-items:center;width:38px;height:38px;border-radius:8px;background:var(--orange);font-weight:900}.brand strong,.brand small{display:block}.brand small,.sidebar-card p{color:#aebbd0}.build-badge{flex:0 0 auto;border:1px solid #324055;border-radius:999px;padding:8px 10px;color:#ffd8c7;font-size:12px;font-weight:800}.nav-list{display:grid;gap:6px;flex:0 0 auto}.nav-item{display:flex;align-items:center;gap:10px;border-radius:8px;padding:11px 12px;color:#cfe0f5}.nav-item span{display:grid;place-items:center;flex:0 0 auto;width:24px;height:24px;border:1px solid #425169;border-radius:6px;font-size:12px}.nav-item.active,.nav-item:hover{background:#2a1816;color:#fff;box-shadow:inset 3px 0 var(--orange)}.sidebar-card{margin-top:auto;border:1px solid #29384c;border-radius:8px;padding:14px;background:#121d2c;color:#eaf1fb}.main{min-width:0;min-height:100vh;margin-left:300px;padding:28px}.workspace{max-width:1440px;margin:0 auto}.page-heading{display:flex;justify-content:space-between;gap:18px;align-items:flex-start;margin-bottom:18px}.eyebrow{color:var(--orange);font-size:12px;font-weight:900;text-transform:uppercase}h1{font-size:34px;margin:4px 0 8px}h2,h3,p{margin-top:0}.muted,.page-heading p{color:var(--muted);line-height:1.5}.primary-button,.secondary-button,.danger-button{display:inline-flex;align-items:center;justify-content:center;border-radius:8px;min-height:42px;padding:0 14px;font-weight:850;cursor:pointer}.primary-button{border:0;background:var(--orange);color:#fff}.secondary-button{border:1px solid var(--line);background:#fff;color:#27364d}.danger-button{border:1px solid #fecaca;background:#fff;color:var(--red)}.metric-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-bottom:18px}.metric,.panel,.mini-card,.file-tile,.chart-card{background:#fff;border:1px solid var(--line);border-radius:8px;box-shadow:var(--shadow);padding:16px}.metric span{display:block;color:var(--muted);font-size:12px;font-weight:850;text-transform:uppercase}.metric strong{display:block;margin-top:8px;font-size:28px}.command-grid,.builder-grid,.ticket-grid,.module-support-layout{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(280px,.7fr);gap:18px}.wide-panel{min-width:0}.timeline{display:grid;gap:10px}.timeline a,.table div,.record-list button{display:grid;grid-template-columns:minmax(0,1fr) repeat(4,auto);gap:12px;align-items:center;border:1px solid var(--line);border-radius:8px;background:#fbfcfe;padding:12px;text-align:left}.hero-card{position:relative;min-height:220px;border-radius:8px;overflow:hidden;margin-bottom:18px;padding:26px;color:#fff;background-size:cover;background-position:center;display:flex;flex-direction:column;justify-content:flex-end;box-shadow:var(--shadow)}.hero-card:before{content:"";position:absolute;inset:0;background:linear-gradient(90deg,rgba(15,23,42,.86),rgba(15,23,42,.26))}.hero-card>*{position:relative}.hero-card strong{font-size:30px}.hero-card span{max-width:760px;color:#e5edf8;font-size:18px;line-height:1.45}.tabs{display:flex;gap:8px;flex-wrap:nowrap;overflow-x:auto;border-bottom:1px solid var(--line);margin-bottom:18px}.tabs button{white-space:nowrap;border:1px solid transparent;border-bottom:0;border-radius:8px 8px 0 0;background:transparent;min-height:42px;padding:0 16px;font-weight:900;color:var(--muted);cursor:pointer}.tabs button.active,.tabs button:hover{background:#fff;border-color:var(--line);color:var(--ink);box-shadow:0 -2px 0 var(--orange) inset}.tab-panel{display:none}.tab-panel.active{display:block}.pipeline,.card-grid,.file-grid,.dashboard-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px}.pipeline section{background:#fbfcfe;border:1px solid var(--line);border-radius:8px;padding:14px;min-height:150px}.pipeline button,.chip{display:block;width:100%;border:1px solid var(--line);border-radius:8px;background:#fff;padding:12px;text-align:left;font-weight:800}.pipeline span,.mini-card span,.file-tile span{display:block;color:var(--muted);font-size:13px;margin-top:6px}.urgent{background:#fff7ed}.ticket-card{border:1px solid #fb923c;border-radius:8px;background:#fff;padding:14px}.ticket-card strong,.ticket-card span,.ticket-card b{display:block}.ticket-card b{margin-top:8px;color:var(--red)}.file-tile{padding:0;overflow:hidden}.file-tile img{width:100%;height:150px;object-fit:cover;display:block}.file-tile strong,.file-tile span{display:block;padding:0 14px}.file-tile strong{padding-top:12px}.file-tile span{padding-bottom:14px}.chart-card div{height:90px;margin-top:14px;border-radius:8px;background:linear-gradient(180deg,#fed7aa,#f45d22)}.bridge-card{display:flex;align-items:center;justify-content:center;gap:18px;background:#111a27;color:#fff;border-radius:8px;padding:34px;margin-bottom:18px}.bridge-card code{background:#fff;color:#111a27;border-radius:8px;padding:12px 16px}.record-layout{display:grid;grid-template-columns:minmax(260px,.45fr) minmax(0,1fr);gap:16px}.record-toolbar{display:flex;justify-content:space-between;align-items:center;gap:14px;margin-bottom:14px}.record-list{display:grid;gap:8px}.record-list button{grid-template-columns:1fr auto;cursor:pointer}.record-list button.active{border-color:var(--orange);background:#fff8f5}.record-list strong,.record-list span{display:block}.record-list span{color:var(--muted);font-size:13px}.record-editor{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.record-editor label{display:grid;gap:6px;font-size:12px;font-weight:850;text-transform:uppercase;color:var(--muted)}.record-editor input,.record-editor textarea{width:100%;border:1px solid var(--line);border-radius:8px;padding:11px;background:#fff;color:var(--ink)}.span-2,.form-actions{grid-column:1/-1}.form-actions{display:flex;gap:10px;flex-wrap:wrap}@media(max-width:1180px){.metric-grid,.pipeline,.card-grid,.file-grid,.dashboard-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.command-grid,.builder-grid,.ticket-grid,.record-layout{grid-template-columns:1fr}}@media(max-width:820px){.sidebar{position:static;width:auto;height:auto;max-height:none}.main{margin-left:0;padding:16px}.sidebar-card{margin-top:0}.page-heading{display:grid}.metric-grid,.pipeline,.card-grid,.file-grid,.dashboard-grid,.command-grid,.builder-grid,.ticket-grid,.record-layout,.record-editor{grid-template-columns:1fr}.table div,.timeline a{grid-template-columns:1fr}.hero-card strong{font-size:24px}}`;
 
+const sidebarPolishCss = `.sidebar{width:348px;padding:27px 20px 20px}.main{margin-left:348px}.brand{gap:14px;margin-bottom:8px}.brand-mark{width:50px;height:50px;border-radius:9px;font-size:25px}.brand strong{font-size:26px;line-height:1.05;color:#fff}.brand small{font-size:16px;margin-top:4px;color:#adc7e6}.build-badge{align-self:flex-start;border-color:#f45d22;background:#3a211f;color:#fff3ec;padding:9px 14px;font-size:14px}.nav-list{gap:10px;margin-top:8px}.nav-item{min-height:52px;gap:14px;border-radius:8px;padding:0 14px 0 15px;font-size:21px;line-height:1;color:#cfe6ff}.nav-item .nav-icon{display:grid;place-items:center;flex:0 0 22px;width:22px;height:22px;border:0;border-radius:0;color:#b8c7dc}.nav-item .nav-icon svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}.nav-item .nav-label{display:block;width:auto;height:auto;border:0;border-radius:0;color:inherit;font-size:inherit}.nav-item.active{background:#3a211f;color:#fff;box-shadow:inset 4px 0 var(--orange)}.nav-item.active .nav-icon{color:#fff}.sidebar-card{font-size:15px;line-height:1.35}@media(max-width:820px){.sidebar{position:static;width:auto;height:auto;max-height:none;padding:18px}.main{margin-left:0;padding:16px}.brand strong{font-size:23px}.nav-item{font-size:18px}}`;
+
 const js = `(() => {
   const storageKey = (moduleId) => 'quest-hq-static-' + moduleId;
   const seed = JSON.parse(document.getElementById('record-seed')?.textContent || '[]');
@@ -473,7 +494,7 @@ async function writeTarget(target) {
   const absolute = path.resolve(target);
   if (target !== '.') await rm(absolute, { recursive: true, force: true });
   await mkdir(path.join(absolute, 'assets'), { recursive: true });
-  await writeFile(path.join(absolute, 'assets', 'quest-hq.css'), css);
+  await writeFile(path.join(absolute, 'assets', 'quest-hq.css'), css + sidebarPolishCss);
   await writeFile(path.join(absolute, 'assets', 'quest-hq.js'), js);
   await writeFile(path.join(absolute, 'index.html'), commandPage());
   await writeFile(path.join(absolute, 'jobs.html'), jobsPage());
