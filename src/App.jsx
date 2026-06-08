@@ -45,7 +45,7 @@ import {
 import { copyText, taskManagementUrl } from './lib/taskManagement';
 
 const today = '2026-06-09';
-const presentationBuild = 'Frontend Systems v3';
+const presentationBuild = 'Module Workspaces v4';
 
 const navigation = [
   { id: 'command', label: 'Command Center', icon: Home },
@@ -1926,8 +1926,8 @@ function ModuleView({
 
       <div className="functional-banner">
         <div>
-          <strong>Functional frontend system active</strong>
-          <span>Search, filter, edit, status board, action queue, linked jobs, and localStorage saving are running in this module.</span>
+          <strong>{config.eyebrow} local workspace</strong>
+          <span>{moduleRecords.length} saved records - {moduleRecords.filter((record) => record.jobId).length} linked jobs - changes save in this browser</span>
         </div>
         <span>{presentationBuild}</span>
       </div>
@@ -1937,6 +1937,16 @@ function ModuleView({
           <ModuleStat key={stat.label} label={stat.label} value={stat.value} icon={Icon} />
         ))}
       </div>
+
+      <ModuleLiveWorkspace
+        id={id}
+        records={moduleRecords}
+        jobs={jobs}
+        selectedRecordId={selectedRecord?.id}
+        onSelectRecord={setSelectedRecordId}
+        onUpdateRecord={(recordId, patch) => onUpdateRecord(id, recordId, patch)}
+        onCreateRecord={() => onCreateRecord(id)}
+      />
 
       <div className="module-grid">
         <section className="panel wide-panel">
@@ -2017,6 +2027,385 @@ function ModuleView({
       />
     </section>
   );
+}
+
+function ModuleLiveWorkspace({ id, records, jobs, selectedRecordId, onSelectRecord, onUpdateRecord, onCreateRecord }) {
+  if (id === 'crm') return <CrmPipelineWorkspace records={records} jobs={jobs} selectedRecordId={selectedRecordId} onSelectRecord={onSelectRecord} onUpdateRecord={onUpdateRecord} />;
+  if (id === 'forms') return <FormsBuilderWorkspace records={records} selectedRecordId={selectedRecordId} onSelectRecord={onSelectRecord} onUpdateRecord={onUpdateRecord} />;
+  if (id === 'tickets') return <TicketsDeskWorkspace records={records} jobs={jobs} selectedRecordId={selectedRecordId} onSelectRecord={onSelectRecord} onUpdateRecord={onUpdateRecord} />;
+  if (id === 'files') return <FilesLibraryWorkspace records={records} jobs={jobs} selectedRecordId={selectedRecordId} onSelectRecord={onSelectRecord} onCreateRecord={onCreateRecord} />;
+  if (id === 'finance') return <FinanceLedgerWorkspace records={records} jobs={jobs} selectedRecordId={selectedRecordId} onSelectRecord={onSelectRecord} onUpdateRecord={onUpdateRecord} />;
+  if (id === 'knowledge') return <KnowledgeBrowserWorkspace records={records} selectedRecordId={selectedRecordId} onSelectRecord={onSelectRecord} onUpdateRecord={onUpdateRecord} />;
+  if (id === 'automations') return <AutomationCanvasWorkspace records={records} selectedRecordId={selectedRecordId} onSelectRecord={onSelectRecord} onUpdateRecord={onUpdateRecord} />;
+  if (id === 'dashboards') return <DashboardStudioWorkspace records={records} jobs={jobs} selectedRecordId={selectedRecordId} onSelectRecord={onSelectRecord} />;
+  if (id === 'templates') return <TemplateCatalogWorkspace records={records} selectedRecordId={selectedRecordId} onSelectRecord={onSelectRecord} onUpdateRecord={onUpdateRecord} />;
+  if (id === 'admin') return <AdminConsoleWorkspace records={records} selectedRecordId={selectedRecordId} onSelectRecord={onSelectRecord} onUpdateRecord={onUpdateRecord} />;
+  return null;
+}
+
+function CrmPipelineWorkspace({ records, jobs, selectedRecordId, onSelectRecord, onUpdateRecord }) {
+  const lanes = ['New', 'Qualified', 'Sent', 'Approved', 'Converted'];
+  return (
+    <section className="panel live-workspace crm-live">
+      <div className="panel-header">
+        <div>
+          <h2>CRM Pipeline</h2>
+          <p>Drag-style sales board for leads, clients, contacts, follow-ups, and deal value.</p>
+        </div>
+        <Users size={18} />
+      </div>
+      <div className="pipeline-board">
+        {lanes.map((lane) => (
+          <div className="pipeline-lane" key={lane}>
+            <div className="workflow-lane-title">{lane}</div>
+            {records.filter((record) => normalizeCrmLane(record) === lane).map((record) => (
+              <button type="button" className={`pipeline-card ${selectedRecordId === record.id ? 'selected' : ''}`} key={record.id} onClick={() => onSelectRecord(record.id)}>
+                <strong>{record.title}</strong>
+                <small>{record.structured?.leadSource || record.structured?.recordType || 'Relationship'} - {money(safeNumber(record.structured?.dealValue))}</small>
+                <span>{record.structured?.followUpDate || 'No follow-up'}</span>
+              </button>
+            ))}
+          </div>
+        ))}
+      </div>
+      <div className="live-side-grid">
+        <InfoBlock label="Due follow-ups" value={records.filter((record) => record.structured?.followUpDate && record.structured.followUpDate <= today).length} sub="Click a card to edit owner/date" />
+        <InfoBlock label="Client profiles" value={clients.length} sub={`${jobs.length} linked job containers`} />
+        <button type="button" className="primary-button" onClick={() => records[0] && onUpdateRecord(records[0].id, { status: 'Qualified' })}>Qualify Top Lead</button>
+      </div>
+    </section>
+  );
+}
+
+function FormsBuilderWorkspace({ records, selectedRecordId, onSelectRecord, onUpdateRecord }) {
+  const selected = records.find((record) => record.id === selectedRecordId) || records[0];
+  const questionTypes = selected?.structured?.questionTypes || [];
+  const responses = selected?.structured?.responses || [];
+  return (
+    <section className="panel live-workspace forms-live">
+      <div className="panel-header">
+        <div>
+          <h2>Form Builder Studio</h2>
+          <p>Selectable form list, live field palette, public/internal toggle, response inbox, and conversion buttons.</p>
+        </div>
+        <ClipboardList size={18} />
+      </div>
+      <div className="forms-studio-grid">
+        <div className="form-list-rail">
+          {records.map((record) => (
+            <button type="button" className={selected?.id === record.id ? 'selected' : ''} key={record.id} onClick={() => onSelectRecord(record.id)}>
+              <strong>{record.title}</strong>
+              <small>{record.status} - {record.structured?.visibility || 'Internal only'}</small>
+            </button>
+          ))}
+        </div>
+        <div className="form-preview-board">
+          <div className="fake-form-header">
+            <strong>{selected?.title || 'Select a form'}</strong>
+            <span>{selected?.structured?.visibility || 'Internal only'}</span>
+          </div>
+          <div className="question-chip-grid">
+            {questionTypes.map((type) => <span key={type}>{type}</span>)}
+            {!questionTypes.length && <span>No fields yet</span>}
+          </div>
+          <div className="record-actions">
+            {selected && <button type="button" className="primary-button" onClick={() => onUpdateRecord(selected.id, { status: 'Published', structured: { ...(selected.structured || {}), visibility: 'Public link', internalOnly: false } })}>Publish Form</button>}
+            {selected && <button type="button" className="secondary-button" onClick={() => onUpdateRecord(selected.id, { structured: { ...(selected.structured || {}), responseCount: safeNumber(selected.structured?.responseCount) + 1 } })}>Log Response</button>}
+          </div>
+        </div>
+        <div className="response-inbox">
+          <h3>Response Inbox</h3>
+          {(responses.length ? responses : [{ id: 'empty', title: 'No response selected', type: 'Inbox', status: 'Waiting', rating: '-' }]).map((response) => (
+            <div className="response-card" key={response.id}>
+              <strong>{response.title}</strong>
+              <small>{response.type} - {response.status} - Rating {response.rating}</small>
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function TicketsDeskWorkspace({ records, jobs, selectedRecordId, onSelectRecord, onUpdateRecord }) {
+  const urgent = records.filter((record) => record.structured?.priority === 'urgent' || record.status === 'Urgent');
+  return (
+    <section className="panel live-workspace tickets-live">
+      <div className="panel-header">
+        <div>
+          <h2>Ticket Triage Desk</h2>
+          <p>SLA queue with priority, requester, due date, assigned owner, attached files, and conversion controls.</p>
+        </div>
+        <Ticket size={18} />
+      </div>
+      <div className="ticket-desk-grid">
+        <div className="sla-column urgent">
+          <h3>Urgent / Due</h3>
+          {(urgent.length ? urgent : records).slice(0, 4).map((record) => (
+            <button type="button" className={`sla-card ${selectedRecordId === record.id ? 'selected' : ''}`} key={record.id} onClick={() => onSelectRecord(record.id)}>
+              <strong>{record.title}</strong>
+              <small>{record.structured?.requester || 'Requester'} - due {record.structured?.dueDate || 'unscheduled'}</small>
+              <PriorityPill priority={record.structured?.priority || 'medium'} />
+            </button>
+          ))}
+        </div>
+        <div className="ticket-board">
+          {['New', 'Triaged', 'Urgent', 'Converted'].map((status) => (
+            <div className="ticket-mini-lane" key={status}>
+              <span>{status}</span>
+              <strong>{records.filter((record) => record.status === status).length}</strong>
+            </div>
+          ))}
+        </div>
+        <div className="record-actions stacked-actions">
+          {records[0] && <button type="button" className="primary-button" onClick={() => onUpdateRecord(records[0].id, { status: 'Triaged' })}>Triage Next</button>}
+          {records[0] && <button type="button" className="secondary-button" onClick={() => onUpdateRecord(records[0].id, { status: 'Converted', convertedTo: 'Converted ticket to TaskManagement task' })}>Convert to Task</button>}
+          <InfoBlock label="Linked jobs" value={records.filter((record) => record.jobId).length} sub={`${jobs.length} jobs available`} />
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function FilesLibraryWorkspace({ records, jobs, selectedRecordId, onSelectRecord, onCreateRecord }) {
+  const [category, setCategory] = useState('All');
+  const categories = ['All', ...Array.from(new Set(records.map((record) => record.structured?.category || 'Uncategorized')))];
+  const visibleRecords = records.filter((record) => category === 'All' || (record.structured?.category || 'Uncategorized') === category);
+  return (
+    <section className="panel live-workspace files-live">
+      <div className="panel-header">
+        <div>
+          <h2>File Library</h2>
+          <p>Folder rail, thumbnail grid, file metadata, tags, categories, and job attachment context.</p>
+        </div>
+        <button type="button" className="primary-button" onClick={onCreateRecord}>
+          <Upload size={17} />
+          Upload File
+        </button>
+      </div>
+      <div className="file-library-layout">
+        <div className="folder-rail">
+          {categories.map((item) => (
+            <button type="button" className={category === item ? 'selected' : ''} key={item} onClick={() => setCategory(item)}>
+              <FolderOpen size={16} />
+              <span>{item}</span>
+              <strong>{item === 'All' ? records.length : records.filter((record) => (record.structured?.category || 'Uncategorized') === item).length}</strong>
+            </button>
+          ))}
+        </div>
+        <div className="thumbnail-grid">
+          {visibleRecords.map((record) => (
+            <button type="button" className={`file-tile ${selectedRecordId === record.id ? 'selected' : ''}`} key={record.id} onClick={() => onSelectRecord(record.id)}>
+              <FileThumbnail record={record} />
+              <div className="file-tile-meta">
+                <strong>{record.structured?.fileName || record.title}</strong>
+                <small>{record.structured?.category || 'Uncategorized'} - {formatFileSize(record.structured?.fileSize)}</small>
+                <span>{record.jobId ? getJobName(jobs, record.jobId) : 'No job linked'}</span>
+              </div>
+            </button>
+          ))}
+          {!visibleRecords.length && <EmptyState title="No files in this folder" text="Upload or retag a file to populate this folder." />}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function FinanceLedgerWorkspace({ records, jobs, selectedRecordId, onSelectRecord, onUpdateRecord }) {
+  const rows = records.map((record) => ({ record, amount: financeRecordAmount(record, jobs) }));
+  return (
+    <section className="panel live-workspace finance-live">
+      <div className="panel-header">
+        <div>
+          <h2>Finance Ledger</h2>
+          <p>Estimate, invoice, payment, AR balance, due date, and paid-state controls.</p>
+        </div>
+        <Receipt size={18} />
+      </div>
+      <div className="ledger-table">
+        <div className="ledger-row ledger-head"><span>Client / Job</span><span>Estimate</span><span>Paid</span><span>Balance</span><span>State</span></div>
+        {rows.map(({ record, amount }) => (
+          <button type="button" className={`ledger-row ${selectedRecordId === record.id ? 'selected' : ''}`} key={record.id} onClick={() => onSelectRecord(record.id)}>
+            <span><strong>{record.title}</strong><small>{record.jobId ? getJobName(jobs, record.jobId) : 'No job linked'}</small></span>
+            <span>{money(amount.estimate)}</span>
+            <span>{money(amount.paid)}</span>
+            <span>{money(amount.balance)}</span>
+            <span>{record.structured?.invoiceStatus || record.status}</span>
+          </button>
+        ))}
+      </div>
+      <div className="record-actions">
+        {records[0] && <button type="button" className="primary-button" onClick={() => onUpdateRecord(records[0].id, { status: 'Sent', structured: { ...(records[0].structured || {}), estimateStatus: 'Sent' } })}>Send Next Estimate</button>}
+        {records[0] && <button type="button" className="secondary-button" onClick={() => onUpdateRecord(records[0].id, { status: 'Paid', structured: { ...(records[0].structured || {}), paidAmount: financeRecordAmount(records[0], jobs).estimate, paymentStatus: 'Paid', invoiceStatus: 'Paid' } })}>Mark First Paid</button>}
+      </div>
+    </section>
+  );
+}
+
+function KnowledgeBrowserWorkspace({ records, selectedRecordId, onSelectRecord, onUpdateRecord }) {
+  const categories = Array.from(new Set(records.map((record) => record.structured?.category || record.extra || 'Uncategorized')));
+  return (
+    <section className="panel live-workspace knowledge-live">
+      <div className="panel-header">
+        <div>
+          <h2>Knowledge Browser</h2>
+          <p>Article shelf, category index, SOP preview, review owner/date, and publish controls.</p>
+        </div>
+        <Library size={18} />
+      </div>
+      <div className="knowledge-layout">
+        <div className="category-stack">{categories.map((item) => <span key={item}>{item}</span>)}</div>
+        <div className="article-shelf">
+          {records.map((record) => (
+            <button type="button" className={`article-card ${selectedRecordId === record.id ? 'selected' : ''}`} key={record.id} onClick={() => onSelectRecord(record.id)}>
+              <strong>{record.title}</strong>
+              <small>{record.structured?.category || record.extra} - {record.status}</small>
+              <p>{record.structured?.articleBody || record.notes}</p>
+            </button>
+          ))}
+        </div>
+        <div className="record-actions stacked-actions">
+          {records[0] && <button type="button" className="primary-button" onClick={() => onUpdateRecord(records[0].id, { status: 'Published' })}>Publish First Draft</button>}
+          {records[0] && <button type="button" className="secondary-button" onClick={() => onUpdateRecord(records[0].id, { convertedTo: `Attached SOP to ${records[0].structured?.attachTarget || 'Job'}` })}>Attach SOP</button>}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function AutomationCanvasWorkspace({ records, selectedRecordId, onSelectRecord, onUpdateRecord }) {
+  return (
+    <section className="panel live-workspace automations-live">
+      <div className="panel-header">
+        <div>
+          <h2>Automation Canvas</h2>
+          <p>Visual trigger-condition-action builder with run state and local execution log.</p>
+        </div>
+        <Workflow size={18} />
+      </div>
+      <div className="automation-canvas-grid">
+        {records.map((record) => (
+          <button type="button" className={`automation-rule-card ${selectedRecordId === record.id ? 'selected' : ''}`} key={record.id} onClick={() => onSelectRecord(record.id)}>
+            <div><span>When</span><strong>{record.structured?.trigger || 'Trigger'}</strong></div>
+            <ChevronRight size={18} />
+            <div><span>If</span><strong>{record.structured?.condition || 'Condition'}</strong></div>
+            <ChevronRight size={18} />
+            <div><span>Then</span><strong>{record.structured?.action || 'Action'}</strong></div>
+            <em>{record.structured?.enabled || record.status}</em>
+          </button>
+        ))}
+      </div>
+      <div className="record-actions">
+        {records[0] && <button type="button" className="primary-button" onClick={() => onUpdateRecord(records[0].id, { convertedTo: 'Automation run logged', conversionNote: `Run logged ${new Date().toLocaleString('en-US')}` })}>Run First Rule</button>}
+      </div>
+    </section>
+  );
+}
+
+function DashboardStudioWorkspace({ records, jobs, selectedRecordId, onSelectRecord }) {
+  const active = jobs.filter((job) => job.stage !== 'Completed').length;
+  const overdue = jobs.reduce((sum, job) => sum + taskStats(job.id).overdue, 0);
+  const revenue = jobs.reduce((sum, job) => sum + safeNumber(job.estimateTotal), 0);
+  return (
+    <section className="panel live-workspace dashboards-live">
+      <div className="panel-header">
+        <div>
+          <h2>Dashboard Studio</h2>
+          <p>Widget canvas with active jobs, overdue tasks, revenue, saved views, and pinned dashboards.</p>
+        </div>
+        <BarChart3 size={18} />
+      </div>
+      <div className="dashboard-canvas">
+        <div className="chart-widget tall"><span>Active Jobs</span><strong>{active}</strong><div style={{ height: `${Math.min(100, active * 18)}%` }} /></div>
+        <div className="chart-widget"><span>Overdue Tasks</span><strong>{overdue}</strong></div>
+        <div className="chart-widget"><span>Revenue</span><strong>{money(revenue)}</strong></div>
+        <div className="saved-view-list">
+          {records.map((record) => (
+            <button type="button" className={selectedRecordId === record.id ? 'selected' : ''} key={record.id} onClick={() => onSelectRecord(record.id)}>
+              <strong>{record.title}</strong>
+              <small>{record.structured?.widgets || record.extra}</small>
+            </button>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function TemplateCatalogWorkspace({ records, selectedRecordId, onSelectRecord, onUpdateRecord }) {
+  return (
+    <section className="panel live-workspace templates-live">
+      <div className="panel-header">
+        <div>
+          <h2>Template Catalog</h2>
+          <p>Reusable job, task, form, finance, SOP, email, and automation patterns with apply controls.</p>
+        </div>
+        <Layers3 size={18} />
+      </div>
+      <div className="template-gallery">
+        {records.map((record) => (
+          <button type="button" className={`template-tile ${selectedRecordId === record.id ? 'selected' : ''}`} key={record.id} onClick={() => onSelectRecord(record.id)}>
+            <Layers3 size={22} />
+            <strong>{record.title}</strong>
+            <small>{record.structured?.templateType || record.extra}</small>
+            <span>{record.status}</span>
+          </button>
+        ))}
+      </div>
+      <div className="record-actions">
+        {records[0] && <button type="button" className="primary-button" onClick={() => onUpdateRecord(records[0].id, { status: 'Applied', convertedTo: 'Template applied to job setup' })}>Apply First Template</button>}
+      </div>
+    </section>
+  );
+}
+
+function AdminConsoleWorkspace({ records, selectedRecordId, onSelectRecord, onUpdateRecord }) {
+  return (
+    <section className="panel live-workspace admin-live">
+      <div className="panel-header">
+        <div>
+          <h2>Admin Access Console</h2>
+          <p>User approval queue, role matrix, company access, permissions, and settings actions.</p>
+        </div>
+        <Settings size={18} />
+      </div>
+      <div className="admin-matrix">
+        {records.map((record) => (
+          <button type="button" className={`admin-user-row ${selectedRecordId === record.id ? 'selected' : ''}`} key={record.id} onClick={() => onSelectRecord(record.id)}>
+            <span><strong>{record.structured?.userName || record.title}</strong><small>{record.structured?.role || record.extra}</small></span>
+            <span>{record.structured?.companyAccess || 'Company access'}</span>
+            <span>{record.structured?.approvalStatus || record.status}</span>
+          </button>
+        ))}
+      </div>
+      <div className="record-actions">
+        {records[0] && <button type="button" className="primary-button" onClick={() => onUpdateRecord(records[0].id, { status: 'Approved', structured: { ...(records[0].structured || {}), approvalStatus: 'Approved' } })}>Approve First User</button>}
+      </div>
+    </section>
+  );
+}
+
+function FileThumbnail({ record }) {
+  const details = record.structured || {};
+  const isImage = String(details.fileType || '').startsWith('image/');
+  if (details.previewDataUrl && isImage) {
+    return <img className="file-thumb-image" src={details.previewDataUrl} alt="" />;
+  }
+  const extension = (details.fileName || record.title || 'file').split('.').pop()?.slice(0, 4).toUpperCase() || 'FILE';
+  return (
+    <div className={`file-thumb-fallback ${isImage ? 'imageish' : ''}`}>
+      {isImage ? <FolderOpen size={26} /> : <FileText size={28} />}
+      <span>{extension}</span>
+    </div>
+  );
+}
+
+function normalizeCrmLane(record) {
+  if (record.status === 'Converted') return 'Converted';
+  if (record.status === 'Approved') return 'Approved';
+  if (record.structured?.estimateStatus === 'Sent' || record.status === 'Sent') return 'Sent';
+  if (record.status === 'Qualified') return 'Qualified';
+  return 'New';
 }
 
 function getModuleStats(id, records, jobs) {
@@ -3850,7 +4239,7 @@ function ModuleRecordModal({ moduleId, jobs, onClose, onSubmit }) {
   const chooseFile = (file) => {
     if (!file) return;
     const category = file.type.startsWith('image/') ? 'Job photos' : 'Client documents';
-    setForm((current) => ({
+    const applyFile = (previewDataUrl = '') => setForm((current) => ({
       ...current,
       title: current.title || file.name,
       status: 'Attached',
@@ -3863,9 +4252,18 @@ function ModuleRecordModal({ moduleId, jobs, onClose, onSubmit }) {
         fileSize: file.size,
         category,
         attachmentTarget: current.structured?.attachmentTarget || 'Job',
-        tags: current.structured?.tags || ''
+        tags: current.structured?.tags || '',
+        previewDataUrl
       }
     }));
+    if (file.type.startsWith('image/')) {
+      const reader = new FileReader();
+      reader.onload = () => applyFile(String(reader.result || ''));
+      reader.onerror = () => applyFile('');
+      reader.readAsDataURL(file);
+      return;
+    }
+    applyFile('');
   };
 
   const submit = (event) => {
