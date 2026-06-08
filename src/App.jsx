@@ -45,7 +45,7 @@ import {
 import { copyText, taskManagementUrl } from './lib/taskManagement';
 
 const today = '2026-06-09';
-const presentationBuild = 'Simple Page Layouts v6';
+const presentationBuild = 'Tabbed Systems v7';
 
 const navigation = [
   { id: 'command', label: 'Command Center', icon: Home },
@@ -1977,6 +1977,8 @@ function ModulePresentationLayout({
   onConvertTicketToJob,
   onOpenJob
 }) {
+  const tabs = getModuleTabs(id);
+  const [activeTab, setActiveTab] = useState(tabs[0]?.id || 'workspace');
   const workspace = (
     <ModuleLiveWorkspace
       id={id}
@@ -2005,95 +2007,318 @@ function ModulePresentationLayout({
       onOpenJob={onOpenJob}
     />
   );
-
-  if (id === 'crm') {
-    return (
-      <div className="module-page-layout crm-page-layout">
-        {workspace}
-        {inspector}
-        <CrmDirectory records={records} jobs={jobs} />
-      </div>
-    );
-  }
-
-  if (id === 'files') {
-    return (
-      <div className="module-page-layout files-page-layout">
-        {workspace}
-        {inspector}
-      </div>
-    );
-  }
-
-  if (id === 'forms') {
-    return (
-      <div className="module-page-layout forms-page-layout">
-        {workspace}
-        {inspector}
-      </div>
-    );
-  }
-
-  if (id === 'tickets') {
-    return (
-      <div className="module-page-layout tickets-page-layout">
-        {workspace}
-        {inspector}
-      </div>
-    );
-  }
-
-  if (id === 'finance') {
-    return (
-      <div className="module-page-layout finance-page-layout">
-        {inspector}
-        {workspace}
-      </div>
-    );
-  }
-
-  if (id === 'knowledge') {
-    return (
-      <div className="module-page-layout knowledge-page-layout">
-        {workspace}
-        {inspector}
-      </div>
-    );
-  }
-
-  if (id === 'automations') {
-    return (
-      <div className="module-page-layout automations-page-layout">
-        {workspace}
-        {inspector}
-      </div>
-    );
-  }
-
-  if (id === 'dashboards') {
-    return (
-      <div className="module-page-layout dashboards-page-layout">
-        {workspace}
-        {inspector}
-      </div>
-    );
-  }
-
-  if (id === 'templates') {
-    return (
-      <div className="module-page-layout templates-page-layout">
-        {workspace}
-        {inspector}
-      </div>
-    );
-  }
-
-  return (
-    <div className="module-page-layout admin-page-layout">
-      {workspace}
+  const editor = (
+    <div className="module-editor-layout">
+      <ModuleRecordRail
+        config={config}
+        records={records}
+        jobs={jobs}
+        selectedRecordId={selectedRecordId}
+        onSelectRecord={onSelectRecord}
+      />
       {inspector}
     </div>
   );
+  const support = (
+    <ModuleSupportView
+      id={id}
+      records={records}
+      jobs={jobs}
+      selectedRecordId={selectedRecordId}
+      onSelectRecord={onSelectRecord}
+      onUpdateRecord={onUpdateRecord}
+      onOpenJob={onOpenJob}
+    />
+  );
+
+  const activeContent = activeTab === 'editor'
+    ? editor
+    : activeTab === 'support'
+      ? support
+      : workspace;
+
+  return (
+    <div className={`module-page-layout module-tabs-layout module-tabs-${id}`}>
+      <div className="module-tabs" role="tablist" aria-label={`${config.eyebrow} sections`}>
+        {tabs.map((tab) => (
+          <button
+            type="button"
+            className={activeTab === tab.id ? 'active' : ''}
+            key={tab.id}
+            onClick={() => setActiveTab(tab.id)}
+            role="tab"
+            aria-selected={activeTab === tab.id}
+          >
+            <tab.icon size={16} />
+            <span>{tab.label}</span>
+          </button>
+        ))}
+      </div>
+      <div className="module-tab-stage">
+        {activeContent}
+      </div>
+    </div>
+  );
+}
+
+function getModuleTabs(id) {
+  const tabMap = {
+    crm: [
+      { id: 'workspace', label: 'Pipeline', icon: Users },
+      { id: 'support', label: 'Clients', icon: Building2 },
+      { id: 'editor', label: 'Record Editor', icon: Settings }
+    ],
+    forms: [
+      { id: 'workspace', label: 'Builder', icon: ClipboardList },
+      { id: 'support', label: 'Responses', icon: MessageSquarePlus },
+      { id: 'editor', label: 'Form Editor', icon: Settings }
+    ],
+    tickets: [
+      { id: 'workspace', label: 'Triage Desk', icon: Ticket },
+      { id: 'support', label: 'Conversions', icon: Workflow },
+      { id: 'editor', label: 'Ticket Editor', icon: Settings }
+    ],
+    files: [
+      { id: 'workspace', label: 'Library', icon: FolderOpen },
+      { id: 'support', label: 'Folders', icon: Layers3 },
+      { id: 'editor', label: 'File Details', icon: Settings }
+    ],
+    finance: [
+      { id: 'workspace', label: 'Ledger', icon: Receipt },
+      { id: 'support', label: 'Billing', icon: BarChart3 },
+      { id: 'editor', label: 'Finance Editor', icon: Settings }
+    ],
+    knowledge: [
+      { id: 'workspace', label: 'Articles', icon: Library },
+      { id: 'support', label: 'Training', icon: FileText },
+      { id: 'editor', label: 'Article Editor', icon: Settings }
+    ],
+    automations: [
+      { id: 'workspace', label: 'Rules', icon: Workflow },
+      { id: 'support', label: 'Run Log', icon: Clock3 },
+      { id: 'editor', label: 'Rule Editor', icon: Settings }
+    ],
+    dashboards: [
+      { id: 'workspace', label: 'Studio', icon: BarChart3 },
+      { id: 'support', label: 'Saved Views', icon: Gauge },
+      { id: 'editor', label: 'View Editor', icon: Settings }
+    ],
+    templates: [
+      { id: 'workspace', label: 'Catalog', icon: Layers3 },
+      { id: 'support', label: 'Apply', icon: CheckCircle2 },
+      { id: 'editor', label: 'Template Editor', icon: Settings }
+    ],
+    admin: [
+      { id: 'workspace', label: 'Users', icon: Users },
+      { id: 'support', label: 'Settings', icon: ShieldCheck },
+      { id: 'editor', label: 'Access Editor', icon: Settings }
+    ]
+  };
+
+  return tabMap[id] || [
+    { id: 'workspace', label: 'Workspace', icon: Sparkles },
+    { id: 'support', label: 'System', icon: Workflow },
+    { id: 'editor', label: 'Editor', icon: Settings }
+  ];
+}
+
+function ModuleRecordRail({ config, records, jobs, selectedRecordId, onSelectRecord }) {
+  return (
+    <section className="panel module-record-rail">
+      <div className="panel-header">
+        <div>
+          <h2>{config.eyebrow} Records</h2>
+          <p>Select a record to edit locally.</p>
+        </div>
+        <span className="build-chip">{records.length} saved</span>
+      </div>
+      <div className="compact-list">
+        {records.map((record) => (
+          <button
+            type="button"
+            className={`compact-row ${selectedRecordId === record.id ? 'selected' : ''}`}
+            key={record.id}
+            onClick={() => onSelectRecord(record.id)}
+          >
+            <span>
+              <strong>{record.title}</strong>
+              <small>{record.status} - {record.jobId ? getJobName(jobs, record.jobId) : record.extra || 'No job linked'}</small>
+            </span>
+            <ChevronRight size={16} />
+          </button>
+        ))}
+        {!records.length && <EmptyState title="No records yet" text={`Create a ${config.eyebrow.toLowerCase()} record from the page action.`} />}
+      </div>
+    </section>
+  );
+}
+
+function ModuleSupportView({ id, records, jobs, selectedRecordId, onSelectRecord, onUpdateRecord, onOpenJob }) {
+  if (id === 'crm') return <CrmDirectory records={records} jobs={jobs} />;
+
+  const linkedJobs = jobs.filter((job) => records.some((record) => record.jobId === job.id));
+  const cards = getSupportCards(id, records, jobs);
+
+  return (
+    <div className={`module-support-layout module-support-${id}`}>
+      <section className="panel wide-panel">
+        <div className="panel-header">
+          <div>
+            <h2>{moduleSupportTitle(id)}</h2>
+            <p>{moduleSupportDescription(id)}</p>
+          </div>
+          <Workflow size={18} />
+        </div>
+        <div className="support-card-grid">
+          {cards.map((card) => (
+            <button
+              type="button"
+              className="support-card"
+              key={card.title}
+              onClick={() => card.recordId && onSelectRecord(card.recordId)}
+            >
+              <span>{card.label}</span>
+              <strong>{card.title}</strong>
+              <small>{card.text}</small>
+            </button>
+          ))}
+        </div>
+      </section>
+
+      <section className="panel">
+        <div className="panel-header">
+          <div>
+            <h2>{id === 'tickets' ? 'Conversion Controls' : 'Linked Jobs'}</h2>
+            <p>{id === 'tickets' ? 'Promote requests into TaskManagement or job containers when they are ready.' : 'Records in this module connected to active jobs.'}</p>
+          </div>
+          <BriefcaseBusiness size={18} />
+        </div>
+        {id === 'tickets' && records[0] ? (
+          <div className="record-actions stacked-actions">
+            <button type="button" className="primary-button" onClick={() => onUpdateRecord(records[0].id, { status: 'Triaged' })}>Triage Next</button>
+            <button type="button" className="secondary-button" onClick={() => onUpdateRecord(records[0].id, { status: 'Converted', convertedTo: 'Converted ticket to TaskManagement task' })}>Convert to Task</button>
+          </div>
+        ) : null}
+        <div className="compact-list">
+          {linkedJobs.map((job) => (
+            <button className="compact-row" key={job.id} onClick={() => onOpenJob(job.id)}>
+              <span>
+                <strong>{job.name}</strong>
+                <small>{records.filter((record) => record.jobId === job.id).length} records - {getClient(job.clientId)?.name}</small>
+              </span>
+              <ChevronRight size={16} />
+            </button>
+          ))}
+          {!linkedJobs.length && <EmptyState title="No linked jobs" text="Attach a record to a job from the editor tab." />}
+        </div>
+      </section>
+    </div>
+  );
+}
+
+function moduleSupportTitle(id) {
+  return {
+    forms: 'Response Operations',
+    tickets: 'Ticket Conversion System',
+    files: 'Folder and Attachment System',
+    finance: 'Billing Control Room',
+    knowledge: 'Training and SOP System',
+    automations: 'Automation Run Log',
+    dashboards: 'Saved View Library',
+    templates: 'Template Application System',
+    admin: 'Role and Settings System'
+  }[id] || 'Module System';
+}
+
+function moduleSupportDescription(id) {
+  return {
+    forms: 'Review submissions, route follow-ups, and convert responses into jobs or tickets.',
+    tickets: 'Separate triage from conversion so requests do not become tasks too early.',
+    files: 'Organize thumbnails, categories, tags, and job attachments as a real file cabinet.',
+    finance: 'Track estimates, invoices, overdue balances, and payment progress.',
+    knowledge: 'Group SOPs, training items, FAQs, and review ownership.',
+    automations: 'See what rules would run, which are paused, and what they change.',
+    dashboards: 'Manage saved views before this becomes a real reporting backend.',
+    templates: 'Apply repeatable job, form, estimate, SOP, and automation packages.',
+    admin: 'Control users, company access, approvals, and operating settings.'
+  }[id] || 'Use this tab for the module-specific workflow that will expand later.';
+}
+
+function getSupportCards(id, records, jobs) {
+  if (id === 'forms') {
+    return records.slice(0, 6).map((record) => ({
+      label: record.structured?.formType || 'Form',
+      title: record.title,
+      text: `${record.status} - ${record.structured?.responseCount || 0} responses`,
+      recordId: record.id
+    }));
+  }
+  if (id === 'tickets') {
+    return ['New', 'Triaged', 'Urgent', 'Converted'].map((status) => ({
+      label: 'Queue',
+      title: status,
+      text: `${records.filter((record) => record.status === status).length} tickets in this lane`
+    }));
+  }
+  if (id === 'files') {
+    return Object.keys(fileStockImages).slice(0, 8).map((category) => ({
+      label: 'Folder',
+      title: category,
+      text: `${records.filter((record) => (record.structured?.fileCategory || record.structured?.category) === category).length} local files`
+    }));
+  }
+  if (id === 'finance') {
+    return [
+      { label: 'AR', title: money(records.reduce((sum, record) => sum + Math.max(0, safeNumber(record.structured?.amount) - safeNumber(record.structured?.paidAmount)), 0)), text: 'Outstanding local balance' },
+      { label: 'Invoices', title: records.filter((record) => record.structured?.invoiceStatus === 'Sent').length, text: 'Sent invoices' },
+      { label: 'Overdue', title: records.filter((record) => record.structured?.invoiceStatus === 'Overdue' || record.status === 'Overdue').length, text: 'Needs attention' }
+    ];
+  }
+  if (id === 'knowledge') {
+    return ['Company SOPs', 'Roofing procedures', 'Training', 'FAQs'].map((category) => ({
+      label: 'Category',
+      title: category,
+      text: `${records.filter((record) => record.structured?.category === category).length} articles`
+    }));
+  }
+  if (id === 'automations') {
+    return records.slice(0, 6).map((record) => ({
+      label: record.structured?.enabled || 'Rule',
+      title: record.title,
+      text: `${record.structured?.trigger || 'Trigger'} -> ${record.structured?.action || 'Action'}`,
+      recordId: record.id
+    }));
+  }
+  if (id === 'dashboards') {
+    return records.slice(0, 6).map((record) => ({
+      label: record.structured?.dashboardType || 'Dashboard',
+      title: record.title,
+      text: record.structured?.widgets || 'No widgets configured',
+      recordId: record.id
+    }));
+  }
+  if (id === 'templates') {
+    return records.slice(0, 6).map((record) => ({
+      label: record.structured?.templateType || 'Template',
+      title: record.title,
+      text: record.structured?.templateOutput || 'Ready to apply locally',
+      recordId: record.id
+    }));
+  }
+  if (id === 'admin') {
+    return ['Owner', 'Admin', 'Supervisor', 'Worker'].map((role) => ({
+      label: 'Role',
+      title: role,
+      text: `${records.filter((record) => record.structured?.role === role).length} local users`
+    }));
+  }
+
+  return records.slice(0, 6).map((record) => ({
+    label: record.status,
+    title: record.title,
+    text: record.extra || `${jobs.length} jobs available`,
+    recordId: record.id
+  }));
 }
 
 const simpleStatusOptions = [

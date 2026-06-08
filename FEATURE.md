@@ -56,6 +56,7 @@ The existing TaskManagement app remains the work execution layer.
 - [x] Presentation build uses stock-style workspace imagery and category-aware file thumbnails, with uploaded image previews saved locally
 - [x] Presentation build keeps data local-first in browser storage; backend/database work is intentionally deferred until after the first demo
 - [x] Each module uses a simpler page-specific layout instead of the same shared placeholder/table layout
+- [x] Each module has its own tabbed sub-system layout so workspaces, supporting workflows, and editors can expand separately
 
 ---
 
