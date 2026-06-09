@@ -1604,7 +1604,7 @@ function escapeHtml(value) {
   const overlay = document.querySelector('[data-tour-overlay]');
   if (!overlay) return;
 
-  const storageKey = 'quest-hq-tour-guided-v14';
+  const storageKey = 'quest-hq-tour-workflow-v15';
   const moduleId = document.body.dataset.module || '';
   const nodes = {
     card: overlay.querySelector('[data-tour-card]'),
@@ -1620,36 +1620,56 @@ function escapeHtml(value) {
   let steps = [];
 
   const commonSteps = [
-    { selector: '.brand', title: 'Quest HQ', body: 'This is the operations command shell. The sidebar keeps jobs, files, analytics, admin, and the TaskManagement bridge one click away.' },
-    { selector: '.nav-list', title: 'Module Navigation', body: 'Live modules are clickable today. Grey planned modules show the roadmap without pretending they are complete.' },
-    { selector: '.build-badge', title: 'Demo Version', body: 'The version badge confirms the current presentation build and helps avoid browser cache confusion during demos.' }
+    { selector: '.brand', title: 'Quest HQ Command Shell', body: 'Start here: Quest HQ is the business command layer. It owns companies, job workspaces, files, analytics, and the context that TaskManagement needs.' },
+    { selector: '.nav-list', title: 'Live vs Planned Modules', body: 'The clickable modules are live for this demo. Grey modules are intentionally marked planned so the presenter can explain the roadmap without showing fake systems.' },
+    { selector: '.build-badge', title: 'Presentation Build', body: 'This badge confirms the loaded version. If someone has a stale browser tab, the badge makes cache issues obvious.' }
   ];
 
   const pageSteps = {
     command: [
-      { selector: '.metric-grid', title: 'Command Snapshot', body: 'The dashboard summarizes live jobs, urgency, linked task counts, and pipeline value from the Job Center.' },
-      { selector: '.quick-action-grid', title: 'Quick Actions', body: 'Use these shortcuts to start the real demo flows, especially creating a job workspace or opening the Job Center.' }
+      { selector: '.metric-grid', title: 'Operations Snapshot', body: 'These cards roll up real Job Center data: active job workspaces, urgency, linked task counts, and pipeline value. Analytics details are moved to the Analytics page to keep this dashboard clean.' },
+      { selector: '.ops-job-list', title: 'Recent Job Workspaces', body: 'Saved jobs appear here as business workspaces. They are not task lists; they are containers for client, site, files, finance, forms, and handoff context.' },
+      { selector: '.quick-action-grid', title: 'Start the Workflow', body: 'For the demo path, use Add Job Workspace first, then open Files or Task Bridge from that selected job context.' },
+      { selector: '.activity-feed', title: 'Activity Feed', body: 'The feed shows business-level activity from Quest HQ. Detailed execution history remains inside TaskManagement once the bridge is fully connected.' }
     ],
     jobs: [
-      { selector: '[data-job-open-editor]', title: 'Add Job Workspace', body: 'This opens a modal and only creates a workspace after Save. Nothing is added to the board from merely clicking the button.' },
-      { selector: '.job-board', title: 'Pipeline Board', body: 'Job workspaces move through business stages. Detailed execution tasks stay in TaskManagement.' },
-      { selector: '[data-panel="profile"]', title: 'Job Profile', body: 'The profile connects the client, site, files, finance, forms, and TaskManagement bridge around one job workspace.' }
+      { selector: '[data-job-new]', title: 'Create the Workspace', body: 'This button starts a new business workspace. It should feel like creating a client/project space, not creating a task.', action: 'closeJobModal' },
+      { selector: '[data-job-modal]', title: 'Creation Opens in Place', body: 'The form opens as a modal so the presenter stays in the Job Center. Clicking Add does not create a card until Save Workspace is pressed.', action: 'openJobModal' },
+      { selector: 'input[name="name"]', title: 'Workspace Name', body: 'Name the space after the client, site, or project. Example: "Mesa Storage Roof Repair". This becomes the parent container for everything else.' },
+      { selector: 'select[name="company_id"]', title: 'Company Ownership', body: 'Each workspace belongs to a company from Admin. This prevents hard-coded companies and prepares the app for multi-company deployment.' },
+      { selector: 'input[name="client_name"]', title: 'Client and Contact Context', body: 'Client, contact, owner, and site fields describe the business relationship. These are not execution tasks; they identify who and what the workspace is for.' },
+      { selector: 'select[name="stage"]', title: 'Business Status', body: 'Status is business pipeline state: Lead, Site Review, Estimate, Approved, Active, or Closed. Task status belongs in TaskManagement.' },
+      { selector: 'textarea[name="scope"]', title: 'Scope and Notes', body: 'Scope gives the workspace enough context for files, forms, finance, and task handoff. Keep the actual checklist or assignments in TaskManagement.' },
+      { selector: '.job-modal-panel .form-actions', title: 'Save Writes to Supabase', body: 'Save Workspace is the write action. After saving, the job appears on the board, gets an id, and that id becomes the integration key for files and TaskManagement.' },
+      { selector: '.job-board', title: 'Pipeline Board', body: 'After Save, the card appears in the correct business stage. The board is for operational visibility, not daily task execution.', action: 'closeJobModal' },
+      { selector: '[data-tab="list"]', title: 'Searchable Job List', body: 'The list view is for scanning and filtering all saved workspaces. It uses the same Supabase job records as the board.' },
+      { selector: '[data-panel="profile"]', title: 'Job Profile', body: 'The profile is the central hub for a selected job. It shows client, site, scope, owner, stage, finance summary, file summary, and handoff context.', action: 'openProfileTab' },
+      { selector: '[data-job-profile]', title: 'Connected Panels', body: 'From the profile, Files opens the file cabinet for this job, Finance/Forms stay as demo summaries, and TaskManagement receives the job id as project_id.' },
+      { selector: '[data-job-sidecar]', title: 'Business Rollups', body: 'The side panel keeps lightweight rollups visible without turning Quest HQ into a second task manager.' }
     ],
     files: [
-      { selector: '.drive-header', title: 'Drive Controls', body: 'Search, category filters, refresh, and upload are grouped like a lightweight Google Drive file viewer.' },
-      { selector: '.drive-sidebar', title: 'Drive Filters', body: 'Use My Drive, Recent, Images, and Documents to move through Supabase-backed job files.' },
-      { selector: '[data-drive-folders]', title: 'Job Folders', body: 'Each saved job workspace gets a folder. Uploaded files attach to that selected job context.' },
-      { selector: '[data-file-open-upload]', title: 'Upload Modal', body: 'Upload opens as a popup, then saves file metadata and storage objects into Supabase for the selected job.' }
+      { selector: '.drive-header', title: 'Google Drive-Style File Center', body: 'The File Center behaves like a job-aware drive: search, category filter, refresh, and New upload are always available.' },
+      { selector: '.drive-sidebar', title: 'Drive Filters', body: 'My Drive shows job folders. Recent, Images, and Documents let the presenter explain how field photos, permits, contracts, and drawings will be found later.' },
+      { selector: '[data-drive-folders]', title: 'Job Folders', body: 'Every saved job workspace becomes a folder. Files should be attached to a job, not dumped into an unstructured bucket.' },
+      { selector: '[data-file-open-upload]', title: 'Upload Starts Here', body: 'New opens the upload modal. The upload should feel like adding files into the selected job space.', action: 'closeFileModal' },
+      { selector: '[data-file-modal]', title: 'Upload Modal', body: 'The modal keeps upload in context. It does not navigate away from the file browser during the presentation.', action: 'openFileModal' },
+      { selector: '[data-file-upload-form] input[type="file"]', title: 'Choose Files', body: 'The presenter can select photos, PDFs, drawings, or other documents. Supabase Storage stores the object, and job_files stores metadata.' },
+      { selector: '[data-file-upload-form] select[name="category"]', title: 'Categorize Immediately', body: 'Category drives filtering and thumbnails. Photos render previews; documents render file-type cards.' },
+      { selector: '[data-file-upload-form] textarea[name="notes"]', title: 'Add Field Context', body: 'Notes capture inspection angle, permit revision, invoice context, or drawing details so files stay useful after upload.' },
+      { selector: '.drive-details-pane', title: 'Preview and Metadata', body: 'Selecting a file shows preview, category, storage path, job link, uploader, and action buttons like download or delete.', action: 'closeFileModal' }
     ],
     dashboards: [
-      { selector: '.analytics-layout', title: 'Analytics Center', body: 'Analytics live on one page so operational pages stay focused and less cluttered.' }
+      { selector: '.metric-grid', title: 'Analytics Lives Here', body: 'Instead of bloating every page with metric cards, deeper reporting is centralized here.' },
+      { selector: '.analytics-layout', title: 'Live Job Reporting', body: 'This page summarizes jobs by status, urgency, scope, and module health. It is the place to discuss operations performance.' }
     ],
     admin: [
-      { selector: '[data-company-admin]', title: 'Company Admin', body: 'Companies are managed here so job workspaces can belong to the right business account.' }
+      { selector: '[data-company-admin]', title: 'Company Setup', body: 'Companies are managed here first. Job workspaces reference those company records instead of hard-coded demo companies.' },
+      { selector: '[data-company-form]', title: 'Company Creation', body: 'Create or edit companies here, then use them in Job Center. This is the start of the future multi-company access model.' }
     ],
     'task-bridge': [
-      { selector: '.bridge-hero', title: 'TaskManagement Bridge', body: 'This bridge explains the integration contract: Quest HQ job id becomes the TaskManagement project_id.' },
-      { selector: '.bridge-contract', title: 'Handoff Contract', body: 'The return URL and project id are shown clearly so the future deployment has a stable integration target.' }
+      { selector: '.bridge-hero', title: 'Why This Is Not Another Task Manager', body: 'Quest HQ keeps the job context. TaskManagement remains where assignments, checklists, and execution happen.' },
+      { selector: '.bridge-contract', title: 'Integration Contract', body: 'The important handoff is stable: job.id becomes task.project_id, and return_url brings users back to the Quest HQ job profile.' },
+      { selector: '.bridge-task-list', title: 'Current Bridge Behavior', body: 'Today this page proves the contract and rollup shape. Once the real TaskManagement deployment is connected, it will filter tasks by project_id.' }
     ]
   };
 
@@ -1657,7 +1677,7 @@ function escapeHtml(value) {
     const all = commonSteps.concat(pageSteps[moduleId] || [
       { selector: '.main', title: 'Module Workspace', body: 'This area shows the current module. Planned modules stay visibly disabled until they receive real implementation.' }
     ]);
-    return all.map((step) => ({ ...step, element: document.querySelector(step.selector) })).filter((step) => step.element);
+    return all.filter((step) => document.querySelector(step.selector));
   }
 
   function openTour(force) {
@@ -1679,16 +1699,40 @@ function escapeHtml(value) {
   function renderStep() {
     const step = steps[index];
     if (!step) return closeTour(true);
-    step.element.scrollIntoView({ block: 'center', inline: 'nearest' });
+    prepareStep(step);
+    const element = document.querySelector(step.selector);
+    if (!element) {
+      index = Math.min(index + 1, steps.length);
+      return renderStep();
+    }
+    element.scrollIntoView({ block: 'center', inline: 'nearest' });
     requestAnimationFrame(() => {
-      placeSpotlight(step.element);
-      placeCard(step.element);
+      placeSpotlight(element);
+      placeCard(element);
     });
     nodes.count.textContent = 'Step ' + (index + 1) + ' of ' + steps.length;
     nodes.title.textContent = step.title;
     nodes.body.textContent = step.body;
     nodes.back.disabled = index === 0;
     nodes.next.textContent = index === steps.length - 1 ? 'Finish' : 'Next';
+  }
+
+  function prepareStep(step) {
+    if (step.action === 'openJobModal' && document.querySelector('[data-job-modal]')?.hidden) {
+      document.querySelector('[data-job-new]')?.click();
+    }
+    if (step.action === 'closeJobModal' && !document.querySelector('[data-job-modal]')?.hidden) {
+      document.querySelector('[data-job-modal-close]')?.click();
+    }
+    if (step.action === 'openProfileTab') {
+      document.querySelector('[data-tab="profile"]')?.click();
+    }
+    if (step.action === 'openFileModal' && document.querySelector('[data-file-modal]')?.hidden) {
+      document.querySelector('[data-file-open-upload]')?.click();
+    }
+    if (step.action === 'closeFileModal' && !document.querySelector('[data-file-modal]')?.hidden) {
+      document.querySelector('[data-file-modal-close]')?.click();
+    }
   }
 
   function placeSpotlight(element) {
