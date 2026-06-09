@@ -76,7 +76,7 @@
 
   const seed = JSON.parse(document.getElementById('record-seed')?.textContent || '[]');
   const localKey = 'quest-hq-job-center';
-  const lanes = ['Lead', 'Inspection', 'Estimate Approved', 'Production', 'QA Review'];
+  const lanes = ['Lead', 'Site Review', 'Estimate', 'Approved', 'Active'];
   const fields = ['id','name','company_id','client_name','contact_name','site_address','job_type','stage','priority','owner_name','scope','start_date','due_date','estimate_total','invoice_total','task_count','file_count','notes'];
   const defaultCompanies = [
     { id: 'quest-roofing', name: 'Quest Roofing', short_name: 'Roofing', color: '#f45d22' },
@@ -178,7 +178,7 @@
       selectedId = job.id;
       saveLocal();
       render();
-      openJobModal('Add Job');
+      openJobModal('Create Job Workspace');
     });
     center.querySelector('[data-job-refresh]')?.addEventListener('click', async () => {
       await refreshCompanies();
@@ -323,7 +323,7 @@
         '<span>' + escapeHtml(job.stage || 'Lead') + '</span>' +
         '<span>' + escapeHtml(job.priority || 'Medium') + '</span>' +
         '<span>' + money.format(number(job.estimate_total)) + '</span>' +
-        '<span>' + number(job.task_count) + ' tasks</span>' +
+        '<span>' + number(job.file_count) + ' files</span>' +
       '</button>';
     }).join('') : '<div class="empty-state">No jobs match this view.</div>';
   }
@@ -339,17 +339,17 @@
       '<div class="job-detail-grid">' +
       detail('Client', job.client_name || 'Unassigned') +
       detail('Contact', job.contact_name || 'Not set') +
-      detail('Owner', job.owner_name || 'Unassigned') +
+      detail('Account Owner', job.owner_name || 'Unassigned') +
       detail('Site', job.site_address || 'No address') +
-      detail('Stage', job.stage || 'Lead') +
-      detail('Priority', job.priority || 'Medium') +
+      detail('Business Status', job.stage || 'Lead') +
+      detail('Client Urgency', job.priority || 'Medium') +
       detail('Estimate', money.format(number(job.estimate_total))) +
-      detail('Invoice', money.format(number(job.invoice_total))) +
-      detail('Due Date', job.due_date || 'Not set') +
+      detail('TaskManagement Project', job.id) +
+      detail('File Space', number(job.file_count) + ' files') +
       '</div>' +
       linkedPanels(job) +
       activityTimeline(job);
-    nodes.sidecar.innerHTML = detail('TaskManagement Link', number(job.task_count) + ' linked tasks') +
+    nodes.sidecar.innerHTML = detail('Workspace', 'Business context and records') +
       detail('Files', number(job.file_count) + ' files attached') +
       detail('Company', companyLabel(job.company_id)) +
       '<a class="secondary-button" href="' + escapeHtml(bridgeUrl(job)) + '">Open TaskManagement</a>' +
@@ -359,12 +359,11 @@
   }
 
   function linkedPanels(job) {
-    const taskOpen = Math.max(number(job.task_count) - completedTasks(job), 0);
     const items = [
-      ['TaskManagement', number(job.task_count) + ' tasks', taskOpen + ' open / ' + completedTasks(job) + ' done', bridgeUrl(job)],
+      ['TaskManagement', 'Open work system', 'Tasks live there, linked by project_id', bridgeUrl(job)],
       ['Files & Photos', number(job.file_count) + ' files', 'Photos, permits, estimates, invoices', fileUrl(job)],
       ['Forms & Inspections', inspectionCount(job) + ' records', 'Inspection, approval, walkthrough', 'forms.html'],
-      ['Finance', money.format(number(job.invoice_total)) + ' invoiced', money.format(number(job.estimate_total)) + ' estimate', 'finance.html']
+      ['Finance', money.format(number(job.estimate_total)) + ' estimate', 'Estimate, invoice, payment records', 'finance.html']
     ];
     return '<div class="linked-panel-grid">' + items.map((item) => '<a href="' + escapeHtml(item[3]) + '"><strong>' + escapeHtml(item[0]) + '</strong><span>' + escapeHtml(item[1]) + '</span><small>' + escapeHtml(item[2]) + '</small></a>').join('') + '</div>';
   }
@@ -393,8 +392,8 @@
       nodes.form.parentNode.insertBefore(formHome, nodes.form);
     }
     lastFocus = document.activeElement;
-    nodes.modalTitle.textContent = title || 'Job Editor';
-    if (nodes.editorTitle) nodes.editorTitle.textContent = title || 'Job Editor';
+    nodes.modalTitle.textContent = title || 'Job Workspace';
+    if (nodes.editorTitle) nodes.editorTitle.textContent = title || 'Job Workspace';
     nodes.modalBody.appendChild(nodes.form);
     nodes.modal.hidden = false;
     document.body.classList.add('modal-open');
@@ -409,7 +408,7 @@
     }
     nodes.modal.hidden = true;
     document.body.classList.remove('modal-open');
-    if (nodes.editorTitle) nodes.editorTitle.textContent = 'Job Editor';
+    if (nodes.editorTitle) nodes.editorTitle.textContent = 'Job Workspace';
     if (lastFocus && typeof lastFocus.focus === 'function') lastFocus.focus();
   }
 
@@ -477,7 +476,7 @@
       contact_name: job.contact_name || '',
       site_address: job.site_address || '',
       job_type: job.job_type || 'Roofing',
-      stage: job.stage || job.status || 'Lead',
+      stage: normalizeBusinessStatus(job.stage || job.status || 'Lead'),
       priority: job.priority || 'Medium',
       owner_name: job.owner_name || job.owner || '',
       scope: job.scope || '',
@@ -542,6 +541,18 @@
   function companyLabel(id) {
     const company = companies.find((item) => item.id === id);
     return company?.name || id || companies[0]?.name || 'Quest Roofing';
+  }
+
+  function normalizeBusinessStatus(value) {
+    const status = String(value || 'Lead');
+    const map = {
+      Inspection: 'Site Review',
+      'Estimate Approved': 'Approved',
+      Production: 'Active',
+      'QA Review': 'Active',
+      Complete: 'Closed'
+    };
+    return map[status] || status;
   }
 
   function renderCompanyOptions(selectedValue = nodes.companySelect?.value) {

@@ -33,17 +33,17 @@
         <input data-job-search placeholder="Search jobs, clients, owners, addresses" />
       </div>
       <select data-job-stage-filter aria-label="Filter jobs by stage">
-        <option value="all">All stages</option>
+        <option value="all">All business statuses</option>
         <option>Lead</option>
-        <option>Inspection</option>
-        <option>Estimate Approved</option>
-        <option>Production</option>
-        <option>QA Review</option>
-        <option>Complete</option>
+        <option>Site Review</option>
+        <option>Estimate</option>
+        <option>Approved</option>
+        <option>Active</option>
+        <option>Closed</option>
       </select>
       <span class="sync-pill" data-job-sync>Connecting to Supabase...</span>
       <button class="secondary-button" type="button" data-job-refresh>Refresh</button>
-      <button class="primary-button" type="button" data-job-new>Add Job</button>
+      <button class="primary-button" type="button" data-job-new>Add Job Workspace</button>
     </div>
     <div class="tabs" role="tablist">
       <button class="active" data-tab="pipeline">Pipeline</button>
@@ -69,26 +69,26 @@
     <section class="tab-panel" data-panel="editor">
       <form class="panel job-editor" data-job-form>
         <input type="hidden" name="id" />
-        <div class="job-section-heading span-2"><h2 data-job-editor-title>Job Editor</h2><span>Saved to Supabase when available, local fallback otherwise.</span></div>
-        <label class="span-2">Job Name<input name="name" required /></label>
+        <div class="job-section-heading span-2"><h2 data-job-editor-title>Job Workspace</h2><span>Creates the business space for files, forms, finance, and TaskManagement handoff.</span></div>
+        <label class="span-2">Workspace Name<input name="name" required placeholder="Client, site, or project name" /></label>
         <label>Company
           <select name="company_id" data-job-company-select></select>
         </label>
         <label>Client<input name="client_name" placeholder="Client or account name" /></label>
         <label>Contact<input name="contact_name" /></label>
-        <label>Owner<input name="owner_name" /></label>
+        <label>Account Owner<input name="owner_name" placeholder="Internal business owner" /></label>
         <label>Job Type<input name="job_type" /></label>
-        <label>Stage
+        <label>Business Status
           <select name="stage">
             <option>Lead</option>
-            <option>Inspection</option>
-            <option>Estimate Approved</option>
-            <option>Production</option>
-            <option>QA Review</option>
-            <option>Complete</option>
+            <option>Site Review</option>
+            <option>Estimate</option>
+            <option>Approved</option>
+            <option>Active</option>
+            <option>Closed</option>
           </select>
         </label>
-        <label>Priority
+        <label>Client Urgency
           <select name="priority">
             <option>Low</option>
             <option>Medium</option>
@@ -96,17 +96,12 @@
             <option>Urgent</option>
           </select>
         </label>
-        <label>Start Date<input type="date" name="start_date" /></label>
-        <label>Due Date<input type="date" name="due_date" /></label>
         <label>Estimate Total<input type="number" min="0" step="100" name="estimate_total" /></label>
-        <label>Invoice Total<input type="number" min="0" step="100" name="invoice_total" /></label>
-        <label>Task Count<input type="number" min="0" step="1" name="task_count" /></label>
-        <label>File Count<input type="number" min="0" step="1" name="file_count" /></label>
         <label class="span-2">Site Address<input name="site_address" /></label>
         <label class="span-2">Scope<textarea name="scope" rows="4"></textarea></label>
         <label class="span-2">Notes<textarea name="notes" rows="4"></textarea></label>
         <div class="form-actions span-2">
-          <button class="primary-button" type="submit">Save Job</button>
+          <button class="primary-button" type="submit">Save Workspace</button>
           <button class="secondary-button" type="button" data-job-modal-close>Close</button>
           <button class="secondary-button" type="button" data-job-duplicate>Duplicate</button>
           <button class="danger-button" type="button" data-job-delete>Delete</button>
@@ -118,7 +113,7 @@
         <div class="modal-header">
           <div>
             <div class="eyebrow">Job Center</div>
-            <h2 id="job-modal-title" data-job-modal-title>Add Job</h2>
+            <h2 id="job-modal-title" data-job-modal-title>Create Job Workspace</h2>
           </div>
           <button class="secondary-button" type="button" data-job-modal-close>Close</button>
         </div>

@@ -328,17 +328,17 @@ function jobsPage() {
         <input data-job-search placeholder="Search jobs, clients, owners, addresses" />
       </div>
       <select data-job-stage-filter aria-label="Filter jobs by stage">
-        <option value="all">All stages</option>
+        <option value="all">All business statuses</option>
         <option>Lead</option>
-        <option>Inspection</option>
-        <option>Estimate Approved</option>
-        <option>Production</option>
-        <option>QA Review</option>
-        <option>Complete</option>
+        <option>Site Review</option>
+        <option>Estimate</option>
+        <option>Approved</option>
+        <option>Active</option>
+        <option>Closed</option>
       </select>
       <span class="sync-pill" data-job-sync>Connecting to Supabase...</span>
       <button class="secondary-button" type="button" data-job-refresh>Refresh</button>
-      <button class="primary-button" type="button" data-job-new>Add Job</button>
+      <button class="primary-button" type="button" data-job-new>Add Job Workspace</button>
     </div>
     <div class="tabs" role="tablist">
       <button class="active" data-tab="pipeline">Pipeline</button>
@@ -364,26 +364,26 @@ function jobsPage() {
     <section class="tab-panel" data-panel="editor">
       <form class="panel job-editor" data-job-form>
         <input type="hidden" name="id" />
-        <div class="job-section-heading span-2"><h2 data-job-editor-title>Job Editor</h2><span>Saved to Supabase when available, local fallback otherwise.</span></div>
-        <label class="span-2">Job Name<input name="name" required /></label>
+        <div class="job-section-heading span-2"><h2 data-job-editor-title>Job Workspace</h2><span>Creates the business space for files, forms, finance, and TaskManagement handoff.</span></div>
+        <label class="span-2">Workspace Name<input name="name" required placeholder="Client, site, or project name" /></label>
         <label>Company
           <select name="company_id" data-job-company-select></select>
         </label>
         <label>Client<input name="client_name" placeholder="Client or account name" /></label>
         <label>Contact<input name="contact_name" /></label>
-        <label>Owner<input name="owner_name" /></label>
+        <label>Account Owner<input name="owner_name" placeholder="Internal business owner" /></label>
         <label>Job Type<input name="job_type" /></label>
-        <label>Stage
+        <label>Business Status
           <select name="stage">
             <option>Lead</option>
-            <option>Inspection</option>
-            <option>Estimate Approved</option>
-            <option>Production</option>
-            <option>QA Review</option>
-            <option>Complete</option>
+            <option>Site Review</option>
+            <option>Estimate</option>
+            <option>Approved</option>
+            <option>Active</option>
+            <option>Closed</option>
           </select>
         </label>
-        <label>Priority
+        <label>Client Urgency
           <select name="priority">
             <option>Low</option>
             <option>Medium</option>
@@ -391,17 +391,12 @@ function jobsPage() {
             <option>Urgent</option>
           </select>
         </label>
-        <label>Start Date<input type="date" name="start_date" /></label>
-        <label>Due Date<input type="date" name="due_date" /></label>
         <label>Estimate Total<input type="number" min="0" step="100" name="estimate_total" /></label>
-        <label>Invoice Total<input type="number" min="0" step="100" name="invoice_total" /></label>
-        <label>Task Count<input type="number" min="0" step="1" name="task_count" /></label>
-        <label>File Count<input type="number" min="0" step="1" name="file_count" /></label>
         <label class="span-2">Site Address<input name="site_address" /></label>
         <label class="span-2">Scope<textarea name="scope" rows="4"></textarea></label>
         <label class="span-2">Notes<textarea name="notes" rows="4"></textarea></label>
         <div class="form-actions span-2">
-          <button class="primary-button" type="submit">Save Job</button>
+          <button class="primary-button" type="submit">Save Workspace</button>
           <button class="secondary-button" type="button" data-job-modal-close>Close</button>
           <button class="secondary-button" type="button" data-job-duplicate>Duplicate</button>
           <button class="danger-button" type="button" data-job-delete>Delete</button>
@@ -413,7 +408,7 @@ function jobsPage() {
         <div class="modal-header">
           <div>
             <div class="eyebrow">Job Center</div>
-            <h2 id="job-modal-title" data-job-modal-title>Add Job</h2>
+            <h2 id="job-modal-title" data-job-modal-title>Create Job Workspace</h2>
           </div>
           <button class="secondary-button" type="button" data-job-modal-close>Close</button>
         </div>
@@ -1002,7 +997,7 @@ const jobCenterJs = `(() => {
 
   const seed = JSON.parse(document.getElementById('record-seed')?.textContent || '[]');
   const localKey = 'quest-hq-job-center';
-  const lanes = ['Lead', 'Inspection', 'Estimate Approved', 'Production', 'QA Review'];
+  const lanes = ['Lead', 'Site Review', 'Estimate', 'Approved', 'Active'];
   const fields = ['id','name','company_id','client_name','contact_name','site_address','job_type','stage','priority','owner_name','scope','start_date','due_date','estimate_total','invoice_total','task_count','file_count','notes'];
   const defaultCompanies = [
     { id: 'quest-roofing', name: 'Quest Roofing', short_name: 'Roofing', color: '#f45d22' },
@@ -1104,7 +1099,7 @@ const jobCenterJs = `(() => {
       selectedId = job.id;
       saveLocal();
       render();
-      openJobModal('Add Job');
+      openJobModal('Create Job Workspace');
     });
     center.querySelector('[data-job-refresh]')?.addEventListener('click', async () => {
       await refreshCompanies();
@@ -1249,7 +1244,7 @@ const jobCenterJs = `(() => {
         '<span>' + escapeHtml(job.stage || 'Lead') + '</span>' +
         '<span>' + escapeHtml(job.priority || 'Medium') + '</span>' +
         '<span>' + money.format(number(job.estimate_total)) + '</span>' +
-        '<span>' + number(job.task_count) + ' tasks</span>' +
+        '<span>' + number(job.file_count) + ' files</span>' +
       '</button>';
     }).join('') : '<div class=\"empty-state\">No jobs match this view.</div>';
   }
@@ -1265,17 +1260,17 @@ const jobCenterJs = `(() => {
       '<div class=\"job-detail-grid\">' +
       detail('Client', job.client_name || 'Unassigned') +
       detail('Contact', job.contact_name || 'Not set') +
-      detail('Owner', job.owner_name || 'Unassigned') +
+      detail('Account Owner', job.owner_name || 'Unassigned') +
       detail('Site', job.site_address || 'No address') +
-      detail('Stage', job.stage || 'Lead') +
-      detail('Priority', job.priority || 'Medium') +
+      detail('Business Status', job.stage || 'Lead') +
+      detail('Client Urgency', job.priority || 'Medium') +
       detail('Estimate', money.format(number(job.estimate_total))) +
-      detail('Invoice', money.format(number(job.invoice_total))) +
-      detail('Due Date', job.due_date || 'Not set') +
+      detail('TaskManagement Project', job.id) +
+      detail('File Space', number(job.file_count) + ' files') +
       '</div>' +
       linkedPanels(job) +
       activityTimeline(job);
-    nodes.sidecar.innerHTML = detail('TaskManagement Link', number(job.task_count) + ' linked tasks') +
+    nodes.sidecar.innerHTML = detail('Workspace', 'Business context and records') +
       detail('Files', number(job.file_count) + ' files attached') +
       detail('Company', companyLabel(job.company_id)) +
       '<a class=\"secondary-button\" href=\"' + escapeHtml(bridgeUrl(job)) + '\">Open TaskManagement</a>' +
@@ -1285,12 +1280,11 @@ const jobCenterJs = `(() => {
   }
 
   function linkedPanels(job) {
-    const taskOpen = Math.max(number(job.task_count) - completedTasks(job), 0);
     const items = [
-      ['TaskManagement', number(job.task_count) + ' tasks', taskOpen + ' open / ' + completedTasks(job) + ' done', bridgeUrl(job)],
+      ['TaskManagement', 'Open work system', 'Tasks live there, linked by project_id', bridgeUrl(job)],
       ['Files & Photos', number(job.file_count) + ' files', 'Photos, permits, estimates, invoices', fileUrl(job)],
       ['Forms & Inspections', inspectionCount(job) + ' records', 'Inspection, approval, walkthrough', 'forms.html'],
-      ['Finance', money.format(number(job.invoice_total)) + ' invoiced', money.format(number(job.estimate_total)) + ' estimate', 'finance.html']
+      ['Finance', money.format(number(job.estimate_total)) + ' estimate', 'Estimate, invoice, payment records', 'finance.html']
     ];
     return '<div class=\"linked-panel-grid\">' + items.map((item) => '<a href=\"' + escapeHtml(item[3]) + '\"><strong>' + escapeHtml(item[0]) + '</strong><span>' + escapeHtml(item[1]) + '</span><small>' + escapeHtml(item[2]) + '</small></a>').join('') + '</div>';
   }
@@ -1319,8 +1313,8 @@ const jobCenterJs = `(() => {
       nodes.form.parentNode.insertBefore(formHome, nodes.form);
     }
     lastFocus = document.activeElement;
-    nodes.modalTitle.textContent = title || 'Job Editor';
-    if (nodes.editorTitle) nodes.editorTitle.textContent = title || 'Job Editor';
+    nodes.modalTitle.textContent = title || 'Job Workspace';
+    if (nodes.editorTitle) nodes.editorTitle.textContent = title || 'Job Workspace';
     nodes.modalBody.appendChild(nodes.form);
     nodes.modal.hidden = false;
     document.body.classList.add('modal-open');
@@ -1335,7 +1329,7 @@ const jobCenterJs = `(() => {
     }
     nodes.modal.hidden = true;
     document.body.classList.remove('modal-open');
-    if (nodes.editorTitle) nodes.editorTitle.textContent = 'Job Editor';
+    if (nodes.editorTitle) nodes.editorTitle.textContent = 'Job Workspace';
     if (lastFocus && typeof lastFocus.focus === 'function') lastFocus.focus();
   }
 
@@ -1403,7 +1397,7 @@ const jobCenterJs = `(() => {
       contact_name: job.contact_name || '',
       site_address: job.site_address || '',
       job_type: job.job_type || 'Roofing',
-      stage: job.stage || job.status || 'Lead',
+      stage: normalizeBusinessStatus(job.stage || job.status || 'Lead'),
       priority: job.priority || 'Medium',
       owner_name: job.owner_name || job.owner || '',
       scope: job.scope || '',
@@ -1468,6 +1462,18 @@ const jobCenterJs = `(() => {
   function companyLabel(id) {
     const company = companies.find((item) => item.id === id);
     return company?.name || id || companies[0]?.name || 'Quest Roofing';
+  }
+
+  function normalizeBusinessStatus(value) {
+    const status = String(value || 'Lead');
+    const map = {
+      Inspection: 'Site Review',
+      'Estimate Approved': 'Approved',
+      Production: 'Active',
+      'QA Review': 'Active',
+      Complete: 'Closed'
+    };
+    return map[status] || status;
   }
 
   function renderCompanyOptions(selectedValue = nodes.companySelect?.value) {
