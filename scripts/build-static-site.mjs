@@ -510,7 +510,6 @@ function filesPage() {
 
     <div class="tabs" role="tablist">
       <button class="active" data-tab="job-files">Job Files</button>
-      <button data-tab="upload-queue">Upload Queue</button>
       <button data-tab="file-details">File Details</button>
     </div>
 
@@ -562,6 +561,7 @@ function filesPage() {
         </div>
         <div class="form-actions span-2">
           <button class="primary-button" type="submit">Upload Selected Files</button>
+          <button class="secondary-button" type="button" data-file-modal-close>Close</button>
           <button class="secondary-button" type="button" data-file-clear-input>Clear</button>
         </div>
         <div class="file-upload-log span-2" data-file-upload-log></div>
@@ -573,6 +573,18 @@ function filesPage() {
         <div class="empty-state">Select a file from Job Files to view its deployment metadata.</div>
       </div>
     </section>
+    <div class="modal-overlay" data-file-modal hidden>
+      <div class="modal-panel file-modal-panel" role="dialog" aria-modal="true" aria-labelledby="file-modal-title">
+        <div class="modal-header">
+          <div>
+            <div class="eyebrow">File Center</div>
+            <h2 id="file-modal-title">Upload Files</h2>
+          </div>
+          <button class="secondary-button" type="button" data-file-modal-close>Close</button>
+        </div>
+        <div data-file-modal-body></div>
+      </div>
+    </div>
   </section>`;
   return shell({ file: 'files.html', title: 'Files', moduleId: 'files', content, seed: [] });
 }
@@ -911,7 +923,7 @@ const css = `:root{--ink:#121826;--muted:#617089;--line:#d9e0ea;--soft:#f5f7fb;-
 
 const sidebarPolishCss = `.sidebar{width:292px;padding:22px 16px 18px}.main{margin-left:292px}.brand{gap:12px;margin-bottom:6px}.brand-mark{width:46px;height:46px;border-radius:9px;font-size:23px}.brand strong{font-size:24px;line-height:1.05;color:#fff}.brand small{font-size:14px;margin-top:4px;color:#adc7e6}.build-badge{align-self:flex-start;border-color:#f45d22;background:#3a211f;color:#fff3ec;padding:8px 12px;font-size:13px}.nav-list{gap:7px;margin-top:6px}.nav-item{min-height:47px;gap:12px;border-radius:8px;padding:0 12px;font-size:18px;line-height:1;color:#cfe6ff}.nav-item .nav-icon{display:grid;place-items:center;flex:0 0 20px;width:20px;height:20px;border:0;border-radius:0;color:#b8c7dc}.nav-item .nav-icon svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}.nav-item .nav-label{display:block;width:auto;height:auto;border:0;border-radius:0;color:inherit;font-size:inherit}.nav-item.active{background:#3a211f;color:#fff;box-shadow:inset 4px 0 var(--orange)}.nav-item.active .nav-icon{color:#fff}.sidebar-card{font-size:14px;line-height:1.35}@media(max-width:820px){.sidebar{position:static;width:auto;height:auto;max-height:none;padding:18px}.main{margin-left:0;padding:16px}.brand strong{font-size:23px}.nav-item{font-size:18px}}`;
 
-const modalCss = `.modal-overlay[hidden]{display:none}.modal-overlay{position:fixed;inset:0;z-index:80;display:grid;place-items:center;background:rgba(15,23,42,.58);padding:22px}.modal-panel{width:min(980px,calc(100vw - 44px));max-height:calc(100vh - 44px);overflow:auto;border:1px solid var(--line);border-radius:10px;background:#fff;box-shadow:0 28px 90px rgba(15,23,42,.34)}.modal-header{position:sticky;top:0;z-index:2;display:flex;align-items:flex-start;justify-content:space-between;gap:14px;border-bottom:1px solid var(--line);background:#fff;padding:16px 18px}.modal-header h2{margin:3px 0 0}.job-modal-panel .job-editor{border:0;border-radius:0;box-shadow:none}.job-modal-panel .job-editor>.job-section-heading{display:none}.job-modal-panel .job-editor .form-actions{position:sticky;bottom:0;background:#fff;border-top:1px solid var(--line);padding-top:12px}.job-modal-panel [data-job-modal-close]{display:inline-flex}body.modal-open{overflow:hidden}@media(max-width:760px){.modal-overlay{padding:10px}.modal-panel{width:calc(100vw - 20px);max-height:calc(100vh - 20px)}.modal-header{display:grid}.job-modal-panel .job-editor{grid-template-columns:1fr}}`;
+const modalCss = `.modal-overlay[hidden]{display:none}.modal-overlay{position:fixed;inset:0;z-index:80;display:grid;place-items:center;background:rgba(15,23,42,.58);padding:22px}.modal-panel{width:min(980px,calc(100vw - 44px));max-height:calc(100vh - 44px);overflow:auto;border:1px solid var(--line);border-radius:10px;background:#fff;box-shadow:0 28px 90px rgba(15,23,42,.34)}.modal-header{position:sticky;top:0;z-index:2;display:flex;align-items:flex-start;justify-content:space-between;gap:14px;border-bottom:1px solid var(--line);background:#fff;padding:16px 18px}.modal-header h2{margin:3px 0 0}.job-modal-panel .job-editor,.file-modal-panel .file-upload-panel{border:0;border-radius:0;box-shadow:none}.job-modal-panel .job-editor>.job-section-heading,.file-modal-panel .file-upload-panel>.job-section-heading{display:none}.job-modal-panel .job-editor .form-actions,.file-modal-panel .file-upload-panel .form-actions{position:sticky;bottom:0;background:#fff;border-top:1px solid var(--line);padding-top:12px}.job-modal-panel [data-job-modal-close],.file-modal-panel [data-file-modal-close]{display:inline-flex}body.modal-open{overflow:hidden}@media(max-width:760px){.modal-overlay{padding:10px}.modal-panel{width:calc(100vw - 20px);max-height:calc(100vh - 20px)}.modal-header{display:grid}.job-modal-panel .job-editor,.file-modal-panel .file-upload-panel{grid-template-columns:1fr}}`;
 
 const plannedNavCss = `.nav-item.nav-planned,.nav-item.nav-planned:hover,.nav-item.nav-planned.active{background:rgba(148,163,184,.08);color:#7f8fa5;box-shadow:none;cursor:not-allowed;filter:grayscale(1)}.nav-item.nav-planned.active{box-shadow:inset 4px 0 #64748b}.nav-item.nav-planned .nav-icon{color:#6f8198}.nav-item.nav-planned .nav-icon svg{stroke-dasharray:3 3}.nav-item.nav-planned .nav-label{color:#7f8fa5}.nav-status{margin-left:auto;border:1px solid #53657c;border-radius:999px;background:#172234;color:#9fb0c6;padding:3px 7px;font-size:10px;font-weight:900;text-transform:uppercase;letter-spacing:0}.nav-item:not(.nav-planned) .nav-status{display:none}@media(max-width:1180px){.nav-status{display:none}}`;
 
@@ -1543,7 +1555,9 @@ const fileCenterJs = `(() => {
     capacityBar: center.querySelector('[data-file-capacity-bar]'),
     uploadForm: center.querySelector('[data-file-upload-form]'),
     fileInput: center.querySelector('[data-file-input]'),
-    uploadLog: center.querySelector('[data-file-upload-log]')
+    uploadLog: center.querySelector('[data-file-upload-log]'),
+    modal: center.querySelector('[data-file-modal]'),
+    modalBody: center.querySelector('[data-file-modal-body]')
   };
 
   let client = null;
@@ -1552,6 +1566,8 @@ const fileCenterJs = `(() => {
   let usageBytes = 0;
   let selectedJobId = requestedJobId || '';
   let selectedFileId = '';
+  let uploadFormHome = null;
+  let lastFocus = null;
 
   init();
 
@@ -1577,7 +1593,16 @@ const fileCenterJs = `(() => {
     nodes.search?.addEventListener('input', render);
     nodes.grid?.addEventListener('click', selectFromClick);
     nodes.table?.addEventListener('click', selectFromClick);
-    center.querySelector('[data-file-open-upload]')?.addEventListener('click', () => center.querySelector('[data-tab=\"upload-queue\"]')?.click());
+    center.querySelector('[data-file-open-upload]')?.addEventListener('click', openUploadModal);
+    center.addEventListener('click', (event) => {
+      if (event.target.closest('[data-file-modal-close]')) closeUploadModal();
+    });
+    nodes.modal?.addEventListener('click', (event) => {
+      if (event.target === nodes.modal) closeUploadModal();
+    });
+    document.addEventListener('keydown', (event) => {
+      if (event.key === 'Escape' && nodes.modal && !nodes.modal.hidden) closeUploadModal();
+    });
     center.querySelector('[data-file-clear-input]')?.addEventListener('click', () => {
       nodes.fileInput.value = '';
       nodes.uploadLog.innerHTML = '';
@@ -1673,6 +1698,7 @@ const fileCenterJs = `(() => {
     const uploadedBy = String(form.get('uploaded_by_label') || 'Quest HQ Demo');
     const notes = String(form.get('notes') || '');
     let workingUsage = usageBytes;
+    let uploadedCount = 0;
     nodes.uploadLog.innerHTML = '';
     setSync('Uploading...', '');
 
@@ -1713,12 +1739,41 @@ const fileCenterJs = `(() => {
         continue;
       }
       workingUsage += file.size;
+      uploadedCount += 1;
       logUpload(file.name + ' uploaded.', 'ok');
     }
 
     nodes.fileInput.value = '';
     await refreshFiles();
     center.querySelector('[data-tab=\"job-files\"]')?.click();
+    if (uploadedCount > 0) closeUploadModal();
+  }
+
+  function openUploadModal() {
+    if (!nodes.modal || !nodes.modalBody || !nodes.uploadForm) {
+      return;
+    }
+    if (!uploadFormHome) {
+      uploadFormHome = document.createElement('div');
+      uploadFormHome.hidden = true;
+      nodes.uploadForm.parentNode.insertBefore(uploadFormHome, nodes.uploadForm);
+    }
+    lastFocus = document.activeElement;
+    nodes.uploadLog.innerHTML = '';
+    nodes.modalBody.appendChild(nodes.uploadForm);
+    nodes.modal.hidden = false;
+    document.body.classList.add('modal-open');
+    requestAnimationFrame(() => nodes.fileInput?.focus());
+  }
+
+  function closeUploadModal() {
+    if (!nodes.modal || nodes.modal.hidden) return;
+    if (uploadFormHome && nodes.uploadForm) {
+      uploadFormHome.parentNode.insertBefore(nodes.uploadForm, uploadFormHome);
+    }
+    nodes.modal.hidden = true;
+    document.body.classList.remove('modal-open');
+    if (lastFocus && typeof lastFocus.focus === 'function') lastFocus.focus();
   }
 
   async function deleteFile(id) {

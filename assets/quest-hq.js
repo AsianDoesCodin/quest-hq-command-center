@@ -608,7 +608,9 @@
     capacityBar: center.querySelector('[data-file-capacity-bar]'),
     uploadForm: center.querySelector('[data-file-upload-form]'),
     fileInput: center.querySelector('[data-file-input]'),
-    uploadLog: center.querySelector('[data-file-upload-log]')
+    uploadLog: center.querySelector('[data-file-upload-log]'),
+    modal: center.querySelector('[data-file-modal]'),
+    modalBody: center.querySelector('[data-file-modal-body]')
   };
 
   let client = null;
@@ -617,6 +619,8 @@
   let usageBytes = 0;
   let selectedJobId = requestedJobId || '';
   let selectedFileId = '';
+  let uploadFormHome = null;
+  let lastFocus = null;
 
   init();
 
@@ -642,7 +646,16 @@
     nodes.search?.addEventListener('input', render);
     nodes.grid?.addEventListener('click', selectFromClick);
     nodes.table?.addEventListener('click', selectFromClick);
-    center.querySelector('[data-file-open-upload]')?.addEventListener('click', () => center.querySelector('[data-tab="upload-queue"]')?.click());
+    center.querySelector('[data-file-open-upload]')?.addEventListener('click', openUploadModal);
+    center.addEventListener('click', (event) => {
+      if (event.target.closest('[data-file-modal-close]')) closeUploadModal();
+    });
+    nodes.modal?.addEventListener('click', (event) => {
+      if (event.target === nodes.modal) closeUploadModal();
+    });
+    document.addEventListener('keydown', (event) => {
+      if (event.key === 'Escape' && nodes.modal && !nodes.modal.hidden) closeUploadModal();
+    });
     center.querySelector('[data-file-clear-input]')?.addEventListener('click', () => {
       nodes.fileInput.value = '';
       nodes.uploadLog.innerHTML = '';
@@ -738,6 +751,7 @@
     const uploadedBy = String(form.get('uploaded_by_label') || 'Quest HQ Demo');
     const notes = String(form.get('notes') || '');
     let workingUsage = usageBytes;
+    let uploadedCount = 0;
     nodes.uploadLog.innerHTML = '';
     setSync('Uploading...', '');
 
@@ -778,12 +792,41 @@
         continue;
       }
       workingUsage += file.size;
+      uploadedCount += 1;
       logUpload(file.name + ' uploaded.', 'ok');
     }
 
     nodes.fileInput.value = '';
     await refreshFiles();
     center.querySelector('[data-tab="job-files"]')?.click();
+    if (uploadedCount > 0) closeUploadModal();
+  }
+
+  function openUploadModal() {
+    if (!nodes.modal || !nodes.modalBody || !nodes.uploadForm) {
+      return;
+    }
+    if (!uploadFormHome) {
+      uploadFormHome = document.createElement('div');
+      uploadFormHome.hidden = true;
+      nodes.uploadForm.parentNode.insertBefore(uploadFormHome, nodes.uploadForm);
+    }
+    lastFocus = document.activeElement;
+    nodes.uploadLog.innerHTML = '';
+    nodes.modalBody.appendChild(nodes.uploadForm);
+    nodes.modal.hidden = false;
+    document.body.classList.add('modal-open');
+    requestAnimationFrame(() => nodes.fileInput?.focus());
+  }
+
+  function closeUploadModal() {
+    if (!nodes.modal || nodes.modal.hidden) return;
+    if (uploadFormHome && nodes.uploadForm) {
+      uploadFormHome.parentNode.insertBefore(nodes.uploadForm, uploadFormHome);
+    }
+    nodes.modal.hidden = true;
+    document.body.classList.remove('modal-open');
+    if (lastFocus && typeof lastFocus.focus === 'function') lastFocus.focus();
   }
 
   async function deleteFile(id) {

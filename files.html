@@ -70,7 +70,6 @@
 
     <div class="tabs" role="tablist">
       <button class="active" data-tab="job-files">Job Files</button>
-      <button data-tab="upload-queue">Upload Queue</button>
       <button data-tab="file-details">File Details</button>
     </div>
 
@@ -122,6 +121,7 @@
         </div>
         <div class="form-actions span-2">
           <button class="primary-button" type="submit">Upload Selected Files</button>
+          <button class="secondary-button" type="button" data-file-modal-close>Close</button>
           <button class="secondary-button" type="button" data-file-clear-input>Clear</button>
         </div>
         <div class="file-upload-log span-2" data-file-upload-log></div>
@@ -133,6 +133,18 @@
         <div class="empty-state">Select a file from Job Files to view its deployment metadata.</div>
       </div>
     </section>
+    <div class="modal-overlay" data-file-modal hidden>
+      <div class="modal-panel file-modal-panel" role="dialog" aria-modal="true" aria-labelledby="file-modal-title">
+        <div class="modal-header">
+          <div>
+            <div class="eyebrow">File Center</div>
+            <h2 id="file-modal-title">Upload Files</h2>
+          </div>
+          <button class="secondary-button" type="button" data-file-modal-close>Close</button>
+        </div>
+        <div data-file-modal-body></div>
+      </div>
+    </div>
   </section>
       </main>
     </div>
