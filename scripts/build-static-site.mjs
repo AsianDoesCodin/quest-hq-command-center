@@ -1030,6 +1030,7 @@ const jobCenterJs = `(() => {
   let source = 'local';
   let formHome = null;
   let lastFocus = null;
+  let draftJob = null;
 
   init();
 
@@ -1094,11 +1095,8 @@ const jobCenterJs = `(() => {
 
   function bindEvents() {
     center.querySelector('[data-job-new]')?.addEventListener('click', () => {
-      const job = blankJob();
-      jobs.unshift(job);
-      selectedId = job.id;
-      saveLocal();
-      render();
+      draftJob = blankJob();
+      fillForm(draftJob);
       openJobModal('Create Job Workspace');
     });
     center.querySelector('[data-job-refresh]')?.addEventListener('click', async () => {
@@ -1178,6 +1176,10 @@ const jobCenterJs = `(() => {
   }
 
   async function deleteJob() {
+    if (draftJob) {
+      closeJobModal();
+      return;
+    }
     const job = selectedJob();
     if (!job) return;
     if (supabaseClient && job.id && !String(job.id).startsWith('local-')) {
@@ -1198,13 +1200,11 @@ const jobCenterJs = `(() => {
   }
 
   function duplicateJob() {
-    const job = selectedJob();
+    const job = draftJob || selectedJob();
     if (!job) return;
     const copy = { ...job, id: 'local-' + Date.now(), name: job.name + ' Copy', stage: 'Lead' };
-    jobs.unshift(copy);
-    selectedId = copy.id;
-    saveLocal();
-    render();
+    draftJob = copy;
+    fillForm(copy);
     openJobModal('Duplicate Job');
   }
 
@@ -1293,8 +1293,8 @@ const jobCenterJs = `(() => {
     return '<section class=\"job-activity-panel\"><div class=\"job-section-heading\"><h2>Activity Timeline</h2><span>Not connected</span></div><article class=\"empty-state\">No live activity events are connected yet.</article></section>';
   }
 
-  function fillForm() {
-    const job = selectedJob() || blankJob();
+  function fillForm(job = null) {
+    job = job || draftJob || selectedJob() || blankJob();
     renderCompanyOptions(job.company_id);
     fields.forEach((field) => {
       if (!nodes.form.elements[field]) return;
@@ -1329,13 +1329,14 @@ const jobCenterJs = `(() => {
     }
     nodes.modal.hidden = true;
     document.body.classList.remove('modal-open');
+    draftJob = null;
     if (nodes.editorTitle) nodes.editorTitle.textContent = 'Job Workspace';
     if (lastFocus && typeof lastFocus.focus === 'function') lastFocus.focus();
   }
 
   function collectForm() {
     const data = Object.fromEntries(new FormData(nodes.form).entries());
-    data.id = data.id || 'local-' + Date.now();
+    data.id = data.id || draftJob?.id || 'local-' + Date.now();
     ['estimate_total','invoice_total','task_count','file_count'].forEach((field) => data[field] = number(data[field]));
     return normalizeJob(data);
   }
