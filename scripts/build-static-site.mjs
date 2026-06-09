@@ -257,6 +257,7 @@ function shell({ file, title, content, seed = [], moduleId = '' }) {
           <span data-tour-count>Step 1 of 1</span>
           <button type="button" data-tour-skip>Skip</button>
         </div>
+        <div class="tour-progress" data-tour-progress aria-hidden="true"></div>
         <h2 id="tour-title" data-tour-title>Welcome to Quest HQ</h2>
         <p data-tour-body></p>
         <div class="tour-actions">
@@ -944,7 +945,7 @@ const analyticsCss = `.analytics-layout{display:grid;grid-template-columns:minma
 
 const plannedTabsCss = `.tabs button.tab-planned,.tabs button.tab-planned:hover,.tabs button.tab-planned.active{color:#64748b;background:repeating-linear-gradient(135deg,#eef2f7 0,#eef2f7 8px,#e2e8f0 8px,#e2e8f0 16px);border-color:#94a3b8;box-shadow:none;cursor:not-allowed;opacity:1;filter:grayscale(1)}.tabs button.tab-planned.active{box-shadow:inset 0 -3px #94a3b8}.tabs button.tab-planned small{display:inline-flex;margin-left:8px;border:1px solid #94a3b8;border-radius:999px;background:#f8fafc;padding:2px 7px;color:#475569;font-size:10px;font-weight:900;text-transform:uppercase;vertical-align:middle}.tabs button:not(.tab-planned) small{display:none}@media(max-width:620px){.tabs button.tab-planned small{display:none}}`;
 
-const tutorialCss = `.tour-replay{display:inline-flex;align-items:center;justify-content:center;min-height:36px;border:1px solid #324055;border-radius:999px;background:#172234;color:#dbeafe;font-weight:850;cursor:pointer}.tour-replay:hover{border-color:#f45d22;color:#fff;background:#2a1816}.tour-overlay[hidden]{display:none}.tour-overlay{position:fixed;inset:0;z-index:130;background:rgba(15,23,42,.68);pointer-events:auto}.tour-spotlight{position:absolute;border:2px solid #f45d22;border-radius:12px;box-shadow:0 0 0 9999px rgba(15,23,42,.68),0 18px 60px rgba(0,0,0,.32);transition:all .18s ease;background:rgba(255,255,255,.04);pointer-events:none}.tour-card{position:absolute;width:min(420px,calc(100vw - 28px));border:1px solid var(--line);border-radius:10px;background:#fff;color:var(--ink);box-shadow:0 28px 90px rgba(0,0,0,.34);padding:18px}.tour-card-head{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:10px}.tour-card-head span{color:#f45d22;font-size:12px;font-weight:900;text-transform:uppercase}.tour-card-head button{border:0;background:transparent;color:#52627a;font-weight:850;cursor:pointer}.tour-card h2{font-size:23px;margin:0 0 8px}.tour-card p{color:#52627a;line-height:1.5;margin-bottom:16px}.tour-actions{display:flex;justify-content:space-between;gap:10px}.tour-actions button[disabled]{opacity:.45;cursor:not-allowed}body.tour-open{overflow:hidden}@media(max-width:820px){.tour-overlay{display:grid;place-items:end center;padding:12px}.tour-spotlight{display:none}.tour-card{position:static;width:100%}.tour-replay{width:100%}}`;
+const tutorialCss = `.tour-replay{display:inline-flex;align-items:center;justify-content:center;min-height:36px;border:1px solid #324055;border-radius:999px;background:#172234;color:#dbeafe;font-weight:850;cursor:pointer}.tour-replay:hover{border-color:#f45d22;color:#fff;background:#2a1816}.tour-overlay[hidden]{display:none}.tour-overlay{position:fixed;inset:0;z-index:130;background:rgba(15,23,42,.68);pointer-events:auto}.tour-spotlight{position:absolute;border:2px solid #f45d22;border-radius:12px;box-shadow:0 0 0 9999px rgba(15,23,42,.68),0 18px 60px rgba(0,0,0,.32);transition:all .18s ease;background:rgba(255,255,255,.04);pointer-events:none}.tour-card{position:absolute;width:min(440px,calc(100vw - 28px));border:1px solid var(--line);border-radius:10px;background:#fff;color:var(--ink);box-shadow:0 28px 90px rgba(0,0,0,.34);padding:18px}.tour-card-head{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:10px}.tour-card-head span{color:#f45d22;font-size:12px;font-weight:900;text-transform:uppercase}.tour-card-head button{border:0;background:transparent;color:#52627a;font-weight:850;cursor:pointer}.tour-progress{display:grid;grid-template-columns:repeat(var(--tour-steps,1),minmax(0,1fr));gap:5px;margin:0 0 14px}.tour-progress span{display:block;height:7px;border-radius:999px;background:#e2e8f0;position:relative;overflow:hidden}.tour-progress span:before{content:"";position:absolute;inset:0;background:#111827;transform:scaleX(0);transform-origin:left}.tour-progress span.done:before,.tour-progress span.active:before{transform:scaleX(1)}.tour-progress span.done:before{background:#111827}.tour-progress span.active:before{background:#f45d22}.tour-card h2{font-size:23px;margin:0 0 8px}.tour-card p{color:#52627a;line-height:1.5;margin-bottom:16px}.tour-actions{display:flex;justify-content:space-between;gap:10px}.tour-actions button[disabled]{opacity:.45;cursor:not-allowed}body.tour-open{overflow:hidden}@media(max-width:820px){.tour-overlay{display:grid;place-items:end center;padding:12px}.tour-spotlight{display:none}.tour-card{position:static;width:100%}.tour-replay{width:100%}}`;
 
 const js = `(() => {
   const storageKey = (moduleId) => 'quest-hq-static-' + moduleId;
@@ -2572,6 +2573,7 @@ const tutorialJs = `(() => {
     card: overlay.querySelector('[data-tour-card]'),
     spotlight: overlay.querySelector('[data-tour-spotlight]'),
     count: overlay.querySelector('[data-tour-count]'),
+    progress: overlay.querySelector('[data-tour-progress]'),
     title: overlay.querySelector('[data-tour-title]'),
     body: overlay.querySelector('[data-tour-body]'),
     back: overlay.querySelector('[data-tour-back]'),
@@ -2649,6 +2651,7 @@ const tutorialJs = `(() => {
     index = 0;
     overlay.hidden = false;
     document.body.classList.add('tour-open');
+    renderProgressTrack();
     renderStep();
   }
 
@@ -2673,10 +2676,25 @@ const tutorialJs = `(() => {
       placeCard(element);
     });
     nodes.count.textContent = 'Step ' + (index + 1) + ' of ' + steps.length;
+    updateProgressTrack();
     nodes.title.textContent = step.title;
     nodes.body.textContent = step.body;
     nodes.back.disabled = index === 0;
     nodes.next.textContent = index === steps.length - 1 ? 'Finish' : 'Next';
+  }
+
+  function renderProgressTrack() {
+    if (!nodes.progress) return;
+    nodes.progress.style.setProperty('--tour-steps', steps.length);
+    nodes.progress.innerHTML = steps.map((_, stepIndex) => '<span data-tour-progress-step=\"' + stepIndex + '\"></span>').join('');
+  }
+
+  function updateProgressTrack() {
+    if (!nodes.progress) return;
+    nodes.progress.querySelectorAll('[data-tour-progress-step]').forEach((item, stepIndex) => {
+      item.classList.toggle('done', stepIndex < index);
+      item.classList.toggle('active', stepIndex === index);
+    });
   }
 
   function prepareStep(step) {

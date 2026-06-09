@@ -1610,6 +1610,7 @@ function escapeHtml(value) {
     card: overlay.querySelector('[data-tour-card]'),
     spotlight: overlay.querySelector('[data-tour-spotlight]'),
     count: overlay.querySelector('[data-tour-count]'),
+    progress: overlay.querySelector('[data-tour-progress]'),
     title: overlay.querySelector('[data-tour-title]'),
     body: overlay.querySelector('[data-tour-body]'),
     back: overlay.querySelector('[data-tour-back]'),
@@ -1687,6 +1688,7 @@ function escapeHtml(value) {
     index = 0;
     overlay.hidden = false;
     document.body.classList.add('tour-open');
+    renderProgressTrack();
     renderStep();
   }
 
@@ -1711,10 +1713,25 @@ function escapeHtml(value) {
       placeCard(element);
     });
     nodes.count.textContent = 'Step ' + (index + 1) + ' of ' + steps.length;
+    updateProgressTrack();
     nodes.title.textContent = step.title;
     nodes.body.textContent = step.body;
     nodes.back.disabled = index === 0;
     nodes.next.textContent = index === steps.length - 1 ? 'Finish' : 'Next';
+  }
+
+  function renderProgressTrack() {
+    if (!nodes.progress) return;
+    nodes.progress.style.setProperty('--tour-steps', steps.length);
+    nodes.progress.innerHTML = steps.map((_, stepIndex) => '<span data-tour-progress-step="' + stepIndex + '"></span>').join('');
+  }
+
+  function updateProgressTrack() {
+    if (!nodes.progress) return;
+    nodes.progress.querySelectorAll('[data-tour-progress-step]').forEach((item, stepIndex) => {
+      item.classList.toggle('done', stepIndex < index);
+      item.classList.toggle('active', stepIndex === index);
+    });
   }
 
   function prepareStep(step) {
