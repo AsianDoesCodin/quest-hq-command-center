@@ -1597,7 +1597,151 @@
     return Number.isFinite(parsed) ? parsed : 0;
   }
 
-  function escapeHtml(value) {
+function escapeHtml(value) {
     return String(value ?? '').replace(/[&<>"']/g, (char) => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#039;' }[char]));
   }
+})();(() => {
+  const overlay = document.querySelector('[data-tour-overlay]');
+  if (!overlay) return;
+
+  const storageKey = 'quest-hq-tour-guided-v14';
+  const moduleId = document.body.dataset.module || '';
+  const nodes = {
+    card: overlay.querySelector('[data-tour-card]'),
+    spotlight: overlay.querySelector('[data-tour-spotlight]'),
+    count: overlay.querySelector('[data-tour-count]'),
+    title: overlay.querySelector('[data-tour-title]'),
+    body: overlay.querySelector('[data-tour-body]'),
+    back: overlay.querySelector('[data-tour-back]'),
+    next: overlay.querySelector('[data-tour-next]'),
+    skip: overlay.querySelector('[data-tour-skip]')
+  };
+  let index = 0;
+  let steps = [];
+
+  const commonSteps = [
+    { selector: '.brand', title: 'Quest HQ', body: 'This is the operations command shell. The sidebar keeps jobs, files, analytics, admin, and the TaskManagement bridge one click away.' },
+    { selector: '.nav-list', title: 'Module Navigation', body: 'Live modules are clickable today. Grey planned modules show the roadmap without pretending they are complete.' },
+    { selector: '.build-badge', title: 'Demo Version', body: 'The version badge confirms the current presentation build and helps avoid browser cache confusion during demos.' }
+  ];
+
+  const pageSteps = {
+    command: [
+      { selector: '.metric-grid', title: 'Command Snapshot', body: 'The dashboard summarizes live jobs, urgency, linked task counts, and pipeline value from the Job Center.' },
+      { selector: '.quick-action-grid', title: 'Quick Actions', body: 'Use these shortcuts to start the real demo flows, especially creating a job workspace or opening the Job Center.' }
+    ],
+    jobs: [
+      { selector: '[data-job-open-editor]', title: 'Add Job Workspace', body: 'This opens a modal and only creates a workspace after Save. Nothing is added to the board from merely clicking the button.' },
+      { selector: '.job-board', title: 'Pipeline Board', body: 'Job workspaces move through business stages. Detailed execution tasks stay in TaskManagement.' },
+      { selector: '[data-panel="profile"]', title: 'Job Profile', body: 'The profile connects the client, site, files, finance, forms, and TaskManagement bridge around one job workspace.' }
+    ],
+    files: [
+      { selector: '.drive-header', title: 'Drive Controls', body: 'Search, category filters, refresh, and upload are grouped like a lightweight Google Drive file viewer.' },
+      { selector: '.drive-sidebar', title: 'Drive Filters', body: 'Use My Drive, Recent, Images, and Documents to move through Supabase-backed job files.' },
+      { selector: '[data-drive-folders]', title: 'Job Folders', body: 'Each saved job workspace gets a folder. Uploaded files attach to that selected job context.' },
+      { selector: '[data-file-open-upload]', title: 'Upload Modal', body: 'Upload opens as a popup, then saves file metadata and storage objects into Supabase for the selected job.' }
+    ],
+    dashboards: [
+      { selector: '.analytics-layout', title: 'Analytics Center', body: 'Analytics live on one page so operational pages stay focused and less cluttered.' }
+    ],
+    admin: [
+      { selector: '[data-company-admin]', title: 'Company Admin', body: 'Companies are managed here so job workspaces can belong to the right business account.' }
+    ],
+    'task-bridge': [
+      { selector: '.bridge-hero', title: 'TaskManagement Bridge', body: 'This bridge explains the integration contract: Quest HQ job id becomes the TaskManagement project_id.' },
+      { selector: '.bridge-contract', title: 'Handoff Contract', body: 'The return URL and project id are shown clearly so the future deployment has a stable integration target.' }
+    ]
+  };
+
+  function collectSteps() {
+    const all = commonSteps.concat(pageSteps[moduleId] || [
+      { selector: '.main', title: 'Module Workspace', body: 'This area shows the current module. Planned modules stay visibly disabled until they receive real implementation.' }
+    ]);
+    return all.map((step) => ({ ...step, element: document.querySelector(step.selector) })).filter((step) => step.element);
+  }
+
+  function openTour(force) {
+    steps = collectSteps();
+    if (!steps.length) return;
+    if (!force && localStorage.getItem(storageKey) === 'done') return;
+    index = 0;
+    overlay.hidden = false;
+    document.body.classList.add('tour-open');
+    renderStep();
+  }
+
+  function closeTour(saveState) {
+    overlay.hidden = true;
+    document.body.classList.remove('tour-open');
+    if (saveState) localStorage.setItem(storageKey, 'done');
+  }
+
+  function renderStep() {
+    const step = steps[index];
+    if (!step) return closeTour(true);
+    step.element.scrollIntoView({ block: 'center', inline: 'nearest' });
+    requestAnimationFrame(() => {
+      placeSpotlight(step.element);
+      placeCard(step.element);
+    });
+    nodes.count.textContent = 'Step ' + (index + 1) + ' of ' + steps.length;
+    nodes.title.textContent = step.title;
+    nodes.body.textContent = step.body;
+    nodes.back.disabled = index === 0;
+    nodes.next.textContent = index === steps.length - 1 ? 'Finish' : 'Next';
+  }
+
+  function placeSpotlight(element) {
+    const rect = element.getBoundingClientRect();
+    const pad = 8;
+    Object.assign(nodes.spotlight.style, {
+      left: Math.max(10, rect.left - pad) + 'px',
+      top: Math.max(10, rect.top - pad) + 'px',
+      width: Math.min(window.innerWidth - 20, rect.width + pad * 2) + 'px',
+      height: Math.min(window.innerHeight - 20, rect.height + pad * 2) + 'px'
+    });
+  }
+
+  function placeCard(element) {
+    if (window.innerWidth <= 820) return;
+    const rect = element.getBoundingClientRect();
+    const cardWidth = nodes.card.offsetWidth || 420;
+    const cardHeight = nodes.card.offsetHeight || 260;
+    let left = rect.right + 18;
+    let top = rect.top;
+    if (left + cardWidth > window.innerWidth - 16) left = rect.left - cardWidth - 18;
+    if (left < 16) left = window.innerWidth - cardWidth - 16;
+    if (top + cardHeight > window.innerHeight - 16) top = window.innerHeight - cardHeight - 16;
+    if (top < 16) top = 16;
+    nodes.card.style.left = left + 'px';
+    nodes.card.style.top = top + 'px';
+  }
+
+  nodes.next.addEventListener('click', () => {
+    if (index >= steps.length - 1) return closeTour(true);
+    index += 1;
+    renderStep();
+  });
+  nodes.back.addEventListener('click', () => {
+    index = Math.max(0, index - 1);
+    renderStep();
+  });
+  nodes.skip.addEventListener('click', () => closeTour(true));
+  document.querySelectorAll('[data-tour-start]').forEach((button) => {
+    button.addEventListener('click', () => {
+      localStorage.removeItem(storageKey);
+      openTour(true);
+    });
+  });
+  window.addEventListener('resize', () => {
+    if (!overlay.hidden) renderStep();
+  });
+  window.addEventListener('keydown', (event) => {
+    if (overlay.hidden) return;
+    if (event.key === 'Escape') closeTour(true);
+    if (event.key === 'ArrowRight') nodes.next.click();
+    if (event.key === 'ArrowLeft' && !nodes.back.disabled) nodes.back.click();
+  });
+
+  setTimeout(() => openTour(false), 650);
 })();

@@ -1,7 +1,7 @@
 import { mkdir, rm, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 
-const buildId = 'Supabase Files v13';
+const buildId = 'Guided Tour v14';
 const assetVersion = buildId.toLowerCase().replace(/[^a-z0-9]+/g, '-');
 const targets = ['.', 'dist', 'docs'];
 
@@ -237,6 +237,7 @@ function shell({ file, title, content, seed = [], moduleId = '' }) {
           <span><strong>Quest HQ</strong><small>Operations Command</small></span>
         </a>
         <div class="build-badge">${buildId}</div>
+        <button class="tour-replay" type="button" data-tour-start>Walkthrough</button>
         <nav class="nav-list" aria-label="Main navigation">
           ${nav.map(([href, label, icon, state]) => navItem({ href, label, icon, state, file })).join('')}
         </nav>
@@ -248,6 +249,21 @@ function shell({ file, title, content, seed = [], moduleId = '' }) {
       <main class="main">
         ${content}
       </main>
+    </div>
+    <div class="tour-overlay" data-tour-overlay hidden>
+      <div class="tour-spotlight" data-tour-spotlight></div>
+      <section class="tour-card" data-tour-card role="dialog" aria-modal="true" aria-labelledby="tour-title">
+        <div class="tour-card-head">
+          <span data-tour-count>Step 1 of 1</span>
+          <button type="button" data-tour-skip>Skip</button>
+        </div>
+        <h2 id="tour-title" data-tour-title>Welcome to Quest HQ</h2>
+        <p data-tour-body></p>
+        <div class="tour-actions">
+          <button class="secondary-button" type="button" data-tour-back>Back</button>
+          <button class="primary-button" type="button" data-tour-next>Next</button>
+        </div>
+      </section>
     </div>
     <script type="application/json" id="record-seed">${JSON.stringify(seed)}</script>
 ${['command', 'jobs', 'task-bridge', 'admin', 'dashboards', 'files'].includes(moduleId) ? '    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>\n    ' : '    '}<script src="assets/quest-hq.js?v=${assetVersion}" defer></script>
@@ -927,6 +943,8 @@ const companyAdminCss = `.company-admin{padding:0;overflow:hidden}.company-admin
 const analyticsCss = `.analytics-layout{display:grid;grid-template-columns:minmax(0,1fr) 360px;gap:18px}.analytics-stage-grid,.analytics-scope-list{display:grid;gap:10px}.analytics-stage-grid{grid-template-columns:repeat(3,minmax(0,1fr))}.analytics-stage-grid span,.analytics-scope-list span{display:block;border:1px solid var(--line);border-radius:8px;background:#fbfcfe;padding:12px}.analytics-stage-grid strong,.analytics-stage-grid small,.analytics-scope-list strong,.analytics-scope-list small{display:block}.analytics-stage-grid small,.analytics-scope-list small{color:#617089;margin-top:5px}.analytics-health-table div{grid-template-columns:minmax(120px,.45fr) minmax(0,1fr) 120px}@media(max-width:1100px){.analytics-layout{grid-template-columns:1fr}.analytics-stage-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}@media(max-width:620px){.analytics-stage-grid{grid-template-columns:1fr}}`;
 
 const plannedTabsCss = `.tabs button.tab-planned,.tabs button.tab-planned:hover,.tabs button.tab-planned.active{color:#64748b;background:repeating-linear-gradient(135deg,#eef2f7 0,#eef2f7 8px,#e2e8f0 8px,#e2e8f0 16px);border-color:#94a3b8;box-shadow:none;cursor:not-allowed;opacity:1;filter:grayscale(1)}.tabs button.tab-planned.active{box-shadow:inset 0 -3px #94a3b8}.tabs button.tab-planned small{display:inline-flex;margin-left:8px;border:1px solid #94a3b8;border-radius:999px;background:#f8fafc;padding:2px 7px;color:#475569;font-size:10px;font-weight:900;text-transform:uppercase;vertical-align:middle}.tabs button:not(.tab-planned) small{display:none}@media(max-width:620px){.tabs button.tab-planned small{display:none}}`;
+
+const tutorialCss = `.tour-replay{display:inline-flex;align-items:center;justify-content:center;min-height:36px;border:1px solid #324055;border-radius:999px;background:#172234;color:#dbeafe;font-weight:850;cursor:pointer}.tour-replay:hover{border-color:#f45d22;color:#fff;background:#2a1816}.tour-overlay[hidden]{display:none}.tour-overlay{position:fixed;inset:0;z-index:130;background:rgba(15,23,42,.68);pointer-events:auto}.tour-spotlight{position:absolute;border:2px solid #f45d22;border-radius:12px;box-shadow:0 0 0 9999px rgba(15,23,42,.68),0 18px 60px rgba(0,0,0,.32);transition:all .18s ease;background:rgba(255,255,255,.04);pointer-events:none}.tour-card{position:absolute;width:min(420px,calc(100vw - 28px));border:1px solid var(--line);border-radius:10px;background:#fff;color:var(--ink);box-shadow:0 28px 90px rgba(0,0,0,.34);padding:18px}.tour-card-head{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:10px}.tour-card-head span{color:#f45d22;font-size:12px;font-weight:900;text-transform:uppercase}.tour-card-head button{border:0;background:transparent;color:#52627a;font-weight:850;cursor:pointer}.tour-card h2{font-size:23px;margin:0 0 8px}.tour-card p{color:#52627a;line-height:1.5;margin-bottom:16px}.tour-actions{display:flex;justify-content:space-between;gap:10px}.tour-actions button[disabled]{opacity:.45;cursor:not-allowed}body.tour-open{overflow:hidden}@media(max-width:820px){.tour-overlay{display:grid;place-items:end center;padding:12px}.tour-spotlight{display:none}.tour-card{position:static;width:100%}.tour-replay{width:100%}}`;
 
 const js = `(() => {
   const storageKey = (moduleId) => 'quest-hq-static-' + moduleId;
@@ -2539,17 +2557,163 @@ const taskBridgeJs = `(() => {
     return Number.isFinite(parsed) ? parsed : 0;
   }
 
-  function escapeHtml(value) {
+function escapeHtml(value) {
     return String(value ?? '').replace(/[&<>\"']/g, (char) => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '\"':'&quot;', \"'\":'&#039;' }[char]));
   }
+})();`;
+
+const tutorialJs = `(() => {
+  const overlay = document.querySelector('[data-tour-overlay]');
+  if (!overlay) return;
+
+  const storageKey = 'quest-hq-tour-guided-v14';
+  const moduleId = document.body.dataset.module || '';
+  const nodes = {
+    card: overlay.querySelector('[data-tour-card]'),
+    spotlight: overlay.querySelector('[data-tour-spotlight]'),
+    count: overlay.querySelector('[data-tour-count]'),
+    title: overlay.querySelector('[data-tour-title]'),
+    body: overlay.querySelector('[data-tour-body]'),
+    back: overlay.querySelector('[data-tour-back]'),
+    next: overlay.querySelector('[data-tour-next]'),
+    skip: overlay.querySelector('[data-tour-skip]')
+  };
+  let index = 0;
+  let steps = [];
+
+  const commonSteps = [
+    { selector: '.brand', title: 'Quest HQ', body: 'This is the operations command shell. The sidebar keeps jobs, files, analytics, admin, and the TaskManagement bridge one click away.' },
+    { selector: '.nav-list', title: 'Module Navigation', body: 'Live modules are clickable today. Grey planned modules show the roadmap without pretending they are complete.' },
+    { selector: '.build-badge', title: 'Demo Version', body: 'The version badge confirms the current presentation build and helps avoid browser cache confusion during demos.' }
+  ];
+
+  const pageSteps = {
+    command: [
+      { selector: '.metric-grid', title: 'Command Snapshot', body: 'The dashboard summarizes live jobs, urgency, linked task counts, and pipeline value from the Job Center.' },
+      { selector: '.quick-action-grid', title: 'Quick Actions', body: 'Use these shortcuts to start the real demo flows, especially creating a job workspace or opening the Job Center.' }
+    ],
+    jobs: [
+      { selector: '[data-job-open-editor]', title: 'Add Job Workspace', body: 'This opens a modal and only creates a workspace after Save. Nothing is added to the board from merely clicking the button.' },
+      { selector: '.job-board', title: 'Pipeline Board', body: 'Job workspaces move through business stages. Detailed execution tasks stay in TaskManagement.' },
+      { selector: '[data-panel=\"profile\"]', title: 'Job Profile', body: 'The profile connects the client, site, files, finance, forms, and TaskManagement bridge around one job workspace.' }
+    ],
+    files: [
+      { selector: '.drive-header', title: 'Drive Controls', body: 'Search, category filters, refresh, and upload are grouped like a lightweight Google Drive file viewer.' },
+      { selector: '.drive-sidebar', title: 'Drive Filters', body: 'Use My Drive, Recent, Images, and Documents to move through Supabase-backed job files.' },
+      { selector: '[data-drive-folders]', title: 'Job Folders', body: 'Each saved job workspace gets a folder. Uploaded files attach to that selected job context.' },
+      { selector: '[data-file-open-upload]', title: 'Upload Modal', body: 'Upload opens as a popup, then saves file metadata and storage objects into Supabase for the selected job.' }
+    ],
+    dashboards: [
+      { selector: '.analytics-layout', title: 'Analytics Center', body: 'Analytics live on one page so operational pages stay focused and less cluttered.' }
+    ],
+    admin: [
+      { selector: '[data-company-admin]', title: 'Company Admin', body: 'Companies are managed here so job workspaces can belong to the right business account.' }
+    ],
+    'task-bridge': [
+      { selector: '.bridge-hero', title: 'TaskManagement Bridge', body: 'This bridge explains the integration contract: Quest HQ job id becomes the TaskManagement project_id.' },
+      { selector: '.bridge-contract', title: 'Handoff Contract', body: 'The return URL and project id are shown clearly so the future deployment has a stable integration target.' }
+    ]
+  };
+
+  function collectSteps() {
+    const all = commonSteps.concat(pageSteps[moduleId] || [
+      { selector: '.main', title: 'Module Workspace', body: 'This area shows the current module. Planned modules stay visibly disabled until they receive real implementation.' }
+    ]);
+    return all.map((step) => ({ ...step, element: document.querySelector(step.selector) })).filter((step) => step.element);
+  }
+
+  function openTour(force) {
+    steps = collectSteps();
+    if (!steps.length) return;
+    if (!force && localStorage.getItem(storageKey) === 'done') return;
+    index = 0;
+    overlay.hidden = false;
+    document.body.classList.add('tour-open');
+    renderStep();
+  }
+
+  function closeTour(saveState) {
+    overlay.hidden = true;
+    document.body.classList.remove('tour-open');
+    if (saveState) localStorage.setItem(storageKey, 'done');
+  }
+
+  function renderStep() {
+    const step = steps[index];
+    if (!step) return closeTour(true);
+    step.element.scrollIntoView({ block: 'center', inline: 'nearest' });
+    requestAnimationFrame(() => {
+      placeSpotlight(step.element);
+      placeCard(step.element);
+    });
+    nodes.count.textContent = 'Step ' + (index + 1) + ' of ' + steps.length;
+    nodes.title.textContent = step.title;
+    nodes.body.textContent = step.body;
+    nodes.back.disabled = index === 0;
+    nodes.next.textContent = index === steps.length - 1 ? 'Finish' : 'Next';
+  }
+
+  function placeSpotlight(element) {
+    const rect = element.getBoundingClientRect();
+    const pad = 8;
+    Object.assign(nodes.spotlight.style, {
+      left: Math.max(10, rect.left - pad) + 'px',
+      top: Math.max(10, rect.top - pad) + 'px',
+      width: Math.min(window.innerWidth - 20, rect.width + pad * 2) + 'px',
+      height: Math.min(window.innerHeight - 20, rect.height + pad * 2) + 'px'
+    });
+  }
+
+  function placeCard(element) {
+    if (window.innerWidth <= 820) return;
+    const rect = element.getBoundingClientRect();
+    const cardWidth = nodes.card.offsetWidth || 420;
+    const cardHeight = nodes.card.offsetHeight || 260;
+    let left = rect.right + 18;
+    let top = rect.top;
+    if (left + cardWidth > window.innerWidth - 16) left = rect.left - cardWidth - 18;
+    if (left < 16) left = window.innerWidth - cardWidth - 16;
+    if (top + cardHeight > window.innerHeight - 16) top = window.innerHeight - cardHeight - 16;
+    if (top < 16) top = 16;
+    nodes.card.style.left = left + 'px';
+    nodes.card.style.top = top + 'px';
+  }
+
+  nodes.next.addEventListener('click', () => {
+    if (index >= steps.length - 1) return closeTour(true);
+    index += 1;
+    renderStep();
+  });
+  nodes.back.addEventListener('click', () => {
+    index = Math.max(0, index - 1);
+    renderStep();
+  });
+  nodes.skip.addEventListener('click', () => closeTour(true));
+  document.querySelectorAll('[data-tour-start]').forEach((button) => {
+    button.addEventListener('click', () => {
+      localStorage.removeItem(storageKey);
+      openTour(true);
+    });
+  });
+  window.addEventListener('resize', () => {
+    if (!overlay.hidden) renderStep();
+  });
+  window.addEventListener('keydown', (event) => {
+    if (overlay.hidden) return;
+    if (event.key === 'Escape') closeTour(true);
+    if (event.key === 'ArrowRight') nodes.next.click();
+    if (event.key === 'ArrowLeft' && !nodes.back.disabled) nodes.back.click();
+  });
+
+  setTimeout(() => openTour(false), 650);
 })();`;
 
 async function writeTarget(target) {
   const absolute = path.resolve(target);
   if (target !== '.') await rm(absolute, { recursive: true, force: true });
   await mkdir(path.join(absolute, 'assets'), { recursive: true });
-  await writeFile(path.join(absolute, 'assets', 'quest-hq.css'), css + sidebarPolishCss + modalCss + plannedNavCss + fileViewerCss + fileCenterCss + driveFileCss + jobCenterCss + coreDemoCss + companyAdminCss + analyticsCss + plannedTabsCss);
-  await writeFile(path.join(absolute, 'assets', 'quest-hq.js'), js + jobCenterJs + fileCenterJs + companyAdminJs + analyticsJs + commandCenterJs + taskBridgeJs);
+  await writeFile(path.join(absolute, 'assets', 'quest-hq.css'), css + sidebarPolishCss + modalCss + plannedNavCss + fileViewerCss + fileCenterCss + driveFileCss + jobCenterCss + coreDemoCss + companyAdminCss + analyticsCss + plannedTabsCss + tutorialCss);
+  await writeFile(path.join(absolute, 'assets', 'quest-hq.js'), js + jobCenterJs + fileCenterJs + companyAdminJs + analyticsJs + commandCenterJs + taskBridgeJs + tutorialJs);
   await writeFile(path.join(absolute, 'index.html'), commandPage());
   await writeFile(path.join(absolute, 'jobs.html'), jobsPage());
   await writeFile(path.join(absolute, 'task-management.html'), taskManagementPage());
