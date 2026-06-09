@@ -1,24 +1,24 @@
 import { mkdir, rm, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 
-const buildId = 'Static HTML v11';
+const buildId = 'Static HTML v12';
 const assetVersion = buildId.toLowerCase().replace(/[^a-z0-9]+/g, '-');
 const targets = ['.', 'dist', 'docs'];
 
 const nav = [
-  ['index.html', 'Command Center', 'home'],
-  ['jobs.html', 'Jobs', 'briefcase'],
-  ['task-management.html', 'TaskManagement', 'kanban'],
-  ['crm.html', 'CRM', 'users'],
-  ['forms.html', 'Forms & Surveys', 'clipboard'],
-  ['tickets.html', 'Tickets', 'ticket'],
-  ['files.html', 'Files', 'folder'],
-  ['finance.html', 'Finance', 'receipt'],
-  ['knowledge.html', 'Knowledge Base', 'library'],
-  ['automations.html', 'Automations', 'workflow'],
-  ['dashboards.html', 'Analytics', 'bar-chart'],
-  ['templates.html', 'Templates', 'layers'],
-  ['admin.html', 'Admin', 'settings']
+  ['index.html', 'Command Center', 'home', 'live'],
+  ['jobs.html', 'Jobs', 'briefcase', 'live'],
+  ['task-management.html', 'TaskManagement', 'kanban', 'live'],
+  ['crm.html', 'CRM', 'users', 'planned'],
+  ['forms.html', 'Forms & Surveys', 'clipboard', 'planned'],
+  ['tickets.html', 'Tickets', 'ticket', 'planned'],
+  ['files.html', 'Files', 'folder', 'planned'],
+  ['finance.html', 'Finance', 'receipt', 'planned'],
+  ['knowledge.html', 'Knowledge Base', 'library', 'planned'],
+  ['automations.html', 'Automations', 'workflow', 'planned'],
+  ['dashboards.html', 'Analytics', 'bar-chart', 'live'],
+  ['templates.html', 'Templates', 'layers', 'planned'],
+  ['admin.html', 'Admin', 'settings', 'live']
 ];
 
 const jobSeed = [];
@@ -237,7 +237,7 @@ function shell({ file, title, content, seed = [], moduleId = '' }) {
         </a>
         <div class="build-badge">${buildId}</div>
         <nav class="nav-list" aria-label="Main navigation">
-          ${nav.map(([href, label, icon]) => `<a class="nav-item ${href === file ? 'active' : ''}" href="${href}"><span class="nav-icon">${iconSvg(icon)}</span><span class="nav-label">${label}</span></a>`).join('')}
+          ${nav.map(([href, label, icon, state]) => navItem({ href, label, icon, state, file })).join('')}
         </nav>
         <div class="sidebar-card">
           <strong>Work Execution</strong>
@@ -252,6 +252,13 @@ function shell({ file, title, content, seed = [], moduleId = '' }) {
 ${['command', 'jobs', 'task-bridge', 'admin', 'dashboards'].includes(moduleId) ? '    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>\n    ' : '    '}<script src="assets/quest-hq.js?v=${assetVersion}" defer></script>
   </body>
 </html>`;
+}
+
+function navItem({ href, label, icon, state, file }) {
+  const planned = state === 'planned';
+  const classes = ['nav-item', href === file ? 'active' : '', planned ? 'nav-planned' : ''].filter(Boolean).join(' ');
+  const attrs = planned ? ' data-nav-state="planned" aria-disabled="true" title="Planned for a later build"' : '';
+  return `<a class="${classes}" href="${href}"${attrs}><span class="nav-icon">${iconSvg(icon)}</span><span class="nav-label">${label}</span>${planned ? '<small class="nav-status">Planned</small>' : ''}</a>`;
 }
 
 function iconSvg(name) {
@@ -778,6 +785,8 @@ const css = `:root{--ink:#121826;--muted:#617089;--line:#d9e0ea;--soft:#f5f7fb;-
 
 const sidebarPolishCss = `.sidebar{width:292px;padding:22px 16px 18px}.main{margin-left:292px}.brand{gap:12px;margin-bottom:6px}.brand-mark{width:46px;height:46px;border-radius:9px;font-size:23px}.brand strong{font-size:24px;line-height:1.05;color:#fff}.brand small{font-size:14px;margin-top:4px;color:#adc7e6}.build-badge{align-self:flex-start;border-color:#f45d22;background:#3a211f;color:#fff3ec;padding:8px 12px;font-size:13px}.nav-list{gap:7px;margin-top:6px}.nav-item{min-height:47px;gap:12px;border-radius:8px;padding:0 12px;font-size:18px;line-height:1;color:#cfe6ff}.nav-item .nav-icon{display:grid;place-items:center;flex:0 0 20px;width:20px;height:20px;border:0;border-radius:0;color:#b8c7dc}.nav-item .nav-icon svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}.nav-item .nav-label{display:block;width:auto;height:auto;border:0;border-radius:0;color:inherit;font-size:inherit}.nav-item.active{background:#3a211f;color:#fff;box-shadow:inset 4px 0 var(--orange)}.nav-item.active .nav-icon{color:#fff}.sidebar-card{font-size:14px;line-height:1.35}@media(max-width:820px){.sidebar{position:static;width:auto;height:auto;max-height:none;padding:18px}.main{margin-left:0;padding:16px}.brand strong{font-size:23px}.nav-item{font-size:18px}}`;
 
+const plannedNavCss = `.nav-item.nav-planned,.nav-item.nav-planned:hover,.nav-item.nav-planned.active{background:rgba(148,163,184,.08);color:#7f8fa5;box-shadow:none;cursor:not-allowed;filter:grayscale(1)}.nav-item.nav-planned.active{box-shadow:inset 4px 0 #64748b}.nav-item.nav-planned .nav-icon{color:#6f8198}.nav-item.nav-planned .nav-icon svg{stroke-dasharray:3 3}.nav-item.nav-planned .nav-label{color:#7f8fa5}.nav-status{margin-left:auto;border:1px solid #53657c;border-radius:999px;background:#172234;color:#9fb0c6;padding:3px 7px;font-size:10px;font-weight:900;text-transform:uppercase;letter-spacing:0}.nav-item:not(.nav-planned) .nav-status{display:none}@media(max-width:1180px){.nav-status{display:none}}`;
+
 const fileViewerCss = `.drive-viewer{padding:0;overflow:hidden}.drive-topbar{display:grid;grid-template-columns:minmax(220px,1fr) minmax(260px,420px) auto;gap:14px;align-items:center;padding:16px 18px;border-bottom:1px solid var(--line);background:#fff}.drive-topbar h2{margin-bottom:3px}.drive-search{display:grid;grid-template-columns:auto minmax(0,1fr);gap:10px;align-items:center;border:1px solid var(--line);border-radius:999px;background:#f8fafc;padding:0 14px;min-height:42px;color:#617089;font-size:12px;font-weight:900;text-transform:uppercase}.drive-search input{border:0;background:transparent;outline:0;color:var(--ink);font-size:14px;text-transform:none;font-weight:650}.drive-shell{display:grid;grid-template-columns:190px minmax(0,1fr) 270px;min-height:560px}.drive-rail{border-right:1px solid var(--line);background:#f8fafc;padding:12px;display:grid;align-content:start;gap:6px}.drive-rail button{display:flex;align-items:center;gap:10px;border:0;border-radius:999px;background:transparent;color:#52627a;padding:10px 12px;text-align:left;font-weight:850;cursor:pointer}.drive-rail button.active,.drive-rail button:hover{background:#e8f0fe;color:#174ea6}.drive-rail-icon{width:19px;height:19px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}.drive-main{min-width:0;padding:18px;background:#fff}.drive-section-title{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px}.drive-section-title h3{margin:0;font-size:18px}.drive-section-title span{color:#617089;font-size:13px;font-weight:800}.drive-view-toggle{display:grid;grid-template-columns:repeat(3,5px);gap:4px;border:1px solid var(--line);border-radius:999px;padding:8px 10px}.drive-view-toggle span{width:5px;height:5px;border-radius:50%;background:#617089}.drive-folder-grid{display:grid;grid-template-columns:repeat(4,minmax(150px,1fr));gap:12px}.drive-folder-card{min-height:142px;border:1px solid var(--line);border-radius:12px;background:#fff;padding:14px;text-align:left;color:#172033;cursor:pointer;box-shadow:0 8px 24px rgba(24,35,55,.05)}.drive-folder-card:hover,.drive-folder-card.selected{border-color:#f97316;background:#fff8f5}.drive-folder-card.selected{box-shadow:inset 0 0 0 2px #fed7aa}.drive-folder-icon{display:grid;place-items:center;width:48px;height:40px;border-radius:8px;background:#fffbeb;margin-bottom:12px}.folder-glyph{width:34px;height:34px;fill:#fbbf24;stroke:#b45309;stroke-width:1.6;stroke-linejoin:round}.drive-folder-card strong,.drive-folder-card small,.drive-folder-card em{display:block}.drive-folder-card strong{font-size:16px}.drive-folder-card small{color:#617089;margin-top:6px}.drive-folder-card em{color:#52627a;font-style:normal;font-size:12px;font-weight:800;margin-top:10px}.recent-title{margin-top:24px}.drive-file-list{border:1px solid var(--line);border-radius:12px;overflow:hidden}.drive-file-row{display:grid;grid-template-columns:38px minmax(220px,1fr) 140px 90px 90px;gap:12px;align-items:center;width:100%;border:0;border-bottom:1px solid var(--line);background:#fff;padding:11px 12px;text-align:left;cursor:pointer}.drive-file-row:last-child{border-bottom:0}.drive-file-row:hover{background:#f8fafc}.drive-file-row strong{font-size:14px}.drive-file-row span:not(.file-type){color:#617089;font-size:13px;font-weight:750}.file-type{display:grid;place-items:center;width:30px;height:30px;border-radius:7px;background:#e8f0fe;color:#174ea6}.file-type.pdf{background:#fee2e2;color:#b91c1c}.file-type.drawing{background:#ecfdf5;color:#047857}.file-type svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}.drive-details{border-left:1px solid var(--line);background:#fbfcfe;padding:18px}.drive-preview-card{display:grid;place-items:center;height:150px;border:1px solid #fde68a;border-radius:14px;background:linear-gradient(180deg,#fffbeb,#fff7ed);margin-bottom:16px}.drive-preview-card .folder-glyph{width:76px;height:76px}.drive-detail-list{display:grid;gap:10px;margin-top:16px}.drive-detail-list span{display:block;border-top:1px solid var(--line);padding-top:10px}.drive-detail-list strong,.drive-detail-list small{display:block}.drive-detail-list strong{font-size:12px;text-transform:uppercase;color:#617089}.drive-detail-list small{font-size:14px;font-weight:850;margin-top:3px}@media(max-width:1240px){.drive-shell{grid-template-columns:170px minmax(0,1fr)}.drive-details{grid-column:1/-1;border-left:0;border-top:1px solid var(--line)}.drive-folder-grid{grid-template-columns:repeat(3,minmax(150px,1fr))}}@media(max-width:820px){.drive-topbar,.drive-shell,.drive-file-row{grid-template-columns:1fr}.drive-rail{border-right:0;border-bottom:1px solid var(--line)}.drive-folder-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.drive-file-row{gap:5px}}@media(max-width:560px){.drive-folder-grid{grid-template-columns:1fr}}`;
 
 const jobCenterCss = `.job-actions{display:flex;align-items:center;gap:10px;flex-wrap:wrap;justify-content:flex-end}.sync-pill{display:inline-flex;align-items:center;min-height:34px;border:1px solid var(--line);border-radius:999px;background:#fff;color:#52627a;padding:0 12px;font-size:12px;font-weight:900;text-transform:uppercase}.sync-pill.live{border-color:#bbf7d0;background:#f0fdf4;color:#166534}.sync-pill.local{border-color:#fed7aa;background:#fff7ed;color:#9a3412}.sync-pill.error{border-color:#fecaca;background:#fef2f2;color:#991b1b}.job-command{display:grid;grid-template-columns:minmax(280px,1fr) 210px auto;gap:12px;align-items:center;margin-bottom:18px}.job-search{display:grid;grid-template-columns:auto minmax(0,1fr);gap:10px;align-items:center;border:1px solid var(--line);border-radius:999px;background:#f8fafc;padding:0 14px;min-height:42px;color:#617089;font-size:12px;font-weight:900;text-transform:uppercase}.job-search input,.job-command select,.job-editor input,.job-editor textarea,.job-editor select{width:100%;border:1px solid var(--line);border-radius:8px;background:#fff;color:var(--ink);padding:11px}.job-search input{border:0;background:transparent;outline:0;text-transform:none;font-size:14px;font-weight:650}.job-board{display:grid;grid-template-columns:repeat(5,minmax(190px,1fr));gap:12px;align-items:start}.job-lane{min-height:340px;background:#f8fafc;border:1px solid var(--line);border-radius:8px;padding:12px}.job-lane h2{display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:15px;margin-bottom:12px}.job-lane h2 span{display:grid;place-items:center;min-width:25px;height:25px;border-radius:999px;background:#fff;border:1px solid var(--line);font-size:12px;color:#52627a}.job-card{width:100%;border:1px solid var(--line);border-radius:8px;background:#fff;padding:12px;text-align:left;cursor:pointer;box-shadow:0 10px 26px rgba(24,35,55,.06);margin-bottom:10px}.job-card:hover,.job-card.active{border-color:#f97316;background:#fff8f5}.job-card strong,.job-card span,.job-card small{display:block}.job-card strong{font-size:15px}.job-card span{color:#52627a;margin-top:6px}.job-card small{margin-top:10px;color:#617089;font-weight:800}.priority-urgent{box-shadow:inset 4px 0 #dc2626}.priority-high{box-shadow:inset 4px 0 #f97316}.priority-medium{box-shadow:inset 4px 0 #2563eb}.priority-low{box-shadow:inset 4px 0 #16a34a}.job-section-heading{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:14px}.job-section-heading h2{margin-bottom:0}.job-section-heading span{color:#617089;font-size:13px;font-weight:850}.job-table{display:grid;gap:8px}.job-row{display:grid;grid-template-columns:minmax(220px,1.2fr) 130px 150px 110px 110px 90px;gap:12px;align-items:center;border:1px solid var(--line);border-radius:8px;background:#fbfcfe;padding:12px;text-align:left;cursor:pointer}.job-row:hover,.job-row.active{border-color:#f97316;background:#fff8f5}.job-row strong,.job-row span{display:block}.job-row span{color:#617089;font-size:13px;font-weight:750}.job-profile-grid{display:grid;grid-template-columns:minmax(0,1fr) 320px;gap:18px}.job-profile-hero{min-height:220px;border-radius:8px;background:linear-gradient(90deg,rgba(17,24,39,.9),rgba(17,24,39,.35)),url('https://images.unsplash.com/photo-1503387762-592deb58ef4e?auto=format&fit=crop&w=1400&q=80');background-size:cover;background-position:center;color:#fff;padding:24px;display:flex;flex-direction:column;justify-content:flex-end;margin-bottom:16px}.job-profile-hero h2{font-size:30px;margin-bottom:8px}.job-profile-hero p{max-width:820px;color:#e5edf8;margin-bottom:0}.job-detail-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}.job-detail-grid div,.job-sidecar div{border:1px solid var(--line);border-radius:8px;background:#fbfcfe;padding:12px}.job-detail-grid strong,.job-detail-grid span,.job-sidecar strong,.job-sidecar span{display:block}.job-detail-grid strong,.job-sidecar strong{font-size:12px;text-transform:uppercase;color:#617089}.job-detail-grid span,.job-sidecar span{margin-top:5px;font-weight:850}.job-sidecar{display:grid;gap:10px;align-content:start}.job-editor{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.job-editor label{display:grid;gap:6px;font-size:12px;font-weight:850;text-transform:uppercase;color:#617089}.job-editor .span-2{grid-column:1/-1}.empty-state{border:1px dashed var(--line);border-radius:8px;padding:24px;background:#fbfcfe;color:#617089;font-weight:800;text-align:center}@media(max-width:1280px){.job-board{grid-template-columns:repeat(3,minmax(190px,1fr))}.job-profile-grid{grid-template-columns:1fr}.job-row{grid-template-columns:minmax(220px,1fr) repeat(3,auto)}}@media(max-width:860px){.job-command,.job-editor,.job-detail-grid,.job-row{grid-template-columns:1fr}.job-board{grid-template-columns:1fr}.job-actions{justify-content:flex-start}}`;
@@ -793,6 +802,9 @@ const plannedTabsCss = `.tabs button.tab-planned,.tabs button.tab-planned:hover,
 const js = `(() => {
   const storageKey = (moduleId) => 'quest-hq-static-' + moduleId;
   const seed = JSON.parse(document.getElementById('record-seed')?.textContent || '[]');
+  document.querySelectorAll('[data-nav-state=\"planned\"]').forEach((link) => {
+    link.addEventListener('click', (event) => event.preventDefault());
+  });
   document.querySelectorAll('.tabs').forEach((tabs) => {
     tabs.addEventListener('click', (event) => {
       const button = event.target.closest('[data-tab]');
@@ -1803,7 +1815,7 @@ async function writeTarget(target) {
   const absolute = path.resolve(target);
   if (target !== '.') await rm(absolute, { recursive: true, force: true });
   await mkdir(path.join(absolute, 'assets'), { recursive: true });
-  await writeFile(path.join(absolute, 'assets', 'quest-hq.css'), css + sidebarPolishCss + fileViewerCss + jobCenterCss + coreDemoCss + companyAdminCss + analyticsCss + plannedTabsCss);
+  await writeFile(path.join(absolute, 'assets', 'quest-hq.css'), css + sidebarPolishCss + plannedNavCss + fileViewerCss + jobCenterCss + coreDemoCss + companyAdminCss + analyticsCss + plannedTabsCss);
   await writeFile(path.join(absolute, 'assets', 'quest-hq.js'), js + jobCenterJs + companyAdminJs + analyticsJs + commandCenterJs + taskBridgeJs);
   await writeFile(path.join(absolute, 'index.html'), commandPage());
   await writeFile(path.join(absolute, 'jobs.html'), jobsPage());

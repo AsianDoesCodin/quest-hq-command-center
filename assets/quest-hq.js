@@ -1,6 +1,9 @@
 (() => {
   const storageKey = (moduleId) => 'quest-hq-static-' + moduleId;
   const seed = JSON.parse(document.getElementById('record-seed')?.textContent || '[]');
+  document.querySelectorAll('[data-nav-state="planned"]').forEach((link) => {
+    link.addEventListener('click', (event) => event.preventDefault());
+  });
   document.querySelectorAll('.tabs').forEach((tabs) => {
     tabs.addEventListener('click', (event) => {
       const button = event.target.closest('[data-tab]');
