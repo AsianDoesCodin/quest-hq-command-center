@@ -28,27 +28,41 @@
       <main class="main">
         <section class="workspace module-page">
     <div class="page-heading"><div><div class="eyebrow">Dashboards</div><h1>Dashboard Studio</h1><p>Saved views for active jobs, stuck work, workload, time, AR, tickets, survey results, and client activity.</p></div><button class="primary-button" data-add-record>Create Record</button></div>
-    <div class="metric-grid"><div class="metric"><span>Saved views</span><strong>9</strong></div><div class="metric"><span>Pinned</span><strong>3</strong></div><div class="metric"><span>Widgets</span><strong>24</strong></div><div class="metric"><span>Filters</span><strong>11</strong></div></div>
+    <div class="metric-grid"><div class="metric"><span>Saved views</span><strong>0</strong></div><div class="metric"><span>Pinned</span><strong>0</strong></div><div class="metric"><span>Widgets</span><strong>0</strong></div><div class="metric"><span>Filters</span><strong>0</strong></div></div>
     <div class="hero-card" style="background-image:url('https://images.unsplash.com/photo-1551288049-bebda4e38f71?auto=format&fit=crop&w=1400&q=80')"><strong>Dashboard Studio</strong><span>Saved views for active jobs, stuck work, workload, time, AR, tickets, survey results, and client activity.</span></div>
     <div class="tabs" role="tablist"><button class="active" data-tab="studio">Studio</button><button class="" data-tab="saved-views">Saved Views</button><button class="" data-tab="view-editor">View Editor</button></div>
-    <section class="tab-panel active" data-panel="studio"><div class="dashboard-grid"><article class="chart-card"><span>Active Jobs</span><strong>18</strong><div></div></article><article class="chart-card"><span>Open Tickets</span><strong>9</strong><div></div></article><article class="chart-card"><span>Outstanding AR</span><strong>$38K</strong><div></div></article><article class="chart-card"><span>Tracked Hours</span><strong>126h</strong><div></div></article></div></section><section class="tab-panel " data-panel="saved-views"><div class="panel"><h2>Saved Views</h2><div class="card-grid"><article class="mini-card"><strong>Roofing weekly ops</strong><span>Saved locally for presentation mode.</span></article><article class="mini-card"><strong>Finance and AR</strong><span>Saved locally for presentation mode.</span></article><article class="mini-card"><strong>My work</strong><span>Saved locally for presentation mode.</span></article><article class="mini-card"><strong>Ticket SLA watch</strong><span>Saved locally for presentation mode.</span></article></div></div></section><section class="tab-panel " data-panel="view-editor"><div class="record-system panel" data-record-system="dashboards">
-    <div class="record-toolbar"><h2>Local Dashboards Records</h2><button class="secondary-button" data-add-record>Add</button></div>
-    <div class="record-layout">
-      <div class="record-list" data-record-list></div>
-      <form class="record-editor" data-record-editor>
-        <label>Title<input name="title" /></label>
-        <label>Status<input name="status" /></label>
-        <label>Owner<input name="owner" /></label>
-        <label>Job / Context<input name="job" /></label>
-        <label class="span-2">Notes<textarea name="notes" rows="6"></textarea></label>
-        <div class="form-actions"><button class="primary-button" type="submit">Save Locally</button><button class="secondary-button" type="button" data-duplicate-record>Duplicate</button><button class="danger-button" type="button" data-delete-record>Delete</button></div>
-      </form>
+    <section class="tab-panel active" data-panel="studio"><div class="panel empty-workspace" data-empty-module="dashboards">
+    <div>
+      <span>Studio</span>
+      <h2>No saved dashboard yet</h2>
+      <p class="muted">Saved views will appear once real operational data is available.</p>
+    </div>
+    <div class="empty-actions">
+      <a class="secondary-button" href="jobs.html">Link to Job Center</a>
+    </div>
+  </div></section><section class="tab-panel " data-panel="saved-views"><div class="panel empty-workspace" data-empty-module="dashboards">
+    <div>
+      <span>Saved Views</span>
+      <h2>No saved dashboard yet</h2>
+      <p class="muted">Saved views will appear once real operational data is available.</p>
+    </div>
+    <div class="empty-actions">
+      <a class="secondary-button" href="jobs.html">Link to Job Center</a>
+    </div>
+  </div></section><section class="tab-panel " data-panel="view-editor"><div class="panel empty-workspace" data-empty-module="dashboards">
+    <div>
+      <span>View Editor</span>
+      <h2>No saved dashboard yet</h2>
+      <p class="muted">Saved views will appear once real operational data is available.</p>
+    </div>
+    <div class="empty-actions">
+      <a class="secondary-button" href="jobs.html">Link to Job Center</a>
     </div>
   </div></section>
   </section>
       </main>
     </div>
-    <script type="application/json" id="record-seed">[{"title":"Roofing weekly ops","status":"Pinned","owner":"Andre Lee","job":"Roofing","notes":"Active jobs, overdue tasks, open tickets, AR, and tracked time."},{"title":"Finance and AR","status":"Saved","owner":"Admin","job":"All companies","notes":"Invoices due, paid this week, and overdue balances."}]</script>
+    <script type="application/json" id="record-seed">[]</script>
     <script src="assets/quest-hq.js" defer></script>
   </body>
 </html>

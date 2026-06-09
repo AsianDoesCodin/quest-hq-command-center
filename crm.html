@@ -28,27 +28,41 @@
       <main class="main">
         <section class="workspace module-page">
     <div class="page-heading"><div><div class="eyebrow">CRM</div><h1>Relationship Pipeline</h1><p>Leads, contacts, clients, opportunities, and follow-up ownership live here before they become jobs.</p></div><button class="primary-button" data-add-record>Create Record</button></div>
-    <div class="metric-grid"><div class="metric"><span>Open leads</span><strong>14</strong></div><div class="metric"><span>Follow-ups due</span><strong>5</strong></div><div class="metric"><span>Clients</span><strong>12</strong></div><div class="metric"><span>Pipeline value</span><strong>$81K</strong></div></div>
+    <div class="metric-grid"><div class="metric"><span>Open leads</span><strong>0</strong></div><div class="metric"><span>Follow-ups due</span><strong>0</strong></div><div class="metric"><span>Clients</span><strong>0</strong></div><div class="metric"><span>Pipeline value</span><strong>0</strong></div></div>
     <div class="hero-card" style="background-image:url('https://images.unsplash.com/photo-1556761175-b413da4baf72?auto=format&fit=crop&w=1400&q=80')"><strong>Relationship Pipeline</strong><span>Leads, contacts, clients, opportunities, and follow-up ownership live here before they become jobs.</span></div>
     <div class="tabs" role="tablist"><button class="active" data-tab="pipeline">Pipeline</button><button class="" data-tab="client-directory">Client Directory</button><button class="" data-tab="record-editor">Record Editor</button></div>
-    <section class="tab-panel active" data-panel="pipeline"><div class="pipeline"><section><h3>New Lead</h3><button>Queen Creek referral<span>1 records</span></button></section><section><h3>Qualified</h3><button>Arroyo Vista HOA<span>2 records</span></button></section><section><h3>Estimate Sent</h3><button>Casa Azul Remodel<span>3 records</span></button></section><section><h3>Won</h3><button>Horizon HVAC<span>4 records</span></button></section></div></section><section class="tab-panel " data-panel="client-directory"><div class="card-grid"><article class="panel"><h2>Maya Rosales</h2><p class="muted">Client profile, contacts, jobs, files, invoices, and notes.</p></article><article class="panel"><h2>Arroyo Vista HOA</h2><p class="muted">Client profile, contacts, jobs, files, invoices, and notes.</p></article><article class="panel"><h2>Mesa Storage Partners</h2><p class="muted">Client profile, contacts, jobs, files, invoices, and notes.</p></article><article class="panel"><h2>Horizon HVAC</h2><p class="muted">Client profile, contacts, jobs, files, invoices, and notes.</p></article></div></section><section class="tab-panel " data-panel="record-editor"><div class="record-system panel" data-record-system="crm">
-    <div class="record-toolbar"><h2>Local Crm Records</h2><button class="secondary-button" data-add-record>Add</button></div>
-    <div class="record-layout">
-      <div class="record-list" data-record-list></div>
-      <form class="record-editor" data-record-editor>
-        <label>Title<input name="title" /></label>
-        <label>Status<input name="status" /></label>
-        <label>Owner<input name="owner" /></label>
-        <label>Job / Context<input name="job" /></label>
-        <label class="span-2">Notes<textarea name="notes" rows="6"></textarea></label>
-        <div class="form-actions"><button class="primary-button" type="submit">Save Locally</button><button class="secondary-button" type="button" data-duplicate-record>Duplicate</button><button class="danger-button" type="button" data-delete-record>Delete</button></div>
-      </form>
+    <section class="tab-panel active" data-panel="pipeline"><div class="panel empty-workspace" data-empty-module="crm">
+    <div>
+      <span>Pipeline</span>
+      <h2>No leads or clients yet</h2>
+      <p class="muted">Create a lead or client record when real CRM data is ready.</p>
+    </div>
+    <div class="empty-actions">
+      <a class="secondary-button" href="jobs.html">Link to Job Center</a>
+    </div>
+  </div></section><section class="tab-panel " data-panel="client-directory"><div class="panel empty-workspace" data-empty-module="crm">
+    <div>
+      <span>Client Directory</span>
+      <h2>No leads or clients yet</h2>
+      <p class="muted">Create a lead or client record when real CRM data is ready.</p>
+    </div>
+    <div class="empty-actions">
+      <a class="secondary-button" href="jobs.html">Link to Job Center</a>
+    </div>
+  </div></section><section class="tab-panel " data-panel="record-editor"><div class="panel empty-workspace" data-empty-module="crm">
+    <div>
+      <span>Record Editor</span>
+      <h2>No leads or clients yet</h2>
+      <p class="muted">Create a lead or client record when real CRM data is ready.</p>
+    </div>
+    <div class="empty-actions">
+      <a class="secondary-button" href="jobs.html">Link to Job Center</a>
     </div>
   </div></section>
   </section>
       </main>
     </div>
-    <script type="application/json" id="record-seed">[{"title":"Queen Creek referral","status":"New Lead","owner":"Maya Rosales","job":"Not linked","notes":"Storm damage lead. Needs inspection scheduling."},{"title":"Arroyo Vista HOA","status":"Qualified","owner":"Andre Lee","job":"Mesa Storage Roof Repair","notes":"Board wants estimate and permit packet."}]</script>
+    <script type="application/json" id="record-seed">[]</script>
     <script src="assets/quest-hq.js" defer></script>
   </body>
 </html>

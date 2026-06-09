@@ -28,27 +28,41 @@
       <main class="main">
         <section class="workspace module-page">
     <div class="page-heading"><div><div class="eyebrow">Admin</div><h1>Users, Roles, and Settings</h1><p>User profiles, roles, permissions, company access, approvals, statuses, templates, and notification settings.</p></div><button class="primary-button" data-add-record>Create Record</button></div>
-    <div class="metric-grid"><div class="metric"><span>Users</span><strong>11</strong></div><div class="metric"><span>Pending</span><strong>2</strong></div><div class="metric"><span>Companies</span><strong>3</strong></div><div class="metric"><span>Roles</span><strong>5</strong></div></div>
+    <div class="metric-grid"><div class="metric"><span>Users</span><strong>0</strong></div><div class="metric"><span>Pending</span><strong>0</strong></div><div class="metric"><span>Companies</span><strong>0</strong></div><div class="metric"><span>Roles</span><strong>0</strong></div></div>
     <div class="hero-card" style="background-image:url('https://images.unsplash.com/photo-1552664730-d307ca884978?auto=format&fit=crop&w=1400&q=80')"><strong>Users, Roles, and Settings</strong><span>User profiles, roles, permissions, company access, approvals, statuses, templates, and notification settings.</span></div>
     <div class="tabs" role="tablist"><button class="active" data-tab="users">Users</button><button class="" data-tab="settings">Settings</button><button class="" data-tab="access-editor">Access Editor</button></div>
-    <section class="tab-panel active" data-panel="users"><div class="panel"><h2>User Access</h2><div class="table"><div><span>Maya Rosales</span><span>Supervisor</span><span>Roofing</span><span>Approved</span></div><div><span>Noah Park</span><span>Worker</span><span>Drafting</span><span>Pending</span></div><div><span>Andre Lee</span><span>Admin</span><span>All companies</span><span>Approved</span></div></div></div></section><section class="tab-panel " data-panel="settings"><div class="panel"><h2>System Settings</h2><div class="card-grid"><article class="mini-card"><strong>Job stages</strong><span>Saved locally for presentation mode.</span></article><article class="mini-card"><strong>Ticket statuses</strong><span>Saved locally for presentation mode.</span></article><article class="mini-card"><strong>Lead statuses</strong><span>Saved locally for presentation mode.</span></article><article class="mini-card"><strong>Notification rules</strong><span>Saved locally for presentation mode.</span></article></div></div></section><section class="tab-panel " data-panel="access-editor"><div class="record-system panel" data-record-system="admin">
-    <div class="record-toolbar"><h2>Local Admin Records</h2><button class="secondary-button" data-add-record>Add</button></div>
-    <div class="record-layout">
-      <div class="record-list" data-record-list></div>
-      <form class="record-editor" data-record-editor>
-        <label>Title<input name="title" /></label>
-        <label>Status<input name="status" /></label>
-        <label>Owner<input name="owner" /></label>
-        <label>Job / Context<input name="job" /></label>
-        <label class="span-2">Notes<textarea name="notes" rows="6"></textarea></label>
-        <div class="form-actions"><button class="primary-button" type="submit">Save Locally</button><button class="secondary-button" type="button" data-duplicate-record>Duplicate</button><button class="danger-button" type="button" data-delete-record>Delete</button></div>
-      </form>
+    <section class="tab-panel active" data-panel="users"><div class="panel empty-workspace" data-empty-module="admin">
+    <div>
+      <span>Users</span>
+      <h2>No users configured yet</h2>
+      <p class="muted">Add users, roles, and company access after authentication is in scope.</p>
+    </div>
+    <div class="empty-actions">
+      <a class="secondary-button" href="jobs.html">Link to Job Center</a>
+    </div>
+  </div></section><section class="tab-panel " data-panel="settings"><div class="panel empty-workspace" data-empty-module="admin">
+    <div>
+      <span>Settings</span>
+      <h2>No users configured yet</h2>
+      <p class="muted">Add users, roles, and company access after authentication is in scope.</p>
+    </div>
+    <div class="empty-actions">
+      <a class="secondary-button" href="jobs.html">Link to Job Center</a>
+    </div>
+  </div></section><section class="tab-panel " data-panel="access-editor"><div class="panel empty-workspace" data-empty-module="admin">
+    <div>
+      <span>Access Editor</span>
+      <h2>No users configured yet</h2>
+      <p class="muted">Add users, roles, and company access after authentication is in scope.</p>
+    </div>
+    <div class="empty-actions">
+      <a class="secondary-button" href="jobs.html">Link to Job Center</a>
     </div>
   </div></section>
   </section>
       </main>
     </div>
-    <script type="application/json" id="record-seed">[{"title":"Maya Rosales","status":"Approved","owner":"Owner","job":"Roofing","notes":"Supervisor access for roofing jobs and CRM."},{"title":"Noah Park","status":"Pending","owner":"Admin","job":"Drafting","notes":"Needs approval for drafting project files."}]</script>
+    <script type="application/json" id="record-seed">[]</script>
     <script src="assets/quest-hq.js" defer></script>
   </body>
 </html>

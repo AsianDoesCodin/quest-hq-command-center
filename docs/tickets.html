@@ -28,27 +28,41 @@
       <main class="main">
         <section class="workspace module-page">
     <div class="page-heading"><div><div class="eyebrow">Tickets</div><h1>Request and Issue System</h1><p>Client requests, repairs, admin issues, and internal asks get triaged before becoming TaskManagement work.</p></div><button class="primary-button" data-add-record>Create Record</button></div>
-    <div class="metric-grid"><div class="metric"><span>Open tickets</span><strong>9</strong></div><div class="metric"><span>Urgent</span><strong>2</strong></div><div class="metric"><span>SLA due today</span><strong>3</strong></div><div class="metric"><span>Converted</span><strong>5</strong></div></div>
+    <div class="metric-grid"><div class="metric"><span>Open tickets</span><strong>0</strong></div><div class="metric"><span>Urgent</span><strong>0</strong></div><div class="metric"><span>SLA due today</span><strong>0</strong></div><div class="metric"><span>Converted</span><strong>0</strong></div></div>
     <div class="hero-card" style="background-image:url('https://images.unsplash.com/photo-1553484771-371a605b060b?auto=format&fit=crop&w=1400&q=80')"><strong>Request and Issue System</strong><span>Client requests, repairs, admin issues, and internal asks get triaged before becoming TaskManagement work.</span></div>
     <div class="tabs" role="tablist"><button class="active" data-tab="triage-desk">Triage Desk</button><button class="" data-tab="conversions">Conversions</button><button class="" data-tab="ticket-editor">Ticket Editor</button></div>
-    <section class="tab-panel active" data-panel="triage-desk"><div class="ticket-grid"><section class="panel urgent"><h2>Urgent / Due</h2><article class="ticket-card"><strong>Roof leak follow-up</strong><span>Maya Rosales - due today</span><b>Urgent</b></article></section><section class="panel wide-panel"><h2>SLA Board</h2><div class="pipeline"><section><h3>New</h3><strong>3</strong></section><section><h3>Triaged</h3><strong>3</strong></section><section><h3>Urgent</h3><strong>2</strong></section><section><h3>Converted</h3><strong>3</strong></section></div></section></div></section><section class="tab-panel " data-panel="conversions"><div class="builder-grid"><section class="panel"><h2>Conversion Rules</h2><button class="primary-button">Convert to Task</button><button class="secondary-button">Convert to Job</button></section><section class="panel wide-panel"><h2>Ready for TaskManagement</h2><p class="muted">Only approved requests should become executable tasks through project_id.</p></section></div></section><section class="tab-panel " data-panel="ticket-editor"><div class="record-system panel" data-record-system="tickets">
-    <div class="record-toolbar"><h2>Local Tickets Records</h2><button class="secondary-button" data-add-record>Add</button></div>
-    <div class="record-layout">
-      <div class="record-list" data-record-list></div>
-      <form class="record-editor" data-record-editor>
-        <label>Title<input name="title" /></label>
-        <label>Status<input name="status" /></label>
-        <label>Owner<input name="owner" /></label>
-        <label>Job / Context<input name="job" /></label>
-        <label class="span-2">Notes<textarea name="notes" rows="6"></textarea></label>
-        <div class="form-actions"><button class="primary-button" type="submit">Save Locally</button><button class="secondary-button" type="button" data-duplicate-record>Duplicate</button><button class="danger-button" type="button" data-delete-record>Delete</button></div>
-      </form>
+    <section class="tab-panel active" data-panel="triage-desk"><div class="panel empty-workspace" data-empty-module="tickets">
+    <div>
+      <span>Triage Desk</span>
+      <h2>No tickets yet</h2>
+      <p class="muted">Incoming requests will appear here after the intake flow is connected.</p>
+    </div>
+    <div class="empty-actions">
+      <a class="secondary-button" href="jobs.html">Link to Job Center</a>
+    </div>
+  </div></section><section class="tab-panel " data-panel="conversions"><div class="panel empty-workspace" data-empty-module="tickets">
+    <div>
+      <span>Conversions</span>
+      <h2>No tickets yet</h2>
+      <p class="muted">Incoming requests will appear here after the intake flow is connected.</p>
+    </div>
+    <div class="empty-actions">
+      <a class="secondary-button" href="jobs.html">Link to Job Center</a>
+    </div>
+  </div></section><section class="tab-panel " data-panel="ticket-editor"><div class="panel empty-workspace" data-empty-module="tickets">
+    <div>
+      <span>Ticket Editor</span>
+      <h2>No tickets yet</h2>
+      <p class="muted">Incoming requests will appear here after the intake flow is connected.</p>
+    </div>
+    <div class="empty-actions">
+      <a class="secondary-button" href="jobs.html">Link to Job Center</a>
     </div>
   </div></section>
   </section>
       </main>
     </div>
-    <script type="application/json" id="record-seed">[{"title":"Roof leak follow-up","status":"Urgent","owner":"Maya Rosales","job":"Queen Creek Leak Follow-up","notes":"Client reported active leak after storm."},{"title":"Permit revision request","status":"Triaged","owner":"Noah Park","job":"Drafting Permit Package","notes":"Needs conversion to drafting task after review."}]</script>
+    <script type="application/json" id="record-seed">[]</script>
     <script src="assets/quest-hq.js" defer></script>
   </body>
 </html>

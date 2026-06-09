@@ -20,95 +20,7 @@ const nav = [
   ['admin.html', 'Admin', 'settings']
 ];
 
-const jobs = [
-  ['Mesa Storage Roof Repair', 'Roofing', 'Production', 'High', '$46K'],
-  ['Queen Creek Leak Follow-up', 'Roofing', 'Inspection', 'Urgent', '$8K'],
-  ['Drafting Permit Package', 'Drafting', 'QA Review', 'Medium', '$14K'],
-  ['Lumen Campaign Setup', 'Lumen', 'Estimate Approved', 'Medium', '$22K']
-];
-
-const jobSeed = [
-  {
-    id: 'local-mesa-storage',
-    company_id: 'quest-roofing',
-    client_name: 'Mesa Storage Partners',
-    name: 'Mesa Storage Roof Repair',
-    contact_name: 'Dana Ortiz',
-    site_address: '1840 S Mesa Industrial Rd, Mesa, AZ',
-    job_type: 'Roofing',
-    stage: 'Production',
-    priority: 'High',
-    owner_name: 'Maya Rosales',
-    scope: 'Repair membrane damage, replace flashing, document photos, and close final inspection.',
-    start_date: '2026-06-03',
-    due_date: '2026-06-14',
-    estimate_total: 46000,
-    invoice_total: 12000,
-    task_count: 12,
-    file_count: 9,
-    notes: 'Priority commercial roof repair. Keep client updated daily.'
-  },
-  {
-    id: 'local-queen-creek',
-    company_id: 'quest-roofing',
-    client_name: 'Maya Rosales',
-    name: 'Queen Creek Leak Follow-up',
-    contact_name: 'Maya Rosales',
-    site_address: '2138 E Orchard Lane, Queen Creek, AZ',
-    job_type: 'Roofing',
-    stage: 'Inspection',
-    priority: 'Urgent',
-    owner_name: 'Andre Lee',
-    scope: 'Emergency leak follow-up, roof photos, estimate, and deposit invoice.',
-    start_date: '2026-06-08',
-    due_date: '2026-06-09',
-    estimate_total: 8200,
-    invoice_total: 0,
-    task_count: 7,
-    file_count: 5,
-    notes: 'Client reported active leak after storm.'
-  },
-  {
-    id: 'local-drafting-permit',
-    company_id: 'quest-drafting',
-    client_name: 'Arroyo Vista HOA',
-    name: 'Drafting Permit Package',
-    contact_name: 'Board Office',
-    site_address: 'Arroyo Vista HOA, Gilbert, AZ',
-    job_type: 'Drafting',
-    stage: 'QA Review',
-    priority: 'Medium',
-    owner_name: 'Noah Park',
-    scope: 'Permit-ready drawings and review packet for city submission.',
-    start_date: '2026-06-01',
-    due_date: '2026-06-18',
-    estimate_total: 14000,
-    invoice_total: 5000,
-    task_count: 9,
-    file_count: 6,
-    notes: 'Needs QA pass before client approval.'
-  },
-  {
-    id: 'local-lumen-campaign',
-    company_id: 'lumen',
-    client_name: 'Lumen Internal',
-    name: 'Lumen Campaign Setup',
-    contact_name: 'Andre Lee',
-    site_address: 'Remote',
-    job_type: 'Lumen',
-    stage: 'Estimate Approved',
-    priority: 'Medium',
-    owner_name: 'Andre Lee',
-    scope: 'Campaign buildout, assets, automations, and launch dashboard.',
-    start_date: '2026-06-05',
-    due_date: '2026-06-21',
-    estimate_total: 22000,
-    invoice_total: 0,
-    task_count: 14,
-    file_count: 12,
-    notes: 'Ready for production planning.'
-  }
-];
+const jobSeed = [];
 
 const modules = {
   crm: {
@@ -283,6 +195,12 @@ const modules = {
   }
 };
 
+for (const [moduleId, module] of Object.entries(modules)) {
+  module.metrics = module.metrics.map(([label]) => [label, '0']);
+  module.tabs = module.tabs.map(([label]) => [label, emptyModuleWorkspace(moduleId, label)]);
+  module.seed = [];
+}
+
 function shell({ file, title, content, seed = [], moduleId = '' }) {
   return `<!doctype html>
 <html lang="en">
@@ -363,16 +281,16 @@ function commandPage() {
           <a href="jobs.html?action=new">Create job<span>Supabase job record</span></a>
           <a href="jobs.html">Open Job Center<span>Pipeline, list, profile, editor</span></a>
           <a href="task-management.html">Task bridge<span>project_id handoff preview</span></a>
-          <a href="files.html">Files viewer<span>Demo file cabinet</span></a>
+          <a href="files.html">Files viewer<span>File cabinet workspace</span></a>
         </div>
       </section>
       <section class="panel wide-panel">
-        <div class="job-section-heading"><h2>Recent Operating Activity</h2><span>Demo timeline</span></div>
+        <div class="job-section-heading"><h2>Recent Operating Activity</h2><span>Live summary</span></div>
         <div class="activity-feed" data-command-activity></div>
       </section>
       <section class="panel">
-        <h2>Today Demo Boundary</h2>
-        <p class="muted">Jobs are live in Supabase. Files, CRM, forms, finance, tickets, and dashboards stay as linked demo workspaces for today.</p>
+        <h2>Current Scope</h2>
+        <p class="muted">Jobs are live in Supabase. Files, CRM, forms, finance, tickets, and dashboards are ready as empty workspaces until real records are connected.</p>
       </section>
     </div>
   </section>`;
@@ -498,7 +416,7 @@ function jobsPage() {
 function taskManagementPage() {
   const content = `<section class="workspace task-bridge-page" data-task-bridge data-supabase-url="https://lpzotcznihwyyudxycmd.supabase.co" data-supabase-key="sb_publishable_Gd1aHMtItu-7daoq2YofeA_9wl1pQ07">
     <div class="page-heading">
-      <div><div class="eyebrow">TaskManagement Bridge</div><h1>Work execution handoff</h1><p>Demo bridge for the future TaskManagement integration. Quest HQ keeps job context; TaskManagement owns execution.</p></div>
+      <div><div class="eyebrow">TaskManagement Bridge</div><h1>Work execution handoff</h1><p>Integration bridge for TaskManagement. Quest HQ keeps job context; TaskManagement owns execution.</p></div>
       <div class="job-actions"><span class="sync-pill" data-bridge-sync>Loading job...</span><a class="primary-button" data-bridge-return href="jobs.html">Return to Job</a></div>
     </div>
     <div class="bridge-hero panel">
@@ -551,6 +469,32 @@ function recordSystem(moduleId) {
         <label class="span-2">Notes<textarea name="notes" rows="6"></textarea></label>
         <div class="form-actions"><button class="primary-button" type="submit">Save Locally</button><button class="secondary-button" type="button" data-duplicate-record>Duplicate</button><button class="danger-button" type="button" data-delete-record>Delete</button></div>
       </form>
+    </div>
+  </div>`;
+}
+
+function emptyModuleWorkspace(moduleId, label) {
+  const copy = {
+    crm: ['No leads or clients yet', 'Create a lead or client record when real CRM data is ready.'],
+    forms: ['No forms or responses yet', 'Build inspection forms and surveys when real templates are approved.'],
+    tickets: ['No tickets yet', 'Incoming requests will appear here after the intake flow is connected.'],
+    files: ['No files yet', 'Upload job documents after file storage is connected.'],
+    finance: ['No finance records yet', 'Estimates, invoices, payments, and AR will appear when real records exist.'],
+    knowledge: ['No articles yet', 'Add SOPs and training material after the content is approved.'],
+    automations: ['No automation rules yet', 'Create rules after triggers and actions are confirmed.'],
+    dashboards: ['No saved dashboard yet', 'Saved views will appear once real operational data is available.'],
+    templates: ['No templates yet', 'Reusable job, form, finance, and SOP templates can be added later.'],
+    admin: ['No users configured yet', 'Add users, roles, and company access after authentication is in scope.']
+  };
+  const [title, summary] = copy[moduleId] || ['No records yet', 'Create records when this system is ready for real data.'];
+  return `<div class="panel empty-workspace" data-empty-module="${moduleId}">
+    <div>
+      <span>${titleCase(label)}</span>
+      <h2>${title}</h2>
+      <p class="muted">${summary}</p>
+    </div>
+    <div class="empty-actions">
+      <a class="secondary-button" href="jobs.html">Link to Job Center</a>
     </div>
   </div>`;
 }
@@ -944,7 +888,7 @@ const jobCenterJs = `(() => {
       const { data, error } = await request;
       if (error) {
         console.error(error);
-        setSync('Saved locally', 'error');
+        setSync('Local fallback', 'error');
       } else {
         const saved = normalizeJob(data);
         if (existingIndex >= 0) jobs[existingIndex] = saved;
@@ -1075,13 +1019,7 @@ const jobCenterJs = `(() => {
   }
 
   function activityTimeline(job) {
-    const items = [
-      ['Job updated', job.stage + ' stage is current'],
-      ['Task rollup synced', number(job.task_count) + ' linked tasks mapped through project_id'],
-      ['Files reviewed', number(job.file_count) + ' attached job files available in the file cabinet'],
-      ['Finance checked', money.format(number(job.estimate_total)) + ' estimate visible to operations']
-    ];
-    return '<section class=\"job-activity-panel\"><div class=\"job-section-heading\"><h2>Activity Timeline</h2><span>Demo feed</span></div>' + items.map((item) => '<div><strong>' + escapeHtml(item[0]) + '</strong><span>' + escapeHtml(item[1]) + '</span></div>').join('') + '</section>';
+    return '<section class=\"job-activity-panel\"><div class=\"job-section-heading\"><h2>Activity Timeline</h2><span>Not connected</span></div><article class=\"empty-state\">No live activity events are connected yet.</article></section>';
   }
 
   function fillForm() {
@@ -1380,7 +1318,24 @@ const taskBridgeJs = `(() => {
   }
 
   function render(job, mode) {
-    if (!job) return;
+    if (!job) {
+      nodes.jobId.textContent = 'No job selected';
+      nodes.projectId.textContent = 'No project_id';
+      nodes.title.textContent = 'No job selected';
+      nodes.stage.textContent = 'Create a job first';
+      nodes.returnLink.href = 'jobs.html?action=new';
+      setMetric('tasks', 0);
+      setMetric('open', 0);
+      setMetric('completed', 0);
+      setMetric('overdue', 0);
+      nodes.tasks.innerHTML = '<article class=\"empty-state\">No job is selected. Create a Job Center record first, then open the bridge from that job profile.</article>';
+      nodes.contract.innerHTML =
+        contractRow('project_id', 'No job selected') +
+        contractRow('return_url', nodes.returnLink.href) +
+        contractRow('source', mode === 'live' ? 'Quest HQ Supabase project' : 'Local fallback') +
+        contractRow('future behavior', 'TaskManagement filters tasks when a real job id is provided.');
+      return;
+    }
     const completed = completedTasks(job);
     const open = Math.max(number(job.task_count) - completed, 0);
     const overdue = overdueTasks(job);
@@ -1393,21 +1348,12 @@ const taskBridgeJs = `(() => {
     setMetric('open', open);
     setMetric('completed', completed);
     setMetric('overdue', overdue);
-    nodes.tasks.innerHTML = demoTasks(job, completed, open, overdue).map((task) => '<div><strong>' + escapeHtml(task.title) + '<span>' + escapeHtml(task.owner) + '</span></strong><span>' + escapeHtml(task.status) + '</span><b class=\"' + (task.status === 'Overdue' ? 'overdue' : '') + '\">' + escapeHtml(task.due) + '</b></div>').join('');
+    nodes.tasks.innerHTML = '<article class=\"empty-state\">No live TaskManagement task rows are connected yet. This bridge shows the handoff contract and current job rollup only.</article>';
     nodes.contract.innerHTML =
       contractRow('project_id', job.id) +
       contractRow('return_url', nodes.returnLink.href) +
       contractRow('source', mode === 'live' ? 'Quest HQ Supabase project' : 'Local demo fallback') +
       contractRow('future behavior', 'TaskManagement filters tasks where task.project_id matches this job id.');
-  }
-
-  function demoTasks(job, completed, open, overdue) {
-    return [
-      { title: 'Review job scope', owner: job.owner_name || 'Operations', status: completed > 0 ? 'Completed' : 'Open', due: 'Done' },
-      { title: 'Attach field files', owner: 'Field Team', status: open > 1 ? 'Open' : 'Completed', due: job.due_date || 'This week' },
-      { title: 'Finance handoff', owner: 'Finance', status: job.invoice_total > 0 ? 'Completed' : 'Open', due: 'Next' },
-      { title: 'Resolve priority item', owner: job.owner_name || 'Operations', status: overdue ? 'Overdue' : 'Open', due: overdue ? 'Late' : 'Soon' }
-    ].slice(0, Math.max(3, Math.min(4, number(job.task_count))));
   }
 
   function pickJob(jobs) {

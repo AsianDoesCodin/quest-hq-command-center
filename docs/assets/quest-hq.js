@@ -184,7 +184,7 @@
       const { data, error } = await request;
       if (error) {
         console.error(error);
-        setSync('Saved locally', 'error');
+        setSync('Local fallback', 'error');
       } else {
         const saved = normalizeJob(data);
         if (existingIndex >= 0) jobs[existingIndex] = saved;
@@ -315,13 +315,7 @@
   }
 
   function activityTimeline(job) {
-    const items = [
-      ['Job updated', job.stage + ' stage is current'],
-      ['Task rollup synced', number(job.task_count) + ' linked tasks mapped through project_id'],
-      ['Files reviewed', number(job.file_count) + ' attached job files available in the file cabinet'],
-      ['Finance checked', money.format(number(job.estimate_total)) + ' estimate visible to operations']
-    ];
-    return '<section class="job-activity-panel"><div class="job-section-heading"><h2>Activity Timeline</h2><span>Demo feed</span></div>' + items.map((item) => '<div><strong>' + escapeHtml(item[0]) + '</strong><span>' + escapeHtml(item[1]) + '</span></div>').join('') + '</section>';
+    return '<section class="job-activity-panel"><div class="job-section-heading"><h2>Activity Timeline</h2><span>Not connected</span></div><article class="empty-state">No live activity events are connected yet.</article></section>';
   }
 
   function fillForm() {
@@ -616,7 +610,24 @@
   }
 
   function render(job, mode) {
-    if (!job) return;
+    if (!job) {
+      nodes.jobId.textContent = 'No job selected';
+      nodes.projectId.textContent = 'No project_id';
+      nodes.title.textContent = 'No job selected';
+      nodes.stage.textContent = 'Create a job first';
+      nodes.returnLink.href = 'jobs.html?action=new';
+      setMetric('tasks', 0);
+      setMetric('open', 0);
+      setMetric('completed', 0);
+      setMetric('overdue', 0);
+      nodes.tasks.innerHTML = '<article class="empty-state">No job is selected. Create a Job Center record first, then open the bridge from that job profile.</article>';
+      nodes.contract.innerHTML =
+        contractRow('project_id', 'No job selected') +
+        contractRow('return_url', nodes.returnLink.href) +
+        contractRow('source', mode === 'live' ? 'Quest HQ Supabase project' : 'Local fallback') +
+        contractRow('future behavior', 'TaskManagement filters tasks when a real job id is provided.');
+      return;
+    }
     const completed = completedTasks(job);
     const open = Math.max(number(job.task_count) - completed, 0);
     const overdue = overdueTasks(job);
@@ -629,21 +640,12 @@
     setMetric('open', open);
     setMetric('completed', completed);
     setMetric('overdue', overdue);
-    nodes.tasks.innerHTML = demoTasks(job, completed, open, overdue).map((task) => '<div><strong>' + escapeHtml(task.title) + '<span>' + escapeHtml(task.owner) + '</span></strong><span>' + escapeHtml(task.status) + '</span><b class="' + (task.status === 'Overdue' ? 'overdue' : '') + '">' + escapeHtml(task.due) + '</b></div>').join('');
+    nodes.tasks.innerHTML = '<article class="empty-state">No live TaskManagement task rows are connected yet. This bridge shows the handoff contract and current job rollup only.</article>';
     nodes.contract.innerHTML =
       contractRow('project_id', job.id) +
       contractRow('return_url', nodes.returnLink.href) +
       contractRow('source', mode === 'live' ? 'Quest HQ Supabase project' : 'Local demo fallback') +
       contractRow('future behavior', 'TaskManagement filters tasks where task.project_id matches this job id.');
-  }
-
-  function demoTasks(job, completed, open, overdue) {
-    return [
-      { title: 'Review job scope', owner: job.owner_name || 'Operations', status: completed > 0 ? 'Completed' : 'Open', due: 'Done' },
-      { title: 'Attach field files', owner: 'Field Team', status: open > 1 ? 'Open' : 'Completed', due: job.due_date || 'This week' },
-      { title: 'Finance handoff', owner: 'Finance', status: job.invoice_total > 0 ? 'Completed' : 'Open', due: 'Next' },
-      { title: 'Resolve priority item', owner: job.owner_name || 'Operations', status: overdue ? 'Overdue' : 'Open', due: overdue ? 'Late' : 'Soon' }
-    ].slice(0, Math.max(3, Math.min(4, number(job.task_count))));
   }
 
   function pickJob(jobs) {

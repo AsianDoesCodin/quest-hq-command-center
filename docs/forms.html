@@ -28,27 +28,41 @@
       <main class="main">
         <section class="workspace module-page">
     <div class="page-heading"><div><div class="eyebrow">Forms & Surveys</div><h1>Form Builder and Response Center</h1><p>Inspection checklists, approvals, surveys, intake forms, and response review are separated from task execution.</p></div><button class="primary-button" data-add-record>Create Record</button></div>
-    <div class="metric-grid"><div class="metric"><span>Templates</span><strong>6</strong></div><div class="metric"><span>Responses</span><strong>28</strong></div><div class="metric"><span>Pending review</span><strong>4</strong></div><div class="metric"><span>Avg rating</span><strong>4.6</strong></div></div>
+    <div class="metric-grid"><div class="metric"><span>Templates</span><strong>0</strong></div><div class="metric"><span>Responses</span><strong>0</strong></div><div class="metric"><span>Pending review</span><strong>0</strong></div><div class="metric"><span>Avg rating</span><strong>0</strong></div></div>
     <div class="hero-card" style="background-image:url('https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&w=1400&q=80')"><strong>Form Builder and Response Center</strong><span>Inspection checklists, approvals, surveys, intake forms, and response review are separated from task execution.</span></div>
     <div class="tabs" role="tablist"><button class="active" data-tab="builder">Builder</button><button class="" data-tab="responses">Responses</button><button class="" data-tab="form-editor">Form Editor</button></div>
-    <section class="tab-panel active" data-panel="builder"><div class="builder-grid"><section class="panel"><h2>Question Palette</h2><button class="chip">Short text</button><button class="chip">Long text</button><button class="chip">Multiple choice</button><button class="chip">Rating</button><button class="chip">File upload</button><button class="chip">Signature</button></section><section class="panel wide-panel"><h2>Form Canvas</h2><div class="form-preview"><strong>Roof Inspection Checklist</strong><span>Photo upload, damage notes, rating, and signature fields.</span></div></section></div></section><section class="tab-panel " data-panel="responses"><div class="panel"><h2>Response Inbox</h2><div class="card-grid"><article class="mini-card"><strong>Roof inspection checklist</strong><span>Saved locally for presentation mode.</span></article><article class="mini-card"><strong>Client approval form</strong><span>Saved locally for presentation mode.</span></article><article class="mini-card"><strong>Final walkthrough survey</strong><span>Saved locally for presentation mode.</span></article><article class="mini-card"><strong>Internal request intake</strong><span>Saved locally for presentation mode.</span></article></div></div></section><section class="tab-panel " data-panel="form-editor"><div class="record-system panel" data-record-system="forms">
-    <div class="record-toolbar"><h2>Local Forms Records</h2><button class="secondary-button" data-add-record>Add</button></div>
-    <div class="record-layout">
-      <div class="record-list" data-record-list></div>
-      <form class="record-editor" data-record-editor>
-        <label>Title<input name="title" /></label>
-        <label>Status<input name="status" /></label>
-        <label>Owner<input name="owner" /></label>
-        <label>Job / Context<input name="job" /></label>
-        <label class="span-2">Notes<textarea name="notes" rows="6"></textarea></label>
-        <div class="form-actions"><button class="primary-button" type="submit">Save Locally</button><button class="secondary-button" type="button" data-duplicate-record>Duplicate</button><button class="danger-button" type="button" data-delete-record>Delete</button></div>
-      </form>
+    <section class="tab-panel active" data-panel="builder"><div class="panel empty-workspace" data-empty-module="forms">
+    <div>
+      <span>Builder</span>
+      <h2>No forms or responses yet</h2>
+      <p class="muted">Build inspection forms and surveys when real templates are approved.</p>
+    </div>
+    <div class="empty-actions">
+      <a class="secondary-button" href="jobs.html">Link to Job Center</a>
+    </div>
+  </div></section><section class="tab-panel " data-panel="responses"><div class="panel empty-workspace" data-empty-module="forms">
+    <div>
+      <span>Responses</span>
+      <h2>No forms or responses yet</h2>
+      <p class="muted">Build inspection forms and surveys when real templates are approved.</p>
+    </div>
+    <div class="empty-actions">
+      <a class="secondary-button" href="jobs.html">Link to Job Center</a>
+    </div>
+  </div></section><section class="tab-panel " data-panel="form-editor"><div class="panel empty-workspace" data-empty-module="forms">
+    <div>
+      <span>Form Editor</span>
+      <h2>No forms or responses yet</h2>
+      <p class="muted">Build inspection forms and surveys when real templates are approved.</p>
+    </div>
+    <div class="empty-actions">
+      <a class="secondary-button" href="jobs.html">Link to Job Center</a>
     </div>
   </div></section>
   </section>
       </main>
     </div>
-    <script type="application/json" id="record-seed">[{"title":"Roof inspection checklist","status":"Published","owner":"Maya Rosales","job":"Queen Creek Leak Follow-up","notes":"Includes photo upload, signature, and safety fields."},{"title":"Client approval form","status":"Review","owner":"Andre Lee","job":"Mesa Storage Roof Repair","notes":"Waiting on legal language before publishing."}]</script>
+    <script type="application/json" id="record-seed">[]</script>
     <script src="assets/quest-hq.js" defer></script>
   </body>
 </html>

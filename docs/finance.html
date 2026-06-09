@@ -28,27 +28,41 @@
       <main class="main">
         <section class="workspace module-page">
     <div class="page-heading"><div><div class="eyebrow">Finance</div><h1>Estimate, Invoice, and AR System</h1><p>Estimate approval, invoice status, payment tracking, overdue AR, and job profitability are managed here.</p></div><button class="primary-button" data-add-record>Create Record</button></div>
-    <div class="metric-grid"><div class="metric"><span>Open AR</span><strong>$38K</strong></div><div class="metric"><span>Estimates sent</span><strong>8</strong></div><div class="metric"><span>Invoices due</span><strong>5</strong></div><div class="metric"><span>Paid this week</span><strong>$12K</strong></div></div>
+    <div class="metric-grid"><div class="metric"><span>Open AR</span><strong>0</strong></div><div class="metric"><span>Estimates sent</span><strong>0</strong></div><div class="metric"><span>Invoices due</span><strong>0</strong></div><div class="metric"><span>Paid this week</span><strong>0</strong></div></div>
     <div class="hero-card" style="background-image:url('https://images.unsplash.com/photo-1554224155-6726b3ff858f?auto=format&fit=crop&w=1400&q=80')"><strong>Estimate, Invoice, and AR System</strong><span>Estimate approval, invoice status, payment tracking, overdue AR, and job profitability are managed here.</span></div>
     <div class="tabs" role="tablist"><button class="active" data-tab="ledger">Ledger</button><button class="" data-tab="billing">Billing</button><button class="" data-tab="finance-editor">Finance Editor</button></div>
-    <section class="tab-panel active" data-panel="ledger"><div class="panel"><h2>Finance Ledger</h2><div class="table"><div><span>Mesa roof estimate</span><span>Sent</span><span>$46K</span><span>$0</span></div><div><span>Queen Creek invoice</span><span>Overdue</span><span>$8K</span><span>$2K</span></div><div><span>Drafting packet</span><span>Draft</span><span>$14K</span><span>$0</span></div></div></div></section><section class="tab-panel " data-panel="billing"><div class="panel"><h2>Billing Controls</h2><div class="card-grid"><article class="mini-card"><strong>Estimate builder</strong><span>Saved locally for presentation mode.</span></article><article class="mini-card"><strong>Invoice list</strong><span>Saved locally for presentation mode.</span></article><article class="mini-card"><strong>Payment records</strong><span>Saved locally for presentation mode.</span></article><article class="mini-card"><strong>Overdue AR</strong><span>Saved locally for presentation mode.</span></article></div></div></section><section class="tab-panel " data-panel="finance-editor"><div class="record-system panel" data-record-system="finance">
-    <div class="record-toolbar"><h2>Local Finance Records</h2><button class="secondary-button" data-add-record>Add</button></div>
-    <div class="record-layout">
-      <div class="record-list" data-record-list></div>
-      <form class="record-editor" data-record-editor>
-        <label>Title<input name="title" /></label>
-        <label>Status<input name="status" /></label>
-        <label>Owner<input name="owner" /></label>
-        <label>Job / Context<input name="job" /></label>
-        <label class="span-2">Notes<textarea name="notes" rows="6"></textarea></label>
-        <div class="form-actions"><button class="primary-button" type="submit">Save Locally</button><button class="secondary-button" type="button" data-duplicate-record>Duplicate</button><button class="danger-button" type="button" data-delete-record>Delete</button></div>
-      </form>
+    <section class="tab-panel active" data-panel="ledger"><div class="panel empty-workspace" data-empty-module="finance">
+    <div>
+      <span>Ledger</span>
+      <h2>No finance records yet</h2>
+      <p class="muted">Estimates, invoices, payments, and AR will appear when real records exist.</p>
+    </div>
+    <div class="empty-actions">
+      <a class="secondary-button" href="jobs.html">Link to Job Center</a>
+    </div>
+  </div></section><section class="tab-panel " data-panel="billing"><div class="panel empty-workspace" data-empty-module="finance">
+    <div>
+      <span>Billing</span>
+      <h2>No finance records yet</h2>
+      <p class="muted">Estimates, invoices, payments, and AR will appear when real records exist.</p>
+    </div>
+    <div class="empty-actions">
+      <a class="secondary-button" href="jobs.html">Link to Job Center</a>
+    </div>
+  </div></section><section class="tab-panel " data-panel="finance-editor"><div class="panel empty-workspace" data-empty-module="finance">
+    <div>
+      <span>Finance Editor</span>
+      <h2>No finance records yet</h2>
+      <p class="muted">Estimates, invoices, payments, and AR will appear when real records exist.</p>
+    </div>
+    <div class="empty-actions">
+      <a class="secondary-button" href="jobs.html">Link to Job Center</a>
     </div>
   </div></section>
   </section>
       </main>
     </div>
-    <script type="application/json" id="record-seed">[{"title":"Mesa roof estimate","status":"Sent","owner":"Andre Lee","job":"Mesa Storage Roof Repair","notes":"Materials and labor included. Waiting approval."},{"title":"Queen Creek emergency invoice","status":"Overdue","owner":"Maya Rosales","job":"Queen Creek Leak Follow-up","notes":"Deposit invoice due today."}]</script>
+    <script type="application/json" id="record-seed">[]</script>
     <script src="assets/quest-hq.js" defer></script>
   </body>
 </html>
