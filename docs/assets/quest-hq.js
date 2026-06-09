@@ -273,10 +273,10 @@
   }
 
   function renderMetrics() {
-    center.querySelector('[data-job-metric="active"]').textContent = String(jobs.filter((job) => job.stage !== 'Complete').length);
-    center.querySelector('[data-job-metric="urgent"]').textContent = String(jobs.filter((job) => job.priority === 'Urgent').length);
-    center.querySelector('[data-job-metric="tasks"]').textContent = String(sum('task_count'));
-    center.querySelector('[data-job-metric="revenue"]').textContent = money.format(sum('estimate_total'));
+    setOptionalMetric('active', jobs.filter((job) => job.stage !== 'Complete').length);
+    setOptionalMetric('urgent', jobs.filter((job) => job.priority === 'Urgent').length);
+    setOptionalMetric('tasks', sum('task_count'));
+    setOptionalMetric('revenue', money.format(sum('estimate_total')));
   }
 
   function renderBoard(visible) {
@@ -462,6 +462,11 @@
   function setSync(message, state) {
     nodes.sync.textContent = message;
     nodes.sync.className = 'sync-pill' + (state ? ' ' + state : '');
+  }
+
+  function setOptionalMetric(name, value) {
+    const node = center.querySelector('[data-job-metric="' + name + '"]');
+    if (node) node.textContent = String(value);
   }
 
   function clickTab(name) {
@@ -702,6 +707,81 @@
     return String(value ?? '').replace(/[&<>"']/g, (char) => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#039;' }[char]));
   }
 })();(() => {
+  const page = document.querySelector('[data-analytics-page]');
+  if (!page) return;
+
+  const money = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 });
+  const nodes = {
+    sync: page.querySelector('[data-analytics-sync]'),
+    breakdown: page.querySelector('[data-analytics-breakdown]')
+  };
+
+  init();
+
+  async function init() {
+    if (!window.supabase || !page.dataset.supabaseUrl || !page.dataset.supabaseKey) {
+      setSync('Supabase unavailable', 'error');
+      render([]);
+      return;
+    }
+    const client = window.supabase.createClient(page.dataset.supabaseUrl, page.dataset.supabaseKey);
+    const { data, error } = await client.from('jobs').select('id,name,stage,priority,estimate_total,task_count').order('updated_at', { ascending: false });
+    if (error) {
+      console.error(error);
+      setSync('Load failed', 'error');
+      render([]);
+      return;
+    }
+    render((data || []).map(normalizeJob));
+    setSync('Supabase live', 'live');
+  }
+
+  function render(jobs) {
+    setMetric('active', jobs.filter((job) => job.stage !== 'Complete').length);
+    setMetric('urgent', jobs.filter((job) => job.priority === 'Urgent').length);
+    setMetric('tasks', sum(jobs, 'task_count'));
+    setMetric('pipeline', money.format(sum(jobs, 'estimate_total')));
+    const byStage = ['Lead', 'Inspection', 'Estimate Approved', 'Production', 'QA Review', 'Complete'].map((stage) => {
+      const count = jobs.filter((job) => job.stage === stage).length;
+      return '<span><strong>' + escapeHtml(stage) + '</strong><small>' + count + ' jobs</small></span>';
+    }).join('');
+    nodes.breakdown.innerHTML = jobs.length
+      ? '<div class="analytics-stage-grid">' + byStage + '</div>'
+      : '<article class="empty-state">No Job Center records are in Supabase yet.</article>';
+  }
+
+  function setMetric(name, value) {
+    const node = document.querySelector('[data-analytics-metric="' + name + '"]');
+    if (node) node.textContent = String(value);
+  }
+
+  function setSync(message, state) {
+    nodes.sync.textContent = message;
+    nodes.sync.className = 'sync-pill' + (state ? ' ' + state : '');
+  }
+
+  function normalizeJob(job) {
+    return {
+      stage: job.stage || 'Lead',
+      priority: job.priority || 'Medium',
+      estimate_total: number(job.estimate_total),
+      task_count: number(job.task_count)
+    };
+  }
+
+  function sum(jobs, field) {
+    return jobs.reduce((total, job) => total + number(job[field]), 0);
+  }
+
+  function number(value) {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : 0;
+  }
+
+  function escapeHtml(value) {
+    return String(value ?? '').replace(/[&<>"']/g, (char) => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#039;' }[char]));
+  }
+})();(() => {
   const center = document.querySelector('[data-command-center]');
   if (!center) return;
 
@@ -889,7 +969,8 @@
   }
 
   function setMetric(name, value) {
-    bridge.querySelector('[data-bridge-metric="' + name + '"]').textContent = String(value);
+    const node = bridge.querySelector('[data-bridge-metric="' + name + '"]');
+    if (node) node.textContent = String(value);
   }
 
   function setSync(message, state) {

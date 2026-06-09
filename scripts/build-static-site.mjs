@@ -15,7 +15,7 @@ const nav = [
   ['finance.html', 'Finance', 'receipt'],
   ['knowledge.html', 'Knowledge Base', 'library'],
   ['automations.html', 'Automations', 'workflow'],
-  ['dashboards.html', 'Dashboards', 'bar-chart'],
+  ['dashboards.html', 'Analytics', 'bar-chart'],
   ['templates.html', 'Templates', 'layers'],
   ['admin.html', 'Admin', 'settings']
 ];
@@ -144,15 +144,15 @@ const modules = {
   },
   dashboards: {
     file: 'dashboards.html',
-    eyebrow: 'Dashboards',
-    title: 'Dashboard Studio',
-    summary: 'Saved views for active jobs, stuck work, workload, time, AR, tickets, survey results, and client activity.',
+    eyebrow: 'Analytics',
+    title: 'Analytics Center',
+    summary: 'Centralized reporting for active jobs, urgent work, pipeline value, task counts, finance, tickets, and module adoption.',
     image: 'https://images.unsplash.com/photo-1551288049-bebda4e38f71?auto=format&fit=crop&w=1400&q=80',
-    metrics: [['Saved views', '9'], ['Pinned', '3'], ['Widgets', '24'], ['Filters', '11']],
+    metrics: [['Active Jobs', '0'], ['Urgent', '0'], ['Linked Tasks', '0'], ['Pipeline', '$0']],
     tabs: [
-      ['Studio', dashboardStudio()],
-      ['Saved Views', cards('Saved Views', ['Roofing weekly ops', 'Finance and AR', 'My work', 'Ticket SLA watch'])],
-      ['View Editor', recordSystem('dashboards')]
+      ['Overview', analyticsOverview()],
+      ['Module Health', analyticsModuleHealth()],
+      ['Saved Views', emptyModuleWorkspace('dashboards', 'Saved Views')]
     ],
     seed: [
       { title: 'Roofing weekly ops', status: 'Pinned', owner: 'Andre Lee', job: 'Roofing', notes: 'Active jobs, overdue tasks, open tickets, AR, and tracked time.' },
@@ -208,6 +208,13 @@ modules.admin.tabs = [
   ['Settings', emptyModuleWorkspace('admin', 'Settings')]
 ];
 
+modules.dashboards.metrics = [['Active Jobs', '0'], ['Urgent', '0'], ['Linked Tasks', '0'], ['Pipeline', '$0']];
+modules.dashboards.tabs = [
+  ['Overview', analyticsOverview()],
+  ['Module Health', analyticsModuleHealth()],
+  ['Saved Views', emptyModuleWorkspace('dashboards', 'Saved Views')]
+];
+
 function shell({ file, title, content, seed = [], moduleId = '' }) {
   return `<!doctype html>
 <html lang="en">
@@ -241,7 +248,7 @@ function shell({ file, title, content, seed = [], moduleId = '' }) {
       </main>
     </div>
     <script type="application/json" id="record-seed">${JSON.stringify(seed)}</script>
-${['command', 'jobs', 'task-bridge', 'admin'].includes(moduleId) ? '    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>\n    ' : '    '}<script src="assets/quest-hq.js" defer></script>
+${['command', 'jobs', 'task-bridge', 'admin', 'dashboards'].includes(moduleId) ? '    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>\n    ' : '    '}<script src="assets/quest-hq.js" defer></script>
   </body>
 </html>`;
 }
@@ -297,7 +304,7 @@ function commandPage() {
       </section>
       <section class="panel">
         <h2>Current Scope</h2>
-        <p class="muted">Jobs are live in Supabase. Files, CRM, forms, finance, tickets, and dashboards are ready as empty workspaces until real records are connected.</p>
+        <p class="muted">Jobs and companies are live in Supabase. Analytics is centralized; files, CRM, forms, finance, and tickets remain empty workspaces until real records are connected.</p>
       </section>
     </div>
   </section>`;
@@ -316,12 +323,6 @@ function jobsPage() {
         <span class="sync-pill" data-job-sync>Connecting to Supabase...</span>
         <button class="primary-button" type="button" data-job-new>Add Job</button>
       </div>
-    </div>
-    <div class="metric-grid job-metrics">
-      <div class="metric"><span>Active Jobs</span><strong data-job-metric="active">0</strong></div>
-      <div class="metric"><span>Urgent</span><strong data-job-metric="urgent">0</strong></div>
-      <div class="metric"><span>Linked Tasks</span><strong data-job-metric="tasks">0</strong></div>
-      <div class="metric"><span>Pipeline</span><strong data-job-metric="revenue">$0</strong></div>
     </div>
     <div class="job-command panel">
       <div class="job-search">
@@ -427,12 +428,6 @@ function taskManagementPage() {
       <strong>maps to</strong>
       <div><span>TaskManagement project_id</span><code data-bridge-project-id>pending</code></div>
     </div>
-    <div class="metric-grid">
-      <div class="metric"><span>Linked Tasks</span><strong data-bridge-metric="tasks">0</strong></div>
-      <div class="metric"><span>Open</span><strong data-bridge-metric="open">0</strong></div>
-      <div class="metric"><span>Completed</span><strong data-bridge-metric="completed">0</strong></div>
-      <div class="metric"><span>Overdue</span><strong data-bridge-metric="overdue">0</strong></div>
-    </div>
     <div class="task-bridge-grid">
       <section class="panel wide-panel">
         <div class="job-section-heading"><h2 data-bridge-title>Selected Job</h2><span data-bridge-stage>Stage</span></div>
@@ -449,9 +444,15 @@ function taskManagementPage() {
 }
 
 function modulePage(module) {
+  const metrics = module.file === 'dashboards.html'
+    ? `<div class="metric-grid analytics-metrics">${module.metrics.map(([label, value]) => metric(label, value)).join('')}</div>`
+    : '';
+  const action = module.file === 'dashboards.html'
+    ? '<a class="primary-button" href="jobs.html">Open Job Center</a>'
+    : '<button class="primary-button" data-add-record>Create Record</button>';
   const content = `<section class="workspace module-page">
-    <div class="page-heading"><div><div class="eyebrow">${module.eyebrow}</div><h1>${module.title}</h1><p>${module.summary}</p></div><button class="primary-button" data-add-record>Create Record</button></div>
-    <div class="metric-grid">${module.metrics.map(([label, value]) => metric(label, value)).join('')}</div>
+    <div class="page-heading"><div><div class="eyebrow">${module.eyebrow}</div><h1>${module.title}</h1><p>${module.summary}</p></div>${action}</div>
+    ${metrics}
     <div class="hero-card" style="background-image:url('${module.image}')"><strong>${module.title}</strong><span>${module.summary}</span></div>
     <div class="tabs" role="tablist">${module.tabs.map(([label], index) => `<button class="${index === 0 ? 'active' : ''}" data-tab="${slug(label)}">${label}</button>`).join('')}</div>
     ${module.tabs.map(([label, body], index) => `<section class="tab-panel ${index === 0 ? 'active' : ''}" data-panel="${slug(label)}">${body}</section>`).join('')}
@@ -485,7 +486,7 @@ function emptyModuleWorkspace(moduleId, label) {
     finance: ['No finance records yet', 'Estimates, invoices, payments, and AR will appear when real records exist.'],
     knowledge: ['No articles yet', 'Add SOPs and training material after the content is approved.'],
     automations: ['No automation rules yet', 'Create rules after triggers and actions are confirmed.'],
-    dashboards: ['No saved dashboard yet', 'Saved views will appear once real operational data is available.'],
+    dashboards: ['No analytics records yet', 'Analytics will populate as real module data is connected.'],
     templates: ['No templates yet', 'Reusable job, form, finance, and SOP templates can be added later.'],
     admin: ['No users configured yet', 'Add users, roles, and company access after authentication is in scope.']
   };
@@ -540,7 +541,14 @@ function adminCompanyManager() {
 }
 
 function metric(label, value) {
-  return `<div class="metric"><span>${label}</span><strong>${value}</strong></div>`;
+  const analyticsKey = {
+    'Active Jobs': 'active',
+    Urgent: 'urgent',
+    'Linked Tasks': 'tasks',
+    Pipeline: 'pipeline'
+  }[label];
+  const data = analyticsKey ? ` data-analytics-metric="${analyticsKey}"` : '';
+  return `<div class="metric"><span>${label}</span><strong${data}>${value}</strong></div>`;
 }
 
 function pipeline(lanes, items) {
@@ -691,8 +699,33 @@ function automationRules() {
   return `<div class="pipeline">${['Trigger', 'Condition', 'Action', 'Log'].map((item) => `<section><h3>${item}</h3><button>${item === 'Trigger' ? 'New job created' : item === 'Condition' ? 'Company is Roofing' : item === 'Action' ? 'Create checklist' : 'Run saved'}</button></section>`).join('')}</div>`;
 }
 
-function dashboardStudio() {
-  return `<div class="dashboard-grid">${[['Active Jobs', '18'], ['Open Tickets', '9'], ['Outstanding AR', '$38K'], ['Tracked Hours', '126h']].map(([label, value]) => `<article class="chart-card"><span>${label}</span><strong>${value}</strong><div></div></article>`).join('')}</div>`;
+function analyticsOverview() {
+  return `<div class="analytics-layout" data-analytics-page data-supabase-url="https://lpzotcznihwyyudxycmd.supabase.co" data-supabase-key="sb_publishable_Gd1aHMtItu-7daoq2YofeA_9wl1pQ07">
+    <section class="panel wide-panel">
+      <div class="job-section-heading"><h2>Live Job Analytics</h2><span class="sync-pill" data-analytics-sync>Connecting...</span></div>
+      <div class="analytics-breakdown" data-analytics-breakdown>
+        <article class="empty-state">No Job Center records are in Supabase yet.</article>
+      </div>
+    </section>
+    <section class="panel">
+      <h2>Reporting Scope</h2>
+      <div class="analytics-scope-list">
+        <span><strong>Live today</strong><small>Jobs and companies from Supabase.</small></span>
+        <span><strong>Moved here</strong><small>Top-level KPI cards are centralized instead of repeated on every workflow page.</small></span>
+        <span><strong>Later</strong><small>Finance, tickets, forms, files, and task telemetry after those modules have real tables.</small></span>
+      </div>
+    </section>
+  </div>`;
+}
+
+function analyticsModuleHealth() {
+  const rows = [
+    ['Jobs', 'Live Supabase table', 'Connected'],
+    ['Companies', 'Admin-managed Supabase table', 'Connected'],
+    ['TaskManagement', 'Bridge contract only', 'Planned'],
+    ['Files, Forms, Finance, Tickets', 'No production tables yet', 'Not connected']
+  ];
+  return `<div class="panel"><h2>Module Health</h2><div class="table analytics-health-table">${rows.map((row) => `<div>${row.map((cell) => `<span>${cell}</span>`).join('')}</div>`).join('')}</div></div>`;
 }
 
 function templateCatalog() {
@@ -741,6 +774,8 @@ const jobCenterCss = `.job-actions{display:flex;align-items:center;gap:10px;flex
 const coreDemoCss = `.ops-dashboard-grid{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(300px,.65fr);gap:18px}.ops-job-list,.activity-feed,.quick-action-grid,.bridge-task-list,.bridge-contract>div{display:grid;gap:10px}.ops-job-list a,.quick-action-grid a,.activity-feed div,.bridge-task-list div,.bridge-contract span{display:block;border:1px solid var(--line);border-radius:8px;background:#fbfcfe;padding:12px}.ops-job-list a:hover,.quick-action-grid a:hover{border-color:#f97316;background:#fff8f5}.ops-job-list strong,.ops-job-list span,.quick-action-grid strong,.quick-action-grid span,.activity-feed strong,.activity-feed span,.bridge-task-list strong,.bridge-task-list span,.bridge-contract strong,.bridge-contract small{display:block}.ops-job-list span,.quick-action-grid span,.activity-feed span,.bridge-task-list span,.bridge-contract small{color:#617089;font-size:13px;margin-top:5px}.quick-action-grid a{font-weight:900}.linked-panel-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-top:16px}.linked-panel-grid a{border:1px solid var(--line);border-radius:8px;background:#fbfcfe;padding:12px}.linked-panel-grid a:hover{border-color:#f97316;background:#fff8f5}.linked-panel-grid strong,.linked-panel-grid span,.linked-panel-grid small{display:block}.linked-panel-grid span{font-weight:900;margin-top:8px}.linked-panel-grid small{color:#617089;margin-top:4px}.job-activity-panel{margin-top:16px}.job-activity-panel div:not(.job-section-heading){display:grid;grid-template-columns:180px minmax(0,1fr);gap:12px;border-top:1px solid var(--line);padding:11px 0}.job-activity-panel strong,.job-activity-panel span{display:block}.job-activity-panel span{color:#617089}.bridge-hero{display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);gap:18px;align-items:center;background:#111a27;color:#fff;margin-bottom:18px}.bridge-hero div{display:grid;gap:8px}.bridge-hero span{color:#aebbd0;font-size:12px;font-weight:900;text-transform:uppercase}.bridge-hero code{display:block;overflow:hidden;text-overflow:ellipsis;background:#fff;color:#111a27;border-radius:8px;padding:12px;font-weight:850}.bridge-hero strong{color:#ffd8c7}.task-bridge-grid{display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:18px}.bridge-task-list div{display:grid;grid-template-columns:minmax(0,1fr) 128px 118px;gap:12px;align-items:center}.bridge-task-list b{display:inline-flex;justify-content:center;white-space:nowrap;border-radius:999px;padding:5px 10px;background:#e8f0fe;color:#174ea6}.bridge-task-list b.overdue{background:#fee2e2;color:#b91c1c}.bridge-contract span{display:grid;gap:4px}.bridge-contract code{display:block;overflow:hidden;text-overflow:ellipsis;border-radius:6px;background:#eef2f7;padding:8px;color:#172033}@media(max-width:1180px){.ops-dashboard-grid,.task-bridge-grid{grid-template-columns:1fr}.linked-panel-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.bridge-hero{grid-template-columns:1fr}.bridge-task-list div{grid-template-columns:1fr}}@media(max-width:680px){.linked-panel-grid,.job-activity-panel div:not(.job-section-heading){grid-template-columns:1fr}}`;
 
 const companyAdminCss = `.company-admin{padding:0;overflow:hidden}.company-admin-header{display:flex;justify-content:space-between;gap:18px;align-items:flex-start;padding:18px;border-bottom:1px solid var(--line);background:#fff}.company-admin-header h2{margin-bottom:4px}.company-admin-actions{display:flex;gap:10px;align-items:center;flex-wrap:wrap;justify-content:flex-end}.company-admin-layout{display:grid;grid-template-columns:minmax(320px,.85fr) minmax(360px,1fr);gap:0;min-height:520px}.company-list-wrap{border-right:1px solid var(--line);background:#f8fafc;padding:16px}.company-list{display:grid;gap:10px}.company-card{display:grid;grid-template-columns:44px minmax(0,1fr) auto;gap:12px;align-items:center;width:100%;border:1px solid var(--line);border-radius:8px;background:#fff;padding:12px;text-align:left;cursor:pointer}.company-card:hover,.company-card.active{border-color:#f97316;background:#fff8f5}.company-card.active{box-shadow:inset 3px 0 var(--orange)}.company-logo{display:grid;place-items:center;width:42px;height:42px;border-radius:8px;color:#fff;font-weight:900}.company-card strong,.company-card span,.company-card small{display:block}.company-card span{color:#617089;font-size:13px;margin-top:4px}.company-card small{font-size:12px;color:#52627a;font-weight:850;text-transform:uppercase}.company-editor{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;align-content:start;padding:18px;background:#fff}.company-editor label{display:grid;gap:6px;font-size:12px;font-weight:850;text-transform:uppercase;color:#617089}.company-editor input{width:100%;border:1px solid var(--line);border-radius:8px;background:#fff;color:var(--ink);padding:11px}.company-editor input[readonly]{background:#f8fafc;color:#617089}.company-policy-note{border:1px solid #fed7aa;border-radius:8px;background:#fff7ed;color:#9a3412;padding:12px}.company-policy-note strong,.company-policy-note span{display:block}.company-policy-note span{margin-top:4px;font-size:13px;line-height:1.45}@media(max-width:1050px){.company-admin-layout{grid-template-columns:1fr}.company-list-wrap{border-right:0;border-bottom:1px solid var(--line)}}@media(max-width:680px){.company-admin-header,.company-editor{grid-template-columns:1fr}.company-admin-header{display:grid}.company-admin-actions{justify-content:flex-start}.company-card{grid-template-columns:42px minmax(0,1fr)}.company-card small{grid-column:2}.company-editor{grid-template-columns:1fr}}`;
+
+const analyticsCss = `.analytics-layout{display:grid;grid-template-columns:minmax(0,1fr) 360px;gap:18px}.analytics-stage-grid,.analytics-scope-list{display:grid;gap:10px}.analytics-stage-grid{grid-template-columns:repeat(3,minmax(0,1fr))}.analytics-stage-grid span,.analytics-scope-list span{display:block;border:1px solid var(--line);border-radius:8px;background:#fbfcfe;padding:12px}.analytics-stage-grid strong,.analytics-stage-grid small,.analytics-scope-list strong,.analytics-scope-list small{display:block}.analytics-stage-grid small,.analytics-scope-list small{color:#617089;margin-top:5px}.analytics-health-table div{grid-template-columns:minmax(120px,.45fr) minmax(0,1fr) 120px}@media(max-width:1100px){.analytics-layout{grid-template-columns:1fr}.analytics-stage-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}@media(max-width:620px){.analytics-stage-grid{grid-template-columns:1fr}}`;
 
 const js = `(() => {
   const storageKey = (moduleId) => 'quest-hq-static-' + moduleId;
@@ -1019,10 +1054,10 @@ const jobCenterJs = `(() => {
   }
 
   function renderMetrics() {
-    center.querySelector('[data-job-metric=\"active\"]').textContent = String(jobs.filter((job) => job.stage !== 'Complete').length);
-    center.querySelector('[data-job-metric=\"urgent\"]').textContent = String(jobs.filter((job) => job.priority === 'Urgent').length);
-    center.querySelector('[data-job-metric=\"tasks\"]').textContent = String(sum('task_count'));
-    center.querySelector('[data-job-metric=\"revenue\"]').textContent = money.format(sum('estimate_total'));
+    setOptionalMetric('active', jobs.filter((job) => job.stage !== 'Complete').length);
+    setOptionalMetric('urgent', jobs.filter((job) => job.priority === 'Urgent').length);
+    setOptionalMetric('tasks', sum('task_count'));
+    setOptionalMetric('revenue', money.format(sum('estimate_total')));
   }
 
   function renderBoard(visible) {
@@ -1208,6 +1243,11 @@ const jobCenterJs = `(() => {
   function setSync(message, state) {
     nodes.sync.textContent = message;
     nodes.sync.className = 'sync-pill' + (state ? ' ' + state : '');
+  }
+
+  function setOptionalMetric(name, value) {
+    const node = center.querySelector('[data-job-metric=\"' + name + '\"]');
+    if (node) node.textContent = String(value);
   }
 
   function clickTab(name) {
@@ -1451,6 +1491,83 @@ const companyAdminJs = `(() => {
   }
 })();`;
 
+const analyticsJs = `(() => {
+  const page = document.querySelector('[data-analytics-page]');
+  if (!page) return;
+
+  const money = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 });
+  const nodes = {
+    sync: page.querySelector('[data-analytics-sync]'),
+    breakdown: page.querySelector('[data-analytics-breakdown]')
+  };
+
+  init();
+
+  async function init() {
+    if (!window.supabase || !page.dataset.supabaseUrl || !page.dataset.supabaseKey) {
+      setSync('Supabase unavailable', 'error');
+      render([]);
+      return;
+    }
+    const client = window.supabase.createClient(page.dataset.supabaseUrl, page.dataset.supabaseKey);
+    const { data, error } = await client.from('jobs').select('id,name,stage,priority,estimate_total,task_count').order('updated_at', { ascending: false });
+    if (error) {
+      console.error(error);
+      setSync('Load failed', 'error');
+      render([]);
+      return;
+    }
+    render((data || []).map(normalizeJob));
+    setSync('Supabase live', 'live');
+  }
+
+  function render(jobs) {
+    setMetric('active', jobs.filter((job) => job.stage !== 'Complete').length);
+    setMetric('urgent', jobs.filter((job) => job.priority === 'Urgent').length);
+    setMetric('tasks', sum(jobs, 'task_count'));
+    setMetric('pipeline', money.format(sum(jobs, 'estimate_total')));
+    const byStage = ['Lead', 'Inspection', 'Estimate Approved', 'Production', 'QA Review', 'Complete'].map((stage) => {
+      const count = jobs.filter((job) => job.stage === stage).length;
+      return '<span><strong>' + escapeHtml(stage) + '</strong><small>' + count + ' jobs</small></span>';
+    }).join('');
+    nodes.breakdown.innerHTML = jobs.length
+      ? '<div class=\"analytics-stage-grid\">' + byStage + '</div>'
+      : '<article class=\"empty-state\">No Job Center records are in Supabase yet.</article>';
+  }
+
+  function setMetric(name, value) {
+    const node = document.querySelector('[data-analytics-metric=\"' + name + '\"]');
+    if (node) node.textContent = String(value);
+  }
+
+  function setSync(message, state) {
+    nodes.sync.textContent = message;
+    nodes.sync.className = 'sync-pill' + (state ? ' ' + state : '');
+  }
+
+  function normalizeJob(job) {
+    return {
+      stage: job.stage || 'Lead',
+      priority: job.priority || 'Medium',
+      estimate_total: number(job.estimate_total),
+      task_count: number(job.task_count)
+    };
+  }
+
+  function sum(jobs, field) {
+    return jobs.reduce((total, job) => total + number(job[field]), 0);
+  }
+
+  function number(value) {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : 0;
+  }
+
+  function escapeHtml(value) {
+    return String(value ?? '').replace(/[&<>\"']/g, (char) => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '\"':'&quot;', \"'\":'&#039;' }[char]));
+  }
+})();`;
+
 const commandCenterJs = `(() => {
   const center = document.querySelector('[data-command-center]');
   if (!center) return;
@@ -1641,7 +1758,8 @@ const taskBridgeJs = `(() => {
   }
 
   function setMetric(name, value) {
-    bridge.querySelector('[data-bridge-metric=\"' + name + '\"]').textContent = String(value);
+    const node = bridge.querySelector('[data-bridge-metric=\"' + name + '\"]');
+    if (node) node.textContent = String(value);
   }
 
   function setSync(message, state) {
@@ -1671,8 +1789,8 @@ async function writeTarget(target) {
   const absolute = path.resolve(target);
   if (target !== '.') await rm(absolute, { recursive: true, force: true });
   await mkdir(path.join(absolute, 'assets'), { recursive: true });
-  await writeFile(path.join(absolute, 'assets', 'quest-hq.css'), css + sidebarPolishCss + fileViewerCss + jobCenterCss + coreDemoCss + companyAdminCss);
-  await writeFile(path.join(absolute, 'assets', 'quest-hq.js'), js + jobCenterJs + companyAdminJs + commandCenterJs + taskBridgeJs);
+  await writeFile(path.join(absolute, 'assets', 'quest-hq.css'), css + sidebarPolishCss + fileViewerCss + jobCenterCss + coreDemoCss + companyAdminCss + analyticsCss);
+  await writeFile(path.join(absolute, 'assets', 'quest-hq.js'), js + jobCenterJs + companyAdminJs + analyticsJs + commandCenterJs + taskBridgeJs);
   await writeFile(path.join(absolute, 'index.html'), commandPage());
   await writeFile(path.join(absolute, 'jobs.html'), jobsPage());
   await writeFile(path.join(absolute, 'task-management.html'), taskManagementPage());
