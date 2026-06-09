@@ -1,7 +1,7 @@
 import { mkdir, rm, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 
-const buildId = 'Static HTML v9';
+const buildId = 'Static HTML v10';
 const targets = ['.', 'dist', 'docs'];
 
 const nav = [
@@ -201,6 +201,13 @@ for (const [moduleId, module] of Object.entries(modules)) {
   module.seed = [];
 }
 
+modules.admin.metrics = [['Users', '0'], ['Pending', '0'], ['Companies', 'Live'], ['Roles', '0']];
+modules.admin.tabs = [
+  ['Companies', adminCompanyManager()],
+  ['Users', emptyModuleWorkspace('admin', 'Users')],
+  ['Settings', emptyModuleWorkspace('admin', 'Settings')]
+];
+
 function shell({ file, title, content, seed = [], moduleId = '' }) {
   return `<!doctype html>
 <html lang="en">
@@ -234,7 +241,7 @@ function shell({ file, title, content, seed = [], moduleId = '' }) {
       </main>
     </div>
     <script type="application/json" id="record-seed">${JSON.stringify(seed)}</script>
-${['command', 'jobs', 'task-bridge'].includes(moduleId) ? '    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>\n    ' : '    '}<script src="assets/quest-hq.js" defer></script>
+${['command', 'jobs', 'task-bridge', 'admin'].includes(moduleId) ? '    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>\n    ' : '    '}<script src="assets/quest-hq.js" defer></script>
   </body>
 </html>`;
 }
@@ -359,11 +366,7 @@ function jobsPage() {
         <div class="job-section-heading span-2"><h2>Job Editor</h2><span>Saved to Supabase when available, local fallback otherwise.</span></div>
         <label class="span-2">Job Name<input name="name" required /></label>
         <label>Company
-          <select name="company_id">
-            <option value="quest-roofing">Quest Roofing</option>
-            <option value="quest-drafting">Quest Drafting</option>
-            <option value="lumen">Lumen</option>
-          </select>
+          <select name="company_id" data-job-company-select></select>
         </label>
         <label>Client<input name="client_name" placeholder="Client or account name" /></label>
         <label>Contact<input name="contact_name" /></label>
@@ -495,6 +498,43 @@ function emptyModuleWorkspace(moduleId, label) {
     </div>
     <div class="empty-actions">
       <a class="secondary-button" href="jobs.html">Link to Job Center</a>
+    </div>
+  </div>`;
+}
+
+function adminCompanyManager() {
+  return `<div class="panel company-admin" data-company-admin data-supabase-url="https://lpzotcznihwyyudxycmd.supabase.co" data-supabase-key="sb_publishable_Gd1aHMtItu-7daoq2YofeA_9wl1pQ07">
+    <div class="company-admin-header">
+      <div>
+        <h2>Companies</h2>
+        <p class="muted">Create and manage operating companies used by Job Center. Changes are saved to Supabase for this demo.</p>
+      </div>
+      <div class="company-admin-actions">
+        <span class="sync-pill" data-company-sync>Connecting...</span>
+        <button class="secondary-button" type="button" data-company-refresh>Refresh</button>
+      </div>
+    </div>
+    <div class="company-admin-layout">
+      <section class="company-list-wrap" aria-label="Companies">
+        <div class="company-list" data-company-list></div>
+      </section>
+      <form class="company-editor" data-company-form>
+        <input type="hidden" name="editing_id" />
+        <div class="job-section-heading span-2"><h2 data-company-form-title>New Company</h2><span>Public demo write mode</span></div>
+        <label class="span-2">Company ID<input name="id" required placeholder="quest-roofing" pattern="[a-z0-9]+(-[a-z0-9]+)*" /></label>
+        <label>Company Name<input name="name" required placeholder="Quest Roofing" /></label>
+        <label>Short Name<input name="short_name" required placeholder="Roofing" /></label>
+        <label>Brand Color<input name="color" type="color" value="#f45d22" /></label>
+        <div class="company-policy-note span-2">
+          <strong>Demo security note</strong>
+          <span>Company writes are intentionally open for today&apos;s public mockup. Lock this behind auth before production.</span>
+        </div>
+        <div class="form-actions span-2">
+          <button class="primary-button" type="submit">Save Company</button>
+          <button class="secondary-button" type="button" data-company-new>New</button>
+          <button class="danger-button" type="button" data-company-delete>Delete</button>
+        </div>
+      </form>
     </div>
   </div>`;
 }
@@ -700,6 +740,8 @@ const jobCenterCss = `.job-actions{display:flex;align-items:center;gap:10px;flex
 
 const coreDemoCss = `.ops-dashboard-grid{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(300px,.65fr);gap:18px}.ops-job-list,.activity-feed,.quick-action-grid,.bridge-task-list,.bridge-contract>div{display:grid;gap:10px}.ops-job-list a,.quick-action-grid a,.activity-feed div,.bridge-task-list div,.bridge-contract span{display:block;border:1px solid var(--line);border-radius:8px;background:#fbfcfe;padding:12px}.ops-job-list a:hover,.quick-action-grid a:hover{border-color:#f97316;background:#fff8f5}.ops-job-list strong,.ops-job-list span,.quick-action-grid strong,.quick-action-grid span,.activity-feed strong,.activity-feed span,.bridge-task-list strong,.bridge-task-list span,.bridge-contract strong,.bridge-contract small{display:block}.ops-job-list span,.quick-action-grid span,.activity-feed span,.bridge-task-list span,.bridge-contract small{color:#617089;font-size:13px;margin-top:5px}.quick-action-grid a{font-weight:900}.linked-panel-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-top:16px}.linked-panel-grid a{border:1px solid var(--line);border-radius:8px;background:#fbfcfe;padding:12px}.linked-panel-grid a:hover{border-color:#f97316;background:#fff8f5}.linked-panel-grid strong,.linked-panel-grid span,.linked-panel-grid small{display:block}.linked-panel-grid span{font-weight:900;margin-top:8px}.linked-panel-grid small{color:#617089;margin-top:4px}.job-activity-panel{margin-top:16px}.job-activity-panel div:not(.job-section-heading){display:grid;grid-template-columns:180px minmax(0,1fr);gap:12px;border-top:1px solid var(--line);padding:11px 0}.job-activity-panel strong,.job-activity-panel span{display:block}.job-activity-panel span{color:#617089}.bridge-hero{display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);gap:18px;align-items:center;background:#111a27;color:#fff;margin-bottom:18px}.bridge-hero div{display:grid;gap:8px}.bridge-hero span{color:#aebbd0;font-size:12px;font-weight:900;text-transform:uppercase}.bridge-hero code{display:block;overflow:hidden;text-overflow:ellipsis;background:#fff;color:#111a27;border-radius:8px;padding:12px;font-weight:850}.bridge-hero strong{color:#ffd8c7}.task-bridge-grid{display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:18px}.bridge-task-list div{display:grid;grid-template-columns:minmax(0,1fr) 128px 118px;gap:12px;align-items:center}.bridge-task-list b{display:inline-flex;justify-content:center;white-space:nowrap;border-radius:999px;padding:5px 10px;background:#e8f0fe;color:#174ea6}.bridge-task-list b.overdue{background:#fee2e2;color:#b91c1c}.bridge-contract span{display:grid;gap:4px}.bridge-contract code{display:block;overflow:hidden;text-overflow:ellipsis;border-radius:6px;background:#eef2f7;padding:8px;color:#172033}@media(max-width:1180px){.ops-dashboard-grid,.task-bridge-grid{grid-template-columns:1fr}.linked-panel-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.bridge-hero{grid-template-columns:1fr}.bridge-task-list div{grid-template-columns:1fr}}@media(max-width:680px){.linked-panel-grid,.job-activity-panel div:not(.job-section-heading){grid-template-columns:1fr}}`;
 
+const companyAdminCss = `.company-admin{padding:0;overflow:hidden}.company-admin-header{display:flex;justify-content:space-between;gap:18px;align-items:flex-start;padding:18px;border-bottom:1px solid var(--line);background:#fff}.company-admin-header h2{margin-bottom:4px}.company-admin-actions{display:flex;gap:10px;align-items:center;flex-wrap:wrap;justify-content:flex-end}.company-admin-layout{display:grid;grid-template-columns:minmax(320px,.85fr) minmax(360px,1fr);gap:0;min-height:520px}.company-list-wrap{border-right:1px solid var(--line);background:#f8fafc;padding:16px}.company-list{display:grid;gap:10px}.company-card{display:grid;grid-template-columns:44px minmax(0,1fr) auto;gap:12px;align-items:center;width:100%;border:1px solid var(--line);border-radius:8px;background:#fff;padding:12px;text-align:left;cursor:pointer}.company-card:hover,.company-card.active{border-color:#f97316;background:#fff8f5}.company-card.active{box-shadow:inset 3px 0 var(--orange)}.company-logo{display:grid;place-items:center;width:42px;height:42px;border-radius:8px;color:#fff;font-weight:900}.company-card strong,.company-card span,.company-card small{display:block}.company-card span{color:#617089;font-size:13px;margin-top:4px}.company-card small{font-size:12px;color:#52627a;font-weight:850;text-transform:uppercase}.company-editor{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;align-content:start;padding:18px;background:#fff}.company-editor label{display:grid;gap:6px;font-size:12px;font-weight:850;text-transform:uppercase;color:#617089}.company-editor input{width:100%;border:1px solid var(--line);border-radius:8px;background:#fff;color:var(--ink);padding:11px}.company-editor input[readonly]{background:#f8fafc;color:#617089}.company-policy-note{border:1px solid #fed7aa;border-radius:8px;background:#fff7ed;color:#9a3412;padding:12px}.company-policy-note strong,.company-policy-note span{display:block}.company-policy-note span{margin-top:4px;font-size:13px;line-height:1.45}@media(max-width:1050px){.company-admin-layout{grid-template-columns:1fr}.company-list-wrap{border-right:0;border-bottom:1px solid var(--line)}}@media(max-width:680px){.company-admin-header,.company-editor{grid-template-columns:1fr}.company-admin-header{display:grid}.company-admin-actions{justify-content:flex-start}.company-card{grid-template-columns:42px minmax(0,1fr)}.company-card small{grid-column:2}.company-editor{grid-template-columns:1fr}}`;
+
 const js = `(() => {
   const storageKey = (moduleId) => 'quest-hq-static-' + moduleId;
   const seed = JSON.parse(document.getElementById('record-seed')?.textContent || '[]');
@@ -778,6 +820,11 @@ const jobCenterJs = `(() => {
   const localKey = 'quest-hq-job-center';
   const lanes = ['Lead', 'Inspection', 'Estimate Approved', 'Production', 'QA Review'];
   const fields = ['id','name','company_id','client_name','contact_name','site_address','job_type','stage','priority','owner_name','scope','start_date','due_date','estimate_total','invoice_total','task_count','file_count','notes'];
+  const defaultCompanies = [
+    { id: 'quest-roofing', name: 'Quest Roofing', short_name: 'Roofing', color: '#f45d22' },
+    { id: 'quest-drafting', name: 'Quest Drafting', short_name: 'Drafting', color: '#2563eb' },
+    { id: 'lumen', name: 'Lumen', short_name: 'Lumen', color: '#7c3aed' }
+  ];
   const money = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 });
   const nodes = {
     sync: center.querySelector('[data-job-sync]'),
@@ -787,18 +834,21 @@ const jobCenterJs = `(() => {
     profile: center.querySelector('[data-job-profile]'),
     sidecar: center.querySelector('[data-job-sidecar]'),
     form: center.querySelector('[data-job-form]'),
+    companySelect: center.querySelector('[data-job-company-select]'),
     search: center.querySelector('[data-job-search]'),
     stage: center.querySelector('[data-job-stage-filter]')
   };
 
   let supabaseClient = null;
   let jobs = loadLocal();
+  let companies = defaultCompanies.slice();
   let selectedId = new URLSearchParams(window.location.search).get('job_id') || jobs[0]?.id || null;
   let source = 'local';
 
   init();
 
   async function init() {
+    renderCompanyOptions();
     bindEvents();
     render();
     await connect();
@@ -813,7 +863,26 @@ const jobCenterJs = `(() => {
       return;
     }
     supabaseClient = window.supabase.createClient(url, key);
+    await refreshCompanies();
     await refreshFromSupabase();
+  }
+
+  async function refreshCompanies() {
+    if (!supabaseClient) {
+      renderCompanyOptions();
+      return;
+    }
+    const { data, error } = await supabaseClient
+      .from('companies')
+      .select('id,name,short_name,color')
+      .order('created_at', { ascending: true });
+    if (error) {
+      console.error(error);
+      companies = defaultCompanies.slice();
+    } else {
+      companies = Array.isArray(data) && data.length ? data : defaultCompanies.slice();
+    }
+    renderCompanyOptions();
   }
 
   async function refreshFromSupabase() {
@@ -847,7 +916,10 @@ const jobCenterJs = `(() => {
       render();
       clickTab('editor');
     });
-    center.querySelector('[data-job-refresh]')?.addEventListener('click', () => refreshFromSupabase());
+    center.querySelector('[data-job-refresh]')?.addEventListener('click', async () => {
+      await refreshCompanies();
+      await refreshFromSupabase();
+    });
     nodes.search?.addEventListener('input', render);
     nodes.stage?.addEventListener('change', render);
     nodes.board?.addEventListener('click', selectFromClick);
@@ -1024,6 +1096,7 @@ const jobCenterJs = `(() => {
 
   function fillForm() {
     const job = selectedJob() || blankJob();
+    renderCompanyOptions(job.company_id);
     fields.forEach((field) => {
       if (!nodes.form.elements[field]) return;
       nodes.form.elements[field].value = job[field] ?? '';
@@ -1088,7 +1161,7 @@ const jobCenterJs = `(() => {
   function normalizeJob(job) {
     return {
       id: String(job.id || 'local-' + Date.now()),
-      company_id: job.company_id || 'quest-roofing',
+      company_id: job.company_id || companies[0]?.id || 'quest-roofing',
       client_name: job.client_name || job.clients?.name || '',
       name: job.name || job.title || 'Untitled Job',
       contact_name: job.contact_name || '',
@@ -1112,7 +1185,7 @@ const jobCenterJs = `(() => {
     return normalizeJob({
       id: 'local-' + Date.now(),
       name: 'New Job',
-      company_id: 'quest-roofing',
+      company_id: companies[0]?.id || 'quest-roofing',
       client_name: '',
       job_type: 'Roofing',
       stage: 'Lead',
@@ -1157,7 +1230,18 @@ const jobCenterJs = `(() => {
   }
 
   function companyLabel(id) {
-    return ({ 'quest-roofing': 'Quest Roofing', 'quest-drafting': 'Quest Drafting', lumen: 'Lumen' })[id] || id || 'Quest Roofing';
+    const company = companies.find((item) => item.id === id);
+    return company?.name || id || companies[0]?.name || 'Quest Roofing';
+  }
+
+  function renderCompanyOptions(selectedValue = nodes.companySelect?.value) {
+    if (!nodes.companySelect) return;
+    const list = companies.length ? companies : defaultCompanies;
+    const exists = list.some((company) => company.id === selectedValue);
+    const options = list.map((company) => '<option value=\"' + escapeHtml(company.id) + '\">' + escapeHtml(company.name) + '</option>');
+    if (selectedValue && !exists) options.push('<option value=\"' + escapeHtml(selectedValue) + '\">' + escapeHtml(selectedValue) + '</option>');
+    nodes.companySelect.innerHTML = options.join('');
+    nodes.companySelect.value = selectedValue && (exists || selectedValue) ? selectedValue : list[0]?.id || '';
   }
 
   function bridgeUrl(job) {
@@ -1182,6 +1266,190 @@ const jobCenterJs = `(() => {
 
   function priorityClass(priority) {
     return 'priority-' + String(priority || 'medium').toLowerCase();
+  }
+
+  function escapeHtml(value) {
+    return String(value ?? '').replace(/[&<>\"']/g, (char) => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '\"':'&quot;', \"'\":'&#039;' }[char]));
+  }
+})();`;
+
+const companyAdminJs = `(() => {
+  const admin = document.querySelector('[data-company-admin]');
+  if (!admin) return;
+
+  const builtInIds = new Set(['quest-roofing', 'quest-drafting', 'lumen']);
+  const nodes = {
+    sync: admin.querySelector('[data-company-sync]'),
+    list: admin.querySelector('[data-company-list]'),
+    form: admin.querySelector('[data-company-form]'),
+    title: admin.querySelector('[data-company-form-title]'),
+    refresh: admin.querySelector('[data-company-refresh]'),
+    createNew: admin.querySelector('[data-company-new]'),
+    deleteButton: admin.querySelector('[data-company-delete]')
+  };
+
+  let client = null;
+  let companies = [];
+  let selectedId = null;
+
+  init();
+
+  async function init() {
+    bindEvents();
+    if (!window.supabase || !admin.dataset.supabaseUrl || !admin.dataset.supabaseKey) {
+      setSync('Supabase unavailable', 'error');
+      render();
+      return;
+    }
+    client = window.supabase.createClient(admin.dataset.supabaseUrl, admin.dataset.supabaseKey);
+    await loadCompanies();
+  }
+
+  function bindEvents() {
+    nodes.refresh?.addEventListener('click', loadCompanies);
+    nodes.createNew?.addEventListener('click', newCompany);
+    nodes.deleteButton?.addEventListener('click', deleteCompany);
+    nodes.form?.addEventListener('submit', saveCompany);
+    nodes.form?.elements.name?.addEventListener('input', () => {
+      const editing = nodes.form.elements.editing_id.value;
+      const idInput = nodes.form.elements.id;
+      if (!editing && !idInput.dataset.touched) idInput.value = slugify(nodes.form.elements.name.value);
+    });
+    nodes.form?.elements.id?.addEventListener('input', (event) => {
+      event.currentTarget.dataset.touched = 'true';
+      event.currentTarget.value = slugify(event.currentTarget.value);
+    });
+    nodes.list?.addEventListener('click', (event) => {
+      const button = event.target.closest('[data-company-id]');
+      if (!button) return;
+      selectedId = button.dataset.companyId;
+      fillForm(selectedCompany());
+      render();
+    });
+  }
+
+  async function loadCompanies() {
+    if (!client) return;
+    setSync('Loading...', '');
+    const { data, error } = await client.from('companies').select('id,name,short_name,color,created_at').order('created_at', { ascending: true });
+    if (error) {
+      console.error(error);
+      setSync('Load failed', 'error');
+      render();
+      return;
+    }
+    companies = data || [];
+    selectedId = selectedId && companies.some((company) => company.id === selectedId) ? selectedId : companies[0]?.id || null;
+    setSync('Supabase live', 'live');
+    render();
+    if (selectedId) fillForm(selectedCompany());
+    else newCompany();
+  }
+
+  async function saveCompany(event) {
+    event.preventDefault();
+    if (!client) return;
+    const form = nodes.form;
+    const editingId = form.elements.editing_id.value;
+    const payload = {
+      id: slugify(form.elements.id.value),
+      name: form.elements.name.value.trim(),
+      short_name: form.elements.short_name.value.trim(),
+      color: form.elements.color.value || '#f45d22'
+    };
+    if (!payload.id || !payload.name || !payload.short_name) {
+      setSync('Missing fields', 'error');
+      return;
+    }
+    setSync('Saving...', '');
+    const request = editingId
+      ? client.from('companies').update({ name: payload.name, short_name: payload.short_name, color: payload.color }).eq('id', editingId).select().single()
+      : client.from('companies').insert(payload).select().single();
+    const { data, error } = await request;
+    if (error) {
+      console.error(error);
+      setSync('Save failed', 'error');
+      return;
+    }
+    selectedId = data.id;
+    await loadCompanies();
+  }
+
+  async function deleteCompany() {
+    if (!client) return;
+    const company = selectedCompany();
+    if (!company) return;
+    if (builtInIds.has(company.id)) {
+      setSync('Built-in protected', 'local');
+      return;
+    }
+    setSync('Deleting...', '');
+    const { error } = await client.from('companies').delete().eq('id', company.id);
+    if (error) {
+      console.error(error);
+      setSync('Delete blocked', 'error');
+      return;
+    }
+    selectedId = null;
+    await loadCompanies();
+  }
+
+  function newCompany() {
+    selectedId = null;
+    nodes.form.reset();
+    nodes.form.elements.editing_id.value = '';
+    nodes.form.elements.id.readOnly = false;
+    delete nodes.form.elements.id.dataset.touched;
+    nodes.form.elements.color.value = '#f45d22';
+    nodes.title.textContent = 'New Company';
+    nodes.deleteButton.disabled = true;
+    render();
+  }
+
+  function fillForm(company) {
+    if (!company) return newCompany();
+    nodes.form.elements.editing_id.value = company.id;
+    nodes.form.elements.id.value = company.id;
+    nodes.form.elements.id.readOnly = true;
+    nodes.form.elements.name.value = company.name || '';
+    nodes.form.elements.short_name.value = company.short_name || '';
+    nodes.form.elements.color.value = company.color || '#f45d22';
+    nodes.title.textContent = 'Edit Company';
+    nodes.deleteButton.disabled = builtInIds.has(company.id);
+  }
+
+  function render() {
+    if (!companies.length) {
+      nodes.list.innerHTML = '<div class=\"empty-state\">No companies yet. Create the first company on the right.</div>';
+      return;
+    }
+    nodes.list.innerHTML = companies.map((company) => {
+      const active = company.id === selectedId ? ' active' : '';
+      const type = builtInIds.has(company.id) ? 'Built-in' : 'Custom';
+      return '<button class=\"company-card' + active + '\" type=\"button\" data-company-id=\"' + escapeHtml(company.id) + '\">' +
+        '<span class=\"company-logo\" style=\"background:' + escapeHtml(company.color || '#f45d22') + '\">' + escapeHtml(initials(company.name)) + '</span>' +
+        '<span><strong>' + escapeHtml(company.name) + '</strong><span>' + escapeHtml(company.short_name || company.id) + '</span></span>' +
+        '<small>' + type + '</small>' +
+      '</button>';
+    }).join('');
+  }
+
+  function selectedCompany() {
+    return companies.find((company) => company.id === selectedId) || null;
+  }
+
+  function setSync(message, state) {
+    nodes.sync.textContent = message;
+    nodes.sync.className = 'sync-pill' + (state ? ' ' + state : '');
+  }
+
+  function initials(value) {
+    const parts = String(value || 'Q').trim().split(/\\s+/).slice(0, 2);
+    return parts.map((part) => part[0]?.toUpperCase() || '').join('') || 'Q';
+  }
+
+  function slugify(value) {
+    return String(value || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
   }
 
   function escapeHtml(value) {
@@ -1409,8 +1677,8 @@ async function writeTarget(target) {
   const absolute = path.resolve(target);
   if (target !== '.') await rm(absolute, { recursive: true, force: true });
   await mkdir(path.join(absolute, 'assets'), { recursive: true });
-  await writeFile(path.join(absolute, 'assets', 'quest-hq.css'), css + sidebarPolishCss + fileViewerCss + jobCenterCss + coreDemoCss);
-  await writeFile(path.join(absolute, 'assets', 'quest-hq.js'), js + jobCenterJs + commandCenterJs + taskBridgeJs);
+  await writeFile(path.join(absolute, 'assets', 'quest-hq.css'), css + sidebarPolishCss + fileViewerCss + jobCenterCss + coreDemoCss + companyAdminCss);
+  await writeFile(path.join(absolute, 'assets', 'quest-hq.js'), js + jobCenterJs + companyAdminJs + commandCenterJs + taskBridgeJs);
   await writeFile(path.join(absolute, 'index.html'), commandPage());
   await writeFile(path.join(absolute, 'jobs.html'), jobsPage());
   await writeFile(path.join(absolute, 'task-management.html'), taskManagementPage());

@@ -74,6 +74,11 @@
   const localKey = 'quest-hq-job-center';
   const lanes = ['Lead', 'Inspection', 'Estimate Approved', 'Production', 'QA Review'];
   const fields = ['id','name','company_id','client_name','contact_name','site_address','job_type','stage','priority','owner_name','scope','start_date','due_date','estimate_total','invoice_total','task_count','file_count','notes'];
+  const defaultCompanies = [
+    { id: 'quest-roofing', name: 'Quest Roofing', short_name: 'Roofing', color: '#f45d22' },
+    { id: 'quest-drafting', name: 'Quest Drafting', short_name: 'Drafting', color: '#2563eb' },
+    { id: 'lumen', name: 'Lumen', short_name: 'Lumen', color: '#7c3aed' }
+  ];
   const money = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 });
   const nodes = {
     sync: center.querySelector('[data-job-sync]'),
@@ -83,18 +88,21 @@
     profile: center.querySelector('[data-job-profile]'),
     sidecar: center.querySelector('[data-job-sidecar]'),
     form: center.querySelector('[data-job-form]'),
+    companySelect: center.querySelector('[data-job-company-select]'),
     search: center.querySelector('[data-job-search]'),
     stage: center.querySelector('[data-job-stage-filter]')
   };
 
   let supabaseClient = null;
   let jobs = loadLocal();
+  let companies = defaultCompanies.slice();
   let selectedId = new URLSearchParams(window.location.search).get('job_id') || jobs[0]?.id || null;
   let source = 'local';
 
   init();
 
   async function init() {
+    renderCompanyOptions();
     bindEvents();
     render();
     await connect();
@@ -109,7 +117,26 @@
       return;
     }
     supabaseClient = window.supabase.createClient(url, key);
+    await refreshCompanies();
     await refreshFromSupabase();
+  }
+
+  async function refreshCompanies() {
+    if (!supabaseClient) {
+      renderCompanyOptions();
+      return;
+    }
+    const { data, error } = await supabaseClient
+      .from('companies')
+      .select('id,name,short_name,color')
+      .order('created_at', { ascending: true });
+    if (error) {
+      console.error(error);
+      companies = defaultCompanies.slice();
+    } else {
+      companies = Array.isArray(data) && data.length ? data : defaultCompanies.slice();
+    }
+    renderCompanyOptions();
   }
 
   async function refreshFromSupabase() {
@@ -143,7 +170,10 @@
       render();
       clickTab('editor');
     });
-    center.querySelector('[data-job-refresh]')?.addEventListener('click', () => refreshFromSupabase());
+    center.querySelector('[data-job-refresh]')?.addEventListener('click', async () => {
+      await refreshCompanies();
+      await refreshFromSupabase();
+    });
     nodes.search?.addEventListener('input', render);
     nodes.stage?.addEventListener('change', render);
     nodes.board?.addEventListener('click', selectFromClick);
@@ -320,6 +350,7 @@
 
   function fillForm() {
     const job = selectedJob() || blankJob();
+    renderCompanyOptions(job.company_id);
     fields.forEach((field) => {
       if (!nodes.form.elements[field]) return;
       nodes.form.elements[field].value = job[field] ?? '';
@@ -384,7 +415,7 @@
   function normalizeJob(job) {
     return {
       id: String(job.id || 'local-' + Date.now()),
-      company_id: job.company_id || 'quest-roofing',
+      company_id: job.company_id || companies[0]?.id || 'quest-roofing',
       client_name: job.client_name || job.clients?.name || '',
       name: job.name || job.title || 'Untitled Job',
       contact_name: job.contact_name || '',
@@ -408,7 +439,7 @@
     return normalizeJob({
       id: 'local-' + Date.now(),
       name: 'New Job',
-      company_id: 'quest-roofing',
+      company_id: companies[0]?.id || 'quest-roofing',
       client_name: '',
       job_type: 'Roofing',
       stage: 'Lead',
@@ -453,7 +484,18 @@
   }
 
   function companyLabel(id) {
-    return ({ 'quest-roofing': 'Quest Roofing', 'quest-drafting': 'Quest Drafting', lumen: 'Lumen' })[id] || id || 'Quest Roofing';
+    const company = companies.find((item) => item.id === id);
+    return company?.name || id || companies[0]?.name || 'Quest Roofing';
+  }
+
+  function renderCompanyOptions(selectedValue = nodes.companySelect?.value) {
+    if (!nodes.companySelect) return;
+    const list = companies.length ? companies : defaultCompanies;
+    const exists = list.some((company) => company.id === selectedValue);
+    const options = list.map((company) => '<option value="' + escapeHtml(company.id) + '">' + escapeHtml(company.name) + '</option>');
+    if (selectedValue && !exists) options.push('<option value="' + escapeHtml(selectedValue) + '">' + escapeHtml(selectedValue) + '</option>');
+    nodes.companySelect.innerHTML = options.join('');
+    nodes.companySelect.value = selectedValue && (exists || selectedValue) ? selectedValue : list[0]?.id || '';
   }
 
   function bridgeUrl(job) {
@@ -478,6 +520,188 @@
 
   function priorityClass(priority) {
     return 'priority-' + String(priority || 'medium').toLowerCase();
+  }
+
+  function escapeHtml(value) {
+    return String(value ?? '').replace(/[&<>"']/g, (char) => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#039;' }[char]));
+  }
+})();(() => {
+  const admin = document.querySelector('[data-company-admin]');
+  if (!admin) return;
+
+  const builtInIds = new Set(['quest-roofing', 'quest-drafting', 'lumen']);
+  const nodes = {
+    sync: admin.querySelector('[data-company-sync]'),
+    list: admin.querySelector('[data-company-list]'),
+    form: admin.querySelector('[data-company-form]'),
+    title: admin.querySelector('[data-company-form-title]'),
+    refresh: admin.querySelector('[data-company-refresh]'),
+    createNew: admin.querySelector('[data-company-new]'),
+    deleteButton: admin.querySelector('[data-company-delete]')
+  };
+
+  let client = null;
+  let companies = [];
+  let selectedId = null;
+
+  init();
+
+  async function init() {
+    bindEvents();
+    if (!window.supabase || !admin.dataset.supabaseUrl || !admin.dataset.supabaseKey) {
+      setSync('Supabase unavailable', 'error');
+      render();
+      return;
+    }
+    client = window.supabase.createClient(admin.dataset.supabaseUrl, admin.dataset.supabaseKey);
+    await loadCompanies();
+  }
+
+  function bindEvents() {
+    nodes.refresh?.addEventListener('click', loadCompanies);
+    nodes.createNew?.addEventListener('click', newCompany);
+    nodes.deleteButton?.addEventListener('click', deleteCompany);
+    nodes.form?.addEventListener('submit', saveCompany);
+    nodes.form?.elements.name?.addEventListener('input', () => {
+      const editing = nodes.form.elements.editing_id.value;
+      const idInput = nodes.form.elements.id;
+      if (!editing && !idInput.dataset.touched) idInput.value = slugify(nodes.form.elements.name.value);
+    });
+    nodes.form?.elements.id?.addEventListener('input', (event) => {
+      event.currentTarget.dataset.touched = 'true';
+      event.currentTarget.value = slugify(event.currentTarget.value);
+    });
+    nodes.list?.addEventListener('click', (event) => {
+      const button = event.target.closest('[data-company-id]');
+      if (!button) return;
+      selectedId = button.dataset.companyId;
+      fillForm(selectedCompany());
+      render();
+    });
+  }
+
+  async function loadCompanies() {
+    if (!client) return;
+    setSync('Loading...', '');
+    const { data, error } = await client.from('companies').select('id,name,short_name,color,created_at').order('created_at', { ascending: true });
+    if (error) {
+      console.error(error);
+      setSync('Load failed', 'error');
+      render();
+      return;
+    }
+    companies = data || [];
+    selectedId = selectedId && companies.some((company) => company.id === selectedId) ? selectedId : companies[0]?.id || null;
+    setSync('Supabase live', 'live');
+    render();
+    if (selectedId) fillForm(selectedCompany());
+    else newCompany();
+  }
+
+  async function saveCompany(event) {
+    event.preventDefault();
+    if (!client) return;
+    const form = nodes.form;
+    const editingId = form.elements.editing_id.value;
+    const payload = {
+      id: slugify(form.elements.id.value),
+      name: form.elements.name.value.trim(),
+      short_name: form.elements.short_name.value.trim(),
+      color: form.elements.color.value || '#f45d22'
+    };
+    if (!payload.id || !payload.name || !payload.short_name) {
+      setSync('Missing fields', 'error');
+      return;
+    }
+    setSync('Saving...', '');
+    const request = editingId
+      ? client.from('companies').update({ name: payload.name, short_name: payload.short_name, color: payload.color }).eq('id', editingId).select().single()
+      : client.from('companies').insert(payload).select().single();
+    const { data, error } = await request;
+    if (error) {
+      console.error(error);
+      setSync('Save failed', 'error');
+      return;
+    }
+    selectedId = data.id;
+    await loadCompanies();
+  }
+
+  async function deleteCompany() {
+    if (!client) return;
+    const company = selectedCompany();
+    if (!company) return;
+    if (builtInIds.has(company.id)) {
+      setSync('Built-in protected', 'local');
+      return;
+    }
+    setSync('Deleting...', '');
+    const { error } = await client.from('companies').delete().eq('id', company.id);
+    if (error) {
+      console.error(error);
+      setSync('Delete blocked', 'error');
+      return;
+    }
+    selectedId = null;
+    await loadCompanies();
+  }
+
+  function newCompany() {
+    selectedId = null;
+    nodes.form.reset();
+    nodes.form.elements.editing_id.value = '';
+    nodes.form.elements.id.readOnly = false;
+    delete nodes.form.elements.id.dataset.touched;
+    nodes.form.elements.color.value = '#f45d22';
+    nodes.title.textContent = 'New Company';
+    nodes.deleteButton.disabled = true;
+    render();
+  }
+
+  function fillForm(company) {
+    if (!company) return newCompany();
+    nodes.form.elements.editing_id.value = company.id;
+    nodes.form.elements.id.value = company.id;
+    nodes.form.elements.id.readOnly = true;
+    nodes.form.elements.name.value = company.name || '';
+    nodes.form.elements.short_name.value = company.short_name || '';
+    nodes.form.elements.color.value = company.color || '#f45d22';
+    nodes.title.textContent = 'Edit Company';
+    nodes.deleteButton.disabled = builtInIds.has(company.id);
+  }
+
+  function render() {
+    if (!companies.length) {
+      nodes.list.innerHTML = '<div class="empty-state">No companies yet. Create the first company on the right.</div>';
+      return;
+    }
+    nodes.list.innerHTML = companies.map((company) => {
+      const active = company.id === selectedId ? ' active' : '';
+      const type = builtInIds.has(company.id) ? 'Built-in' : 'Custom';
+      return '<button class="company-card' + active + '" type="button" data-company-id="' + escapeHtml(company.id) + '">' +
+        '<span class="company-logo" style="background:' + escapeHtml(company.color || '#f45d22') + '">' + escapeHtml(initials(company.name)) + '</span>' +
+        '<span><strong>' + escapeHtml(company.name) + '</strong><span>' + escapeHtml(company.short_name || company.id) + '</span></span>' +
+        '<small>' + type + '</small>' +
+      '</button>';
+    }).join('');
+  }
+
+  function selectedCompany() {
+    return companies.find((company) => company.id === selectedId) || null;
+  }
+
+  function setSync(message, state) {
+    nodes.sync.textContent = message;
+    nodes.sync.className = 'sync-pill' + (state ? ' ' + state : '');
+  }
+
+  function initials(value) {
+    const parts = String(value || 'Q').trim().split(/\s+/).slice(0, 2);
+    return parts.map((part) => part[0]?.toUpperCase() || '').join('') || 'Q';
+  }
+
+  function slugify(value) {
+    return String(value || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
   }
 
   function escapeHtml(value) {

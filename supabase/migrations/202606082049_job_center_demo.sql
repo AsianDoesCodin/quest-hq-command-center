@@ -90,6 +90,15 @@ alter table public.job_activity enable row level security;
 drop policy if exists "demo_read_companies" on public.companies;
 create policy "demo_read_companies" on public.companies for select to anon, authenticated using (true);
 
+drop policy if exists "demo_insert_companies" on public.companies;
+create policy "demo_insert_companies" on public.companies for insert to anon, authenticated with check (true);
+
+drop policy if exists "demo_update_companies" on public.companies;
+create policy "demo_update_companies" on public.companies for update to anon, authenticated using (true) with check (true);
+
+drop policy if exists "demo_delete_companies" on public.companies;
+create policy "demo_delete_companies" on public.companies for delete to anon, authenticated using (true);
+
 drop policy if exists "demo_read_clients" on public.clients;
 create policy "demo_read_clients" on public.clients for select to anon, authenticated using (true);
 
