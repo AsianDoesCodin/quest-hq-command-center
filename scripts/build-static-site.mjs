@@ -1,7 +1,8 @@
 import { mkdir, rm, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 
-const buildId = 'Static HTML v10';
+const buildId = 'Static HTML v11';
+const assetVersion = buildId.toLowerCase().replace(/[^a-z0-9]+/g, '-');
 const targets = ['.', 'dist', 'docs'];
 
 const nav = [
@@ -225,7 +226,7 @@ function shell({ file, title, content, seed = [], moduleId = '' }) {
     <meta http-equiv="Pragma" content="no-cache" />
     <meta http-equiv="Expires" content="0" />
     <title>${title} | Quest HQ</title>
-    <link rel="stylesheet" href="assets/quest-hq.css" />
+    <link rel="stylesheet" href="assets/quest-hq.css?v=${assetVersion}" />
   </head>
   <body data-page="${file}" data-module="${moduleId}">
     <div class="app-shell">
@@ -248,7 +249,7 @@ function shell({ file, title, content, seed = [], moduleId = '' }) {
       </main>
     </div>
     <script type="application/json" id="record-seed">${JSON.stringify(seed)}</script>
-${['command', 'jobs', 'task-bridge', 'admin', 'dashboards'].includes(moduleId) ? '    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>\n    ' : '    '}<script src="assets/quest-hq.js" defer></script>
+${['command', 'jobs', 'task-bridge', 'admin', 'dashboards'].includes(moduleId) ? '    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>\n    ' : '    '}<script src="assets/quest-hq.js?v=${assetVersion}" defer></script>
   </body>
 </html>`;
 }
@@ -787,7 +788,7 @@ const companyAdminCss = `.company-admin{padding:0;overflow:hidden}.company-admin
 
 const analyticsCss = `.analytics-layout{display:grid;grid-template-columns:minmax(0,1fr) 360px;gap:18px}.analytics-stage-grid,.analytics-scope-list{display:grid;gap:10px}.analytics-stage-grid{grid-template-columns:repeat(3,minmax(0,1fr))}.analytics-stage-grid span,.analytics-scope-list span{display:block;border:1px solid var(--line);border-radius:8px;background:#fbfcfe;padding:12px}.analytics-stage-grid strong,.analytics-stage-grid small,.analytics-scope-list strong,.analytics-scope-list small{display:block}.analytics-stage-grid small,.analytics-scope-list small{color:#617089;margin-top:5px}.analytics-health-table div{grid-template-columns:minmax(120px,.45fr) minmax(0,1fr) 120px}@media(max-width:1100px){.analytics-layout{grid-template-columns:1fr}.analytics-stage-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}@media(max-width:620px){.analytics-stage-grid{grid-template-columns:1fr}}`;
 
-const plannedTabsCss = `.tabs button.tab-planned{color:#94a3b8;background:#eef2f7;border-color:#d8e0eb;box-shadow:none;cursor:not-allowed;opacity:.78}.tabs button.tab-planned:hover{color:#94a3b8;background:#eef2f7;border-color:#d8e0eb;box-shadow:none}.tabs button.tab-planned.active{background:#f8fafc;border-color:#d8e0eb;color:#7b8798;box-shadow:inset 0 -2px #cbd5e1}.tabs button.tab-planned small{display:inline-flex;margin-left:8px;border:1px solid #cbd5e1;border-radius:999px;padding:2px 7px;color:#64748b;font-size:10px;font-weight:900;text-transform:uppercase;vertical-align:middle}.tabs button:not(.tab-planned) small{display:none}@media(max-width:620px){.tabs button.tab-planned small{display:none}}`;
+const plannedTabsCss = `.tabs button.tab-planned,.tabs button.tab-planned:hover,.tabs button.tab-planned.active{color:#64748b;background:repeating-linear-gradient(135deg,#eef2f7 0,#eef2f7 8px,#e2e8f0 8px,#e2e8f0 16px);border-color:#94a3b8;box-shadow:none;cursor:not-allowed;opacity:1;filter:grayscale(1)}.tabs button.tab-planned.active{box-shadow:inset 0 -3px #94a3b8}.tabs button.tab-planned small{display:inline-flex;margin-left:8px;border:1px solid #94a3b8;border-radius:999px;background:#f8fafc;padding:2px 7px;color:#475569;font-size:10px;font-weight:900;text-transform:uppercase;vertical-align:middle}.tabs button:not(.tab-planned) small{display:none}@media(max-width:620px){.tabs button.tab-planned small{display:none}}`;
 
 const js = `(() => {
   const storageKey = (moduleId) => 'quest-hq-static-' + moduleId;
