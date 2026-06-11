@@ -2376,10 +2376,12 @@ function escapeHtml(value) {
   function publicFormUrl() {
     const form = clone(draft);
     if (!form.id) form.id = 'shared-form';
-    const payload = encodePayload(form);
+    const savedForm = form.id && forms.some((item) => item.id === form.id);
     const url = new URL(window.location.href);
     url.pathname = url.pathname.replace(/[^/]*$/, 'forms.html');
-    url.search = '?public=1&payload=' + encodeURIComponent(payload);
+    url.search = savedForm
+      ? '?public=1&form=' + encodeURIComponent(form.id)
+      : '?public=1&payload=' + encodeURIComponent(encodePayload(form));
     url.hash = '';
     return url.toString();
   }
