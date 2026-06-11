@@ -1,7 +1,7 @@
 import { mkdir, rm, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 
-const buildId = 'Forms Builder v16';
+const buildId = 'Forms Builder v17';
 const assetVersion = buildId.toLowerCase().replace(/[^a-z0-9]+/g, '-');
 const targets = ['.', 'dist', 'docs'];
 
@@ -640,31 +640,38 @@ function formsPage() {
     </section>
 
     <section class="forms-builder-host" data-form-builder-host hidden>
-      <div class="forms-builder-grid">
+      <div class="forms-builder-grid gform-editor" data-form-editor-mode="questions">
+        <div class="gform-editor-tabs" role="tablist" aria-label="Form editor sections">
+          <button class="active" type="button" data-form-editor-tab="questions">Questions</button>
+          <button type="button" data-form-editor-tab="responses">Responses</button>
+          <button type="button" data-form-editor-tab="settings">Settings</button>
+        </div>
         <form class="panel forms-settings" data-form-settings>
-          <div class="job-section-heading"><h2>Form Settings</h2><span data-form-dirty>Unsaved draft</span></div>
+          <div class="job-section-heading"><h2>Form</h2><span data-form-dirty>Unsaved draft</span></div>
           <label class="span-2">Title<input name="title" required placeholder="Roof inspection checklist" /></label>
           <label class="span-2">Description<textarea name="description" rows="3" placeholder="Purpose, audience, and completion notes"></textarea></label>
-          <label>Type
-            <select name="type">
-              <option>Inspection</option>
-              <option>Survey</option>
-              <option>Approval</option>
-              <option>Intake</option>
-              <option>Checklist</option>
-            </select>
-          </label>
-          <label>Status
-            <select name="status">
-              <option>Draft</option>
-              <option>Published</option>
-              <option>Archived</option>
-            </select>
-          </label>
-          <label>Audience<input name="audience" placeholder="Client, field team, admin, vendor" /></label>
-          <label>Linked Job Context<input name="jobContext" placeholder="Optional job/client context" /></label>
-          <label class="forms-check"><input type="checkbox" name="collectEmail" /> Collect respondent email</label>
-          <label class="forms-check"><input type="checkbox" name="requireApproval" /> Require internal review</label>
+          <div class="gform-settings-fields span-2">
+            <label>Type
+              <select name="type">
+                <option>Inspection</option>
+                <option>Survey</option>
+                <option>Approval</option>
+                <option>Intake</option>
+                <option>Checklist</option>
+              </select>
+            </label>
+            <label>Status
+              <select name="status">
+                <option>Draft</option>
+                <option>Published</option>
+                <option>Archived</option>
+              </select>
+            </label>
+            <label>Audience<input name="audience" placeholder="Client, field team, admin, vendor" /></label>
+            <label>Linked Job Context<input name="jobContext" placeholder="Optional job/client context" /></label>
+            <label class="forms-check"><input type="checkbox" name="collectEmail" /> Collect respondent email</label>
+            <label class="forms-check"><input type="checkbox" name="requireApproval" /> Require internal review</label>
+          </div>
           <div class="form-actions span-2">
             <button class="primary-button" type="submit">Save Form</button>
             <button class="secondary-button" type="button" data-form-publish>Publish</button>
@@ -690,6 +697,11 @@ function formsPage() {
             <button class="secondary-button" type="button" data-question-add>Add Question</button>
           </div>
           <div class="question-list" data-question-list></div>
+        </section>
+
+        <section class="panel gform-modal-responses" data-form-editor-responses>
+          <div class="job-section-heading"><h2>Responses</h2><span data-form-editor-response-count>0 responses</span></div>
+          <div data-form-editor-response-list></div>
         </section>
 
         <form class="panel question-editor" data-question-editor>
@@ -1122,6 +1134,8 @@ const companyAdminCss = `.company-admin{padding:0;overflow:hidden}.company-admin
 const analyticsCss = `.analytics-layout{display:grid;grid-template-columns:minmax(0,1fr) 360px;gap:18px}.analytics-stage-grid,.analytics-scope-list{display:grid;gap:10px}.analytics-stage-grid{grid-template-columns:repeat(3,minmax(0,1fr))}.analytics-stage-grid span,.analytics-scope-list span{display:block;border:1px solid var(--line);border-radius:8px;background:#fbfcfe;padding:12px}.analytics-stage-grid strong,.analytics-stage-grid small,.analytics-scope-list strong,.analytics-scope-list small{display:block}.analytics-stage-grid small,.analytics-scope-list small{color:#617089;margin-top:5px}.analytics-health-table div{grid-template-columns:minmax(120px,.45fr) minmax(0,1fr) 120px}@media(max-width:1100px){.analytics-layout{grid-template-columns:1fr}.analytics-stage-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}@media(max-width:620px){.analytics-stage-grid{grid-template-columns:1fr}}`;
 
 const formsCenterCss = `.forms-command{display:flex;justify-content:flex-end;gap:12px;align-items:center;margin-bottom:18px;flex-wrap:wrap}.forms-dashboard{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-bottom:18px}.forms-library-grid,.forms-preview-grid,.forms-response-grid{display:grid;grid-template-columns:360px minmax(0,1fr);gap:18px}.forms-builder-grid{display:grid;grid-template-columns:minmax(320px,.75fr) minmax(320px,.75fr) minmax(360px,1fr);gap:18px;align-items:start}.forms-toolbar{display:grid;grid-template-columns:1fr 150px;gap:10px;margin-bottom:12px}.forms-toolbar label,.forms-settings label,.question-editor label{display:grid;gap:6px;font-size:12px;font-weight:850;text-transform:uppercase;color:#617089}.forms-toolbar input,.forms-toolbar select,.forms-settings input,.forms-settings textarea,.forms-settings select,.question-editor input,.question-editor textarea,.question-editor select,.question-add-row select,.response-form input,.response-form textarea,.response-form select{width:100%;border:1px solid var(--line);border-radius:8px;background:#fff;color:var(--ink);padding:11px}.forms-list,.question-list,.response-list{display:grid;gap:8px}.form-card,.question-card,.response-card{width:100%;border:1px solid var(--line);border-radius:8px;background:#fbfcfe;padding:12px;text-align:left;cursor:pointer}.form-card:hover,.form-card.active,.question-card:hover,.question-card.active,.response-card:hover,.response-card.active{border-color:#f97316;background:#fff8f5}.form-card strong,.form-card span,.form-card small,.question-card strong,.question-card span,.response-card strong,.response-card span{display:block}.form-card span,.question-card span,.response-card span{color:#617089;font-size:13px;margin-top:5px}.form-card small{margin-top:8px;color:#52627a;font-weight:850}.forms-summary h2,.response-form h2{margin-bottom:6px}.form-status-row,.summary-pill-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-top:14px}.form-status-row span,.summary-pill-grid span{border:1px solid var(--line);border-radius:8px;background:#fbfcfe;padding:12px}.form-status-row strong,.form-status-row small,.summary-pill-grid strong,.summary-pill-grid small{display:block}.form-status-row small,.summary-pill-grid small{color:#617089;margin-top:4px}.forms-settings,.question-editor{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.forms-settings .span-2,.question-editor .span-2{grid-column:1/-1}.forms-check{display:flex!important;grid-template-columns:none!important;align-items:center;gap:8px;min-height:42px;border:1px solid var(--line);border-radius:8px;background:#fbfcfe;padding:0 10px;text-transform:none!important;color:#27364d!important}.forms-check input{width:auto!important}.question-add-row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px;margin-bottom:12px}.question-card{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px;align-items:start}.question-card b{border:1px solid var(--line);border-radius:999px;background:#fff;padding:4px 8px;color:#52627a;font-size:11px;text-transform:uppercase}.question-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}.response-form{display:grid;gap:14px}.response-question{border:1px solid var(--line);border-radius:8px;background:#fbfcfe;padding:14px}.response-question strong,.response-question small{display:block}.response-question small{color:#617089;margin-top:4px}.response-options{display:grid;gap:8px;margin-top:10px}.response-options label{display:flex;align-items:center;gap:8px;color:#27364d}.rating-row{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}.rating-row label{display:grid;place-items:center;width:40px;height:40px;border:1px solid var(--line);border-radius:999px;background:#fff;cursor:pointer}.rating-row input{position:absolute;opacity:0;pointer-events:none}.rating-row label:has(input:checked){background:#111827;color:#fff;border-color:#111827}.response-sidecar{align-self:start}.response-detail-list{display:grid;gap:10px}.response-detail-list div{border-top:1px solid var(--line);padding-top:10px}.response-detail-list strong,.response-detail-list span{display:block}.response-detail-list span{color:#52627a;margin-top:4px;white-space:pre-wrap}.forms-template-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px}.forms-template-grid button{min-height:170px;border:1px solid var(--line);border-radius:8px;background:#fff;padding:16px;text-align:left;cursor:pointer;box-shadow:var(--shadow)}.forms-template-grid button:hover{border-color:#f97316;background:#fff8f5}.forms-template-grid strong,.forms-template-grid span{display:block}.forms-template-grid strong{font-size:18px}.forms-template-grid span{color:#617089;margin-top:8px;line-height:1.45}.forms-center .empty-state{min-height:140px;display:grid;place-items:center}.form-modal-panel{width:min(1280px,calc(100vw - 44px))}.form-modal-body{padding:18px}.form-modal-body .forms-builder-grid{grid-template-columns:minmax(300px,.7fr) minmax(300px,.7fr) minmax(340px,1fr)}.form-modal-body .forms-settings,.form-modal-body .question-panel,.form-modal-body .question-editor{box-shadow:none}@media(max-width:1280px){.forms-dashboard,.forms-template-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.forms-builder-grid,.forms-library-grid,.forms-preview-grid,.forms-response-grid,.form-modal-body .forms-builder-grid{grid-template-columns:1fr}}@media(max-width:760px){.forms-command,.forms-dashboard,.forms-toolbar,.forms-settings,.question-editor,.question-add-row,.forms-template-grid,.form-status-row,.summary-pill-grid{display:grid;grid-template-columns:1fr}.forms-command{align-items:stretch}.forms-command .sync-pill{justify-content:center}}`;
+
+const googleFormsCss = `.gform-editor{grid-template-columns:minmax(0,1fr) 390px!important;gap:14px}.gform-editor-tabs{grid-column:1/-1;display:flex;justify-content:center;gap:6px;border-bottom:1px solid var(--line);padding-bottom:10px}.gform-editor-tabs button{border:0;border-bottom:3px solid transparent;background:transparent;color:#617089;min-height:38px;padding:0 18px;font-weight:900;cursor:pointer}.gform-editor-tabs button.active{border-color:#f45d22;color:#121826}.gform-editor .forms-settings{grid-column:1/-1;border-top:8px solid #f45d22}.gform-editor .forms-settings h2{font-size:20px}.gform-settings-fields{display:none;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.gform-editor[data-form-editor-mode="settings"] .gform-settings-fields{display:grid}.gform-editor[data-form-editor-mode="settings"] .question-panel,.gform-editor[data-form-editor-mode="settings"] .question-editor,.gform-editor[data-form-editor-mode="settings"] .gform-modal-responses{display:none}.gform-editor[data-form-editor-mode="questions"] .question-panel{grid-column:1}.gform-editor[data-form-editor-mode="questions"] .question-editor{grid-column:2;position:sticky;top:18px}.gform-editor[data-form-editor-mode="questions"] .gform-modal-responses{display:none}.gform-editor[data-form-editor-mode="responses"] .question-panel,.gform-editor[data-form-editor-mode="responses"] .question-editor{display:none}.gform-editor[data-form-editor-mode="responses"] .gform-modal-responses{display:block;grid-column:1/-1}.gform-modal-responses{display:none}.gform-modal-responses [data-form-editor-response-list]{display:grid;gap:8px}.gform-modal-response-row{border:1px solid var(--line);border-radius:8px;background:#fbfcfe;padding:12px}.gform-modal-response-row strong,.gform-modal-response-row span{display:block}.gform-modal-response-row span{color:#617089;margin-top:4px}.question-panel{border-left:5px solid #f45d22}.question-card{border-left:5px solid transparent}.question-card.active{border-left-color:#f45d22}.question-card strong{font-size:16px}.question-editor{border-left:5px solid #111827}.form-modal-panel{background:#f8fafc}.form-modal-body{background:#f8fafc}@media(max-width:980px){.gform-editor{grid-template-columns:1fr!important}.gform-editor[data-form-editor-mode="questions"] .question-panel,.gform-editor[data-form-editor-mode="questions"] .question-editor{grid-column:1;position:static}.gform-settings-fields{grid-template-columns:1fr}}`;
 
 const plannedTabsCss = `.tabs button.tab-planned,.tabs button.tab-planned:hover,.tabs button.tab-planned.active{color:#64748b;background:repeating-linear-gradient(135deg,#eef2f7 0,#eef2f7 8px,#e2e8f0 8px,#e2e8f0 16px);border-color:#94a3b8;box-shadow:none;cursor:not-allowed;opacity:1;filter:grayscale(1)}.tabs button.tab-planned.active{box-shadow:inset 0 -3px #94a3b8}.tabs button.tab-planned small{display:inline-flex;margin-left:8px;border:1px solid #94a3b8;border-radius:999px;background:#f8fafc;padding:2px 7px;color:#475569;font-size:10px;font-weight:900;text-transform:uppercase;vertical-align:middle}.tabs button:not(.tab-planned) small{display:none}@media(max-width:620px){.tabs button.tab-planned small{display:none}}`;
 
@@ -2782,7 +2796,9 @@ const formsCenterJs = `(() => {
     builderPanel: center.querySelector('[data-form-builder-host]'),
     builderGrid: center.querySelector('.forms-builder-grid'),
     modal: center.querySelector('[data-form-modal]'),
-    modalBody: center.querySelector('[data-form-modal-body]')
+    modalBody: center.querySelector('[data-form-modal-body]'),
+    editorResponseCount: center.querySelector('[data-form-editor-response-count]'),
+    editorResponseList: center.querySelector('[data-form-editor-response-list]')
   };
   let builderHome = null;
   let lastFocus = null;
@@ -2829,6 +2845,9 @@ const formsCenterJs = `(() => {
     center.querySelector('[data-form-duplicate]')?.addEventListener('click', duplicateForm);
     center.querySelector('[data-form-delete]')?.addEventListener('click', deleteForm);
     center.querySelector('[data-form-export]')?.addEventListener('click', exportForm);
+    center.querySelectorAll('[data-form-editor-tab]').forEach((button) => {
+      button.addEventListener('click', () => setEditorMode(button.dataset.formEditorTab || 'questions'));
+    });
     center.addEventListener('click', (event) => {
       if (event.target.closest('[data-form-modal-close]')) closeFormModal();
       if (event.target === nodes.modal) closeFormModal();
@@ -2901,6 +2920,7 @@ const formsCenterJs = `(() => {
     nodes.modalBody.appendChild(nodes.builderGrid);
     nodes.modal.hidden = false;
     document.body.classList.add('modal-open');
+    setEditorMode('questions');
     nodes.modal.querySelector('[data-form-modal-close]')?.focus();
   }
 
@@ -3085,6 +3105,7 @@ const formsCenterJs = `(() => {
     renderQuestionEditor();
     renderPreview();
     renderResponses();
+    renderEditorResponses();
     renderLite();
   }
 
@@ -3196,6 +3217,15 @@ const formsCenterJs = `(() => {
       '</div>';
   }
 
+  function renderEditorResponses() {
+    if (!nodes.editorResponseCount || !nodes.editorResponseList) return;
+    const current = responses.filter((response) => response.formId === draft.id || (!draft.id && response.formId === 'unsaved-draft'));
+    nodes.editorResponseCount.textContent = current.length + (current.length === 1 ? ' response' : ' responses');
+    nodes.editorResponseList.innerHTML = current.length ? current.slice(0, 6).map((response) =>
+      '<div class=\"gform-modal-response-row\"><strong>' + escapeHtml(response.formTitle) + '</strong><span>' + formatDate(response.submittedAt) + '</span></div>'
+    ).join('') : '<div class=\"empty-state\">No responses yet. Use Preview & Collect to submit a test response.</div>';
+  }
+
   function responseField(question) {
     const required = question.required ? ' required' : '';
     const help = question.help ? '<small>' + escapeHtml(question.help) + '</small>' : '';
@@ -3286,6 +3316,14 @@ const formsCenterJs = `(() => {
 
   function switchTab(name) {
     center.querySelector('[data-tab=\"' + name + '\"]')?.click();
+  }
+
+  function setEditorMode(mode) {
+    if (!nodes.builderGrid) return;
+    nodes.builderGrid.dataset.formEditorMode = mode;
+    center.querySelectorAll('[data-form-editor-tab]').forEach((button) => {
+      button.classList.toggle('active', button.dataset.formEditorTab === mode);
+    });
   }
 
   function pill(label, value) {
@@ -3552,7 +3590,7 @@ async function writeTarget(target) {
   const absolute = path.resolve(target);
   if (target !== '.') await rm(absolute, { recursive: true, force: true });
   await mkdir(path.join(absolute, 'assets'), { recursive: true });
-  await writeFile(path.join(absolute, 'assets', 'quest-hq.css'), css + sidebarPolishCss + modalCss + plannedNavCss + fileViewerCss + fileCenterCss + driveFileCss + jobCenterCss + coreDemoCss + companyAdminCss + analyticsCss + formsCenterCss + plannedTabsCss + tutorialCss);
+  await writeFile(path.join(absolute, 'assets', 'quest-hq.css'), css + sidebarPolishCss + modalCss + plannedNavCss + fileViewerCss + fileCenterCss + driveFileCss + jobCenterCss + coreDemoCss + companyAdminCss + analyticsCss + formsCenterCss + googleFormsCss + plannedTabsCss + tutorialCss);
   await writeFile(path.join(absolute, 'assets', 'quest-hq.js'), js + jobCenterJs + fileCenterJs + companyAdminJs + analyticsJs + commandCenterJs + taskBridgeJs + formsCenterJs + tutorialJs);
   await writeFile(path.join(absolute, 'index.html'), commandPage());
   await writeFile(path.join(absolute, 'jobs.html'), jobsPage());

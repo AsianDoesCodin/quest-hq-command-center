@@ -1639,7 +1639,9 @@ function escapeHtml(value) {
     builderPanel: center.querySelector('[data-form-builder-host]'),
     builderGrid: center.querySelector('.forms-builder-grid'),
     modal: center.querySelector('[data-form-modal]'),
-    modalBody: center.querySelector('[data-form-modal-body]')
+    modalBody: center.querySelector('[data-form-modal-body]'),
+    editorResponseCount: center.querySelector('[data-form-editor-response-count]'),
+    editorResponseList: center.querySelector('[data-form-editor-response-list]')
   };
   let builderHome = null;
   let lastFocus = null;
@@ -1686,6 +1688,9 @@ function escapeHtml(value) {
     center.querySelector('[data-form-duplicate]')?.addEventListener('click', duplicateForm);
     center.querySelector('[data-form-delete]')?.addEventListener('click', deleteForm);
     center.querySelector('[data-form-export]')?.addEventListener('click', exportForm);
+    center.querySelectorAll('[data-form-editor-tab]').forEach((button) => {
+      button.addEventListener('click', () => setEditorMode(button.dataset.formEditorTab || 'questions'));
+    });
     center.addEventListener('click', (event) => {
       if (event.target.closest('[data-form-modal-close]')) closeFormModal();
       if (event.target === nodes.modal) closeFormModal();
@@ -1758,6 +1763,7 @@ function escapeHtml(value) {
     nodes.modalBody.appendChild(nodes.builderGrid);
     nodes.modal.hidden = false;
     document.body.classList.add('modal-open');
+    setEditorMode('questions');
     nodes.modal.querySelector('[data-form-modal-close]')?.focus();
   }
 
@@ -1942,6 +1948,7 @@ function escapeHtml(value) {
     renderQuestionEditor();
     renderPreview();
     renderResponses();
+    renderEditorResponses();
     renderLite();
   }
 
@@ -2053,6 +2060,15 @@ function escapeHtml(value) {
       '</div>';
   }
 
+  function renderEditorResponses() {
+    if (!nodes.editorResponseCount || !nodes.editorResponseList) return;
+    const current = responses.filter((response) => response.formId === draft.id || (!draft.id && response.formId === 'unsaved-draft'));
+    nodes.editorResponseCount.textContent = current.length + (current.length === 1 ? ' response' : ' responses');
+    nodes.editorResponseList.innerHTML = current.length ? current.slice(0, 6).map((response) =>
+      '<div class="gform-modal-response-row"><strong>' + escapeHtml(response.formTitle) + '</strong><span>' + formatDate(response.submittedAt) + '</span></div>'
+    ).join('') : '<div class="empty-state">No responses yet. Use Preview & Collect to submit a test response.</div>';
+  }
+
   function responseField(question) {
     const required = question.required ? ' required' : '';
     const help = question.help ? '<small>' + escapeHtml(question.help) + '</small>' : '';
@@ -2143,6 +2159,14 @@ function escapeHtml(value) {
 
   function switchTab(name) {
     center.querySelector('[data-tab="' + name + '"]')?.click();
+  }
+
+  function setEditorMode(mode) {
+    if (!nodes.builderGrid) return;
+    nodes.builderGrid.dataset.formEditorMode = mode;
+    center.querySelectorAll('[data-form-editor-tab]').forEach((button) => {
+      button.classList.toggle('active', button.dataset.formEditorTab === mode);
+    });
   }
 
   function pill(label, value) {
