@@ -1,7 +1,7 @@
 import { mkdir, rm, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 
-const buildId = 'Workflow Tour v15';
+const buildId = 'Forms Builder v16';
 const assetVersion = buildId.toLowerCase().replace(/[^a-z0-9]+/g, '-');
 const targets = ['.', 'dist', 'docs'];
 
@@ -10,7 +10,7 @@ const nav = [
   ['jobs.html', 'Jobs', 'briefcase', 'live'],
   ['https://task-management-quest.vercel.app', 'TaskManagement', 'kanban', 'live'],
   ['crm.html', 'CRM', 'users', 'planned'],
-  ['forms.html', 'Forms & Surveys', 'clipboard', 'planned'],
+  ['forms.html', 'Forms & Surveys', 'clipboard', 'live'],
   ['tickets.html', 'Tickets', 'ticket', 'planned'],
   ['files.html', 'Files', 'folder', 'live'],
   ['finance.html', 'Finance', 'receipt', 'planned'],
@@ -197,7 +197,7 @@ const modules = {
 };
 
 for (const [moduleId, module] of Object.entries(modules)) {
-  if (moduleId === 'files') continue;
+  if (['files', 'forms'].includes(moduleId)) continue;
   module.metrics = module.metrics.map(([label]) => [label, '0']);
   module.tabs = module.tabs.map(([label]) => [label, emptyModuleWorkspace(moduleId, label)]);
   module.seed = [];
@@ -591,6 +591,177 @@ function filesPage() {
   return shell({ file: 'files.html', title: 'Files', moduleId: 'files', content, seed: [] });
 }
 
+function formsPage() {
+  const content = `<section class="workspace forms-center" data-form-center>
+    <div class="forms-command panel">
+      <div>
+        <h1>Forms & Surveys</h1>
+        <p class="muted">Build intake forms, inspections, approvals, surveys, and response packets locally for presentation mode.</p>
+      </div>
+      <span class="sync-pill live" data-form-state>Local autosafe</span>
+      <button class="secondary-button" type="button" data-form-export>Export JSON</button>
+      <button class="secondary-button" type="button" data-form-duplicate>Duplicate</button>
+      <button class="danger-button" type="button" data-form-delete>Delete</button>
+      <button class="primary-button" type="button" data-form-new>New Form</button>
+    </div>
+
+    <div class="forms-dashboard">
+      <div class="metric"><span>Saved Forms</span><strong data-form-metric="forms">0</strong></div>
+      <div class="metric"><span>Published</span><strong data-form-metric="published">0</strong></div>
+      <div class="metric"><span>Responses</span><strong data-form-metric="responses">0</strong></div>
+      <div class="metric"><span>Questions</span><strong data-form-metric="questions">0</strong></div>
+    </div>
+
+    <div class="tabs" role="tablist">
+      <button class="active" data-tab="library">Library</button>
+      <button data-tab="builder">Builder</button>
+      <button data-tab="preview">Preview & Collect</button>
+      <button data-tab="responses">Responses</button>
+      <button data-tab="templates">Templates</button>
+    </div>
+
+    <section class="tab-panel active" data-panel="library">
+      <div class="forms-library-grid">
+        <aside class="panel forms-library-panel">
+          <div class="forms-toolbar">
+            <label>Search<input data-form-search placeholder="Search forms, types, owners" /></label>
+            <label>Type
+              <select data-form-type-filter>
+                <option value="all">All types</option>
+                <option>Inspection</option>
+                <option>Survey</option>
+                <option>Approval</option>
+                <option>Intake</option>
+                <option>Checklist</option>
+              </select>
+            </label>
+          </div>
+          <div class="forms-list" data-form-list></div>
+        </aside>
+        <article class="panel forms-summary" data-form-summary>
+          <div class="empty-state">Create a form or apply a template to start.</div>
+        </article>
+      </div>
+    </section>
+
+    <section class="tab-panel" data-panel="builder">
+      <div class="forms-builder-grid">
+        <form class="panel forms-settings" data-form-settings>
+          <div class="job-section-heading"><h2>Form Settings</h2><span data-form-dirty>Unsaved draft</span></div>
+          <label class="span-2">Title<input name="title" required placeholder="Roof inspection checklist" /></label>
+          <label class="span-2">Description<textarea name="description" rows="3" placeholder="Purpose, audience, and completion notes"></textarea></label>
+          <label>Type
+            <select name="type">
+              <option>Inspection</option>
+              <option>Survey</option>
+              <option>Approval</option>
+              <option>Intake</option>
+              <option>Checklist</option>
+            </select>
+          </label>
+          <label>Status
+            <select name="status">
+              <option>Draft</option>
+              <option>Published</option>
+              <option>Archived</option>
+            </select>
+          </label>
+          <label>Audience<input name="audience" placeholder="Client, field team, admin, vendor" /></label>
+          <label>Linked Job Context<input name="jobContext" placeholder="Optional job/client context" /></label>
+          <label class="forms-check"><input type="checkbox" name="collectEmail" /> Collect respondent email</label>
+          <label class="forms-check"><input type="checkbox" name="requireApproval" /> Require internal review</label>
+          <div class="form-actions span-2">
+            <button class="primary-button" type="submit">Save Form</button>
+            <button class="secondary-button" type="button" data-form-publish>Publish</button>
+            <button class="secondary-button" type="button" data-form-archive>Archive</button>
+          </div>
+        </form>
+
+        <section class="panel question-panel">
+          <div class="job-section-heading"><h2>Questions</h2><span data-question-count>0 questions</span></div>
+          <div class="question-add-row">
+            <select data-question-type>
+              <option value="short">Short answer</option>
+              <option value="paragraph">Paragraph</option>
+              <option value="multiple">Multiple choice</option>
+              <option value="checkboxes">Checkboxes</option>
+              <option value="dropdown">Dropdown</option>
+              <option value="rating">Rating scale</option>
+              <option value="date">Date</option>
+              <option value="yesno">Yes / No</option>
+              <option value="signature">Signature acknowledgement</option>
+              <option value="file">File request</option>
+            </select>
+            <button class="secondary-button" type="button" data-question-add>Add Question</button>
+          </div>
+          <div class="question-list" data-question-list></div>
+        </section>
+
+        <form class="panel question-editor" data-question-editor>
+          <div class="job-section-heading"><h2>Question Editor</h2><span data-question-editor-state>Select a question</span></div>
+          <label class="span-2">Question<input name="label" placeholder="What should the respondent answer?" /></label>
+          <label class="span-2">Help Text<textarea name="help" rows="3" placeholder="Optional supporting instructions"></textarea></label>
+          <label>Type
+            <select name="type">
+              <option value="short">Short answer</option>
+              <option value="paragraph">Paragraph</option>
+              <option value="multiple">Multiple choice</option>
+              <option value="checkboxes">Checkboxes</option>
+              <option value="dropdown">Dropdown</option>
+              <option value="rating">Rating scale</option>
+              <option value="date">Date</option>
+              <option value="yesno">Yes / No</option>
+              <option value="signature">Signature acknowledgement</option>
+              <option value="file">File request</option>
+            </select>
+          </label>
+          <label>Options<textarea name="options" rows="4" placeholder="One option per line for choice fields"></textarea></label>
+          <label>Scale Min<input type="number" min="0" max="10" name="scaleMin" /></label>
+          <label>Scale Max<input type="number" min="1" max="10" name="scaleMax" /></label>
+          <label class="forms-check"><input type="checkbox" name="required" /> Required</label>
+          <label class="forms-check"><input type="checkbox" name="reviewFlag" /> Flag answer for review</label>
+          <div class="form-actions span-2">
+            <button class="primary-button" type="submit">Update Question</button>
+            <button class="secondary-button" type="button" data-question-up>Move Up</button>
+            <button class="secondary-button" type="button" data-question-down>Move Down</button>
+            <button class="secondary-button" type="button" data-question-copy>Duplicate</button>
+            <button class="danger-button" type="button" data-question-delete>Delete</button>
+          </div>
+        </form>
+      </div>
+    </section>
+
+    <section class="tab-panel" data-panel="preview">
+      <div class="forms-preview-grid">
+        <form class="panel response-form" data-response-form></form>
+        <aside class="panel response-sidecar" data-response-sidecar></aside>
+      </div>
+    </section>
+
+    <section class="tab-panel" data-panel="responses">
+      <div class="forms-response-grid">
+        <aside class="panel">
+          <div class="job-section-heading"><h2>Response Inbox</h2><span data-response-count>0 responses</span></div>
+          <div class="response-list" data-response-list></div>
+        </aside>
+        <article class="panel response-detail" data-response-detail>
+          <div class="empty-state">Select a response to review submitted answers.</div>
+        </article>
+      </div>
+    </section>
+
+    <section class="tab-panel" data-panel="templates">
+      <div class="forms-template-grid">
+        <button type="button" data-form-template="inspection"><strong>Roof Inspection</strong><span>Photos, condition rating, repair recommendation, signoff.</span></button>
+        <button type="button" data-form-template="survey"><strong>Client Survey</strong><span>NPS rating, quality feedback, follow-up permission.</span></button>
+        <button type="button" data-form-template="approval"><strong>Estimate Approval</strong><span>Scope acceptance, payment acknowledgement, signature.</span></button>
+        <button type="button" data-form-template="intake"><strong>Service Intake</strong><span>Client details, issue category, urgency, requested files.</span></button>
+      </div>
+    </section>
+  </section>`;
+  return shell({ file: 'forms.html', title: 'Forms & Surveys', moduleId: 'forms', content, seed: [] });
+}
+
 function modulePage(module) {
   const metrics = module.file === 'dashboards.html'
     ? `<div class="metric-grid analytics-metrics">${module.metrics.map(([label, value]) => metric(label, value)).join('')}</div>`
@@ -942,6 +1113,8 @@ const coreDemoCss = `.ops-dashboard-grid{display:grid;grid-template-columns:minm
 const companyAdminCss = `.company-admin{padding:0;overflow:hidden}.company-admin-header{display:flex;justify-content:space-between;gap:18px;align-items:flex-start;padding:18px;border-bottom:1px solid var(--line);background:#fff}.company-admin-header h2{margin-bottom:4px}.company-admin-actions{display:flex;gap:10px;align-items:center;flex-wrap:wrap;justify-content:flex-end}.company-admin-layout{display:grid;grid-template-columns:minmax(320px,.85fr) minmax(360px,1fr);gap:0;min-height:520px}.company-list-wrap{border-right:1px solid var(--line);background:#f8fafc;padding:16px}.company-list{display:grid;gap:10px}.company-card{display:grid;grid-template-columns:44px minmax(0,1fr) auto;gap:12px;align-items:center;width:100%;border:1px solid var(--line);border-radius:8px;background:#fff;padding:12px;text-align:left;cursor:pointer}.company-card:hover,.company-card.active{border-color:#f97316;background:#fff8f5}.company-card.active{box-shadow:inset 3px 0 var(--orange)}.company-logo{display:grid;place-items:center;width:42px;height:42px;border-radius:8px;color:#fff;font-weight:900}.company-card strong,.company-card span,.company-card small{display:block}.company-card span{color:#617089;font-size:13px;margin-top:4px}.company-card small{font-size:12px;color:#52627a;font-weight:850;text-transform:uppercase}.company-editor{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;align-content:start;padding:18px;background:#fff}.company-editor label{display:grid;gap:6px;font-size:12px;font-weight:850;text-transform:uppercase;color:#617089}.company-editor input{width:100%;border:1px solid var(--line);border-radius:8px;background:#fff;color:var(--ink);padding:11px}.company-editor input[readonly]{background:#f8fafc;color:#617089}.company-policy-note{border:1px solid #fed7aa;border-radius:8px;background:#fff7ed;color:#9a3412;padding:12px}.company-policy-note strong,.company-policy-note span{display:block}.company-policy-note span{margin-top:4px;font-size:13px;line-height:1.45}@media(max-width:1050px){.company-admin-layout{grid-template-columns:1fr}.company-list-wrap{border-right:0;border-bottom:1px solid var(--line)}}@media(max-width:680px){.company-admin-header,.company-editor{grid-template-columns:1fr}.company-admin-header{display:grid}.company-admin-actions{justify-content:flex-start}.company-card{grid-template-columns:42px minmax(0,1fr)}.company-card small{grid-column:2}.company-editor{grid-template-columns:1fr}}`;
 
 const analyticsCss = `.analytics-layout{display:grid;grid-template-columns:minmax(0,1fr) 360px;gap:18px}.analytics-stage-grid,.analytics-scope-list{display:grid;gap:10px}.analytics-stage-grid{grid-template-columns:repeat(3,minmax(0,1fr))}.analytics-stage-grid span,.analytics-scope-list span{display:block;border:1px solid var(--line);border-radius:8px;background:#fbfcfe;padding:12px}.analytics-stage-grid strong,.analytics-stage-grid small,.analytics-scope-list strong,.analytics-scope-list small{display:block}.analytics-stage-grid small,.analytics-scope-list small{color:#617089;margin-top:5px}.analytics-health-table div{grid-template-columns:minmax(120px,.45fr) minmax(0,1fr) 120px}@media(max-width:1100px){.analytics-layout{grid-template-columns:1fr}.analytics-stage-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}@media(max-width:620px){.analytics-stage-grid{grid-template-columns:1fr}}`;
+
+const formsCenterCss = `.forms-command{display:grid;grid-template-columns:minmax(260px,1fr) auto auto auto auto auto;gap:12px;align-items:center;margin-bottom:18px}.forms-command h1{margin:0 0 4px}.forms-dashboard{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-bottom:18px}.forms-library-grid,.forms-preview-grid,.forms-response-grid{display:grid;grid-template-columns:360px minmax(0,1fr);gap:18px}.forms-builder-grid{display:grid;grid-template-columns:minmax(320px,.75fr) minmax(320px,.75fr) minmax(360px,1fr);gap:18px;align-items:start}.forms-toolbar{display:grid;grid-template-columns:1fr 150px;gap:10px;margin-bottom:12px}.forms-toolbar label,.forms-settings label,.question-editor label{display:grid;gap:6px;font-size:12px;font-weight:850;text-transform:uppercase;color:#617089}.forms-toolbar input,.forms-toolbar select,.forms-settings input,.forms-settings textarea,.forms-settings select,.question-editor input,.question-editor textarea,.question-editor select,.question-add-row select,.response-form input,.response-form textarea,.response-form select{width:100%;border:1px solid var(--line);border-radius:8px;background:#fff;color:var(--ink);padding:11px}.forms-list,.question-list,.response-list{display:grid;gap:8px}.form-card,.question-card,.response-card{width:100%;border:1px solid var(--line);border-radius:8px;background:#fbfcfe;padding:12px;text-align:left;cursor:pointer}.form-card:hover,.form-card.active,.question-card:hover,.question-card.active,.response-card:hover,.response-card.active{border-color:#f97316;background:#fff8f5}.form-card strong,.form-card span,.form-card small,.question-card strong,.question-card span,.response-card strong,.response-card span{display:block}.form-card span,.question-card span,.response-card span{color:#617089;font-size:13px;margin-top:5px}.form-card small{margin-top:8px;color:#52627a;font-weight:850}.forms-summary h2,.response-form h2{margin-bottom:6px}.form-status-row,.summary-pill-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-top:14px}.form-status-row span,.summary-pill-grid span{border:1px solid var(--line);border-radius:8px;background:#fbfcfe;padding:12px}.form-status-row strong,.form-status-row small,.summary-pill-grid strong,.summary-pill-grid small{display:block}.form-status-row small,.summary-pill-grid small{color:#617089;margin-top:4px}.forms-settings,.question-editor{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.forms-settings .span-2,.question-editor .span-2{grid-column:1/-1}.forms-check{display:flex!important;grid-template-columns:none!important;align-items:center;gap:8px;min-height:42px;border:1px solid var(--line);border-radius:8px;background:#fbfcfe;padding:0 10px;text-transform:none!important;color:#27364d!important}.forms-check input{width:auto!important}.question-add-row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px;margin-bottom:12px}.question-card{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px;align-items:start}.question-card b{border:1px solid var(--line);border-radius:999px;background:#fff;padding:4px 8px;color:#52627a;font-size:11px;text-transform:uppercase}.question-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}.response-form{display:grid;gap:14px}.response-question{border:1px solid var(--line);border-radius:8px;background:#fbfcfe;padding:14px}.response-question strong,.response-question small{display:block}.response-question small{color:#617089;margin-top:4px}.response-options{display:grid;gap:8px;margin-top:10px}.response-options label{display:flex;align-items:center;gap:8px;color:#27364d}.rating-row{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}.rating-row label{display:grid;place-items:center;width:40px;height:40px;border:1px solid var(--line);border-radius:999px;background:#fff;cursor:pointer}.rating-row input{position:absolute;opacity:0;pointer-events:none}.rating-row label:has(input:checked){background:#111827;color:#fff;border-color:#111827}.response-sidecar{align-self:start}.response-detail-list{display:grid;gap:10px}.response-detail-list div{border-top:1px solid var(--line);padding-top:10px}.response-detail-list strong,.response-detail-list span{display:block}.response-detail-list span{color:#52627a;margin-top:4px;white-space:pre-wrap}.forms-template-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px}.forms-template-grid button{min-height:170px;border:1px solid var(--line);border-radius:8px;background:#fff;padding:16px;text-align:left;cursor:pointer;box-shadow:var(--shadow)}.forms-template-grid button:hover{border-color:#f97316;background:#fff8f5}.forms-template-grid strong,.forms-template-grid span{display:block}.forms-template-grid strong{font-size:18px}.forms-template-grid span{color:#617089;margin-top:8px;line-height:1.45}.forms-center .empty-state{min-height:140px;display:grid;place-items:center}@media(max-width:1280px){.forms-command{grid-template-columns:1fr repeat(2,auto)}.forms-dashboard,.forms-template-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.forms-builder-grid,.forms-library-grid,.forms-preview-grid,.forms-response-grid{grid-template-columns:1fr}}@media(max-width:760px){.forms-command,.forms-dashboard,.forms-toolbar,.forms-settings,.question-editor,.question-add-row,.forms-template-grid,.form-status-row,.summary-pill-grid{grid-template-columns:1fr}.forms-command{align-items:stretch}.forms-command .sync-pill{justify-content:center}}`;
 
 const plannedTabsCss = `.tabs button.tab-planned,.tabs button.tab-planned:hover,.tabs button.tab-planned.active{color:#64748b;background:repeating-linear-gradient(135deg,#eef2f7 0,#eef2f7 8px,#e2e8f0 8px,#e2e8f0 16px);border-color:#94a3b8;box-shadow:none;cursor:not-allowed;opacity:1;filter:grayscale(1)}.tabs button.tab-planned.active{box-shadow:inset 0 -3px #94a3b8}.tabs button.tab-planned small{display:inline-flex;margin-left:8px;border:1px solid #94a3b8;border-radius:999px;background:#f8fafc;padding:2px 7px;color:#475569;font-size:10px;font-weight:900;text-transform:uppercase;vertical-align:middle}.tabs button:not(.tab-planned) small{display:none}@media(max-width:620px){.tabs button.tab-planned small{display:none}}`;
 
@@ -2563,6 +2736,543 @@ function escapeHtml(value) {
   }
 })();`;
 
+const formsCenterJs = `(() => {
+  const center = document.querySelector('[data-form-center]');
+  if (!center) return;
+
+  const formsKey = 'quest-hq-forms-v1';
+  const responsesKey = 'quest-hq-form-responses-v1';
+  const fieldTypes = {
+    short: 'Short answer',
+    paragraph: 'Paragraph',
+    multiple: 'Multiple choice',
+    checkboxes: 'Checkboxes',
+    dropdown: 'Dropdown',
+    rating: 'Rating scale',
+    date: 'Date',
+    yesno: 'Yes / No',
+    signature: 'Signature',
+    file: 'File request'
+  };
+  const nodes = {
+    state: center.querySelector('[data-form-state]'),
+    list: center.querySelector('[data-form-list]'),
+    summary: center.querySelector('[data-form-summary]'),
+    settings: center.querySelector('[data-form-settings]'),
+    dirty: center.querySelector('[data-form-dirty]'),
+    search: center.querySelector('[data-form-search]'),
+    typeFilter: center.querySelector('[data-form-type-filter]'),
+    questionType: center.querySelector('[data-question-type]'),
+    questionList: center.querySelector('[data-question-list]'),
+    questionCount: center.querySelector('[data-question-count]'),
+    questionEditor: center.querySelector('[data-question-editor]'),
+    questionEditorState: center.querySelector('[data-question-editor-state]'),
+    responseForm: center.querySelector('[data-response-form]'),
+    responseSidecar: center.querySelector('[data-response-sidecar]'),
+    responseList: center.querySelector('[data-response-list]'),
+    responseCount: center.querySelector('[data-response-count]'),
+    responseDetail: center.querySelector('[data-response-detail]')
+  };
+  let forms = read(formsKey, []);
+  let responses = read(responsesKey, []);
+  let draft = blankForm();
+  let selectedId = forms[0]?.id || '';
+  let selectedQuestionId = '';
+  let selectedResponseId = '';
+  let dirty = false;
+  if (selectedId) draft = clone(forms.find((form) => form.id === selectedId));
+
+  bind();
+  render();
+
+  function bind() {
+    center.querySelector('[data-form-new]')?.addEventListener('click', () => {
+      selectedId = '';
+      selectedQuestionId = '';
+      selectedResponseId = '';
+      draft = blankForm();
+      dirty = true;
+      switchTab('builder');
+      render();
+    });
+    nodes.settings.addEventListener('input', () => {
+      applySettings();
+      dirty = true;
+      renderLite();
+    });
+    nodes.settings.addEventListener('submit', (event) => {
+      event.preventDefault();
+      saveDraft();
+    });
+    center.querySelector('[data-form-publish]')?.addEventListener('click', () => {
+      draft.status = 'Published';
+      saveDraft();
+    });
+    center.querySelector('[data-form-archive]')?.addEventListener('click', () => {
+      draft.status = 'Archived';
+      saveDraft();
+    });
+    center.querySelector('[data-form-duplicate]')?.addEventListener('click', duplicateForm);
+    center.querySelector('[data-form-delete]')?.addEventListener('click', deleteForm);
+    center.querySelector('[data-form-export]')?.addEventListener('click', exportForm);
+    nodes.search?.addEventListener('input', renderLibrary);
+    nodes.typeFilter?.addEventListener('change', renderLibrary);
+    nodes.list.addEventListener('click', (event) => {
+      const button = event.target.closest('[data-form-id]');
+      if (!button) return;
+      selectForm(button.dataset.formId);
+    });
+    center.querySelector('[data-question-add]')?.addEventListener('click', () => {
+      const question = blankQuestion(nodes.questionType.value);
+      draft.questions.push(question);
+      selectedQuestionId = question.id;
+      dirty = true;
+      render();
+    });
+    nodes.questionList.addEventListener('click', (event) => {
+      const button = event.target.closest('[data-question-id]');
+      if (!button) return;
+      selectedQuestionId = button.dataset.questionId;
+      renderQuestionEditor();
+      renderQuestions();
+    });
+    nodes.questionEditor.addEventListener('submit', (event) => {
+      event.preventDefault();
+      updateQuestion();
+    });
+    nodes.questionEditor.addEventListener('input', () => {
+      nodes.questionEditorState.textContent = selectedQuestion() ? 'Editing question' : 'Select a question';
+    });
+    center.querySelector('[data-question-delete]')?.addEventListener('click', deleteQuestion);
+    center.querySelector('[data-question-copy]')?.addEventListener('click', duplicateQuestion);
+    center.querySelector('[data-question-up]')?.addEventListener('click', () => moveQuestion(-1));
+    center.querySelector('[data-question-down]')?.addEventListener('click', () => moveQuestion(1));
+    nodes.responseForm.addEventListener('submit', saveResponse);
+    nodes.responseList.addEventListener('click', (event) => {
+      const button = event.target.closest('[data-response-id]');
+      if (!button) return;
+      selectedResponseId = button.dataset.responseId;
+      renderResponses();
+    });
+    center.querySelectorAll('[data-form-template]').forEach((button) => {
+      button.addEventListener('click', () => {
+        draft = templateForm(button.dataset.formTemplate);
+        selectedId = '';
+        selectedQuestionId = draft.questions[0]?.id || '';
+        dirty = true;
+        switchTab('builder');
+        render();
+      });
+    });
+  }
+
+  function saveDraft() {
+    applySettings();
+    if (!draft.title.trim()) {
+      setState('Title required', 'error');
+      return;
+    }
+    const now = new Date().toISOString();
+    draft.updatedAt = now;
+    if (!draft.id) draft.id = 'form-' + Date.now();
+    if (!draft.createdAt) draft.createdAt = now;
+    const existing = forms.findIndex((form) => form.id === draft.id);
+    if (existing >= 0) forms[existing] = clone(draft);
+    else forms.unshift(clone(draft));
+    selectedId = draft.id;
+    dirty = false;
+    write(formsKey, forms);
+    setState('Saved locally', 'live');
+    render();
+  }
+
+  function selectForm(id) {
+    const form = forms.find((item) => item.id === id);
+    if (!form) return;
+    selectedId = id;
+    draft = clone(form);
+    selectedQuestionId = draft.questions[0]?.id || '';
+    selectedResponseId = responses.find((item) => item.formId === id)?.id || '';
+    dirty = false;
+    render();
+  }
+
+  function duplicateForm() {
+    if (!draft.title.trim()) return;
+    const copy = clone(draft);
+    copy.id = 'form-' + Date.now();
+    copy.title = copy.title + ' Copy';
+    copy.status = 'Draft';
+    copy.createdAt = new Date().toISOString();
+    copy.updatedAt = copy.createdAt;
+    forms.unshift(copy);
+    selectedId = copy.id;
+    draft = clone(copy);
+    dirty = false;
+    write(formsKey, forms);
+    render();
+  }
+
+  function deleteForm() {
+    if (!selectedId) {
+      draft = blankForm();
+      selectedQuestionId = '';
+      dirty = false;
+      render();
+      return;
+    }
+    forms = forms.filter((form) => form.id !== selectedId);
+    responses = responses.filter((response) => response.formId !== selectedId);
+    write(formsKey, forms);
+    write(responsesKey, responses);
+    selectedId = forms[0]?.id || '';
+    draft = selectedId ? clone(forms.find((form) => form.id === selectedId)) : blankForm();
+    selectedQuestionId = draft.questions[0]?.id || '';
+    selectedResponseId = '';
+    dirty = false;
+    render();
+  }
+
+  function exportForm() {
+    const data = JSON.stringify({ form: draft, responses: responses.filter((item) => item.formId === draft.id) }, null, 2);
+    navigator.clipboard?.writeText(data).then(() => setState('Copied JSON', 'live')).catch(() => {
+      setState('Export ready in console', 'local');
+      console.log(data);
+    });
+  }
+
+  function applySettings() {
+    const data = new FormData(nodes.settings);
+    draft.title = String(data.get('title') || '');
+    draft.description = String(data.get('description') || '');
+    draft.type = String(data.get('type') || 'Inspection');
+    draft.status = String(data.get('status') || 'Draft');
+    draft.audience = String(data.get('audience') || '');
+    draft.jobContext = String(data.get('jobContext') || '');
+    draft.collectEmail = data.has('collectEmail');
+    draft.requireApproval = data.has('requireApproval');
+  }
+
+  function updateQuestion() {
+    const question = selectedQuestion();
+    if (!question) return;
+    const data = new FormData(nodes.questionEditor);
+    question.label = String(data.get('label') || '');
+    question.help = String(data.get('help') || '');
+    question.type = String(data.get('type') || 'short');
+    question.options = String(data.get('options') || '').split('\\n').map((value) => value.trim()).filter(Boolean);
+    question.scaleMin = number(data.get('scaleMin'), 1);
+    question.scaleMax = number(data.get('scaleMax'), 5);
+    question.required = data.has('required');
+    question.reviewFlag = data.has('reviewFlag');
+    dirty = true;
+    render();
+  }
+
+  function deleteQuestion() {
+    draft.questions = draft.questions.filter((question) => question.id !== selectedQuestionId);
+    selectedQuestionId = draft.questions[0]?.id || '';
+    dirty = true;
+    render();
+  }
+
+  function duplicateQuestion() {
+    const question = selectedQuestion();
+    if (!question) return;
+    const copy = { ...clone(question), id: 'q-' + Date.now(), label: question.label + ' Copy' };
+    const index = draft.questions.findIndex((item) => item.id === question.id);
+    draft.questions.splice(index + 1, 0, copy);
+    selectedQuestionId = copy.id;
+    dirty = true;
+    render();
+  }
+
+  function moveQuestion(direction) {
+    const index = draft.questions.findIndex((question) => question.id === selectedQuestionId);
+    const next = index + direction;
+    if (index < 0 || next < 0 || next >= draft.questions.length) return;
+    const [question] = draft.questions.splice(index, 1);
+    draft.questions.splice(next, 0, question);
+    dirty = true;
+    render();
+  }
+
+  function saveResponse(event) {
+    event.preventDefault();
+    if (!draft.questions.length) {
+      setState('Add questions first', 'local');
+      return;
+    }
+    const data = new FormData(nodes.responseForm);
+    const values = {};
+    draft.questions.forEach((question) => {
+      if (question.type === 'checkboxes') values[question.id] = data.getAll(question.id);
+      else values[question.id] = data.get(question.id) || '';
+    });
+    const response = {
+      id: 'response-' + Date.now(),
+      formId: draft.id || 'unsaved-draft',
+      formTitle: draft.title || 'Unsaved form',
+      submittedAt: new Date().toISOString(),
+      values
+    };
+    responses.unshift(response);
+    selectedResponseId = response.id;
+    write(responsesKey, responses);
+    setState('Response saved', 'live');
+    nodes.responseForm.reset();
+    render();
+    switchTab('responses');
+  }
+
+  function render() {
+    renderMetrics();
+    renderSettings();
+    renderLibrary();
+    renderSummary();
+    renderQuestions();
+    renderQuestionEditor();
+    renderPreview();
+    renderResponses();
+    renderLite();
+  }
+
+  function renderLite() {
+    nodes.dirty.textContent = dirty ? 'Unsaved changes' : (selectedId ? 'Saved locally' : 'Unsaved draft');
+  }
+
+  function renderMetrics() {
+    setMetric('forms', forms.length);
+    setMetric('published', forms.filter((form) => form.status === 'Published').length);
+    setMetric('responses', responses.length);
+    setMetric('questions', forms.reduce((sum, form) => sum + form.questions.length, 0));
+  }
+
+  function renderSettings() {
+    nodes.settings.elements.title.value = draft.title || '';
+    nodes.settings.elements.description.value = draft.description || '';
+    nodes.settings.elements.type.value = draft.type || 'Inspection';
+    nodes.settings.elements.status.value = draft.status || 'Draft';
+    nodes.settings.elements.audience.value = draft.audience || '';
+    nodes.settings.elements.jobContext.value = draft.jobContext || '';
+    nodes.settings.elements.collectEmail.checked = !!draft.collectEmail;
+    nodes.settings.elements.requireApproval.checked = !!draft.requireApproval;
+  }
+
+  function renderLibrary() {
+    const query = (nodes.search?.value || '').toLowerCase();
+    const filter = nodes.typeFilter?.value || 'all';
+    const visible = forms.filter((form) => {
+      const haystack = [form.title, form.type, form.audience, form.jobContext].join(' ').toLowerCase();
+      return (!query || haystack.includes(query)) && (filter === 'all' || form.type === filter);
+    });
+    nodes.list.innerHTML = visible.length ? visible.map((form) => {
+      const count = responses.filter((response) => response.formId === form.id).length;
+      return '<button type=\"button\" class=\"form-card ' + (form.id === selectedId ? 'active' : '') + '\" data-form-id=\"' + escapeHtml(form.id) + '\"><strong>' + escapeHtml(form.title) + '</strong><span>' + escapeHtml(form.type) + ' / ' + escapeHtml(form.status) + '</span><small>' + form.questions.length + ' questions / ' + count + ' responses</small></button>';
+    }).join('') : '<div class=\"empty-state\">No saved forms yet. Use New Form or apply a template.</div>';
+  }
+
+  function renderSummary() {
+    if (!selectedId && !draft.title) {
+      nodes.summary.innerHTML = '<div class=\"empty-state\">Create a form or apply a template to start.</div>';
+      return;
+    }
+    const count = responses.filter((response) => response.formId === draft.id).length;
+    nodes.summary.innerHTML = '<h2>' + escapeHtml(draft.title || 'Unsaved form') + '</h2><p class=\"muted\">' + escapeHtml(draft.description || 'No description yet.') + '</p>' +
+      '<div class=\"form-status-row\">' +
+      pill('Type', draft.type) + pill('Status', draft.status) + pill('Responses', count) +
+      '</div><div class=\"summary-pill-grid\">' +
+      pill('Audience', draft.audience || 'Not set') + pill('Job context', draft.jobContext || 'Optional') + pill('Review', draft.requireApproval ? 'Required' : 'Not required') +
+      '</div>';
+  }
+
+  function renderQuestions() {
+    nodes.questionCount.textContent = draft.questions.length + (draft.questions.length === 1 ? ' question' : ' questions');
+    nodes.questionList.innerHTML = draft.questions.length ? draft.questions.map((question, index) =>
+      '<button type=\"button\" class=\"question-card ' + (question.id === selectedQuestionId ? 'active' : '') + '\" data-question-id=\"' + escapeHtml(question.id) + '\"><span><strong>' + (index + 1) + '. ' + escapeHtml(question.label || 'Untitled question') + '</strong><span>' + escapeHtml(fieldTypes[question.type] || question.type) + (question.required ? ' / Required' : '') + '</span></span><b>' + escapeHtml(question.type) + '</b></button>'
+    ).join('') : '<div class=\"empty-state\">Add questions from the selector above.</div>';
+  }
+
+  function renderQuestionEditor() {
+    const question = selectedQuestion();
+    nodes.questionEditorState.textContent = question ? 'Editing question' : 'Select a question';
+    nodes.questionEditor.querySelectorAll('input, textarea, select, button').forEach((item) => {
+      if (!item.matches('[data-question-delete], [data-question-copy], [data-question-up], [data-question-down]')) item.disabled = !question;
+    });
+    if (!question) {
+      nodes.questionEditor.reset();
+      return;
+    }
+    nodes.questionEditor.elements.label.value = question.label || '';
+    nodes.questionEditor.elements.help.value = question.help || '';
+    nodes.questionEditor.elements.type.value = question.type || 'short';
+    nodes.questionEditor.elements.options.value = (question.options || []).join('\\n');
+    nodes.questionEditor.elements.scaleMin.value = question.scaleMin ?? 1;
+    nodes.questionEditor.elements.scaleMax.value = question.scaleMax ?? 5;
+    nodes.questionEditor.elements.required.checked = !!question.required;
+    nodes.questionEditor.elements.reviewFlag.checked = !!question.reviewFlag;
+  }
+
+  function renderPreview() {
+    if (!draft.title && !draft.questions.length) {
+      nodes.responseForm.innerHTML = '<div class=\"empty-state\">Build or select a form to preview it.</div>';
+      nodes.responseSidecar.innerHTML = '<h2>Collector Settings</h2><p class=\"muted\">No form selected.</p>';
+      return;
+    }
+    nodes.responseForm.innerHTML = '<div><h2>' + escapeHtml(draft.title || 'Untitled form') + '</h2><p class=\"muted\">' + escapeHtml(draft.description || 'No description yet.') + '</p></div>' +
+      (draft.collectEmail ? '<label>Email<input type=\"email\" name=\"respondent_email\" placeholder=\"name@example.com\"></label>' : '') +
+      (draft.questions.length ? draft.questions.map(responseField).join('') : '<div class=\"empty-state\">No questions yet.</div>') +
+      '<div class=\"form-actions\"><button class=\"primary-button\" type=\"submit\">Submit Test Response</button><button class=\"secondary-button\" type=\"reset\">Clear</button></div>';
+    const saved = draft.id ? responses.filter((response) => response.formId === draft.id).length : 0;
+    nodes.responseSidecar.innerHTML = '<h2>Collector Settings</h2><p class=\"muted\">Responses save locally for the mockup. Published forms can later receive public URLs and Supabase tables.</p>' +
+      '<div class=\"summary-pill-grid\">' + pill('Status', draft.status) + pill('Responses', saved) + pill('Email', draft.collectEmail ? 'Collected' : 'Off') + '</div>';
+  }
+
+  function renderResponses() {
+    const current = responses.filter((response) => response.formId === draft.id || (!draft.id && response.formId === 'unsaved-draft'));
+    nodes.responseCount.textContent = current.length + (current.length === 1 ? ' response' : ' responses');
+    nodes.responseList.innerHTML = current.length ? current.map((response) =>
+      '<button type=\"button\" class=\"response-card ' + (response.id === selectedResponseId ? 'active' : '') + '\" data-response-id=\"' + escapeHtml(response.id) + '\"><strong>' + escapeHtml(response.formTitle) + '</strong><span>' + formatDate(response.submittedAt) + '</span></button>'
+    ).join('') : '<div class=\"empty-state\">No responses for this form yet.</div>';
+    const response = responses.find((item) => item.id === selectedResponseId) || current[0];
+    if (!response) {
+      nodes.responseDetail.innerHTML = '<div class=\"empty-state\">Select a response to review submitted answers.</div>';
+      return;
+    }
+    selectedResponseId = response.id;
+    nodes.responseDetail.innerHTML = '<h2>Response Detail</h2><p class=\"muted\">Submitted ' + formatDate(response.submittedAt) + '</p><div class=\"response-detail-list\">' +
+      draft.questions.map((question) => '<div><strong>' + escapeHtml(question.label || 'Untitled question') + '</strong><span>' + escapeHtml(formatAnswer(response.values[question.id])) + '</span></div>').join('') +
+      '</div>';
+  }
+
+  function responseField(question) {
+    const required = question.required ? ' required' : '';
+    const help = question.help ? '<small>' + escapeHtml(question.help) + '</small>' : '';
+    const label = '<strong>' + escapeHtml(question.label || 'Untitled question') + (question.required ? ' *' : '') + '</strong>' + help;
+    const options = (question.options || ['Option 1', 'Option 2']);
+    if (question.type === 'paragraph') return '<label class=\"response-question\">' + label + '<textarea name=\"' + question.id + '\" rows=\"4\"' + required + '></textarea></label>';
+    if (question.type === 'multiple') return '<div class=\"response-question\">' + label + '<div class=\"response-options\">' + options.map((option) => '<label><input type=\"radio\" name=\"' + question.id + '\" value=\"' + escapeHtml(option) + '\"' + required + '> ' + escapeHtml(option) + '</label>').join('') + '</div></div>';
+    if (question.type === 'checkboxes') return '<div class=\"response-question\">' + label + '<div class=\"response-options\">' + options.map((option) => '<label><input type=\"checkbox\" name=\"' + question.id + '\" value=\"' + escapeHtml(option) + '\"> ' + escapeHtml(option) + '</label>').join('') + '</div></div>';
+    if (question.type === 'dropdown') return '<label class=\"response-question\">' + label + '<select name=\"' + question.id + '\"' + required + '><option value=\"\">Select...</option>' + options.map((option) => '<option>' + escapeHtml(option) + '</option>').join('') + '</select></label>';
+    if (question.type === 'rating') {
+      const min = number(question.scaleMin, 1);
+      const max = number(question.scaleMax, 5);
+      const scale = Array.from({ length: Math.max(max - min + 1, 1) }, (_, index) => min + index);
+      return '<div class=\"response-question\">' + label + '<div class=\"rating-row\">' + scale.map((value) => '<label><input type=\"radio\" name=\"' + question.id + '\" value=\"' + value + '\"' + required + '>' + value + '</label>').join('') + '</div></div>';
+    }
+    if (question.type === 'date') return '<label class=\"response-question\">' + label + '<input type=\"date\" name=\"' + question.id + '\"' + required + '></label>';
+    if (question.type === 'yesno') return '<div class=\"response-question\">' + label + '<div class=\"response-options\"><label><input type=\"radio\" name=\"' + question.id + '\" value=\"Yes\"' + required + '> Yes</label><label><input type=\"radio\" name=\"' + question.id + '\" value=\"No\"' + required + '> No</label></div></div>';
+    if (question.type === 'signature') return '<label class=\"response-question forms-check\"><input type=\"checkbox\" name=\"' + question.id + '\" value=\"Acknowledged\"' + required + '> ' + escapeHtml(question.label || 'I acknowledge this form') + '</label>';
+    if (question.type === 'file') return '<label class=\"response-question\">' + label + '<input type=\"text\" name=\"' + question.id + '\" placeholder=\"File name or Quest HQ Files link\"' + required + '></label>';
+    return '<label class=\"response-question\">' + label + '<input name=\"' + question.id + '\"' + required + '></label>';
+  }
+
+  function blankForm() {
+    return { id: '', title: '', description: '', type: 'Inspection', status: 'Draft', audience: '', jobContext: '', collectEmail: false, requireApproval: false, createdAt: '', updatedAt: '', questions: [] };
+  }
+
+  function blankQuestion(type) {
+    return { id: 'q-' + Date.now() + '-' + Math.floor(Math.random() * 1000), type, label: fieldTypes[type] || 'Question', help: '', required: false, reviewFlag: false, options: ['Option 1', 'Option 2'], scaleMin: 1, scaleMax: 5 };
+  }
+
+  function templateForm(name) {
+    const form = blankForm();
+    const templates = {
+      inspection: ['Roof Inspection', 'Field inspection checklist with ratings, notes, photos, and signoff.', 'Inspection', [
+        ['short', 'Site or roof section inspected'],
+        ['rating', 'Overall condition rating'],
+        ['checkboxes', 'Observed issues', ['Leak evidence', 'Damaged flashing', 'Missing shingles', 'Soft decking']],
+        ['file', 'Photo set or Files link'],
+        ['signature', 'Inspector acknowledgement']
+      ]],
+      survey: ['Client Satisfaction Survey', 'Client feedback after a completed service or milestone.', 'Survey', [
+        ['rating', 'How satisfied are you with the service?'],
+        ['multiple', 'Would you recommend us?', ['Yes', 'Maybe', 'No']],
+        ['paragraph', 'What should we improve?'],
+        ['yesno', 'May we contact you for follow-up?']
+      ]],
+      approval: ['Estimate Approval', 'Client approval for scope, estimate, and next step authorization.', 'Approval', [
+        ['short', 'Approver name'],
+        ['multiple', 'Approval decision', ['Approved', 'Approved with changes', 'Rejected']],
+        ['paragraph', 'Requested changes or notes'],
+        ['signature', 'I confirm this approval']
+      ]],
+      intake: ['Service Intake', 'Capture a new request before it becomes a job workspace.', 'Intake', [
+        ['short', 'Client or company name'],
+        ['dropdown', 'Request type', ['Roof leak', 'Inspection', 'Estimate', 'Repair', 'Other']],
+        ['multiple', 'Urgency', ['Low', 'Medium', 'High', 'Urgent']],
+        ['paragraph', 'Describe the request'],
+        ['file', 'Photos or documents']
+      ]]
+    };
+    const selected = templates[name] || templates.inspection;
+    form.title = selected[0];
+    form.description = selected[1];
+    form.type = selected[2];
+    form.questions = selected[3].map((item) => {
+      const question = blankQuestion(item[0]);
+      question.label = item[1];
+      if (item[2]) question.options = item[2];
+      question.required = ['short', 'multiple', 'signature'].includes(item[0]);
+      return question;
+    });
+    return form;
+  }
+
+  function selectedQuestion() {
+    return draft.questions.find((question) => question.id === selectedQuestionId) || null;
+  }
+
+  function setMetric(name, value) {
+    const node = center.querySelector('[data-form-metric=\"' + name + '\"]');
+    if (node) node.textContent = String(value);
+  }
+
+  function setState(message, state) {
+    nodes.state.textContent = message;
+    nodes.state.className = 'sync-pill' + (state ? ' ' + state : '');
+  }
+
+  function switchTab(name) {
+    center.querySelector('[data-tab=\"' + name + '\"]')?.click();
+  }
+
+  function pill(label, value) {
+    return '<span><strong>' + escapeHtml(label) + '</strong><small>' + escapeHtml(value ?? '') + '</small></span>';
+  }
+
+  function formatAnswer(value) {
+    if (Array.isArray(value)) return value.join(', ');
+    return value || 'No answer';
+  }
+
+  function formatDate(value) {
+    return value ? new Date(value).toLocaleString() : 'Not saved';
+  }
+
+  function number(value, fallback = 0) {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : fallback;
+  }
+
+  function read(key, fallback) {
+    try { return JSON.parse(localStorage.getItem(key) || 'null') || fallback; }
+    catch { return fallback; }
+  }
+
+  function write(key, value) {
+    localStorage.setItem(key, JSON.stringify(value));
+  }
+
+  function clone(value) {
+    return JSON.parse(JSON.stringify(value));
+  }
+
+  function escapeHtml(value) {
+    return String(value ?? '').replace(/[&<>\"']/g, (char) => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '\"':'&quot;', \"'\":'&#039;' }[char]));
+  }
+})();`;
+
 const tutorialJs = `(() => {
   const overlay = document.querySelector('[data-tour-overlay]');
   if (!overlay) return;
@@ -2621,6 +3331,16 @@ const tutorialJs = `(() => {
       { selector: '[data-file-upload-form] select[name=\"category\"]', title: 'Categorize Immediately', body: 'Category drives filtering and thumbnails. Photos render previews; documents render file-type cards.' },
       { selector: '[data-file-upload-form] textarea[name=\"notes\"]', title: 'Add Field Context', body: 'Notes capture inspection angle, permit revision, invoice context, or drawing details so files stay useful after upload.' },
       { selector: '.drive-details-pane', title: 'Preview and Metadata', body: 'Selecting a file shows preview, category, storage path, job link, uploader, and action buttons like download or delete.', action: 'closeFileModal' }
+    ],
+    forms: [
+      { selector: '.forms-command', title: 'Forms Command Bar', body: 'This is a local-first Google Forms style builder for inspections, approvals, surveys, intakes, and checklists.' },
+      { selector: '[data-form-new]', title: 'Create Without Saving Junk', body: 'New Form starts an unsaved draft. It does not create a saved record until Save Form is pressed.' },
+      { selector: '[data-panel=\"builder\"]', title: 'Builder Workspace', body: 'The builder separates form settings, question list, and question editing so the presenter can move quickly.', action: 'openFormsBuilder' },
+      { selector: '[data-form-settings]', title: 'Form Settings', body: 'Set title, description, type, status, audience, job context, email capture, and internal review requirements.' },
+      { selector: '.question-panel', title: 'Question Builder', body: 'Add short answers, paragraphs, multiple choice, checkboxes, dropdowns, ratings, dates, signatures, and file requests.' },
+      { selector: '[data-panel=\"preview\"]', title: 'Preview and Collect', body: 'Preview renders the form as a respondent will see it and can save local test responses for the demo.', action: 'openFormsPreview' },
+      { selector: '[data-panel=\"responses\"]', title: 'Response Inbox', body: 'Saved responses appear here for review. Later this can become Supabase-backed with public URLs and auth.', action: 'openFormsResponses' },
+      { selector: '[data-panel=\"templates\"]', title: 'Templates', body: 'Templates are quick-start builders, not fake saved data. Applying one creates an unsaved draft that can be edited before saving.', action: 'openFormsTemplates' }
     ],
     dashboards: [
       { selector: '.metric-grid', title: 'Analytics Lives Here', body: 'Instead of bloating every page with metric cards, deeper reporting is centralized here.' },
@@ -2713,6 +3433,10 @@ const tutorialJs = `(() => {
     if (step.action === 'closeFileModal' && !document.querySelector('[data-file-modal]')?.hidden) {
       document.querySelector('[data-file-modal-close]')?.click();
     }
+    if (step.action === 'openFormsBuilder') document.querySelector('[data-tab=\"builder\"]')?.click();
+    if (step.action === 'openFormsPreview') document.querySelector('[data-tab=\"preview\"]')?.click();
+    if (step.action === 'openFormsResponses') document.querySelector('[data-tab=\"responses\"]')?.click();
+    if (step.action === 'openFormsTemplates') document.querySelector('[data-tab=\"templates\"]')?.click();
   }
 
   function placeSpotlight(element) {
@@ -2774,14 +3498,15 @@ async function writeTarget(target) {
   const absolute = path.resolve(target);
   if (target !== '.') await rm(absolute, { recursive: true, force: true });
   await mkdir(path.join(absolute, 'assets'), { recursive: true });
-  await writeFile(path.join(absolute, 'assets', 'quest-hq.css'), css + sidebarPolishCss + modalCss + plannedNavCss + fileViewerCss + fileCenterCss + driveFileCss + jobCenterCss + coreDemoCss + companyAdminCss + analyticsCss + plannedTabsCss + tutorialCss);
-  await writeFile(path.join(absolute, 'assets', 'quest-hq.js'), js + jobCenterJs + fileCenterJs + companyAdminJs + analyticsJs + commandCenterJs + taskBridgeJs + tutorialJs);
+  await writeFile(path.join(absolute, 'assets', 'quest-hq.css'), css + sidebarPolishCss + modalCss + plannedNavCss + fileViewerCss + fileCenterCss + driveFileCss + jobCenterCss + coreDemoCss + companyAdminCss + analyticsCss + formsCenterCss + plannedTabsCss + tutorialCss);
+  await writeFile(path.join(absolute, 'assets', 'quest-hq.js'), js + jobCenterJs + fileCenterJs + companyAdminJs + analyticsJs + commandCenterJs + taskBridgeJs + formsCenterJs + tutorialJs);
   await writeFile(path.join(absolute, 'index.html'), commandPage());
   await writeFile(path.join(absolute, 'jobs.html'), jobsPage());
   await writeFile(path.join(absolute, 'task-management.html'), taskManagementPage());
   await writeFile(path.join(absolute, 'files.html'), filesPage());
+  await writeFile(path.join(absolute, 'forms.html'), formsPage());
   for (const module of Object.values(modules)) {
-    if (module.file === 'files.html') continue;
+    if (['files.html', 'forms.html'].includes(module.file)) continue;
     await writeFile(path.join(absolute, module.file), modulePage(module));
   }
   if (target === 'docs') await writeFile(path.join(absolute, '.nojekyll'), '');
