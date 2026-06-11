@@ -16,11 +16,20 @@ const commandCenterBasePath = taskmanagementMount
 const routeParams = new URLSearchParams(window.location.search);
 const defaultReturnUrl = `${window.location.origin}${commandCenterBasePath}jobs.html`;
 
+function sameOriginUrl(value, fallback) {
+  try {
+    const candidate = new URL(value || fallback, window.location.href);
+    return candidate.origin === window.location.origin ? candidate.toString() : fallback;
+  } catch (error) {
+    return fallback;
+  }
+}
+
 App.commandCenterIntegration = {
   hosted: !!taskmanagementMount,
   basePath: commandCenterBasePath,
   projectId: (routeParams.get('project_id') || '').trim(),
-  returnUrl: (routeParams.get('return_url') || defaultReturnUrl).trim(),
+  returnUrl: sameOriginUrl((routeParams.get('return_url') || '').trim(), defaultReturnUrl),
 };
 
 App.routes = {

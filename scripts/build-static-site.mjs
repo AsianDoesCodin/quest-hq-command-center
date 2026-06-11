@@ -3152,7 +3152,6 @@ const taskBridgeJs = `(() => {
 
   const params = new URLSearchParams(window.location.search);
   const requestedId = params.get('project_id');
-  const returnUrl = params.get('return_url');
   const seed = JSON.parse(document.getElementById('record-seed')?.textContent || '[]').map(normalizeJob);
   const nodes = {
     sync: bridge.querySelector('[data-bridge-sync]'),
@@ -3185,11 +3184,12 @@ const taskBridgeJs = `(() => {
 
   function render(job, mode) {
     if (!job) {
+      const fallbackReturnUrl = safeReturnUrl('jobs.html?action=new');
       nodes.jobId.textContent = 'No job selected';
       nodes.projectId.textContent = 'No project_id';
       nodes.title.textContent = 'No job selected';
       nodes.stage.textContent = 'Create a job first';
-      nodes.returnLink.href = 'jobs.html?action=new';
+      nodes.returnLink.href = fallbackReturnUrl;
       setMetric('tasks', 0);
       setMetric('open', 0);
       setMetric('completed', 0);
@@ -3205,11 +3205,12 @@ const taskBridgeJs = `(() => {
     const completed = completedTasks(job);
     const open = Math.max(number(job.task_count) - completed, 0);
     const overdue = overdueTasks(job);
+    const fallbackReturnUrl = 'jobs.html?job_id=' + encodeURIComponent(job.id) + '&tab=profile';
     nodes.jobId.textContent = job.id;
     nodes.projectId.textContent = job.id;
     nodes.title.textContent = job.name;
     nodes.stage.textContent = job.stage + ' / ' + job.priority;
-    nodes.returnLink.href = returnUrl || 'jobs.html?job_id=' + encodeURIComponent(job.id) + '&tab=profile';
+    nodes.returnLink.href = safeReturnUrl(fallbackReturnUrl);
     setMetric('tasks', number(job.task_count));
     setMetric('open', open);
     setMetric('completed', completed);
@@ -3225,6 +3226,16 @@ const taskBridgeJs = `(() => {
 
   function pickJob(jobs) {
     return jobs.find((job) => job.id === requestedId) || jobs[0] || null;
+  }
+
+  function safeReturnUrl(fallbackPath) {
+    try {
+      const fallback = new URL(fallbackPath, window.location.href);
+      const candidate = new URL(params.get('return_url') || fallback.toString(), window.location.href);
+      return candidate.origin === window.location.origin ? candidate.toString() : fallback.toString();
+    } catch (error) {
+      return new URL(fallbackPath, window.location.href).toString();
+    }
   }
 
   function normalizeJob(job) {
