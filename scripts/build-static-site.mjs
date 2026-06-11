@@ -1,7 +1,7 @@
 import { mkdir, rm, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 
-const buildId = 'Forms Builder v24';
+const buildId = 'Forms Builder v25';
 const assetVersion = buildId.toLowerCase().replace(/[^a-z0-9]+/g, '-');
 const targets = ['.', 'dist', 'docs'];
 
@@ -613,7 +613,7 @@ function formsPage() {
 
     <section class="tab-panel active" data-panel="library">
       <div class="forms-library-grid">
-        <aside class="panel forms-library-panel">
+        <section class="panel forms-library-panel">
           <div class="forms-toolbar">
             <label>Search<input data-form-search placeholder="Search forms, types, owners" /></label>
             <label>Type
@@ -628,10 +628,8 @@ function formsPage() {
             </label>
           </div>
           <div class="forms-list" data-form-list></div>
-        </aside>
-        <article class="panel forms-summary" data-form-summary>
-          <div class="empty-state">Create a form or apply a template to start.</div>
-        </article>
+        </section>
+        <article class="panel forms-summary" data-form-summary hidden></article>
       </div>
     </section>
 
@@ -749,6 +747,18 @@ function formsPage() {
           <button class="secondary-button" type="button" data-form-modal-close>Close</button>
         </div>
         <div class="form-modal-body" data-form-modal-body></div>
+      </div>
+    </div>
+    <div class="modal-overlay" data-form-detail-modal hidden>
+      <div class="modal-panel form-detail-modal-panel" role="dialog" aria-modal="true" aria-labelledby="form-detail-modal-title">
+        <div class="modal-header">
+          <div>
+            <div class="eyebrow">Selected Form</div>
+            <h2 id="form-detail-modal-title">Form Details</h2>
+          </div>
+          <button class="secondary-button" type="button" data-form-detail-close>Close</button>
+        </div>
+        <div class="form-detail-modal-body" data-form-detail-body></div>
       </div>
     </div>
   </section>`;
@@ -1114,6 +1124,7 @@ const googleFormsCss = `.gform-editor{grid-template-columns:minmax(0,1fr)!import
 const formShareCss = `.share-card{margin-top:14px;border:1px solid var(--line);border-radius:8px;background:#fbfcfe;padding:12px;display:grid;gap:10px}.share-card strong,.share-card input{display:block}.share-card input{width:100%;border:1px solid var(--line);border-radius:8px;background:#fff;color:#27364d;padding:10px;font-size:12px}.designed-form{--form-theme:#f45d22;border-top:8px solid var(--form-theme)!important;box-shadow:0 18px 55px rgba(24,35,55,.12)}.designed-form .primary-button{background:var(--form-theme)}.designed-form-header{display:grid;gap:0;border:1px solid var(--line);border-radius:8px;background:#fff;overflow:hidden}.designed-form-image{min-height:180px;background-size:cover;background-position:center}.designed-form-title{padding:20px}.designed-form-title h2{font-size:30px;margin-bottom:8px}.designed-form .response-options{display:grid;gap:12px;margin-top:14px}.designed-form .response-options label{display:flex;align-items:center;justify-content:flex-start;gap:10px;width:max-content;max-width:100%;min-height:28px;line-height:1.35;cursor:pointer}.designed-form .response-options input[type="radio"],.designed-form .response-options input[type="checkbox"],.designed-form .forms-check input[type="checkbox"]{width:auto!important;min-width:16px;height:16px;flex:0 0 auto;margin:0;padding:0}.designed-form .response-question>select,.designed-form .response-question>input:not([type="radio"]):not([type="checkbox"]),.designed-form .response-question>textarea{margin-top:12px}.public-thank-you{border:1px solid var(--line);border-radius:8px;background:#fff;padding:28px;text-align:center}.form-public-mode{background:#eef2f7}.form-public-mode[data-form-background="warm"]{background:#f8efe3}.form-public-mode[data-form-background="blueprint"]{background:#e8f0fe;background-image:linear-gradient(rgba(66,103,178,.08) 1px,transparent 1px),linear-gradient(90deg,rgba(66,103,178,.08) 1px,transparent 1px);background-size:28px 28px}.form-public-mode[data-form-background="dark"]{background:#111827}.form-public-mode .sidebar,.form-public-mode .tour-overlay,.form-public-mode .forms-command,.form-public-mode .forms-dashboard,.form-public-mode .tabs,.form-public-mode [data-panel="library"],.form-public-mode [data-panel="responses"],.form-public-mode [data-panel="templates"],.form-public-mode [data-form-builder-host],.form-public-mode .response-sidecar{display:none!important}.form-public-mode .main{margin-left:0;padding:34px 16px}.form-public-mode .workspace{max-width:760px}.form-public-mode [data-panel="preview"]{display:block!important}.form-public-mode .forms-preview-grid{display:block}.form-public-mode .response-form{border-radius:10px;padding:0;background:transparent;border:0;box-shadow:none}.form-public-mode .designed-form-header,.form-public-mode .response-question,.form-public-mode .response-form>.form-actions{background:#fff;box-shadow:0 10px 35px rgba(24,35,55,.08)}.form-public-mode .response-question,.form-public-mode .response-form>.form-actions{border-radius:8px;border:1px solid var(--line);padding:18px}.form-public-mode .response-form>.form-actions{justify-content:flex-start}.form-public-mode[data-form-background="dark"] .designed-form-header,.form-public-mode[data-form-background="dark"] .response-question,.form-public-mode[data-form-background="dark"] .response-form>.form-actions,.form-public-mode[data-form-background="dark"] .public-thank-you{background:#172234;color:#eaf1fb;border-color:#334155}.form-public-mode[data-form-background="dark"] .muted,.form-public-mode[data-form-background="dark"] .response-question small{color:#adc7e6}@media(max-width:760px){.designed-form-title h2{font-size:24px}.form-public-mode .main{padding:16px 10px}}`;
 
 const formsLayoutRedoCss = `.forms-center{max-width:1320px}.forms-command.panel{min-height:0;padding:12px 14px;margin-bottom:14px;display:flex;justify-content:flex-end;align-items:center;gap:10px}.forms-command .sync-pill{margin-right:auto}.forms-command .primary-button,.forms-command .secondary-button,.forms-command .danger-button{min-height:38px;padding:0 13px}.forms-dashboard{display:none}.forms-center .tabs{margin-bottom:14px}.forms-library-grid{grid-template-columns:300px minmax(0,1fr);gap:14px}.forms-library-panel{align-self:start;min-height:calc(100vh - 230px);padding:14px}.forms-toolbar{grid-template-columns:1fr;gap:10px}.forms-summary{min-height:calc(100vh - 230px);padding:24px}.forms-summary-head{display:flex;justify-content:space-between;gap:16px;align-items:flex-start;border-bottom:1px solid var(--line);padding-bottom:16px}.forms-summary-head h2{font-size:30px;margin-bottom:6px}.forms-summary-head span{border:1px solid var(--line);border-radius:999px;background:#fbfcfe;color:#52627a;padding:7px 11px;font-size:12px;font-weight:900;text-transform:uppercase}.forms-simple-meta{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}.forms-simple-meta span,.forms-simple-meta button{border:1px solid var(--line);border-radius:999px;background:#fbfcfe;color:#52627a;padding:7px 11px;font-size:13px;font-weight:850;line-height:1;cursor:default}.forms-simple-meta button{cursor:pointer}.forms-simple-meta button:hover{border-color:var(--orange);color:var(--orange);background:#fff8f5}.form-status-row,.summary-pill-grid{grid-template-columns:repeat(3,minmax(150px,1fr));gap:10px;margin-top:14px}.forms-summary-share{grid-template-columns:minmax(0,1fr) auto;align-items:end;margin-top:18px;padding:14px;border-left:4px solid var(--orange)}.forms-summary-share strong{grid-column:1/-1}.forms-summary-share input{min-width:0;height:42px;overflow:hidden;text-overflow:ellipsis}.forms-summary-share .form-actions{grid-column:2;display:flex;gap:8px;white-space:nowrap}.forms-summary-actions{margin-top:14px}.form-card{padding:13px 14px}.form-card strong{font-size:17px}.form-card small{font-size:13px}.forms-preview-grid,.forms-response-grid{grid-template-columns:minmax(0,1fr) 320px;gap:14px}.response-detail-head{display:flex;justify-content:space-between;gap:14px;align-items:flex-start;border-bottom:1px solid var(--line);padding-bottom:14px;margin-bottom:4px}.response-detail-head h2{margin-bottom:4px}.response-detail-head .danger-button{min-height:38px;white-space:nowrap}@media(max-width:1100px){.forms-library-grid,.forms-preview-grid,.forms-response-grid{grid-template-columns:1fr}.forms-library-panel,.forms-summary{min-height:0}.forms-summary-share{grid-template-columns:1fr}.forms-summary-share .form-actions{grid-column:1;white-space:normal}.form-status-row,.summary-pill-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}@media(max-width:760px){.forms-command.panel{display:grid;grid-template-columns:1fr 1fr}.forms-command .sync-pill{grid-column:1/-1;margin-right:0;justify-content:center}.forms-command .primary-button,.forms-command .secondary-button,.forms-command .danger-button{width:100%}.forms-summary{padding:16px}.forms-summary-head,.response-detail-head{display:grid}.forms-summary-head h2{font-size:24px}.form-status-row,.summary-pill-grid{grid-template-columns:1fr}}`;
+const formsLibraryModalCss = `.forms-center{max-width:1240px}.forms-library-grid{display:block}.forms-library-panel{min-height:calc(100vh - 230px);padding:18px}.forms-toolbar{display:grid;grid-template-columns:minmax(240px,1fr) 220px;gap:12px;align-items:end;margin-bottom:16px}.forms-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:12px}.form-card{min-height:128px;text-align:left;border:1px solid var(--line);border-radius:8px;background:#fff;padding:16px;display:grid;gap:6px;align-content:start;box-shadow:0 12px 30px rgba(15,23,42,.04);transition:border-color .15s ease,box-shadow .15s ease,transform .15s ease}.form-card:hover{border-color:#f45d22;box-shadow:0 18px 34px rgba(15,23,42,.09);transform:translateY(-1px)}.form-card.active{background:#fff;border-color:#f45d22;box-shadow:inset 4px 0 0 #f45d22,0 18px 34px rgba(15,23,42,.08)}.form-card strong{font-size:18px;line-height:1.2}.form-card span{color:#52627a;font-size:14px}.form-card small{color:#52627a;font-size:13px;font-weight:850}.forms-summary[hidden]{display:none!important}.form-detail-modal-panel{width:min(780px,calc(100vw - 40px));max-height:min(760px,calc(100vh - 40px));overflow:hidden}.form-detail-modal-body{padding:22px;overflow:auto}.form-detail-modal-body .forms-summary-head{padding-bottom:14px}.form-detail-modal-body .forms-summary-head h2{font-size:30px}.form-detail-modal-body .forms-simple-meta{margin:14px 0 18px}.form-detail-modal-body .forms-summary-share{margin-top:0;background:#fbfcfe;border:1px solid var(--line);border-left:4px solid var(--orange);border-radius:8px}.form-detail-modal-body .forms-summary-actions{display:flex;flex-wrap:wrap;gap:10px}.form-detail-modal-body .forms-summary-actions button{min-height:42px}.form-detail-modal-body .forms-summary-share .form-actions{align-items:end}.forms-center .tab-panel[data-panel="library"]{display:block}.forms-center .tab-panel[data-panel="library"]:not(.active){display:none}@media(max-width:820px){.forms-toolbar{grid-template-columns:1fr}.forms-list{grid-template-columns:1fr}.form-detail-modal-body .forms-summary-share{grid-template-columns:1fr}.form-detail-modal-body .forms-summary-share .form-actions{grid-column:1}.form-detail-modal-body .forms-summary-actions{display:grid;grid-template-columns:1fr 1fr}.form-detail-modal-body .forms-summary-actions button{width:100%}}@media(max-width:560px){.form-detail-modal-body .forms-summary-actions{grid-template-columns:1fr}.form-detail-modal-body .forms-summary-head{display:grid}.form-detail-modal-body .forms-summary-head h2{font-size:24px}}`;
 
 const plannedTabsCss = `.tabs button.tab-planned,.tabs button.tab-planned:hover,.tabs button.tab-planned.active{color:#64748b;background:repeating-linear-gradient(135deg,#eef2f7 0,#eef2f7 8px,#e2e8f0 8px,#e2e8f0 16px);border-color:#94a3b8;box-shadow:none;cursor:not-allowed;opacity:1;filter:grayscale(1)}.tabs button.tab-planned.active{box-shadow:inset 0 -3px #94a3b8}.tabs button.tab-planned small{display:inline-flex;margin-left:8px;border:1px solid #94a3b8;border-radius:999px;background:#f8fafc;padding:2px 7px;color:#475569;font-size:10px;font-weight:900;text-transform:uppercase;vertical-align:middle}.tabs button:not(.tab-planned) small{display:none}@media(max-width:620px){.tabs button.tab-planned small{display:none}}`;
 
@@ -2779,6 +2790,8 @@ const formsCenterJs = `(() => {
     builderGrid: center.querySelector('.forms-builder-grid'),
     modal: center.querySelector('[data-form-modal]'),
     modalBody: center.querySelector('[data-form-modal-body]'),
+    detailModal: center.querySelector('[data-form-detail-modal]'),
+    detailBody: center.querySelector('[data-form-detail-body]'),
     editorResponseCount: center.querySelector('[data-form-editor-response-count]'),
     editorResponseList: center.querySelector('[data-form-editor-response-list]')
   };
@@ -2849,7 +2862,9 @@ const formsCenterJs = `(() => {
     });
     center.addEventListener('click', (event) => {
       if (event.target.closest('[data-form-modal-close]')) closeFormModal();
+      if (event.target.closest('[data-form-detail-close]')) closeFormDetailModal();
       if (event.target === nodes.modal) closeFormModal();
+      if (event.target === nodes.detailModal) closeFormDetailModal();
       const copyLink = event.target.closest('[data-form-copy-link]');
       if (copyLink) {
         copyPublicLink();
@@ -2860,6 +2875,26 @@ const formsCenterJs = `(() => {
         window.open(publicFormUrl(), '_blank', 'noopener,noreferrer');
         return;
       }
+      const jump = event.target.closest('[data-tab-jump]');
+      if (jump) {
+        closeFormDetailModal();
+        switchTab(jump.dataset.tabJump);
+        return;
+      }
+      if (event.target.closest('[data-form-delete]')) {
+        deleteForm();
+        closeFormDetailModal();
+        return;
+      }
+      if (event.target.closest('[data-form-duplicate]')) {
+        duplicateForm();
+        openFormDetailModal();
+        return;
+      }
+      if (event.target.closest('[data-form-edit]')) {
+        closeFormDetailModal();
+        openFormModal();
+      }
     });
     nodes.search?.addEventListener('input', renderLibrary);
     nodes.typeFilter?.addEventListener('change', renderLibrary);
@@ -2867,6 +2902,7 @@ const formsCenterJs = `(() => {
       const button = event.target.closest('[data-form-id]');
       if (!button) return;
       selectForm(button.dataset.formId);
+      openFormDetailModal();
     });
     nodes.summary.addEventListener('click', (event) => {
       const jump = event.target.closest('[data-tab-jump]');
@@ -2974,9 +3010,23 @@ const formsCenterJs = `(() => {
       builderHome = null;
     }
     nodes.modal.hidden = true;
-    document.body.classList.remove('modal-open');
+    if (!nodes.detailModal || nodes.detailModal.hidden) document.body.classList.remove('modal-open');
     lastFocus?.focus?.();
     render();
+  }
+
+  function openFormDetailModal() {
+    if (!nodes.detailModal || !nodes.detailBody) return;
+    nodes.detailBody.innerHTML = formDetailHtml();
+    nodes.detailModal.hidden = false;
+    document.body.classList.add('modal-open');
+    nodes.detailModal.querySelector('[data-form-detail-close]')?.focus();
+  }
+
+  function closeFormDetailModal() {
+    if (!nodes.detailModal || nodes.detailModal.hidden) return;
+    nodes.detailModal.hidden = true;
+    if (!nodes.modal || nodes.modal.hidden) document.body.classList.remove('modal-open');
   }
 
   function saveDraft() {
@@ -3279,12 +3329,17 @@ const formsCenterJs = `(() => {
 
   function renderSummary() {
     if (!selectedId && !draft.title) {
-      nodes.summary.innerHTML = '<div class=\"empty-state\">Create a form or apply a template to start.</div>';
+      nodes.summary.innerHTML = '';
       return;
     }
+    nodes.summary.innerHTML = '';
+    if (nodes.detailModal && !nodes.detailModal.hidden && nodes.detailBody) nodes.detailBody.innerHTML = formDetailHtml();
+  }
+
+  function formDetailHtml() {
     const count = responses.filter((response) => response.formId === draft.id).length;
     const publicUrl = publicFormUrl();
-    nodes.summary.innerHTML = '<div class=\"forms-summary-head\"><div><h2>' + escapeHtml(draft.title || 'Unsaved form') + '</h2><p class=\"muted\">' + escapeHtml(draft.description || 'No description yet.') + '</p></div><span>' + escapeHtml(draft.status || 'Draft') + '</span></div>' +
+    return '<div class=\"forms-summary-head\"><div><h2>' + escapeHtml(draft.title || 'Unsaved form') + '</h2><p class=\"muted\">' + escapeHtml(draft.description || 'No description yet.') + '</p></div><span>' + escapeHtml(draft.status || 'Draft') + '</span></div>' +
       '<div class=\"forms-simple-meta\"><span>' + escapeHtml(draft.type || 'Inspection') + '</span><button type=\"button\" data-tab-jump=\"responses\">' + count + ' responses</button><span>' + draft.questions.length + ' questions</span></div>' +
       '<div class=\"share-card forms-summary-share\"><strong>Respondent link</strong><input readonly value=\"' + escapeHtml(publicUrl) + '\"><div class=\"form-actions\"><button class=\"primary-button\" type=\"button\" data-form-open-public>Open</button><button class=\"secondary-button\" type=\"button\" data-form-copy-link>Copy</button></div></div>' +
       '<div class=\"form-actions forms-summary-actions\"><button class=\"primary-button\" type=\"button\" data-form-edit>Edit Form</button><button class=\"secondary-button\" type=\"button\" data-tab-jump=\"preview\">Preview</button><button class=\"secondary-button\" type=\"button\" data-tab-jump=\"responses\">Responses</button><button class=\"secondary-button\" type=\"button\" data-form-duplicate>Duplicate</button><button class=\"danger-button\" type=\"button\" data-form-delete>Delete Form</button></div>';
@@ -3864,7 +3919,7 @@ async function writeTarget(target) {
   const absolute = path.resolve(target);
   if (target !== '.') await rm(absolute, { recursive: true, force: true });
   await mkdir(path.join(absolute, 'assets'), { recursive: true });
-  await writeFile(path.join(absolute, 'assets', 'quest-hq.css'), css + sidebarPolishCss + modalCss + plannedNavCss + fileViewerCss + fileCenterCss + driveFileCss + jobCenterCss + coreDemoCss + companyAdminCss + analyticsCss + formsCenterCss + googleFormsCss + formShareCss + formsLayoutRedoCss + plannedTabsCss + tutorialCss);
+  await writeFile(path.join(absolute, 'assets', 'quest-hq.css'), css + sidebarPolishCss + modalCss + plannedNavCss + fileViewerCss + fileCenterCss + driveFileCss + jobCenterCss + coreDemoCss + companyAdminCss + analyticsCss + formsCenterCss + googleFormsCss + formShareCss + formsLayoutRedoCss + formsLibraryModalCss + plannedTabsCss + tutorialCss);
   await writeFile(path.join(absolute, 'assets', 'quest-hq.js'), js + jobCenterJs + fileCenterJs + companyAdminJs + analyticsJs + commandCenterJs + taskBridgeJs + formsCenterJs + tutorialJs);
   await writeFile(path.join(absolute, 'index.html'), commandPage());
   await writeFile(path.join(absolute, 'jobs.html'), jobsPage());

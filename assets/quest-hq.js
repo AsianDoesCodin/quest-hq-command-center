@@ -1644,6 +1644,8 @@ function escapeHtml(value) {
     builderGrid: center.querySelector('.forms-builder-grid'),
     modal: center.querySelector('[data-form-modal]'),
     modalBody: center.querySelector('[data-form-modal-body]'),
+    detailModal: center.querySelector('[data-form-detail-modal]'),
+    detailBody: center.querySelector('[data-form-detail-body]'),
     editorResponseCount: center.querySelector('[data-form-editor-response-count]'),
     editorResponseList: center.querySelector('[data-form-editor-response-list]')
   };
@@ -1714,7 +1716,9 @@ function escapeHtml(value) {
     });
     center.addEventListener('click', (event) => {
       if (event.target.closest('[data-form-modal-close]')) closeFormModal();
+      if (event.target.closest('[data-form-detail-close]')) closeFormDetailModal();
       if (event.target === nodes.modal) closeFormModal();
+      if (event.target === nodes.detailModal) closeFormDetailModal();
       const copyLink = event.target.closest('[data-form-copy-link]');
       if (copyLink) {
         copyPublicLink();
@@ -1725,6 +1729,26 @@ function escapeHtml(value) {
         window.open(publicFormUrl(), '_blank', 'noopener,noreferrer');
         return;
       }
+      const jump = event.target.closest('[data-tab-jump]');
+      if (jump) {
+        closeFormDetailModal();
+        switchTab(jump.dataset.tabJump);
+        return;
+      }
+      if (event.target.closest('[data-form-delete]')) {
+        deleteForm();
+        closeFormDetailModal();
+        return;
+      }
+      if (event.target.closest('[data-form-duplicate]')) {
+        duplicateForm();
+        openFormDetailModal();
+        return;
+      }
+      if (event.target.closest('[data-form-edit]')) {
+        closeFormDetailModal();
+        openFormModal();
+      }
     });
     nodes.search?.addEventListener('input', renderLibrary);
     nodes.typeFilter?.addEventListener('change', renderLibrary);
@@ -1732,6 +1756,7 @@ function escapeHtml(value) {
       const button = event.target.closest('[data-form-id]');
       if (!button) return;
       selectForm(button.dataset.formId);
+      openFormDetailModal();
     });
     nodes.summary.addEventListener('click', (event) => {
       const jump = event.target.closest('[data-tab-jump]');
@@ -1839,9 +1864,23 @@ function escapeHtml(value) {
       builderHome = null;
     }
     nodes.modal.hidden = true;
-    document.body.classList.remove('modal-open');
+    if (!nodes.detailModal || nodes.detailModal.hidden) document.body.classList.remove('modal-open');
     lastFocus?.focus?.();
     render();
+  }
+
+  function openFormDetailModal() {
+    if (!nodes.detailModal || !nodes.detailBody) return;
+    nodes.detailBody.innerHTML = formDetailHtml();
+    nodes.detailModal.hidden = false;
+    document.body.classList.add('modal-open');
+    nodes.detailModal.querySelector('[data-form-detail-close]')?.focus();
+  }
+
+  function closeFormDetailModal() {
+    if (!nodes.detailModal || nodes.detailModal.hidden) return;
+    nodes.detailModal.hidden = true;
+    if (!nodes.modal || nodes.modal.hidden) document.body.classList.remove('modal-open');
   }
 
   function saveDraft() {
@@ -2144,12 +2183,17 @@ function escapeHtml(value) {
 
   function renderSummary() {
     if (!selectedId && !draft.title) {
-      nodes.summary.innerHTML = '<div class="empty-state">Create a form or apply a template to start.</div>';
+      nodes.summary.innerHTML = '';
       return;
     }
+    nodes.summary.innerHTML = '';
+    if (nodes.detailModal && !nodes.detailModal.hidden && nodes.detailBody) nodes.detailBody.innerHTML = formDetailHtml();
+  }
+
+  function formDetailHtml() {
     const count = responses.filter((response) => response.formId === draft.id).length;
     const publicUrl = publicFormUrl();
-    nodes.summary.innerHTML = '<div class="forms-summary-head"><div><h2>' + escapeHtml(draft.title || 'Unsaved form') + '</h2><p class="muted">' + escapeHtml(draft.description || 'No description yet.') + '</p></div><span>' + escapeHtml(draft.status || 'Draft') + '</span></div>' +
+    return '<div class="forms-summary-head"><div><h2>' + escapeHtml(draft.title || 'Unsaved form') + '</h2><p class="muted">' + escapeHtml(draft.description || 'No description yet.') + '</p></div><span>' + escapeHtml(draft.status || 'Draft') + '</span></div>' +
       '<div class="forms-simple-meta"><span>' + escapeHtml(draft.type || 'Inspection') + '</span><button type="button" data-tab-jump="responses">' + count + ' responses</button><span>' + draft.questions.length + ' questions</span></div>' +
       '<div class="share-card forms-summary-share"><strong>Respondent link</strong><input readonly value="' + escapeHtml(publicUrl) + '"><div class="form-actions"><button class="primary-button" type="button" data-form-open-public>Open</button><button class="secondary-button" type="button" data-form-copy-link>Copy</button></div></div>' +
       '<div class="form-actions forms-summary-actions"><button class="primary-button" type="button" data-form-edit>Edit Form</button><button class="secondary-button" type="button" data-tab-jump="preview">Preview</button><button class="secondary-button" type="button" data-tab-jump="responses">Responses</button><button class="secondary-button" type="button" data-form-duplicate>Duplicate</button><button class="danger-button" type="button" data-form-delete>Delete Form</button></div>';
