@@ -15,6 +15,10 @@
   })();
   const questClient = window.supabase && window.supabase.createClient ? window.supabase.createClient(QUEST_SUPABASE_URL, QUEST_SUPABASE_KEY) : null;
   window.QuestAuth = { client: questClient, session: null, user: null, profile: null };
+  window.createQuestSupabaseClient = (url, key) => {
+    if (window.QuestAuth && window.QuestAuth.client) return window.QuestAuth.client;
+    return window.supabase && window.supabase.createClient ? window.supabase.createClient(url, key) : null;
+  };
 
   initQuestAuth();
 
@@ -445,7 +449,11 @@
       setSync('Local fallback', 'local');
       return;
     }
-    supabaseClient = window.supabase.createClient(url, key);
+    supabaseClient = window.createQuestSupabaseClient(url, key);
+    if (!supabaseClient) {
+      setSync('Local fallback', 'local');
+      return;
+    }
     await refreshCompanies();
     await refreshFromSupabase();
   }
@@ -965,7 +973,12 @@
       renderEmpty('Supabase client is not available on this page.');
       return;
     }
-    client = window.supabase.createClient(center.dataset.supabaseUrl, center.dataset.supabaseKey);
+    client = window.createQuestSupabaseClient(center.dataset.supabaseUrl, center.dataset.supabaseKey);
+    if (!client) {
+      setSync('Supabase unavailable', 'error');
+      renderEmpty('Supabase client is not available on this page.');
+      return;
+    }
     await refreshAll();
   }
 
@@ -1475,7 +1488,12 @@
       render();
       return;
     }
-    client = window.supabase.createClient(admin.dataset.supabaseUrl, admin.dataset.supabaseKey);
+    client = window.createQuestSupabaseClient(admin.dataset.supabaseUrl, admin.dataset.supabaseKey);
+    if (!client) {
+      setSync('Supabase unavailable', 'error');
+      render();
+      return;
+    }
     await loadCompanies();
   }
 
@@ -1647,7 +1665,12 @@
       render([]);
       return;
     }
-    const client = window.supabase.createClient(page.dataset.supabaseUrl, page.dataset.supabaseKey);
+    const client = window.createQuestSupabaseClient(page.dataset.supabaseUrl, page.dataset.supabaseKey);
+    if (!client) {
+      setSync('Supabase unavailable', 'error');
+      render([]);
+      return;
+    }
     const { data, error } = await client.from('jobs').select('id,name,stage,priority,estimate_total,task_count').order('updated_at', { ascending: false });
     if (error) {
       console.error(error);
@@ -1722,7 +1745,8 @@
   async function init() {
     render(seed, 'local');
     if (!window.supabase) return setSync('Local fallback', 'local');
-    const client = window.supabase.createClient(center.dataset.supabaseUrl, center.dataset.supabaseKey);
+    const client = window.createQuestSupabaseClient(center.dataset.supabaseUrl, center.dataset.supabaseKey);
+    if (!client) return setSync('Local fallback', 'local');
     const { data, error } = await client.from('jobs').select('*').order('updated_at', { ascending: false });
     if (error) {
       console.error(error);
@@ -1816,7 +1840,8 @@
   async function init() {
     render(pickJob(seed), 'local');
     if (!window.supabase) return setSync('Local fallback', 'local');
-    const client = window.supabase.createClient(bridge.dataset.supabaseUrl, bridge.dataset.supabaseKey);
+    const client = window.createQuestSupabaseClient(bridge.dataset.supabaseUrl, bridge.dataset.supabaseKey);
+    if (!client) return setSync('Local fallback', 'local');
     const query = client.from('jobs').select('*');
     const request = requestedId ? query.eq('id', requestedId).limit(1) : query.order('updated_at', { ascending: false }).limit(1);
     const { data, error } = await request;
@@ -3109,5 +3134,7 @@ function escapeHtml(value) {
     if (event.key === 'ArrowLeft' && !nodes.back.disabled) nodes.back.click();
   });
 
-  setTimeout(() => openTour(false), 650);
+  if (new URLSearchParams(window.location.search).get('tour') === '1') {
+    setTimeout(() => openTour(true), 650);
+  }
 })();
