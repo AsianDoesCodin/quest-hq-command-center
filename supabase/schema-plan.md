@@ -156,6 +156,27 @@ group by t.project_id;
 
 If TaskManagement lives in a separate Supabase project, expose rollups through an API or scheduled sync table instead of duplicating task management UI in Quest HQ.
 
+## TaskManagement Import Boundary
+
+The TaskManagement source repo has been copied locally for reference only:
+
+```text
+C:\Users\Joshua\Desktop\Quest roofing\TaskManagementQuest-upstream-copy
+```
+
+Do not edit or push to the upstream TaskManagement repo. Do not run migrations against the upstream Supabase project `qqvmcsvdxhgjooirznrj`.
+
+Quest HQ should absorb the useful identity and operating model into its own Supabase project with a clean migration:
+
+- `auth.users -> profiles`
+- `profiles.member_id -> team_members.id`
+- `profiles.company_ids -> company access`
+- `team_members.supervisor_id -> team chart`
+- `jobs.id -> tasks.project_id`
+- approvals, notifications, time entries, and active timers as Quest HQ-owned tables or views
+
+Do not replay TaskManagement's historical migrations directly into Quest HQ. They include old policy transitions and table assumptions that should be consolidated before production.
+
 ## Row Level Security Strategy
 
 Initial RLS policy direction:

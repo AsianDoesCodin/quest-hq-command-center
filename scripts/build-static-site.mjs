@@ -1,14 +1,14 @@
 import { mkdir, rm, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 
-const buildId = 'Forms Builder v26';
+const buildId = 'TaskManagement Integration v1';
 const assetVersion = buildId.toLowerCase().replace(/[^a-z0-9]+/g, '-');
 const targets = ['.', 'dist', 'docs'];
 
 const nav = [
   ['index.html', 'Command Center', 'home', 'live'],
   ['jobs.html', 'Jobs', 'briefcase', 'live'],
-  ['https://task-management-quest.vercel.app', 'TaskManagement', 'kanban', 'live'],
+  ['task-management.html', 'TaskManagement', 'kanban', 'live'],
   ['crm.html', 'CRM', 'users', 'planned'],
   ['forms.html', 'Forms & Surveys', 'clipboard', 'live'],
   ['tickets.html', 'Tickets', 'ticket', 'planned'],
@@ -203,11 +203,12 @@ for (const [moduleId, module] of Object.entries(modules)) {
   module.seed = [];
 }
 
-modules.admin.metrics = [['Users', '0'], ['Pending', '0'], ['Companies', 'Live'], ['Roles', '0']];
+modules.admin.metrics = [['Users', '6'], ['Pending', '1'], ['Companies', 'Live'], ['Roles', '5']];
 modules.admin.tabs = [
   ['Companies', adminCompanyManager()],
-  ['Users', emptyModuleWorkspace('admin', 'Users')],
-  ['Settings', emptyModuleWorkspace('admin', 'Settings')]
+  ['Users & Roles', adminAccessCenter()],
+  ['Approvals', adminApprovalCenter()],
+  ['Team Chart', adminTeamChart()]
 ];
 
 modules.dashboards.metrics = [['Active Jobs', '0'], ['Urgent', '0'], ['Linked Tasks', '0'], ['Pipeline', '$0']];
@@ -320,7 +321,7 @@ function commandPage() {
         <div class="quick-action-grid">
           <a href="jobs.html?action=new">Create job<span>Supabase job record</span></a>
           <a href="jobs.html">Open Job Center<span>Pipeline, list, profile, editor</span></a>
-          <a href="task-management.html">Task bridge<span>project_id handoff preview</span></a>
+          <a href="task-management.html">TaskManagement<span>Job-scoped execution hub</span></a>
           <a href="files.html">Files viewer<span>File cabinet workspace</span></a>
         </div>
       </section>
@@ -443,26 +444,52 @@ function jobsPage() {
 }
 
 function taskManagementPage() {
-  const content = `<section class="workspace task-bridge-page" data-task-bridge data-supabase-url="https://lpzotcznihwyyudxycmd.supabase.co" data-supabase-key="sb_publishable_Gd1aHMtItu-7daoq2YofeA_9wl1pQ07">
-    <div class="page-heading">
-      <div><div class="eyebrow">TaskManagement Bridge</div><h1>Work execution handoff</h1><p>Integration bridge for TaskManagement. Quest HQ keeps job context; TaskManagement owns execution.</p></div>
-      <div class="job-actions"><span class="sync-pill" data-bridge-sync>Loading job...</span><a class="primary-button" data-bridge-return href="jobs.html">Return to Job</a></div>
+  const content = `<section class="workspace task-hub" data-task-bridge data-supabase-url="https://lpzotcznihwyyudxycmd.supabase.co" data-supabase-key="sb_publishable_Gd1aHMtItu-7daoq2YofeA_9wl1pQ07">
+    <div class="job-command panel">
+      <span class="sync-pill" data-bridge-sync>Loading job...</span>
+      <a class="secondary-button" data-bridge-return href="jobs.html">Return to Job</a>
+      <a class="secondary-button" href="admin.html">People & Access</a>
+      <a class="primary-button" href="jobs.html?action=new">New Job Workspace</a>
     </div>
-    <div class="bridge-hero panel">
-      <div><span>Quest HQ job id</span><code data-bridge-job-id>pending</code></div>
-      <strong>maps to</strong>
-      <div><span>TaskManagement project_id</span><code data-bridge-project-id>pending</code></div>
-    </div>
-    <div class="task-bridge-grid">
-      <section class="panel wide-panel">
+    <div class="task-hub-grid">
+      <section class="panel task-context-panel">
         <div class="job-section-heading"><h2 data-bridge-title>Selected Job</h2><span data-bridge-stage>Stage</span></div>
+        <div class="bridge-identity-grid">
+          <span><strong>Quest HQ job id</strong><code data-bridge-job-id>pending</code></span>
+          <span><strong>Task project_id</strong><code data-bridge-project-id>pending</code></span>
+        </div>
+        <div class="task-metric-row">
+          <span><strong data-bridge-metric="tasks">0</strong><small>Total tasks</small></span>
+          <span><strong data-bridge-metric="open">0</strong><small>Open</small></span>
+          <span><strong data-bridge-metric="completed">0</strong><small>Completed</small></span>
+          <span><strong data-bridge-metric="overdue">0</strong><small>Overdue</small></span>
+        </div>
+      </section>
+      <section class="panel task-work-panel">
+        <div class="job-section-heading"><h2>Execution Queue</h2><span>Job-scoped</span></div>
         <div class="bridge-task-list" data-bridge-tasks></div>
       </section>
-      <aside class="panel bridge-contract">
-        <h2>Handoff Contract</h2>
-        <div data-bridge-contract></div>
-        <a class="secondary-button" href="https://github.com/ShanIngrid1207/TaskManagementQuest/tree/main">View TaskManagement Repo</a>
+      <aside class="panel task-admin-snapshot">
+        <h2>Access Model</h2>
+        <div class="access-flow">
+          <span><strong>Auth user</strong><small>Supabase login identity</small></span>
+          <span><strong>Profile</strong><small>Approval, role, company access</small></span>
+          <span><strong>Team member</strong><small>Roster, supervisor, task assignee</small></span>
+        </div>
+        <a class="secondary-button" href="admin.html">Manage access</a>
       </aside>
+      <aside class="panel task-approval-snapshot">
+        <div class="job-section-heading"><h2>Approval Queue</h2><span>Admin-owned</span></div>
+        <div class="approval-mini-list">
+          <span><strong>Adrian Alegria</strong><small>Pending Lumen access</small></span>
+          <span><strong>Estimate approval</strong><small>Client signoff routes through Forms</small></span>
+          <span><strong>Task completion</strong><small>Supervisor review before closeout</small></span>
+        </div>
+      </aside>
+      <section class="panel bridge-contract">
+        <div class="job-section-heading"><h2>Integration Contract</h2><span>Copied from TaskManagement model</span></div>
+        <div data-bridge-contract></div>
+      </section>
     </div>
   </section>`;
   return shell({ file: 'task-management.html', title: 'TaskManagement', moduleId: 'task-bridge', content, seed: jobSeed });
@@ -872,6 +899,107 @@ function adminCompanyManager() {
   </div>`;
 }
 
+function adminAccessCenter() {
+  const people = taskManagementPeople();
+  return `<div class="identity-admin-grid">
+    <section class="panel identity-overview">
+      <div class="job-section-heading"><h2>Login and Access Model</h2><span>TaskManagement import</span></div>
+      <div class="identity-flow">
+        <span><strong>auth.users</strong><small>Supabase account and session</small></span>
+        <span><strong>profiles</strong><small>approval, role, company_ids, member_id</small></span>
+        <span><strong>team_members</strong><small>task assignee, org chart, active roster</small></span>
+        <span><strong>jobs.id</strong><small>feeds tasks.project_id</small></span>
+      </div>
+    </section>
+    <section class="panel identity-table-panel">
+      <div class="job-section-heading"><h2>Users and Roles</h2><span>${people.length} profiles</span></div>
+      <div class="identity-table">
+        ${people.map((person) => `<div>
+          <strong>${person.name}<small>${person.email}</small></strong>
+          <span>${person.role}</span>
+          <span>${person.companies}</span>
+          <b class="${person.approved ? 'ok' : 'warn'}">${person.approved ? 'Approved' : 'Pending'}</b>
+        </div>`).join('')}
+      </div>
+    </section>
+    <aside class="panel permission-panel">
+      <h2>Role Permissions</h2>
+      <div class="permission-list">
+        ${[
+          ['Worker / Sales', 'Own tasks, own time, job-scoped execution'],
+          ['Supervisor', 'Team tasks, own time, hierarchy view'],
+          ['Admin', 'Approvals, roles, clock admin, all assigned companies'],
+          ['Developer', 'Debug access and all-company visibility']
+        ].map((row) => `<span><strong>${row[0]}</strong><small>${row[1]}</small></span>`).join('')}
+      </div>
+    </aside>
+  </div>`;
+}
+
+function adminApprovalCenter() {
+  const approvals = [
+    ['Adrian Alegria', 'New account', 'Lumen', 'Awaiting admin approval'],
+    ['Andres', 'Company access', 'Drafting', 'Confirm drafting assignment'],
+    ['Kristine', 'Supervisor link', 'Roofing', 'Reports to Jesus'],
+    ['Sales role', 'Role policy', 'All companies', 'Sales remains worker-equivalent']
+  ];
+  return `<div class="identity-admin-grid">
+    <section class="panel approval-board">
+      <div class="job-section-heading"><h2>Approval Queue</h2><span>${approvals.length} items</span></div>
+      <div class="approval-list">
+        ${approvals.map((item, index) => `<article>
+          <span>${String(index + 1).padStart(2, '0')}</span>
+          <strong>${item[0]}<small>${item[1]}</small></strong>
+          <em>${item[2]}</em>
+          <b>${item[3]}</b>
+        </article>`).join('')}
+      </div>
+    </section>
+    <aside class="panel approval-policy">
+      <h2>Approval Rules</h2>
+      <p class="muted">New users can sign up, but they should not enter Job Center or TaskManagement until a profile is approved and assigned to one or more companies.</p>
+      <div class="permission-list">
+        <span><strong>Pending</strong><small>Can only see waiting screen.</small></span>
+        <span><strong>Approved</strong><small>Can access modules allowed by role.</small></span>
+        <span><strong>Company scoped</strong><small>Sees only jobs and tasks for assigned companies.</small></span>
+      </div>
+    </aside>
+  </div>`;
+}
+
+function adminTeamChart() {
+  return `<div class="panel team-chart-panel">
+    <div class="job-section-heading"><h2>Team Chart</h2><span>Profiles to team_members</span></div>
+    <div class="team-chart">
+      <article class="team-node lead"><strong>Abraham Maldonado</strong><span>Admin / All companies</span></article>
+      <div class="team-branches">
+        <section>
+          <article class="team-node"><strong>Alkeith Cabezzas</strong><span>Supervisor / Roofing</span></article>
+          <article class="team-node"><strong>Kristine</strong><span>Worker / Roofing</span></article>
+        </section>
+        <section>
+          <article class="team-node"><strong>Jesus</strong><span>Supervisor / Roofing</span></article>
+          <article class="team-node"><strong>Andres</strong><span>Worker / Drafting</span></article>
+        </section>
+        <section>
+          <article class="team-node"><strong>Adrian Alegria</strong><span>Pending / Lumen</span></article>
+        </section>
+      </div>
+    </div>
+  </div>`;
+}
+
+function taskManagementPeople() {
+  return [
+    { name: 'Abraham Maldonado', email: 'abraham@quest.com', role: 'Admin', companies: 'Roofing, Drafting, Lumen', approved: true },
+    { name: 'Alkeith Cabezzas', email: 'alkeith@questroofing.com', role: 'Supervisor', companies: 'Roofing', approved: true },
+    { name: 'Kristine', email: 'kristine@questroofing.com', role: 'Worker', companies: 'Roofing', approved: true },
+    { name: 'Jesus', email: 'jesus@questroofing.com', role: 'Supervisor', companies: 'Roofing', approved: true },
+    { name: 'Andres', email: 'andres@questdrafting.com', role: 'Worker', companies: 'Drafting', approved: true },
+    { name: 'Adrian Alegria', email: 'adrian@lumen.com', role: 'Member', companies: 'Lumen', approved: false }
+  ];
+}
+
 function metric(label, value) {
   const analyticsKey = {
     'Active Jobs': 'active',
@@ -1112,6 +1240,7 @@ const driveFileCss = `.drive-app{padding:0;overflow:hidden}.drive-header{display
 const jobCenterCss = `.job-actions{display:flex;align-items:center;gap:10px;flex-wrap:wrap;justify-content:flex-end}.sync-pill{display:inline-flex;align-items:center;justify-content:center;min-height:34px;border:1px solid var(--line);border-radius:999px;background:#fff;color:#52627a;padding:0 12px;font-size:12px;font-weight:900;text-transform:uppercase;white-space:nowrap}.sync-pill.live{border-color:#bbf7d0;background:#f0fdf4;color:#166534}.sync-pill.local{border-color:#fed7aa;background:#fff7ed;color:#9a3412}.sync-pill.error{border-color:#fecaca;background:#fef2f2;color:#991b1b}.job-command{display:grid;grid-template-columns:minmax(280px,1fr) 210px auto auto auto;gap:12px;align-items:end;margin-bottom:18px}.job-search{display:grid;grid-template-columns:auto minmax(0,1fr);gap:10px;align-items:center;border:1px solid var(--line);border-radius:999px;background:#f8fafc;padding:0 14px;min-height:42px;color:#617089;font-size:12px;font-weight:900;text-transform:uppercase}.job-search input,.job-command select,.job-editor input,.job-editor textarea,.job-editor select{width:100%;border:1px solid var(--line);border-radius:8px;background:#fff;color:var(--ink);padding:11px}.job-search input{border:0;background:transparent;outline:0;text-transform:none;font-size:14px;font-weight:650}.job-board{display:grid;grid-template-columns:repeat(5,minmax(190px,1fr));gap:12px;align-items:start}.job-lane{min-height:340px;background:#f8fafc;border:1px solid var(--line);border-radius:8px;padding:12px}.job-lane h2{display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:15px;margin-bottom:12px}.job-lane h2 span{display:grid;place-items:center;min-width:25px;height:25px;border-radius:999px;background:#fff;border:1px solid var(--line);font-size:12px;color:#52627a}.job-card{width:100%;border:1px solid var(--line);border-radius:8px;background:#fff;padding:12px;text-align:left;cursor:pointer;box-shadow:0 10px 26px rgba(24,35,55,.06);margin-bottom:10px}.job-card:hover,.job-card.active{border-color:#f97316;background:#fff8f5}.job-card strong,.job-card span,.job-card small{display:block}.job-card strong{font-size:15px}.job-card span{color:#52627a;margin-top:6px}.job-card small{margin-top:10px;color:#617089;font-weight:800}.priority-urgent{box-shadow:inset 4px 0 #dc2626}.priority-high{box-shadow:inset 4px 0 #f97316}.priority-medium{box-shadow:inset 4px 0 #2563eb}.priority-low{box-shadow:inset 4px 0 #16a34a}.job-section-heading{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:14px}.job-section-heading h2{margin-bottom:0}.job-section-heading span{color:#617089;font-size:13px;font-weight:850}.job-table{display:grid;gap:8px}.job-row{display:grid;grid-template-columns:minmax(220px,1.2fr) 130px 150px 110px 110px 90px;gap:12px;align-items:center;border:1px solid var(--line);border-radius:8px;background:#fbfcfe;padding:12px;text-align:left;cursor:pointer}.job-row:hover,.job-row.active{border-color:#f97316;background:#fff8f5}.job-row strong,.job-row span{display:block}.job-row span{color:#617089;font-size:13px;font-weight:750}.job-profile-grid{display:grid;grid-template-columns:minmax(0,1fr) 320px;gap:18px}.job-profile-hero{min-height:220px;border-radius:8px;background:linear-gradient(90deg,rgba(17,24,39,.9),rgba(17,24,39,.35)),url('https://images.unsplash.com/photo-1503387762-592deb58ef4e?auto=format&fit=crop&w=1400&q=80');background-size:cover;background-position:center;color:#fff;padding:24px;display:flex;flex-direction:column;justify-content:flex-end;margin-bottom:16px}.job-profile-hero h2{font-size:30px;margin-bottom:8px}.job-profile-hero p{max-width:820px;color:#e5edf8;margin-bottom:0}.job-detail-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}.job-detail-grid div,.job-sidecar div{border:1px solid var(--line);border-radius:8px;background:#fbfcfe;padding:12px}.job-detail-grid strong,.job-detail-grid span,.job-sidecar strong,.job-sidecar span{display:block}.job-detail-grid strong,.job-sidecar strong{font-size:12px;text-transform:uppercase;color:#617089}.job-detail-grid span,.job-sidecar span{margin-top:5px;font-weight:850}.job-sidecar{display:grid;gap:10px;align-content:start}.job-editor{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.job-editor label{display:grid;gap:6px;font-size:12px;font-weight:850;text-transform:uppercase;color:#617089}.job-editor .span-2{grid-column:1/-1}.empty-state{border:1px dashed var(--line);border-radius:8px;padding:24px;background:#fbfcfe;color:#617089;font-weight:800;text-align:center}@media(max-width:1280px){.job-board{grid-template-columns:repeat(3,minmax(190px,1fr))}.job-profile-grid{grid-template-columns:1fr}.job-row{grid-template-columns:minmax(220px,1fr) repeat(3,auto)}}@media(max-width:860px){.job-command,.job-editor,.job-detail-grid,.job-row{grid-template-columns:1fr}.job-board{grid-template-columns:1fr}.job-actions{justify-content:flex-start}}`;
 
 const coreDemoCss = `.ops-dashboard-grid{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(300px,.65fr);gap:18px}.ops-job-list,.activity-feed,.quick-action-grid,.bridge-task-list,.bridge-contract>div{display:grid;gap:10px}.ops-job-list a,.quick-action-grid a,.activity-feed div,.bridge-task-list div,.bridge-contract span{display:block;border:1px solid var(--line);border-radius:8px;background:#fbfcfe;padding:12px}.ops-job-list a:hover,.quick-action-grid a:hover{border-color:#f97316;background:#fff8f5}.ops-job-list strong,.ops-job-list span,.quick-action-grid strong,.quick-action-grid span,.activity-feed strong,.activity-feed span,.bridge-task-list strong,.bridge-task-list span,.bridge-contract strong,.bridge-contract small{display:block}.ops-job-list span,.quick-action-grid span,.activity-feed span,.bridge-task-list span,.bridge-contract small{color:#617089;font-size:13px;margin-top:5px}.quick-action-grid a{font-weight:900}.linked-panel-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-top:16px}.linked-panel-grid a{border:1px solid var(--line);border-radius:8px;background:#fbfcfe;padding:12px}.linked-panel-grid a:hover{border-color:#f97316;background:#fff8f5}.linked-panel-grid strong,.linked-panel-grid span,.linked-panel-grid small{display:block}.linked-panel-grid span{font-weight:900;margin-top:8px}.linked-panel-grid small{color:#617089;margin-top:4px}.job-activity-panel{margin-top:16px}.job-activity-panel div:not(.job-section-heading){display:grid;grid-template-columns:180px minmax(0,1fr);gap:12px;border-top:1px solid var(--line);padding:11px 0}.job-activity-panel strong,.job-activity-panel span{display:block}.job-activity-panel span{color:#617089}.bridge-hero{display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);gap:18px;align-items:center;background:#111a27;color:#fff;margin-bottom:18px}.bridge-hero div{display:grid;gap:8px}.bridge-hero span{color:#aebbd0;font-size:12px;font-weight:900;text-transform:uppercase}.bridge-hero code{display:block;overflow:hidden;text-overflow:ellipsis;background:#fff;color:#111a27;border-radius:8px;padding:12px;font-weight:850}.bridge-hero strong{color:#ffd8c7}.task-bridge-grid{display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:18px}.bridge-task-list div{display:grid;grid-template-columns:minmax(0,1fr) 128px 118px;gap:12px;align-items:center}.bridge-task-list b{display:inline-flex;justify-content:center;white-space:nowrap;border-radius:999px;padding:5px 10px;background:#e8f0fe;color:#174ea6}.bridge-task-list b.overdue{background:#fee2e2;color:#b91c1c}.bridge-contract span{display:grid;gap:4px}.bridge-contract code{display:block;overflow:hidden;text-overflow:ellipsis;border-radius:6px;background:#eef2f7;padding:8px;color:#172033}@media(max-width:1180px){.ops-dashboard-grid,.task-bridge-grid{grid-template-columns:1fr}.linked-panel-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.bridge-hero{grid-template-columns:1fr}.bridge-task-list div{grid-template-columns:1fr}}@media(max-width:680px){.linked-panel-grid,.job-activity-panel div:not(.job-section-heading){grid-template-columns:1fr}}`;
+const identityIntegrationCss = `.task-hub-grid{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(300px,.75fr);gap:16px}.task-context-panel{grid-column:1/-1}.bridge-identity-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.bridge-identity-grid span,.task-metric-row span,.identity-flow span,.access-flow span,.permission-list span,.approval-mini-list span{display:block;border:1px solid var(--line);border-radius:8px;background:#fbfcfe;padding:12px}.bridge-identity-grid strong,.bridge-identity-grid code,.task-metric-row strong,.task-metric-row small,.identity-flow strong,.identity-flow small,.access-flow strong,.access-flow small,.permission-list strong,.permission-list small,.approval-mini-list strong,.approval-mini-list small{display:block}.bridge-identity-grid code{margin-top:6px;overflow:hidden;text-overflow:ellipsis;background:#eef2f7;border-radius:6px;padding:8px;color:#172033}.task-metric-row{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-top:12px}.task-metric-row strong{font-size:26px}.task-metric-row small,.identity-flow small,.access-flow small,.permission-list small,.approval-mini-list small{color:#617089;margin-top:4px}.task-admin-snapshot,.task-approval-snapshot{align-self:start}.access-flow,.permission-list,.approval-mini-list{display:grid;gap:10px}.task-admin-snapshot .secondary-button{margin-top:12px}.identity-admin-grid{display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:16px}.identity-overview,.identity-table-panel,.approval-board,.team-chart-panel{min-width:0}.identity-overview,.identity-table-panel,.approval-board{grid-column:1}.identity-flow{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}.identity-table,.approval-list{display:grid;gap:8px}.identity-table>div{display:grid;grid-template-columns:minmax(220px,1.2fr) 130px minmax(180px,1fr) 108px;gap:10px;align-items:center;border:1px solid var(--line);border-radius:8px;background:#fbfcfe;padding:12px}.identity-table strong,.identity-table small{display:block}.identity-table small{color:#617089;margin-top:4px;font-weight:700}.identity-table span{color:#27364d;font-weight:800}.identity-table b,.approval-list b{justify-self:start;border-radius:999px;padding:5px 10px;background:#dcfce7;color:#166534;font-size:12px}.identity-table b.warn{background:#fff7ed;color:#9a3412}.permission-panel,.approval-policy{grid-column:2;grid-row:1 / span 2;align-self:start}.approval-list article{display:grid;grid-template-columns:42px minmax(220px,1fr) 120px minmax(160px,.8fr);gap:12px;align-items:center;border:1px solid var(--line);border-radius:8px;background:#fbfcfe;padding:12px}.approval-list article>span{display:grid;place-items:center;width:32px;height:32px;border-radius:8px;background:#111827;color:#fff;font-weight:900}.approval-list strong,.approval-list small{display:block}.approval-list small{color:#617089;margin-top:4px}.approval-list em{font-style:normal;color:#52627a;font-weight:850}.team-chart{display:grid;gap:16px}.team-node{border:1px solid var(--line);border-radius:8px;background:#fbfcfe;padding:13px}.team-node.lead{border-color:#f45d22;background:#fff8f5}.team-node strong,.team-node span{display:block}.team-node span{color:#617089;margin-top:4px}.team-branches{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}.team-branches section{display:grid;gap:10px;border-top:3px solid #dbe3ed;padding-top:12px}@media(max-width:1180px){.task-hub-grid,.identity-admin-grid{grid-template-columns:1fr}.permission-panel,.approval-policy,.identity-overview,.identity-table-panel,.approval-board{grid-column:auto;grid-row:auto}.identity-flow,.team-branches{grid-template-columns:repeat(2,minmax(0,1fr))}.identity-table>div,.approval-list article{grid-template-columns:1fr}}@media(max-width:760px){.bridge-identity-grid,.task-metric-row,.identity-flow,.team-branches{grid-template-columns:1fr}}`;
 
 const companyAdminCss = `.company-admin{padding:0;overflow:hidden}.company-admin-header{display:flex;justify-content:space-between;gap:18px;align-items:flex-start;padding:18px;border-bottom:1px solid var(--line);background:#fff}.company-admin-header h2{margin-bottom:4px}.company-admin-actions{display:flex;gap:10px;align-items:center;flex-wrap:wrap;justify-content:flex-end}.company-admin-layout{display:grid;grid-template-columns:minmax(320px,.85fr) minmax(360px,1fr);gap:0;min-height:520px}.company-list-wrap{border-right:1px solid var(--line);background:#f8fafc;padding:16px}.company-list{display:grid;gap:10px}.company-card{display:grid;grid-template-columns:44px minmax(0,1fr) auto;gap:12px;align-items:center;width:100%;border:1px solid var(--line);border-radius:8px;background:#fff;padding:12px;text-align:left;cursor:pointer}.company-card:hover,.company-card.active{border-color:#f97316;background:#fff8f5}.company-card.active{box-shadow:inset 3px 0 var(--orange)}.company-logo{display:grid;place-items:center;width:42px;height:42px;border-radius:8px;color:#fff;font-weight:900}.company-card strong,.company-card span,.company-card small{display:block}.company-card span{color:#617089;font-size:13px;margin-top:4px}.company-card small{font-size:12px;color:#52627a;font-weight:850;text-transform:uppercase}.company-editor{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;align-content:start;padding:18px;background:#fff}.company-editor label{display:grid;gap:6px;font-size:12px;font-weight:850;text-transform:uppercase;color:#617089}.company-editor input{width:100%;border:1px solid var(--line);border-radius:8px;background:#fff;color:var(--ink);padding:11px}.company-editor input[readonly]{background:#f8fafc;color:#617089}.company-policy-note{border:1px solid #fed7aa;border-radius:8px;background:#fff7ed;color:#9a3412;padding:12px}.company-policy-note strong,.company-policy-note span{display:block}.company-policy-note span{margin-top:4px;font-size:13px;line-height:1.45}@media(max-width:1050px){.company-admin-layout{grid-template-columns:1fr}.company-list-wrap{border-right:0;border-bottom:1px solid var(--line)}}@media(max-width:680px){.company-admin-header,.company-editor{grid-template-columns:1fr}.company-admin-header{display:grid}.company-admin-actions{justify-content:flex-start}.company-card{grid-template-columns:42px minmax(0,1fr)}.company-card small{grid-column:2}.company-editor{grid-template-columns:1fr}}`;
 
@@ -1486,7 +1615,7 @@ const jobCenterJs = `(() => {
     nodes.sidecar.innerHTML = detail('Workspace', 'Business context and records') +
       detail('Files', number(job.file_count) + ' files attached') +
       detail('Company', companyLabel(job.company_id)) +
-      '<a class=\"secondary-button\" href=\"' + escapeHtml(bridgeUrl(job)) + '\">Open TaskManagement</a>' +
+      '<a class=\"secondary-button\" href=\"' + escapeHtml(bridgeUrl(job)) + '\">Open Task Hub</a>' +
       '<a class=\"secondary-button\" href=\"' + escapeHtml(fileUrl(job)) + '\">Open Files</a>' +
       '<button class=\"primary-button\" type=\"button\" data-edit-selected>Edit Job</button>';
     nodes.sidecar.querySelector('[data-edit-selected]')?.addEventListener('click', () => openJobModal('Edit Job'));
@@ -1494,7 +1623,7 @@ const jobCenterJs = `(() => {
 
   function linkedPanels(job) {
     const items = [
-      ['TaskManagement', 'Open work system', 'Tasks live there, linked by project_id', bridgeUrl(job)],
+      ['TaskManagement', 'Open execution hub', 'Tasks are scoped by project_id', bridgeUrl(job)],
       ['Files & Photos', number(job.file_count) + ' files', 'Photos, permits, estimates, invoices', fileUrl(job)],
       ['Forms & Inspections', inspectionCount(job) + ' records', 'Inspection, approval, walkthrough', 'forms.html'],
       ['Finance', money.format(number(job.estimate_total)) + ' estimate', 'Estimate, invoice, payment records', 'finance.html']
@@ -1705,7 +1834,7 @@ const jobCenterJs = `(() => {
       project_id: job.id,
       return_url: new URL('jobs.html?job_id=' + encodeURIComponent(job.id) + '&tab=profile', window.location.href).toString()
     });
-    return 'https://task-management-quest.vercel.app?' + params.toString();
+    return 'task-management.html?' + params.toString();
   }
 
   function fileUrl(job) {
@@ -2580,7 +2709,7 @@ const commandCenterJs = `(() => {
     return [
       ['Supabase status', mode === 'live' ? 'Live jobs loaded from Quest HQ project.' : 'Using local demo jobs.'],
       ['Priority review', (jobs.find((job) => job.priority === 'Urgent')?.name || first?.name || 'No urgent job') + ' is first in the operations queue.'],
-      ['Task bridge ready', sum(jobs, 'task_count') + ' linked tasks represented through project_id.'],
+      ['TaskManagement ready', sum(jobs, 'task_count') + ' linked tasks represented through project_id.'],
       ['Demo boundary', 'Jobs are live; adjacent modules remain linked demo workspaces today.']
     ];
   }
@@ -2688,12 +2817,13 @@ const taskBridgeJs = `(() => {
     setMetric('open', open);
     setMetric('completed', completed);
     setMetric('overdue', overdue);
-    nodes.tasks.innerHTML = '<article class=\"empty-state\">No live TaskManagement task rows are connected yet. This bridge shows the handoff contract and current job rollup only.</article>';
+    nodes.tasks.innerHTML = taskRows(job, open, completed, overdue);
     nodes.contract.innerHTML =
       contractRow('project_id', job.id) +
       contractRow('return_url', nodes.returnLink.href) +
       contractRow('source', mode === 'live' ? 'Quest HQ Supabase project' : 'Local demo fallback') +
-      contractRow('future behavior', 'TaskManagement filters tasks where task.project_id matches this job id.');
+      contractRow('profile link', 'profiles.member_id -> team_members.id') +
+      contractRow('company scope', 'profiles.company_ids controls visible jobs and tasks');
   }
 
   function pickJob(jobs) {
@@ -2716,6 +2846,20 @@ const taskBridgeJs = `(() => {
 
   function contractRow(label, value) {
     return '<span><strong>' + escapeHtml(label) + '</strong><code>' + escapeHtml(value) + '</code></span>';
+  }
+
+  function taskRows(job, open, completed, overdue) {
+    const total = number(job.task_count);
+    if (!total) {
+      return '<article class=\"empty-state\">No task rows are linked yet. When TaskManagement data is migrated, tasks with this project_id will appear here.</article>';
+    }
+    const rows = [
+      [job.name + ' execution kickoff', 'Open', job.owner_name || 'Unassigned', 'project_id matched'],
+      ['Supervisor review', overdue ? 'Overdue' : 'Review', 'Supervisor', overdue ? 'needs attention' : 'waiting review'],
+      ['Field closeout checklist', completed ? 'Done' : 'Open', 'Worker', completed + ' completed'],
+      ['Admin handoff', open ? 'Open' : 'Done', 'Admin', open + ' remaining']
+    ];
+    return rows.map((row) => '<div><strong>' + escapeHtml(row[0]) + '<span>' + escapeHtml(row[3]) + '</span></strong><b class=\"' + (row[1] === 'Overdue' ? 'overdue' : '') + '\">' + escapeHtml(row[1]) + '</b><span>' + escapeHtml(row[2]) + '</span></div>').join('');
   }
 
   function setMetric(name, value) {
@@ -3771,9 +3915,9 @@ const tutorialJs = `(() => {
       { selector: '[data-company-form]', title: 'Company Creation', body: 'Create or edit companies here, then use them in Job Center. This is the start of the future multi-company access model.' }
     ],
     'task-bridge': [
-      { selector: '.bridge-hero', title: 'Why This Is Not Another Task Manager', body: 'Quest HQ keeps the job context. TaskManagement remains where assignments, checklists, and execution happen.' },
+    { selector: '.task-context-panel', title: 'Why This Is Not Another Task Manager', body: 'Quest HQ keeps the job context. TaskManagement remains where assignments, checklists, and execution happen.' },
       { selector: '.bridge-contract', title: 'Integration Contract', body: 'The important handoff is stable: job.id becomes task.project_id, and return_url brings users back to the Quest HQ job profile.' },
-      { selector: '.bridge-task-list', title: 'Current Bridge Behavior', body: 'Today this page proves the contract and rollup shape. Once the real TaskManagement deployment is connected, it will filter tasks by project_id.' }
+    { selector: '.bridge-task-list', title: 'Execution Rows', body: 'Today this page renders job-scoped task rows from the selected job rollup. Once the database migration is ready, it will read live tasks where task.project_id matches the job id.' }
     ]
   };
 
@@ -3921,7 +4065,7 @@ async function writeTarget(target) {
   const absolute = path.resolve(target);
   if (target !== '.') await rm(absolute, { recursive: true, force: true });
   await mkdir(path.join(absolute, 'assets'), { recursive: true });
-  await writeFile(path.join(absolute, 'assets', 'quest-hq.css'), css + sidebarPolishCss + modalCss + plannedNavCss + fileViewerCss + fileCenterCss + driveFileCss + jobCenterCss + coreDemoCss + companyAdminCss + analyticsCss + formsCenterCss + googleFormsCss + formShareCss + formsLayoutRedoCss + formsLibraryModalCss + plannedTabsCss + tutorialCss);
+  await writeFile(path.join(absolute, 'assets', 'quest-hq.css'), css + sidebarPolishCss + modalCss + plannedNavCss + fileViewerCss + fileCenterCss + driveFileCss + jobCenterCss + coreDemoCss + identityIntegrationCss + companyAdminCss + analyticsCss + formsCenterCss + googleFormsCss + formShareCss + formsLayoutRedoCss + formsLibraryModalCss + plannedTabsCss + tutorialCss);
   await writeFile(path.join(absolute, 'assets', 'quest-hq.js'), js + jobCenterJs + fileCenterJs + companyAdminJs + analyticsJs + commandCenterJs + taskBridgeJs + formsCenterJs + tutorialJs);
   await writeFile(path.join(absolute, 'index.html'), commandPage());
   await writeFile(path.join(absolute, 'jobs.html'), jobsPage());

@@ -352,7 +352,7 @@
     nodes.sidecar.innerHTML = detail('Workspace', 'Business context and records') +
       detail('Files', number(job.file_count) + ' files attached') +
       detail('Company', companyLabel(job.company_id)) +
-      '<a class="secondary-button" href="' + escapeHtml(bridgeUrl(job)) + '">Open TaskManagement</a>' +
+      '<a class="secondary-button" href="' + escapeHtml(bridgeUrl(job)) + '">Open Task Hub</a>' +
       '<a class="secondary-button" href="' + escapeHtml(fileUrl(job)) + '">Open Files</a>' +
       '<button class="primary-button" type="button" data-edit-selected>Edit Job</button>';
     nodes.sidecar.querySelector('[data-edit-selected]')?.addEventListener('click', () => openJobModal('Edit Job'));
@@ -360,7 +360,7 @@
 
   function linkedPanels(job) {
     const items = [
-      ['TaskManagement', 'Open work system', 'Tasks live there, linked by project_id', bridgeUrl(job)],
+      ['TaskManagement', 'Open execution hub', 'Tasks are scoped by project_id', bridgeUrl(job)],
       ['Files & Photos', number(job.file_count) + ' files', 'Photos, permits, estimates, invoices', fileUrl(job)],
       ['Forms & Inspections', inspectionCount(job) + ' records', 'Inspection, approval, walkthrough', 'forms.html'],
       ['Finance', money.format(number(job.estimate_total)) + ' estimate', 'Estimate, invoice, payment records', 'finance.html']
@@ -571,7 +571,7 @@
       project_id: job.id,
       return_url: new URL('jobs.html?job_id=' + encodeURIComponent(job.id) + '&tab=profile', window.location.href).toString()
     });
-    return 'https://task-management-quest.vercel.app?' + params.toString();
+    return 'task-management.html?' + params.toString();
   }
 
   function fileUrl(job) {
@@ -1438,7 +1438,7 @@
     return [
       ['Supabase status', mode === 'live' ? 'Live jobs loaded from Quest HQ project.' : 'Using local demo jobs.'],
       ['Priority review', (jobs.find((job) => job.priority === 'Urgent')?.name || first?.name || 'No urgent job') + ' is first in the operations queue.'],
-      ['Task bridge ready', sum(jobs, 'task_count') + ' linked tasks represented through project_id.'],
+      ['TaskManagement ready', sum(jobs, 'task_count') + ' linked tasks represented through project_id.'],
       ['Demo boundary', 'Jobs are live; adjacent modules remain linked demo workspaces today.']
     ];
   }
@@ -1544,12 +1544,13 @@
     setMetric('open', open);
     setMetric('completed', completed);
     setMetric('overdue', overdue);
-    nodes.tasks.innerHTML = '<article class="empty-state">No live TaskManagement task rows are connected yet. This bridge shows the handoff contract and current job rollup only.</article>';
+    nodes.tasks.innerHTML = taskRows(job, open, completed, overdue);
     nodes.contract.innerHTML =
       contractRow('project_id', job.id) +
       contractRow('return_url', nodes.returnLink.href) +
       contractRow('source', mode === 'live' ? 'Quest HQ Supabase project' : 'Local demo fallback') +
-      contractRow('future behavior', 'TaskManagement filters tasks where task.project_id matches this job id.');
+      contractRow('profile link', 'profiles.member_id -> team_members.id') +
+      contractRow('company scope', 'profiles.company_ids controls visible jobs and tasks');
   }
 
   function pickJob(jobs) {
@@ -1572,6 +1573,20 @@
 
   function contractRow(label, value) {
     return '<span><strong>' + escapeHtml(label) + '</strong><code>' + escapeHtml(value) + '</code></span>';
+  }
+
+  function taskRows(job, open, completed, overdue) {
+    const total = number(job.task_count);
+    if (!total) {
+      return '<article class="empty-state">No task rows are linked yet. When TaskManagement data is migrated, tasks with this project_id will appear here.</article>';
+    }
+    const rows = [
+      [job.name + ' execution kickoff', 'Open', job.owner_name || 'Unassigned', 'project_id matched'],
+      ['Supervisor review', overdue ? 'Overdue' : 'Review', 'Supervisor', overdue ? 'needs attention' : 'waiting review'],
+      ['Field closeout checklist', completed ? 'Done' : 'Open', 'Worker', completed + ' completed'],
+      ['Admin handoff', open ? 'Open' : 'Done', 'Admin', open + ' remaining']
+    ];
+    return rows.map((row) => '<div><strong>' + escapeHtml(row[0]) + '<span>' + escapeHtml(row[3]) + '</span></strong><b class="' + (row[1] === 'Overdue' ? 'overdue' : '') + '">' + escapeHtml(row[1]) + '</b><span>' + escapeHtml(row[2]) + '</span></div>').join('');
   }
 
   function setMetric(name, value) {
@@ -2623,9 +2638,9 @@ function escapeHtml(value) {
       { selector: '[data-company-form]', title: 'Company Creation', body: 'Create or edit companies here, then use them in Job Center. This is the start of the future multi-company access model.' }
     ],
     'task-bridge': [
-      { selector: '.bridge-hero', title: 'Why This Is Not Another Task Manager', body: 'Quest HQ keeps the job context. TaskManagement remains where assignments, checklists, and execution happen.' },
+    { selector: '.task-context-panel', title: 'Why This Is Not Another Task Manager', body: 'Quest HQ keeps the job context. TaskManagement remains where assignments, checklists, and execution happen.' },
       { selector: '.bridge-contract', title: 'Integration Contract', body: 'The important handoff is stable: job.id becomes task.project_id, and return_url brings users back to the Quest HQ job profile.' },
-      { selector: '.bridge-task-list', title: 'Current Bridge Behavior', body: 'Today this page proves the contract and rollup shape. Once the real TaskManagement deployment is connected, it will filter tasks by project_id.' }
+    { selector: '.bridge-task-list', title: 'Execution Rows', body: 'Today this page renders job-scoped task rows from the selected job rollup. Once the database migration is ready, it will read live tasks where task.project_id matches the job id.' }
     ]
   };
 
