@@ -1795,6 +1795,10 @@ function escapeHtml(value) {
       selectedResponseId = button.dataset.responseId;
       renderResponses();
     });
+    nodes.responseDetail.addEventListener('click', (event) => {
+      if (!event.target.closest('[data-response-delete]')) return;
+      deleteResponse();
+    });
     center.querySelectorAll('[data-form-template]').forEach((button) => {
       button.addEventListener('click', () => {
         draft = templateForm(button.dataset.formTemplate);
@@ -2137,12 +2141,9 @@ function escapeHtml(value) {
     }
     const count = responses.filter((response) => response.formId === draft.id).length;
     const publicUrl = publicFormUrl();
-    nodes.summary.innerHTML = '<h2>' + escapeHtml(draft.title || 'Unsaved form') + '</h2><p class="muted">' + escapeHtml(draft.description || 'No description yet.') + '</p>' +
-      '<div class="form-status-row">' +
-      pill('Type', draft.type) + pill('Status', draft.status) + pill('Responses', count) +
-      '</div><div class="summary-pill-grid">' +
-      pill('Audience', draft.audience || 'Not set') + pill('Job context', draft.jobContext || 'Optional') + pill('Review', draft.requireApproval ? 'Required' : 'Not required') +
-      '</div><div class="share-card forms-summary-share"><strong>Respondent link</strong><input readonly value="' + escapeHtml(publicUrl) + '"><div class="form-actions"><button class="primary-button" type="button" data-form-open-public>Open</button><button class="secondary-button" type="button" data-form-copy-link>Copy</button></div></div>' +
+    nodes.summary.innerHTML = '<div class="forms-summary-head"><div><h2>' + escapeHtml(draft.title || 'Unsaved form') + '</h2><p class="muted">' + escapeHtml(draft.description || 'No description yet.') + '</p></div><span>' + escapeHtml(draft.status || 'Draft') + '</span></div>' +
+      '<div class="forms-simple-meta"><span>' + escapeHtml(draft.type || 'Inspection') + '</span><span>' + count + ' responses</span><span>' + draft.questions.length + ' questions</span></div>' +
+      '<div class="share-card forms-summary-share"><strong>Respondent link</strong><input readonly value="' + escapeHtml(publicUrl) + '"><div class="form-actions"><button class="primary-button" type="button" data-form-open-public>Open</button><button class="secondary-button" type="button" data-form-copy-link>Copy</button></div></div>' +
       '<div class="form-actions forms-summary-actions"><button class="primary-button" type="button" data-form-edit>Edit Form</button><button class="secondary-button" type="button" data-tab-jump="preview">Preview</button></div>';
   }
 
@@ -2249,9 +2250,19 @@ function escapeHtml(value) {
       return;
     }
     selectedResponseId = response.id;
-    nodes.responseDetail.innerHTML = '<h2>Response Detail</h2><p class="muted">Submitted ' + formatDate(response.submittedAt) + '</p><div class="response-detail-list">' +
+    nodes.responseDetail.innerHTML = '<div class="response-detail-head"><div><h2>Response Detail</h2><p class="muted">Submitted ' + formatDate(response.submittedAt) + '</p></div><button class="danger-button" type="button" data-response-delete>Delete Response</button></div><div class="response-detail-list">' +
       draft.questions.map((question) => '<div><strong>' + escapeHtml(question.label || 'Untitled question') + '</strong><span>' + escapeHtml(formatAnswer(response.values[question.id])) + '</span></div>').join('') +
       '</div>';
+  }
+
+  function deleteResponse() {
+    if (!selectedResponseId) return;
+    responses = responses.filter((response) => response.id !== selectedResponseId);
+    write(responsesKey, responses);
+    const current = responses.filter((response) => response.formId === draft.id || (!draft.id && response.formId === 'unsaved-draft'));
+    selectedResponseId = current[0]?.id || '';
+    setState('Response deleted', 'live');
+    render();
   }
 
   function renderEditorResponses() {
