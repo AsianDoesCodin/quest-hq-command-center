@@ -1,7 +1,7 @@
 import { mkdir, rm, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 
-const buildId = 'Forms Builder v17';
+const buildId = 'Forms Builder v18';
 const assetVersion = buildId.toLowerCase().replace(/[^a-z0-9]+/g, '-');
 const targets = ['.', 'dist', 'docs'];
 
@@ -679,62 +679,29 @@ function formsPage() {
           </div>
         </form>
 
-        <section class="panel question-panel">
-          <div class="job-section-heading"><h2>Questions</h2><span data-question-count>0 questions</span></div>
-          <div class="question-add-row">
-            <select data-question-type>
-              <option value="short">Short answer</option>
-              <option value="paragraph">Paragraph</option>
-              <option value="multiple">Multiple choice</option>
-              <option value="checkboxes">Checkboxes</option>
-              <option value="dropdown">Dropdown</option>
-              <option value="rating">Rating scale</option>
-              <option value="date">Date</option>
-              <option value="yesno">Yes / No</option>
-              <option value="signature">Signature acknowledgement</option>
-              <option value="file">File request</option>
-            </select>
-            <button class="secondary-button" type="button" data-question-add>Add Question</button>
+        <section class="question-workbench">
+          <div class="question-canvas">
+            <div class="gform-floating-toolbar" aria-label="Builder tools">
+              <button type="button" data-question-add title="Add question">+</button>
+              <button type="button" data-question-add-type="title" title="Add title block">T</button>
+              <button type="button" data-question-add-type="section" title="Add section">=</button>
+            </div>
+            <div class="question-list" data-question-list></div>
+            <button class="gform-add-question" type="button" data-question-add>+ Add question</button>
           </div>
-          <div class="question-list" data-question-list></div>
+          <div class="question-context-menu" data-question-menu hidden>
+            <button type="button" data-menu-action="addBelow">Add question below</button>
+            <button type="button" data-menu-action="duplicate">Duplicate</button>
+            <button type="button" data-menu-action="moveUp">Move up</button>
+            <button type="button" data-menu-action="moveDown">Move down</button>
+            <button type="button" data-menu-action="delete">Delete</button>
+          </div>
         </section>
 
         <section class="panel gform-modal-responses" data-form-editor-responses>
           <div class="job-section-heading"><h2>Responses</h2><span data-form-editor-response-count>0 responses</span></div>
           <div data-form-editor-response-list></div>
         </section>
-
-        <form class="panel question-editor" data-question-editor>
-          <div class="job-section-heading"><h2>Question Editor</h2><span data-question-editor-state>Select a question</span></div>
-          <label class="span-2">Question<input name="label" placeholder="What should the respondent answer?" /></label>
-          <label class="span-2">Help Text<textarea name="help" rows="3" placeholder="Optional supporting instructions"></textarea></label>
-          <label>Type
-            <select name="type">
-              <option value="short">Short answer</option>
-              <option value="paragraph">Paragraph</option>
-              <option value="multiple">Multiple choice</option>
-              <option value="checkboxes">Checkboxes</option>
-              <option value="dropdown">Dropdown</option>
-              <option value="rating">Rating scale</option>
-              <option value="date">Date</option>
-              <option value="yesno">Yes / No</option>
-              <option value="signature">Signature acknowledgement</option>
-              <option value="file">File request</option>
-            </select>
-          </label>
-          <label>Options<textarea name="options" rows="4" placeholder="One option per line for choice fields"></textarea></label>
-          <label>Scale Min<input type="number" min="0" max="10" name="scaleMin" /></label>
-          <label>Scale Max<input type="number" min="1" max="10" name="scaleMax" /></label>
-          <label class="forms-check"><input type="checkbox" name="required" /> Required</label>
-          <label class="forms-check"><input type="checkbox" name="reviewFlag" /> Flag answer for review</label>
-          <div class="form-actions span-2">
-            <button class="primary-button" type="submit">Update Question</button>
-            <button class="secondary-button" type="button" data-question-up>Move Up</button>
-            <button class="secondary-button" type="button" data-question-down>Move Down</button>
-            <button class="secondary-button" type="button" data-question-copy>Duplicate</button>
-            <button class="danger-button" type="button" data-question-delete>Delete</button>
-          </div>
-        </form>
       </div>
     </section>
 
@@ -1135,7 +1102,7 @@ const analyticsCss = `.analytics-layout{display:grid;grid-template-columns:minma
 
 const formsCenterCss = `.forms-command{display:flex;justify-content:flex-end;gap:12px;align-items:center;margin-bottom:18px;flex-wrap:wrap}.forms-dashboard{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-bottom:18px}.forms-library-grid,.forms-preview-grid,.forms-response-grid{display:grid;grid-template-columns:360px minmax(0,1fr);gap:18px}.forms-builder-grid{display:grid;grid-template-columns:minmax(320px,.75fr) minmax(320px,.75fr) minmax(360px,1fr);gap:18px;align-items:start}.forms-toolbar{display:grid;grid-template-columns:1fr 150px;gap:10px;margin-bottom:12px}.forms-toolbar label,.forms-settings label,.question-editor label{display:grid;gap:6px;font-size:12px;font-weight:850;text-transform:uppercase;color:#617089}.forms-toolbar input,.forms-toolbar select,.forms-settings input,.forms-settings textarea,.forms-settings select,.question-editor input,.question-editor textarea,.question-editor select,.question-add-row select,.response-form input,.response-form textarea,.response-form select{width:100%;border:1px solid var(--line);border-radius:8px;background:#fff;color:var(--ink);padding:11px}.forms-list,.question-list,.response-list{display:grid;gap:8px}.form-card,.question-card,.response-card{width:100%;border:1px solid var(--line);border-radius:8px;background:#fbfcfe;padding:12px;text-align:left;cursor:pointer}.form-card:hover,.form-card.active,.question-card:hover,.question-card.active,.response-card:hover,.response-card.active{border-color:#f97316;background:#fff8f5}.form-card strong,.form-card span,.form-card small,.question-card strong,.question-card span,.response-card strong,.response-card span{display:block}.form-card span,.question-card span,.response-card span{color:#617089;font-size:13px;margin-top:5px}.form-card small{margin-top:8px;color:#52627a;font-weight:850}.forms-summary h2,.response-form h2{margin-bottom:6px}.form-status-row,.summary-pill-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-top:14px}.form-status-row span,.summary-pill-grid span{border:1px solid var(--line);border-radius:8px;background:#fbfcfe;padding:12px}.form-status-row strong,.form-status-row small,.summary-pill-grid strong,.summary-pill-grid small{display:block}.form-status-row small,.summary-pill-grid small{color:#617089;margin-top:4px}.forms-settings,.question-editor{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.forms-settings .span-2,.question-editor .span-2{grid-column:1/-1}.forms-check{display:flex!important;grid-template-columns:none!important;align-items:center;gap:8px;min-height:42px;border:1px solid var(--line);border-radius:8px;background:#fbfcfe;padding:0 10px;text-transform:none!important;color:#27364d!important}.forms-check input{width:auto!important}.question-add-row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px;margin-bottom:12px}.question-card{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px;align-items:start}.question-card b{border:1px solid var(--line);border-radius:999px;background:#fff;padding:4px 8px;color:#52627a;font-size:11px;text-transform:uppercase}.question-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}.response-form{display:grid;gap:14px}.response-question{border:1px solid var(--line);border-radius:8px;background:#fbfcfe;padding:14px}.response-question strong,.response-question small{display:block}.response-question small{color:#617089;margin-top:4px}.response-options{display:grid;gap:8px;margin-top:10px}.response-options label{display:flex;align-items:center;gap:8px;color:#27364d}.rating-row{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}.rating-row label{display:grid;place-items:center;width:40px;height:40px;border:1px solid var(--line);border-radius:999px;background:#fff;cursor:pointer}.rating-row input{position:absolute;opacity:0;pointer-events:none}.rating-row label:has(input:checked){background:#111827;color:#fff;border-color:#111827}.response-sidecar{align-self:start}.response-detail-list{display:grid;gap:10px}.response-detail-list div{border-top:1px solid var(--line);padding-top:10px}.response-detail-list strong,.response-detail-list span{display:block}.response-detail-list span{color:#52627a;margin-top:4px;white-space:pre-wrap}.forms-template-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px}.forms-template-grid button{min-height:170px;border:1px solid var(--line);border-radius:8px;background:#fff;padding:16px;text-align:left;cursor:pointer;box-shadow:var(--shadow)}.forms-template-grid button:hover{border-color:#f97316;background:#fff8f5}.forms-template-grid strong,.forms-template-grid span{display:block}.forms-template-grid strong{font-size:18px}.forms-template-grid span{color:#617089;margin-top:8px;line-height:1.45}.forms-center .empty-state{min-height:140px;display:grid;place-items:center}.form-modal-panel{width:min(1280px,calc(100vw - 44px))}.form-modal-body{padding:18px}.form-modal-body .forms-builder-grid{grid-template-columns:minmax(300px,.7fr) minmax(300px,.7fr) minmax(340px,1fr)}.form-modal-body .forms-settings,.form-modal-body .question-panel,.form-modal-body .question-editor{box-shadow:none}@media(max-width:1280px){.forms-dashboard,.forms-template-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.forms-builder-grid,.forms-library-grid,.forms-preview-grid,.forms-response-grid,.form-modal-body .forms-builder-grid{grid-template-columns:1fr}}@media(max-width:760px){.forms-command,.forms-dashboard,.forms-toolbar,.forms-settings,.question-editor,.question-add-row,.forms-template-grid,.form-status-row,.summary-pill-grid{display:grid;grid-template-columns:1fr}.forms-command{align-items:stretch}.forms-command .sync-pill{justify-content:center}}`;
 
-const googleFormsCss = `.gform-editor{grid-template-columns:minmax(0,1fr) 390px!important;gap:14px}.gform-editor-tabs{grid-column:1/-1;display:flex;justify-content:center;gap:6px;border-bottom:1px solid var(--line);padding-bottom:10px}.gform-editor-tabs button{border:0;border-bottom:3px solid transparent;background:transparent;color:#617089;min-height:38px;padding:0 18px;font-weight:900;cursor:pointer}.gform-editor-tabs button.active{border-color:#f45d22;color:#121826}.gform-editor .forms-settings{grid-column:1/-1;border-top:8px solid #f45d22}.gform-editor .forms-settings h2{font-size:20px}.gform-settings-fields{display:none;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.gform-editor[data-form-editor-mode="settings"] .gform-settings-fields{display:grid}.gform-editor[data-form-editor-mode="settings"] .question-panel,.gform-editor[data-form-editor-mode="settings"] .question-editor,.gform-editor[data-form-editor-mode="settings"] .gform-modal-responses{display:none}.gform-editor[data-form-editor-mode="questions"] .question-panel{grid-column:1}.gform-editor[data-form-editor-mode="questions"] .question-editor{grid-column:2;position:sticky;top:18px}.gform-editor[data-form-editor-mode="questions"] .gform-modal-responses{display:none}.gform-editor[data-form-editor-mode="responses"] .question-panel,.gform-editor[data-form-editor-mode="responses"] .question-editor{display:none}.gform-editor[data-form-editor-mode="responses"] .gform-modal-responses{display:block;grid-column:1/-1}.gform-modal-responses{display:none}.gform-modal-responses [data-form-editor-response-list]{display:grid;gap:8px}.gform-modal-response-row{border:1px solid var(--line);border-radius:8px;background:#fbfcfe;padding:12px}.gform-modal-response-row strong,.gform-modal-response-row span{display:block}.gform-modal-response-row span{color:#617089;margin-top:4px}.question-panel{border-left:5px solid #f45d22}.question-card{border-left:5px solid transparent}.question-card.active{border-left-color:#f45d22}.question-card strong{font-size:16px}.question-editor{border-left:5px solid #111827}.form-modal-panel{background:#f8fafc}.form-modal-body{background:#f8fafc}@media(max-width:980px){.gform-editor{grid-template-columns:1fr!important}.gform-editor[data-form-editor-mode="questions"] .question-panel,.gform-editor[data-form-editor-mode="questions"] .question-editor{grid-column:1;position:static}.gform-settings-fields{grid-template-columns:1fr}}`;
+const googleFormsCss = `.gform-editor{grid-template-columns:minmax(0,1fr)!important;gap:14px}.gform-editor-tabs{grid-column:1/-1;display:flex;justify-content:center;gap:6px;border-bottom:1px solid var(--line);padding-bottom:10px}.gform-editor-tabs button{border:0;border-bottom:3px solid transparent;background:transparent;color:#617089;min-height:38px;padding:0 18px;font-weight:900;cursor:pointer}.gform-editor-tabs button.active{border-color:#f45d22;color:#121826}.gform-editor .forms-settings{grid-column:1/-1;border-top:8px solid #f45d22}.gform-editor .forms-settings h2{font-size:20px}.gform-settings-fields{display:none;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.gform-editor[data-form-editor-mode="settings"] .gform-settings-fields{display:grid}.gform-editor[data-form-editor-mode="settings"] .question-workbench,.gform-editor[data-form-editor-mode="settings"] .gform-modal-responses{display:none}.gform-editor[data-form-editor-mode="questions"] .question-workbench{display:block;grid-column:1/-1}.gform-editor[data-form-editor-mode="questions"] .gform-modal-responses{display:none}.gform-editor[data-form-editor-mode="responses"] .question-workbench{display:none}.gform-editor[data-form-editor-mode="responses"] .gform-modal-responses{display:block;grid-column:1/-1}.gform-modal-responses{display:none}.gform-modal-responses [data-form-editor-response-list]{display:grid;gap:8px}.gform-modal-response-row{border:1px solid var(--line);border-radius:8px;background:#fbfcfe;padding:12px}.gform-modal-response-row strong,.gform-modal-response-row span{display:block}.gform-modal-response-row span{color:#617089;margin-top:4px}.question-workbench{position:relative}.question-canvas{width:min(820px,100%);margin:0 auto;position:relative;display:grid;gap:12px}.gform-floating-toolbar{position:absolute;right:-58px;top:0;display:grid;gap:8px;background:#fff;border:1px solid var(--line);border-radius:8px;padding:7px;box-shadow:var(--shadow)}.gform-floating-toolbar button,.gform-card-icon,.gform-option-remove{width:34px;height:34px;border:1px solid var(--line);border-radius:8px;background:#fff;color:#27364d;font-weight:950;cursor:pointer}.gform-floating-toolbar button:hover,.gform-card-icon:hover,.gform-option-remove:hover{border-color:#f45d22;color:#f45d22}.gform-add-question{border:1px dashed #b9c5d6;border-radius:8px;background:#fff;color:#52627a;min-height:52px;font-weight:900;cursor:pointer}.gform-add-question:hover{border-color:#f45d22;color:#f45d22;background:#fff8f5}.question-list{display:grid;gap:12px}.question-card{display:block;border:1px solid var(--line);border-left:6px solid transparent;border-radius:8px;background:#fff;padding:0;text-align:left;box-shadow:var(--shadow);cursor:default;overflow:hidden}.question-card.active{border-left-color:#f45d22}.question-card.gform-static-block{border-left-color:#111827}.gform-card-body{display:grid;gap:12px;padding:18px}.gform-question-top{display:grid;grid-template-columns:minmax(0,1fr) 220px;gap:12px;align-items:start}.gform-question-input,.gform-help-input,.gform-type-select,.gform-option-input,.gform-scale-input{width:100%;border:0;border-bottom:2px solid #d8e0eb;background:#f8fafc;color:#121826;padding:11px;border-radius:0;font:inherit}.gform-question-input{font-size:18px;font-weight:900}.gform-help-input{resize:vertical;min-height:44px}.gform-type-select{border:1px solid var(--line);border-radius:8px;background:#fff;font-weight:850}.gform-question-input:focus,.gform-help-input:focus,.gform-option-input:focus,.gform-scale-input:focus{outline:none;border-color:#f45d22;background:#fff}.gform-option-list,.gform-grid-editor{display:grid;gap:9px}.gform-option-row{display:grid;grid-template-columns:28px minmax(0,1fr) auto;gap:8px;align-items:center}.gform-option-marker{width:18px;height:18px;border:2px solid #aab7c8;border-radius:999px}.gform-option-marker.square{border-radius:4px}.gform-option-marker.dropdown{display:grid;place-items:center;border:0;color:#617089;font-size:13px}.gform-option-add{width:max-content;border:0;background:transparent;color:#f45d22;font-weight:900;cursor:pointer;padding:6px 0}.gform-card-footer{border-top:1px solid var(--line);padding:10px 18px;display:flex;justify-content:flex-end;gap:10px;align-items:center;flex-wrap:wrap}.gform-required{display:flex;align-items:center;gap:8px;font-weight:850;color:#27364d}.gform-card-menu{display:flex;gap:6px}.gform-context-hint{margin-right:auto;color:#617089;font-size:12px}.question-context-menu{position:fixed;z-index:80;background:#fff;border:1px solid var(--line);border-radius:8px;box-shadow:var(--shadow);padding:6px;width:210px}.question-context-menu button{display:block;width:100%;border:0;background:transparent;text-align:left;padding:10px;border-radius:6px;font-weight:850;color:#27364d;cursor:pointer}.question-context-menu button:hover{background:#fff3ed;color:#f45d22}.gform-scale-row{display:grid;grid-template-columns:1fr 1fr;gap:10px}.gform-preview-line{border-bottom:1px dotted #aab7c8;color:#617089;padding:10px 0}.gform-file-preview{border:1px dashed #b9c5d6;border-radius:8px;padding:14px;color:#617089;background:#fbfcfe}.form-modal-panel{background:#f8fafc}.form-modal-body{background:#f8fafc}@media(max-width:980px){.gform-editor{grid-template-columns:1fr!important}.gform-settings-fields,.gform-question-top,.gform-scale-row{grid-template-columns:1fr}.gform-floating-toolbar{position:static;display:flex;width:max-content;margin-left:auto}}`;
 
 const plannedTabsCss = `.tabs button.tab-planned,.tabs button.tab-planned:hover,.tabs button.tab-planned.active{color:#64748b;background:repeating-linear-gradient(135deg,#eef2f7 0,#eef2f7 8px,#e2e8f0 8px,#e2e8f0 16px);border-color:#94a3b8;box-shadow:none;cursor:not-allowed;opacity:1;filter:grayscale(1)}.tabs button.tab-planned.active{box-shadow:inset 0 -3px #94a3b8}.tabs button.tab-planned small{display:inline-flex;margin-left:8px;border:1px solid #94a3b8;border-radius:999px;background:#f8fafc;padding:2px 7px;color:#475569;font-size:10px;font-weight:900;text-transform:uppercase;vertical-align:middle}.tabs button:not(.tab-planned) small{display:none}@media(max-width:620px){.tabs button.tab-planned small{display:none}}`;
 
@@ -2769,11 +2736,17 @@ const formsCenterJs = `(() => {
     multiple: 'Multiple choice',
     checkboxes: 'Checkboxes',
     dropdown: 'Dropdown',
-    rating: 'Rating scale',
+    file: 'File upload',
+    linear: 'Linear scale',
+    grid: 'Multiple choice grid',
+    checkboxGrid: 'Checkbox grid',
     date: 'Date',
+    time: 'Time',
+    title: 'Title and description',
+    section: 'Section',
+    rating: 'Rating scale',
     yesno: 'Yes / No',
-    signature: 'Signature',
-    file: 'File request'
+    signature: 'Signature'
   };
   const nodes = {
     state: center.querySelector('[data-form-state]'),
@@ -2783,11 +2756,9 @@ const formsCenterJs = `(() => {
     dirty: center.querySelector('[data-form-dirty]'),
     search: center.querySelector('[data-form-search]'),
     typeFilter: center.querySelector('[data-form-type-filter]'),
-    questionType: center.querySelector('[data-question-type]'),
     questionList: center.querySelector('[data-question-list]'),
     questionCount: center.querySelector('[data-question-count]'),
-    questionEditor: center.querySelector('[data-question-editor]'),
-    questionEditorState: center.querySelector('[data-question-editor-state]'),
+    questionMenu: center.querySelector('[data-question-menu]'),
     responseForm: center.querySelector('[data-response-form]'),
     responseSidecar: center.querySelector('[data-response-sidecar]'),
     responseList: center.querySelector('[data-response-list]'),
@@ -2808,6 +2779,7 @@ const formsCenterJs = `(() => {
   let selectedId = forms[0]?.id || '';
   let selectedQuestionId = '';
   let selectedResponseId = '';
+  let menuQuestionId = '';
   let dirty = false;
   if (selectedId) draft = clone(forms.find((form) => form.id === selectedId));
 
@@ -2868,31 +2840,52 @@ const formsCenterJs = `(() => {
       if (!event.target.closest('[data-form-edit]')) return;
       openFormModal();
     });
-    center.querySelector('[data-question-add]')?.addEventListener('click', () => {
-      const question = blankQuestion(nodes.questionType.value);
-      draft.questions.push(question);
-      selectedQuestionId = question.id;
-      dirty = true;
-      render();
+    center.querySelectorAll('[data-question-add]').forEach((button) => {
+      button.addEventListener('click', () => addQuestion('multiple'));
+    });
+    center.querySelectorAll('[data-question-add-type]').forEach((button) => {
+      button.addEventListener('click', () => addQuestion(button.dataset.questionAddType || 'multiple'));
     });
     nodes.questionList.addEventListener('click', (event) => {
-      const button = event.target.closest('[data-question-id]');
-      if (!button) return;
-      selectedQuestionId = button.dataset.questionId;
-      renderQuestionEditor();
-      renderQuestions();
+      const card = event.target.closest('[data-question-id]');
+      if (!card) return;
+      selectedQuestionId = card.dataset.questionId;
+      const actionButton = event.target.closest('[data-question-action]');
+      const action = actionButton?.dataset.questionAction;
+      if (action) {
+        event.preventDefault();
+        runQuestionAction(action, selectedQuestionId, actionButton);
+        return;
+      }
+      nodes.questionList.querySelectorAll('.question-card').forEach((item) => item.classList.toggle('active', item.dataset.questionId === selectedQuestionId));
     });
-    nodes.questionEditor.addEventListener('submit', (event) => {
+    nodes.questionList.addEventListener('input', (event) => {
+      updateQuestionFromInput(event.target);
+    });
+    nodes.questionList.addEventListener('change', (event) => {
+      updateQuestionFromInput(event.target);
+    });
+    nodes.questionList.addEventListener('contextmenu', (event) => {
+      const card = event.target.closest('[data-question-id]');
+      if (!card || !nodes.questionMenu) return;
       event.preventDefault();
-      updateQuestion();
+      selectedQuestionId = card.dataset.questionId;
+      menuQuestionId = selectedQuestionId;
+      renderQuestions();
+      nodes.questionMenu.hidden = false;
+      nodes.questionMenu.style.left = Math.min(event.clientX, window.innerWidth - 230) + 'px';
+      nodes.questionMenu.style.top = Math.min(event.clientY, window.innerHeight - 230) + 'px';
     });
-    nodes.questionEditor.addEventListener('input', () => {
-      nodes.questionEditorState.textContent = selectedQuestion() ? 'Editing question' : 'Select a question';
+    nodes.questionMenu?.addEventListener('click', (event) => {
+      const button = event.target.closest('[data-menu-action]');
+      if (!button) return;
+      runQuestionAction(button.dataset.menuAction, menuQuestionId, button);
+      nodes.questionMenu.hidden = true;
     });
-    center.querySelector('[data-question-delete]')?.addEventListener('click', deleteQuestion);
-    center.querySelector('[data-question-copy]')?.addEventListener('click', duplicateQuestion);
-    center.querySelector('[data-question-up]')?.addEventListener('click', () => moveQuestion(-1));
-    center.querySelector('[data-question-down]')?.addEventListener('click', () => moveQuestion(1));
+    document.addEventListener('click', (event) => {
+      if (!nodes.questionMenu || nodes.questionMenu.hidden || event.target.closest('[data-question-menu]')) return;
+      nodes.questionMenu.hidden = true;
+    });
     nodes.responseForm.addEventListener('submit', saveResponse);
     nodes.responseList.addEventListener('click', (event) => {
       const button = event.target.closest('[data-response-id]');
@@ -3024,31 +3017,104 @@ const formsCenterJs = `(() => {
     draft.requireApproval = data.has('requireApproval');
   }
 
-  function updateQuestion() {
-    const question = selectedQuestion();
-    if (!question) return;
-    const data = new FormData(nodes.questionEditor);
-    question.label = String(data.get('label') || '');
-    question.help = String(data.get('help') || '');
-    question.type = String(data.get('type') || 'short');
-    question.options = String(data.get('options') || '').split('\\n').map((value) => value.trim()).filter(Boolean);
-    question.scaleMin = number(data.get('scaleMin'), 1);
-    question.scaleMax = number(data.get('scaleMax'), 5);
-    question.required = data.has('required');
-    question.reviewFlag = data.has('reviewFlag');
+  function addQuestion(type = 'multiple', afterId = '') {
+    const question = blankQuestion(type);
+    const index = afterId ? draft.questions.findIndex((item) => item.id === afterId) : -1;
+    if (index >= 0) draft.questions.splice(index + 1, 0, question);
+    else draft.questions.push(question);
+    selectedQuestionId = question.id;
     dirty = true;
     render();
   }
 
-  function deleteQuestion() {
-    draft.questions = draft.questions.filter((question) => question.id !== selectedQuestionId);
+  function updateQuestionFromInput(target) {
+    const card = target.closest('[data-question-id]');
+    if (!card) return;
+    const question = draft.questions.find((item) => item.id === card.dataset.questionId);
+    if (!question) return;
+    selectedQuestionId = question.id;
+    if (target.matches('[data-question-label]')) question.label = target.value;
+    else if (target.matches('[data-question-help]')) question.help = target.value;
+    else if (target.matches('[data-question-type-select]')) {
+      question.type = target.value;
+      normalizeQuestion(question);
+      dirty = true;
+      renderQuestions();
+      renderPreview();
+      renderLite();
+      return;
+    } else if (target.matches('[data-question-required]')) question.required = target.checked;
+    else if (target.matches('[data-question-review]')) question.reviewFlag = target.checked;
+    else if (target.matches('[data-question-option]')) question.options[number(target.dataset.optionIndex)] = target.value;
+    else if (target.matches('[data-question-row]')) question.rows[number(target.dataset.rowIndex)] = target.value;
+    else if (target.matches('[data-question-column]')) question.columns[number(target.dataset.columnIndex)] = target.value;
+    else if (target.matches('[data-question-scale-min]')) question.scaleMin = number(target.value, 1);
+    else if (target.matches('[data-question-scale-max]')) question.scaleMax = number(target.value, 5);
+    dirty = true;
+    renderPreview();
+    renderLite();
+  }
+
+  function runQuestionAction(action, id = selectedQuestionId, actionEl = null) {
+    selectedQuestionId = id;
+    if (action === 'addBelow') return addQuestion('multiple', id);
+    if (action === 'duplicate') return duplicateQuestion(id);
+    if (action === 'delete') return deleteQuestion(id);
+    if (action === 'moveUp') return moveQuestion(-1, id);
+    if (action === 'moveDown') return moveQuestion(1, id);
+    if (action === 'addOption') return addQuestionOption(id);
+    if (action === 'removeOption') return removeQuestionOption(id, number(actionEl?.dataset.optionIndex, -1));
+    if (action === 'addRow') return addGridItem(id, 'rows');
+    if (action === 'addColumn') return addGridItem(id, 'columns');
+    if (action === 'removeRow') return removeGridItem(id, 'rows', number(actionEl?.dataset.rowIndex, -1));
+    if (action === 'removeColumn') return removeGridItem(id, 'columns', number(actionEl?.dataset.columnIndex, -1));
+  }
+
+  function addQuestionOption(id) {
+    const question = draft.questions.find((item) => item.id === id);
+    if (!question) return;
+    question.options = question.options || [];
+    question.options.push('Option ' + (question.options.length + 1));
+    dirty = true;
+    render();
+  }
+
+  function removeQuestionOption(id, index) {
+    const question = draft.questions.find((item) => item.id === id);
+    if (!question || index < 0) return;
+    question.options.splice(index, 1);
+    if (!question.options.length) question.options.push('Option 1');
+    dirty = true;
+    render();
+  }
+
+  function addGridItem(id, key) {
+    const question = draft.questions.find((item) => item.id === id);
+    if (!question) return;
+    question[key] = question[key] || [];
+    question[key].push((key === 'rows' ? 'Row ' : 'Column ') + (question[key].length + 1));
+    dirty = true;
+    render();
+  }
+
+  function removeGridItem(id, key, index) {
+    const question = draft.questions.find((item) => item.id === id);
+    if (!question || index < 0) return;
+    question[key].splice(index, 1);
+    if (!question[key].length) question[key].push(key === 'rows' ? 'Row 1' : 'Column 1');
+    dirty = true;
+    render();
+  }
+
+  function deleteQuestion(id = selectedQuestionId) {
+    draft.questions = draft.questions.filter((question) => question.id !== id);
     selectedQuestionId = draft.questions[0]?.id || '';
     dirty = true;
     render();
   }
 
-  function duplicateQuestion() {
-    const question = selectedQuestion();
+  function duplicateQuestion(id = selectedQuestionId) {
+    const question = draft.questions.find((item) => item.id === id);
     if (!question) return;
     const copy = { ...clone(question), id: 'q-' + Date.now(), label: question.label + ' Copy' };
     const index = draft.questions.findIndex((item) => item.id === question.id);
@@ -3058,8 +3124,8 @@ const formsCenterJs = `(() => {
     render();
   }
 
-  function moveQuestion(direction) {
-    const index = draft.questions.findIndex((question) => question.id === selectedQuestionId);
+  function moveQuestion(direction, id = selectedQuestionId) {
+    const index = draft.questions.findIndex((question) => question.id === id);
     const next = index + direction;
     if (index < 0 || next < 0 || next >= draft.questions.length) return;
     const [question] = draft.questions.splice(index, 1);
@@ -3078,6 +3144,12 @@ const formsCenterJs = `(() => {
     const values = {};
     draft.questions.forEach((question) => {
       if (question.type === 'checkboxes') values[question.id] = data.getAll(question.id);
+      else if (question.type === 'grid' || question.type === 'checkboxGrid') {
+        values[question.id] = (question.rows || []).map((row, index) => ({
+          row,
+          value: question.type === 'checkboxGrid' ? data.getAll(question.id + '-' + index) : data.get(question.id + '-' + index)
+        }));
+      }
       else values[question.id] = data.get(question.id) || '';
     });
     const response = {
@@ -3102,7 +3174,6 @@ const formsCenterJs = `(() => {
     renderLibrary();
     renderSummary();
     renderQuestions();
-    renderQuestionEditor();
     renderPreview();
     renderResponses();
     renderEditorResponses();
@@ -3159,30 +3230,73 @@ const formsCenterJs = `(() => {
   }
 
   function renderQuestions() {
-    nodes.questionCount.textContent = draft.questions.length + (draft.questions.length === 1 ? ' question' : ' questions');
-    nodes.questionList.innerHTML = draft.questions.length ? draft.questions.map((question, index) =>
-      '<button type=\"button\" class=\"question-card ' + (question.id === selectedQuestionId ? 'active' : '') + '\" data-question-id=\"' + escapeHtml(question.id) + '\"><span><strong>' + (index + 1) + '. ' + escapeHtml(question.label || 'Untitled question') + '</strong><span>' + escapeHtml(fieldTypes[question.type] || question.type) + (question.required ? ' / Required' : '') + '</span></span><b>' + escapeHtml(question.type) + '</b></button>'
-    ).join('') : '<div class=\"empty-state\">Add questions from the selector above.</div>';
+    const countLabel = draft.questions.length + (draft.questions.length === 1 ? ' question' : ' questions');
+    if (nodes.questionCount) nodes.questionCount.textContent = countLabel;
+    nodes.questionList.innerHTML = draft.questions.length ? draft.questions.map(questionCard).join('') : '<div class=\"empty-state\">Add a question to start building the form.</div>';
   }
 
-  function renderQuestionEditor() {
-    const question = selectedQuestion();
-    nodes.questionEditorState.textContent = question ? 'Editing question' : 'Select a question';
-    nodes.questionEditor.querySelectorAll('input, textarea, select, button').forEach((item) => {
-      if (!item.matches('[data-question-delete], [data-question-copy], [data-question-up], [data-question-down]')) item.disabled = !question;
-    });
-    if (!question) {
-      nodes.questionEditor.reset();
-      return;
-    }
-    nodes.questionEditor.elements.label.value = question.label || '';
-    nodes.questionEditor.elements.help.value = question.help || '';
-    nodes.questionEditor.elements.type.value = question.type || 'short';
-    nodes.questionEditor.elements.options.value = (question.options || []).join('\\n');
-    nodes.questionEditor.elements.scaleMin.value = question.scaleMin ?? 1;
-    nodes.questionEditor.elements.scaleMax.value = question.scaleMax ?? 5;
-    nodes.questionEditor.elements.required.checked = !!question.required;
-    nodes.questionEditor.elements.reviewFlag.checked = !!question.reviewFlag;
+  function questionCard(question, index) {
+    normalizeQuestion(question);
+    const active = question.id === selectedQuestionId ? ' active' : '';
+    const staticBlock = ['title', 'section'].includes(question.type) ? ' gform-static-block' : '';
+    return '<article class=\"question-card' + active + staticBlock + '\" data-question-id=\"' + escapeHtml(question.id) + '\">' +
+      '<div class=\"gform-card-body\">' +
+        '<div class=\"gform-question-top\">' +
+          '<input class=\"gform-question-input\" data-question-label value=\"' + escapeHtml(question.label || '') + '\" placeholder=\"Question\">' +
+          '<select class=\"gform-type-select\" data-question-type-select>' + questionTypeOptions(question.type) + '</select>' +
+        '</div>' +
+        '<textarea class=\"gform-help-input\" data-question-help rows=\"2\" placeholder=\"Description or help text\">' + escapeHtml(question.help || '') + '</textarea>' +
+        questionBuilderFields(question) +
+      '</div>' +
+      '<div class=\"gform-card-footer\">' +
+        '<span class=\"gform-context-hint\">Right-click for card actions</span>' +
+        '<label class=\"gform-required\"><input type=\"checkbox\" data-question-required ' + (question.required ? 'checked' : '') + '> Required</label>' +
+        '<label class=\"gform-required\"><input type=\"checkbox\" data-question-review ' + (question.reviewFlag ? 'checked' : '') + '> Review</label>' +
+        '<div class=\"gform-card-menu\">' +
+          '<button class=\"gform-card-icon\" type=\"button\" data-question-action=\"moveUp\" title=\"Move up\">Up</button>' +
+          '<button class=\"gform-card-icon\" type=\"button\" data-question-action=\"moveDown\" title=\"Move down\">Dn</button>' +
+          '<button class=\"gform-card-icon\" type=\"button\" data-question-action=\"duplicate\" title=\"Duplicate\">Cp</button>' +
+          '<button class=\"gform-card-icon\" type=\"button\" data-question-action=\"delete\" title=\"Delete\">X</button>' +
+        '</div>' +
+      '</div>' +
+    '</article>';
+  }
+
+  function questionTypeOptions(selected) {
+    return Object.entries(fieldTypes).map(([value, label]) => '<option value=\"' + value + '\" ' + (selected === value ? 'selected' : '') + '>' + escapeHtml(label) + '</option>').join('');
+  }
+
+  function questionBuilderFields(question) {
+    if (['multiple', 'checkboxes', 'dropdown'].includes(question.type)) return choiceEditor(question);
+    if (['grid', 'checkboxGrid'].includes(question.type)) return gridEditor(question);
+    if (['linear', 'rating'].includes(question.type)) return scaleEditor(question);
+    if (question.type === 'paragraph') return '<div class=\"gform-preview-line\">Long answer text</div>';
+    if (question.type === 'short') return '<div class=\"gform-preview-line\">Short answer text</div>';
+    if (question.type === 'date') return '<div class=\"gform-preview-line\">Month, day, year</div>';
+    if (question.type === 'time') return '<div class=\"gform-preview-line\">Time</div>';
+    if (question.type === 'file') return '<div class=\"gform-file-preview\">Respondents will provide a file link in this mockup. Supabase Storage upload can attach here later.</div>';
+    if (question.type === 'yesno') return choiceEditor({ ...question, options: ['Yes', 'No'] });
+    if (question.type === 'signature') return '<div class=\"gform-file-preview\">Acknowledgement checkbox shown in preview.</div>';
+    return '<div class=\"gform-preview-line\">Text block</div>';
+  }
+
+  function choiceEditor(question) {
+    const markerClass = question.type === 'checkboxes' ? 'square' : question.type === 'dropdown' ? 'dropdown' : '';
+    return '<div class=\"gform-option-list\">' + (question.options || []).map((option, index) =>
+      '<div class=\"gform-option-row\"><span class=\"gform-option-marker ' + markerClass + '\">' + (question.type === 'dropdown' ? (index + 1) : '') + '</span><input class=\"gform-option-input\" data-question-option data-option-index=\"' + index + '\" value=\"' + escapeHtml(option) + '\" placeholder=\"Option\"><button class=\"gform-option-remove\" type=\"button\" data-question-action=\"removeOption\" data-option-index=\"' + index + '\" title=\"Remove option\">X</button></div>'
+    ).join('') + '<button class=\"gform-option-add\" type=\"button\" data-question-action=\"addOption\">Add option</button></div>';
+  }
+
+  function gridEditor(question) {
+    return '<div class=\"gform-grid-editor\"><strong>Rows</strong>' + (question.rows || []).map((row, index) =>
+      '<div class=\"gform-option-row\"><span class=\"gform-option-marker square\"></span><input class=\"gform-option-input\" data-question-row data-row-index=\"' + index + '\" value=\"' + escapeHtml(row) + '\"><button class=\"gform-option-remove\" type=\"button\" data-question-action=\"removeRow\" data-row-index=\"' + index + '\">X</button></div>'
+    ).join('') + '<button class=\"gform-option-add\" type=\"button\" data-question-action=\"addRow\">Add row</button><strong>Columns</strong>' + (question.columns || []).map((column, index) =>
+      '<div class=\"gform-option-row\"><span class=\"gform-option-marker\"></span><input class=\"gform-option-input\" data-question-column data-column-index=\"' + index + '\" value=\"' + escapeHtml(column) + '\"><button class=\"gform-option-remove\" type=\"button\" data-question-action=\"removeColumn\" data-column-index=\"' + index + '\">X</button></div>'
+    ).join('') + '<button class=\"gform-option-add\" type=\"button\" data-question-action=\"addColumn\">Add column</button></div>';
+  }
+
+  function scaleEditor(question) {
+    return '<div class=\"gform-scale-row\"><label>Scale min<input class=\"gform-scale-input\" type=\"number\" min=\"0\" max=\"10\" data-question-scale-min value=\"' + escapeHtml(question.scaleMin ?? 1) + '\"></label><label>Scale max<input class=\"gform-scale-input\" type=\"number\" min=\"1\" max=\"10\" data-question-scale-max value=\"' + escapeHtml(question.scaleMax ?? 5) + '\"></label></div>';
   }
 
   function renderPreview() {
@@ -3241,7 +3355,19 @@ const formsCenterJs = `(() => {
       const scale = Array.from({ length: Math.max(max - min + 1, 1) }, (_, index) => min + index);
       return '<div class=\"response-question\">' + label + '<div class=\"rating-row\">' + scale.map((value) => '<label><input type=\"radio\" name=\"' + question.id + '\" value=\"' + value + '\"' + required + '>' + value + '</label>').join('') + '</div></div>';
     }
+    if (question.type === 'linear') {
+      const min = number(question.scaleMin, 1);
+      const max = number(question.scaleMax, 5);
+      const scale = Array.from({ length: Math.max(max - min + 1, 1) }, (_, index) => min + index);
+      return '<div class=\"response-question\">' + label + '<div class=\"rating-row\">' + scale.map((value) => '<label><input type=\"radio\" name=\"' + question.id + '\" value=\"' + value + '\"' + required + '>' + value + '</label>').join('') + '</div></div>';
+    }
+    if (question.type === 'grid' || question.type === 'checkboxGrid') {
+      return '<div class=\"response-question\">' + label + '<div class=\"response-detail-list\">' + (question.rows || ['Row 1']).map((row, rowIndex) => '<div><strong>' + escapeHtml(row) + '</strong><div class=\"response-options\">' + (question.columns || ['Column 1']).map((column, columnIndex) => '<label><input type=\"' + (question.type === 'checkboxGrid' ? 'checkbox' : 'radio') + '\" name=\"' + question.id + '-' + rowIndex + '\" value=\"' + escapeHtml(column) + '\"> ' + escapeHtml(column) + '</label>').join('') + '</div></div>').join('') + '</div></div>';
+    }
     if (question.type === 'date') return '<label class=\"response-question\">' + label + '<input type=\"date\" name=\"' + question.id + '\"' + required + '></label>';
+    if (question.type === 'time') return '<label class=\"response-question\">' + label + '<input type=\"time\" name=\"' + question.id + '\"' + required + '></label>';
+    if (question.type === 'title') return '<div class=\"response-question\"><strong>' + escapeHtml(question.label || 'Untitled title') + '</strong>' + (question.help ? '<small>' + escapeHtml(question.help) + '</small>' : '') + '</div>';
+    if (question.type === 'section') return '<div class=\"response-question\"><strong>' + escapeHtml(question.label || 'Section') + '</strong>' + (question.help ? '<small>' + escapeHtml(question.help) + '</small>' : '') + '</div>';
     if (question.type === 'yesno') return '<div class=\"response-question\">' + label + '<div class=\"response-options\"><label><input type=\"radio\" name=\"' + question.id + '\" value=\"Yes\"' + required + '> Yes</label><label><input type=\"radio\" name=\"' + question.id + '\" value=\"No\"' + required + '> No</label></div></div>';
     if (question.type === 'signature') return '<label class=\"response-question forms-check\"><input type=\"checkbox\" name=\"' + question.id + '\" value=\"Acknowledged\"' + required + '> ' + escapeHtml(question.label || 'I acknowledge this form') + '</label>';
     if (question.type === 'file') return '<label class=\"response-question\">' + label + '<input type=\"text\" name=\"' + question.id + '\" placeholder=\"File name or Quest HQ Files link\"' + required + '></label>';
@@ -3253,7 +3379,19 @@ const formsCenterJs = `(() => {
   }
 
   function blankQuestion(type) {
-    return { id: 'q-' + Date.now() + '-' + Math.floor(Math.random() * 1000), type, label: fieldTypes[type] || 'Question', help: '', required: false, reviewFlag: false, options: ['Option 1', 'Option 2'], scaleMin: 1, scaleMax: 5 };
+    const question = { id: 'q-' + Date.now() + '-' + Math.floor(Math.random() * 1000), type: type || 'multiple', label: fieldTypes[type] || 'Question', help: '', required: false, reviewFlag: false, options: ['Option 1', 'Option 2'], rows: ['Row 1'], columns: ['Column 1'], scaleMin: 1, scaleMax: 5 };
+    normalizeQuestion(question);
+    return question;
+  }
+
+  function normalizeQuestion(question) {
+    if (!question.type || !fieldTypes[question.type]) question.type = 'multiple';
+    if (!Array.isArray(question.options) || !question.options.length) question.options = ['Option 1', 'Option 2'];
+    if (!Array.isArray(question.rows) || !question.rows.length) question.rows = ['Row 1'];
+    if (!Array.isArray(question.columns) || !question.columns.length) question.columns = ['Column 1'];
+    if (question.scaleMin === undefined || question.scaleMin === null || question.scaleMin === '') question.scaleMin = 1;
+    if (question.scaleMax === undefined || question.scaleMax === null || question.scaleMax === '') question.scaleMax = 5;
+    if (question.type === 'yesno') question.options = ['Yes', 'No'];
   }
 
   function templateForm(name) {
@@ -3331,7 +3469,7 @@ const formsCenterJs = `(() => {
   }
 
   function formatAnswer(value) {
-    if (Array.isArray(value)) return value.join(', ');
+    if (Array.isArray(value)) return value.map((item) => typeof item === 'object' && item ? item.row + ': ' + formatAnswer(item.value) : item).join(', ');
     return value || 'No answer';
   }
 

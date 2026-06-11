@@ -1612,11 +1612,17 @@ function escapeHtml(value) {
     multiple: 'Multiple choice',
     checkboxes: 'Checkboxes',
     dropdown: 'Dropdown',
-    rating: 'Rating scale',
+    file: 'File upload',
+    linear: 'Linear scale',
+    grid: 'Multiple choice grid',
+    checkboxGrid: 'Checkbox grid',
     date: 'Date',
+    time: 'Time',
+    title: 'Title and description',
+    section: 'Section',
+    rating: 'Rating scale',
     yesno: 'Yes / No',
-    signature: 'Signature',
-    file: 'File request'
+    signature: 'Signature'
   };
   const nodes = {
     state: center.querySelector('[data-form-state]'),
@@ -1626,11 +1632,9 @@ function escapeHtml(value) {
     dirty: center.querySelector('[data-form-dirty]'),
     search: center.querySelector('[data-form-search]'),
     typeFilter: center.querySelector('[data-form-type-filter]'),
-    questionType: center.querySelector('[data-question-type]'),
     questionList: center.querySelector('[data-question-list]'),
     questionCount: center.querySelector('[data-question-count]'),
-    questionEditor: center.querySelector('[data-question-editor]'),
-    questionEditorState: center.querySelector('[data-question-editor-state]'),
+    questionMenu: center.querySelector('[data-question-menu]'),
     responseForm: center.querySelector('[data-response-form]'),
     responseSidecar: center.querySelector('[data-response-sidecar]'),
     responseList: center.querySelector('[data-response-list]'),
@@ -1651,6 +1655,7 @@ function escapeHtml(value) {
   let selectedId = forms[0]?.id || '';
   let selectedQuestionId = '';
   let selectedResponseId = '';
+  let menuQuestionId = '';
   let dirty = false;
   if (selectedId) draft = clone(forms.find((form) => form.id === selectedId));
 
@@ -1711,31 +1716,52 @@ function escapeHtml(value) {
       if (!event.target.closest('[data-form-edit]')) return;
       openFormModal();
     });
-    center.querySelector('[data-question-add]')?.addEventListener('click', () => {
-      const question = blankQuestion(nodes.questionType.value);
-      draft.questions.push(question);
-      selectedQuestionId = question.id;
-      dirty = true;
-      render();
+    center.querySelectorAll('[data-question-add]').forEach((button) => {
+      button.addEventListener('click', () => addQuestion('multiple'));
+    });
+    center.querySelectorAll('[data-question-add-type]').forEach((button) => {
+      button.addEventListener('click', () => addQuestion(button.dataset.questionAddType || 'multiple'));
     });
     nodes.questionList.addEventListener('click', (event) => {
-      const button = event.target.closest('[data-question-id]');
-      if (!button) return;
-      selectedQuestionId = button.dataset.questionId;
-      renderQuestionEditor();
-      renderQuestions();
+      const card = event.target.closest('[data-question-id]');
+      if (!card) return;
+      selectedQuestionId = card.dataset.questionId;
+      const actionButton = event.target.closest('[data-question-action]');
+      const action = actionButton?.dataset.questionAction;
+      if (action) {
+        event.preventDefault();
+        runQuestionAction(action, selectedQuestionId, actionButton);
+        return;
+      }
+      nodes.questionList.querySelectorAll('.question-card').forEach((item) => item.classList.toggle('active', item.dataset.questionId === selectedQuestionId));
     });
-    nodes.questionEditor.addEventListener('submit', (event) => {
+    nodes.questionList.addEventListener('input', (event) => {
+      updateQuestionFromInput(event.target);
+    });
+    nodes.questionList.addEventListener('change', (event) => {
+      updateQuestionFromInput(event.target);
+    });
+    nodes.questionList.addEventListener('contextmenu', (event) => {
+      const card = event.target.closest('[data-question-id]');
+      if (!card || !nodes.questionMenu) return;
       event.preventDefault();
-      updateQuestion();
+      selectedQuestionId = card.dataset.questionId;
+      menuQuestionId = selectedQuestionId;
+      renderQuestions();
+      nodes.questionMenu.hidden = false;
+      nodes.questionMenu.style.left = Math.min(event.clientX, window.innerWidth - 230) + 'px';
+      nodes.questionMenu.style.top = Math.min(event.clientY, window.innerHeight - 230) + 'px';
     });
-    nodes.questionEditor.addEventListener('input', () => {
-      nodes.questionEditorState.textContent = selectedQuestion() ? 'Editing question' : 'Select a question';
+    nodes.questionMenu?.addEventListener('click', (event) => {
+      const button = event.target.closest('[data-menu-action]');
+      if (!button) return;
+      runQuestionAction(button.dataset.menuAction, menuQuestionId, button);
+      nodes.questionMenu.hidden = true;
     });
-    center.querySelector('[data-question-delete]')?.addEventListener('click', deleteQuestion);
-    center.querySelector('[data-question-copy]')?.addEventListener('click', duplicateQuestion);
-    center.querySelector('[data-question-up]')?.addEventListener('click', () => moveQuestion(-1));
-    center.querySelector('[data-question-down]')?.addEventListener('click', () => moveQuestion(1));
+    document.addEventListener('click', (event) => {
+      if (!nodes.questionMenu || nodes.questionMenu.hidden || event.target.closest('[data-question-menu]')) return;
+      nodes.questionMenu.hidden = true;
+    });
     nodes.responseForm.addEventListener('submit', saveResponse);
     nodes.responseList.addEventListener('click', (event) => {
       const button = event.target.closest('[data-response-id]');
@@ -1867,31 +1893,104 @@ function escapeHtml(value) {
     draft.requireApproval = data.has('requireApproval');
   }
 
-  function updateQuestion() {
-    const question = selectedQuestion();
-    if (!question) return;
-    const data = new FormData(nodes.questionEditor);
-    question.label = String(data.get('label') || '');
-    question.help = String(data.get('help') || '');
-    question.type = String(data.get('type') || 'short');
-    question.options = String(data.get('options') || '').split('\n').map((value) => value.trim()).filter(Boolean);
-    question.scaleMin = number(data.get('scaleMin'), 1);
-    question.scaleMax = number(data.get('scaleMax'), 5);
-    question.required = data.has('required');
-    question.reviewFlag = data.has('reviewFlag');
+  function addQuestion(type = 'multiple', afterId = '') {
+    const question = blankQuestion(type);
+    const index = afterId ? draft.questions.findIndex((item) => item.id === afterId) : -1;
+    if (index >= 0) draft.questions.splice(index + 1, 0, question);
+    else draft.questions.push(question);
+    selectedQuestionId = question.id;
     dirty = true;
     render();
   }
 
-  function deleteQuestion() {
-    draft.questions = draft.questions.filter((question) => question.id !== selectedQuestionId);
+  function updateQuestionFromInput(target) {
+    const card = target.closest('[data-question-id]');
+    if (!card) return;
+    const question = draft.questions.find((item) => item.id === card.dataset.questionId);
+    if (!question) return;
+    selectedQuestionId = question.id;
+    if (target.matches('[data-question-label]')) question.label = target.value;
+    else if (target.matches('[data-question-help]')) question.help = target.value;
+    else if (target.matches('[data-question-type-select]')) {
+      question.type = target.value;
+      normalizeQuestion(question);
+      dirty = true;
+      renderQuestions();
+      renderPreview();
+      renderLite();
+      return;
+    } else if (target.matches('[data-question-required]')) question.required = target.checked;
+    else if (target.matches('[data-question-review]')) question.reviewFlag = target.checked;
+    else if (target.matches('[data-question-option]')) question.options[number(target.dataset.optionIndex)] = target.value;
+    else if (target.matches('[data-question-row]')) question.rows[number(target.dataset.rowIndex)] = target.value;
+    else if (target.matches('[data-question-column]')) question.columns[number(target.dataset.columnIndex)] = target.value;
+    else if (target.matches('[data-question-scale-min]')) question.scaleMin = number(target.value, 1);
+    else if (target.matches('[data-question-scale-max]')) question.scaleMax = number(target.value, 5);
+    dirty = true;
+    renderPreview();
+    renderLite();
+  }
+
+  function runQuestionAction(action, id = selectedQuestionId, actionEl = null) {
+    selectedQuestionId = id;
+    if (action === 'addBelow') return addQuestion('multiple', id);
+    if (action === 'duplicate') return duplicateQuestion(id);
+    if (action === 'delete') return deleteQuestion(id);
+    if (action === 'moveUp') return moveQuestion(-1, id);
+    if (action === 'moveDown') return moveQuestion(1, id);
+    if (action === 'addOption') return addQuestionOption(id);
+    if (action === 'removeOption') return removeQuestionOption(id, number(actionEl?.dataset.optionIndex, -1));
+    if (action === 'addRow') return addGridItem(id, 'rows');
+    if (action === 'addColumn') return addGridItem(id, 'columns');
+    if (action === 'removeRow') return removeGridItem(id, 'rows', number(actionEl?.dataset.rowIndex, -1));
+    if (action === 'removeColumn') return removeGridItem(id, 'columns', number(actionEl?.dataset.columnIndex, -1));
+  }
+
+  function addQuestionOption(id) {
+    const question = draft.questions.find((item) => item.id === id);
+    if (!question) return;
+    question.options = question.options || [];
+    question.options.push('Option ' + (question.options.length + 1));
+    dirty = true;
+    render();
+  }
+
+  function removeQuestionOption(id, index) {
+    const question = draft.questions.find((item) => item.id === id);
+    if (!question || index < 0) return;
+    question.options.splice(index, 1);
+    if (!question.options.length) question.options.push('Option 1');
+    dirty = true;
+    render();
+  }
+
+  function addGridItem(id, key) {
+    const question = draft.questions.find((item) => item.id === id);
+    if (!question) return;
+    question[key] = question[key] || [];
+    question[key].push((key === 'rows' ? 'Row ' : 'Column ') + (question[key].length + 1));
+    dirty = true;
+    render();
+  }
+
+  function removeGridItem(id, key, index) {
+    const question = draft.questions.find((item) => item.id === id);
+    if (!question || index < 0) return;
+    question[key].splice(index, 1);
+    if (!question[key].length) question[key].push(key === 'rows' ? 'Row 1' : 'Column 1');
+    dirty = true;
+    render();
+  }
+
+  function deleteQuestion(id = selectedQuestionId) {
+    draft.questions = draft.questions.filter((question) => question.id !== id);
     selectedQuestionId = draft.questions[0]?.id || '';
     dirty = true;
     render();
   }
 
-  function duplicateQuestion() {
-    const question = selectedQuestion();
+  function duplicateQuestion(id = selectedQuestionId) {
+    const question = draft.questions.find((item) => item.id === id);
     if (!question) return;
     const copy = { ...clone(question), id: 'q-' + Date.now(), label: question.label + ' Copy' };
     const index = draft.questions.findIndex((item) => item.id === question.id);
@@ -1901,8 +2000,8 @@ function escapeHtml(value) {
     render();
   }
 
-  function moveQuestion(direction) {
-    const index = draft.questions.findIndex((question) => question.id === selectedQuestionId);
+  function moveQuestion(direction, id = selectedQuestionId) {
+    const index = draft.questions.findIndex((question) => question.id === id);
     const next = index + direction;
     if (index < 0 || next < 0 || next >= draft.questions.length) return;
     const [question] = draft.questions.splice(index, 1);
@@ -1921,6 +2020,12 @@ function escapeHtml(value) {
     const values = {};
     draft.questions.forEach((question) => {
       if (question.type === 'checkboxes') values[question.id] = data.getAll(question.id);
+      else if (question.type === 'grid' || question.type === 'checkboxGrid') {
+        values[question.id] = (question.rows || []).map((row, index) => ({
+          row,
+          value: question.type === 'checkboxGrid' ? data.getAll(question.id + '-' + index) : data.get(question.id + '-' + index)
+        }));
+      }
       else values[question.id] = data.get(question.id) || '';
     });
     const response = {
@@ -1945,7 +2050,6 @@ function escapeHtml(value) {
     renderLibrary();
     renderSummary();
     renderQuestions();
-    renderQuestionEditor();
     renderPreview();
     renderResponses();
     renderEditorResponses();
@@ -2002,30 +2106,73 @@ function escapeHtml(value) {
   }
 
   function renderQuestions() {
-    nodes.questionCount.textContent = draft.questions.length + (draft.questions.length === 1 ? ' question' : ' questions');
-    nodes.questionList.innerHTML = draft.questions.length ? draft.questions.map((question, index) =>
-      '<button type="button" class="question-card ' + (question.id === selectedQuestionId ? 'active' : '') + '" data-question-id="' + escapeHtml(question.id) + '"><span><strong>' + (index + 1) + '. ' + escapeHtml(question.label || 'Untitled question') + '</strong><span>' + escapeHtml(fieldTypes[question.type] || question.type) + (question.required ? ' / Required' : '') + '</span></span><b>' + escapeHtml(question.type) + '</b></button>'
-    ).join('') : '<div class="empty-state">Add questions from the selector above.</div>';
+    const countLabel = draft.questions.length + (draft.questions.length === 1 ? ' question' : ' questions');
+    if (nodes.questionCount) nodes.questionCount.textContent = countLabel;
+    nodes.questionList.innerHTML = draft.questions.length ? draft.questions.map(questionCard).join('') : '<div class="empty-state">Add a question to start building the form.</div>';
   }
 
-  function renderQuestionEditor() {
-    const question = selectedQuestion();
-    nodes.questionEditorState.textContent = question ? 'Editing question' : 'Select a question';
-    nodes.questionEditor.querySelectorAll('input, textarea, select, button').forEach((item) => {
-      if (!item.matches('[data-question-delete], [data-question-copy], [data-question-up], [data-question-down]')) item.disabled = !question;
-    });
-    if (!question) {
-      nodes.questionEditor.reset();
-      return;
-    }
-    nodes.questionEditor.elements.label.value = question.label || '';
-    nodes.questionEditor.elements.help.value = question.help || '';
-    nodes.questionEditor.elements.type.value = question.type || 'short';
-    nodes.questionEditor.elements.options.value = (question.options || []).join('\n');
-    nodes.questionEditor.elements.scaleMin.value = question.scaleMin ?? 1;
-    nodes.questionEditor.elements.scaleMax.value = question.scaleMax ?? 5;
-    nodes.questionEditor.elements.required.checked = !!question.required;
-    nodes.questionEditor.elements.reviewFlag.checked = !!question.reviewFlag;
+  function questionCard(question, index) {
+    normalizeQuestion(question);
+    const active = question.id === selectedQuestionId ? ' active' : '';
+    const staticBlock = ['title', 'section'].includes(question.type) ? ' gform-static-block' : '';
+    return '<article class="question-card' + active + staticBlock + '" data-question-id="' + escapeHtml(question.id) + '">' +
+      '<div class="gform-card-body">' +
+        '<div class="gform-question-top">' +
+          '<input class="gform-question-input" data-question-label value="' + escapeHtml(question.label || '') + '" placeholder="Question">' +
+          '<select class="gform-type-select" data-question-type-select>' + questionTypeOptions(question.type) + '</select>' +
+        '</div>' +
+        '<textarea class="gform-help-input" data-question-help rows="2" placeholder="Description or help text">' + escapeHtml(question.help || '') + '</textarea>' +
+        questionBuilderFields(question) +
+      '</div>' +
+      '<div class="gform-card-footer">' +
+        '<span class="gform-context-hint">Right-click for card actions</span>' +
+        '<label class="gform-required"><input type="checkbox" data-question-required ' + (question.required ? 'checked' : '') + '> Required</label>' +
+        '<label class="gform-required"><input type="checkbox" data-question-review ' + (question.reviewFlag ? 'checked' : '') + '> Review</label>' +
+        '<div class="gform-card-menu">' +
+          '<button class="gform-card-icon" type="button" data-question-action="moveUp" title="Move up">Up</button>' +
+          '<button class="gform-card-icon" type="button" data-question-action="moveDown" title="Move down">Dn</button>' +
+          '<button class="gform-card-icon" type="button" data-question-action="duplicate" title="Duplicate">Cp</button>' +
+          '<button class="gform-card-icon" type="button" data-question-action="delete" title="Delete">X</button>' +
+        '</div>' +
+      '</div>' +
+    '</article>';
+  }
+
+  function questionTypeOptions(selected) {
+    return Object.entries(fieldTypes).map(([value, label]) => '<option value="' + value + '" ' + (selected === value ? 'selected' : '') + '>' + escapeHtml(label) + '</option>').join('');
+  }
+
+  function questionBuilderFields(question) {
+    if (['multiple', 'checkboxes', 'dropdown'].includes(question.type)) return choiceEditor(question);
+    if (['grid', 'checkboxGrid'].includes(question.type)) return gridEditor(question);
+    if (['linear', 'rating'].includes(question.type)) return scaleEditor(question);
+    if (question.type === 'paragraph') return '<div class="gform-preview-line">Long answer text</div>';
+    if (question.type === 'short') return '<div class="gform-preview-line">Short answer text</div>';
+    if (question.type === 'date') return '<div class="gform-preview-line">Month, day, year</div>';
+    if (question.type === 'time') return '<div class="gform-preview-line">Time</div>';
+    if (question.type === 'file') return '<div class="gform-file-preview">Respondents will provide a file link in this mockup. Supabase Storage upload can attach here later.</div>';
+    if (question.type === 'yesno') return choiceEditor({ ...question, options: ['Yes', 'No'] });
+    if (question.type === 'signature') return '<div class="gform-file-preview">Acknowledgement checkbox shown in preview.</div>';
+    return '<div class="gform-preview-line">Text block</div>';
+  }
+
+  function choiceEditor(question) {
+    const markerClass = question.type === 'checkboxes' ? 'square' : question.type === 'dropdown' ? 'dropdown' : '';
+    return '<div class="gform-option-list">' + (question.options || []).map((option, index) =>
+      '<div class="gform-option-row"><span class="gform-option-marker ' + markerClass + '">' + (question.type === 'dropdown' ? (index + 1) : '') + '</span><input class="gform-option-input" data-question-option data-option-index="' + index + '" value="' + escapeHtml(option) + '" placeholder="Option"><button class="gform-option-remove" type="button" data-question-action="removeOption" data-option-index="' + index + '" title="Remove option">X</button></div>'
+    ).join('') + '<button class="gform-option-add" type="button" data-question-action="addOption">Add option</button></div>';
+  }
+
+  function gridEditor(question) {
+    return '<div class="gform-grid-editor"><strong>Rows</strong>' + (question.rows || []).map((row, index) =>
+      '<div class="gform-option-row"><span class="gform-option-marker square"></span><input class="gform-option-input" data-question-row data-row-index="' + index + '" value="' + escapeHtml(row) + '"><button class="gform-option-remove" type="button" data-question-action="removeRow" data-row-index="' + index + '">X</button></div>'
+    ).join('') + '<button class="gform-option-add" type="button" data-question-action="addRow">Add row</button><strong>Columns</strong>' + (question.columns || []).map((column, index) =>
+      '<div class="gform-option-row"><span class="gform-option-marker"></span><input class="gform-option-input" data-question-column data-column-index="' + index + '" value="' + escapeHtml(column) + '"><button class="gform-option-remove" type="button" data-question-action="removeColumn" data-column-index="' + index + '">X</button></div>'
+    ).join('') + '<button class="gform-option-add" type="button" data-question-action="addColumn">Add column</button></div>';
+  }
+
+  function scaleEditor(question) {
+    return '<div class="gform-scale-row"><label>Scale min<input class="gform-scale-input" type="number" min="0" max="10" data-question-scale-min value="' + escapeHtml(question.scaleMin ?? 1) + '"></label><label>Scale max<input class="gform-scale-input" type="number" min="1" max="10" data-question-scale-max value="' + escapeHtml(question.scaleMax ?? 5) + '"></label></div>';
   }
 
   function renderPreview() {
@@ -2084,7 +2231,19 @@ function escapeHtml(value) {
       const scale = Array.from({ length: Math.max(max - min + 1, 1) }, (_, index) => min + index);
       return '<div class="response-question">' + label + '<div class="rating-row">' + scale.map((value) => '<label><input type="radio" name="' + question.id + '" value="' + value + '"' + required + '>' + value + '</label>').join('') + '</div></div>';
     }
+    if (question.type === 'linear') {
+      const min = number(question.scaleMin, 1);
+      const max = number(question.scaleMax, 5);
+      const scale = Array.from({ length: Math.max(max - min + 1, 1) }, (_, index) => min + index);
+      return '<div class="response-question">' + label + '<div class="rating-row">' + scale.map((value) => '<label><input type="radio" name="' + question.id + '" value="' + value + '"' + required + '>' + value + '</label>').join('') + '</div></div>';
+    }
+    if (question.type === 'grid' || question.type === 'checkboxGrid') {
+      return '<div class="response-question">' + label + '<div class="response-detail-list">' + (question.rows || ['Row 1']).map((row, rowIndex) => '<div><strong>' + escapeHtml(row) + '</strong><div class="response-options">' + (question.columns || ['Column 1']).map((column, columnIndex) => '<label><input type="' + (question.type === 'checkboxGrid' ? 'checkbox' : 'radio') + '" name="' + question.id + '-' + rowIndex + '" value="' + escapeHtml(column) + '"> ' + escapeHtml(column) + '</label>').join('') + '</div></div>').join('') + '</div></div>';
+    }
     if (question.type === 'date') return '<label class="response-question">' + label + '<input type="date" name="' + question.id + '"' + required + '></label>';
+    if (question.type === 'time') return '<label class="response-question">' + label + '<input type="time" name="' + question.id + '"' + required + '></label>';
+    if (question.type === 'title') return '<div class="response-question"><strong>' + escapeHtml(question.label || 'Untitled title') + '</strong>' + (question.help ? '<small>' + escapeHtml(question.help) + '</small>' : '') + '</div>';
+    if (question.type === 'section') return '<div class="response-question"><strong>' + escapeHtml(question.label || 'Section') + '</strong>' + (question.help ? '<small>' + escapeHtml(question.help) + '</small>' : '') + '</div>';
     if (question.type === 'yesno') return '<div class="response-question">' + label + '<div class="response-options"><label><input type="radio" name="' + question.id + '" value="Yes"' + required + '> Yes</label><label><input type="radio" name="' + question.id + '" value="No"' + required + '> No</label></div></div>';
     if (question.type === 'signature') return '<label class="response-question forms-check"><input type="checkbox" name="' + question.id + '" value="Acknowledged"' + required + '> ' + escapeHtml(question.label || 'I acknowledge this form') + '</label>';
     if (question.type === 'file') return '<label class="response-question">' + label + '<input type="text" name="' + question.id + '" placeholder="File name or Quest HQ Files link"' + required + '></label>';
@@ -2096,7 +2255,19 @@ function escapeHtml(value) {
   }
 
   function blankQuestion(type) {
-    return { id: 'q-' + Date.now() + '-' + Math.floor(Math.random() * 1000), type, label: fieldTypes[type] || 'Question', help: '', required: false, reviewFlag: false, options: ['Option 1', 'Option 2'], scaleMin: 1, scaleMax: 5 };
+    const question = { id: 'q-' + Date.now() + '-' + Math.floor(Math.random() * 1000), type: type || 'multiple', label: fieldTypes[type] || 'Question', help: '', required: false, reviewFlag: false, options: ['Option 1', 'Option 2'], rows: ['Row 1'], columns: ['Column 1'], scaleMin: 1, scaleMax: 5 };
+    normalizeQuestion(question);
+    return question;
+  }
+
+  function normalizeQuestion(question) {
+    if (!question.type || !fieldTypes[question.type]) question.type = 'multiple';
+    if (!Array.isArray(question.options) || !question.options.length) question.options = ['Option 1', 'Option 2'];
+    if (!Array.isArray(question.rows) || !question.rows.length) question.rows = ['Row 1'];
+    if (!Array.isArray(question.columns) || !question.columns.length) question.columns = ['Column 1'];
+    if (question.scaleMin === undefined || question.scaleMin === null || question.scaleMin === '') question.scaleMin = 1;
+    if (question.scaleMax === undefined || question.scaleMax === null || question.scaleMax === '') question.scaleMax = 5;
+    if (question.type === 'yesno') question.options = ['Yes', 'No'];
   }
 
   function templateForm(name) {
@@ -2174,7 +2345,7 @@ function escapeHtml(value) {
   }
 
   function formatAnswer(value) {
-    if (Array.isArray(value)) return value.join(', ');
+    if (Array.isArray(value)) return value.map((item) => typeof item === 'object' && item ? item.row + ': ' + formatAnswer(item.value) : item).join(', ');
     return value || 'No answer';
   }
 
