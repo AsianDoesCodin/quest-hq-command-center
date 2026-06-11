@@ -2142,8 +2142,8 @@ function escapeHtml(value) {
       pill('Type', draft.type) + pill('Status', draft.status) + pill('Responses', count) +
       '</div><div class="summary-pill-grid">' +
       pill('Audience', draft.audience || 'Not set') + pill('Job context', draft.jobContext || 'Optional') + pill('Review', draft.requireApproval ? 'Required' : 'Not required') +
-      '</div><div class="share-card"><strong>Respondent link</strong><input readonly value="' + escapeHtml(publicUrl) + '"><div class="form-actions"><button class="primary-button" type="button" data-form-open-public>Open Public Form</button><button class="secondary-button" type="button" data-form-copy-link>Copy Link</button></div></div>' +
-      '<div class="form-actions"><button class="primary-button" type="button" data-form-edit>Edit Form</button><button class="secondary-button" type="button" data-tab-jump="preview">Preview</button></div>';
+      '</div><div class="share-card forms-summary-share"><strong>Respondent link</strong><input readonly value="' + escapeHtml(publicUrl) + '"><div class="form-actions"><button class="primary-button" type="button" data-form-open-public>Open</button><button class="secondary-button" type="button" data-form-copy-link>Copy</button></div></div>' +
+      '<div class="form-actions forms-summary-actions"><button class="primary-button" type="button" data-form-edit>Edit Form</button><button class="secondary-button" type="button" data-tab-jump="preview">Preview</button></div>';
   }
 
   function renderQuestions() {
