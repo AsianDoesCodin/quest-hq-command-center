@@ -610,7 +610,6 @@ function formsPage() {
 
     <div class="tabs" role="tablist">
       <button class="active" data-tab="library">Library</button>
-      <button data-tab="builder">Builder</button>
       <button data-tab="preview">Preview & Collect</button>
       <button data-tab="responses">Responses</button>
       <button data-tab="templates">Templates</button>
@@ -640,7 +639,7 @@ function formsPage() {
       </div>
     </section>
 
-    <section class="tab-panel" data-panel="builder">
+    <section class="forms-builder-host" data-form-builder-host hidden>
       <div class="forms-builder-grid">
         <form class="panel forms-settings" data-form-settings>
           <div class="job-section-heading"><h2>Form Settings</h2><span data-form-dirty>Unsaved draft</span></div>
@@ -2780,7 +2779,7 @@ const formsCenterJs = `(() => {
     responseList: center.querySelector('[data-response-list]'),
     responseCount: center.querySelector('[data-response-count]'),
     responseDetail: center.querySelector('[data-response-detail]'),
-    builderPanel: center.querySelector('[data-panel=\"builder\"]'),
+    builderPanel: center.querySelector('[data-form-builder-host]'),
     builderGrid: center.querySelector('.forms-builder-grid'),
     modal: center.querySelector('[data-form-modal]'),
     modalBody: center.querySelector('[data-form-modal-body]')
@@ -2841,6 +2840,15 @@ const formsCenterJs = `(() => {
       if (!button) return;
       selectForm(button.dataset.formId);
     });
+    nodes.summary.addEventListener('click', (event) => {
+      const jump = event.target.closest('[data-tab-jump]');
+      if (jump) {
+        switchTab(jump.dataset.tabJump);
+        return;
+      }
+      if (!event.target.closest('[data-form-edit]')) return;
+      openFormModal();
+    });
     center.querySelector('[data-question-add]')?.addEventListener('click', () => {
       const question = blankQuestion(nodes.questionType.value);
       draft.questions.push(question);
@@ -2879,8 +2887,8 @@ const formsCenterJs = `(() => {
         selectedId = '';
         selectedQuestionId = draft.questions[0]?.id || '';
         dirty = true;
-        switchTab('builder');
         render();
+        openFormModal();
       });
     });
   }
@@ -3126,7 +3134,7 @@ const formsCenterJs = `(() => {
       pill('Type', draft.type) + pill('Status', draft.status) + pill('Responses', count) +
       '</div><div class=\"summary-pill-grid\">' +
       pill('Audience', draft.audience || 'Not set') + pill('Job context', draft.jobContext || 'Optional') + pill('Review', draft.requireApproval ? 'Required' : 'Not required') +
-      '</div>';
+      '</div><div class=\"form-actions\"><button class=\"primary-button\" type=\"button\" data-form-edit>Edit Form</button><button class=\"secondary-button\" type=\"button\" data-tab-jump=\"preview\">Preview</button></div>';
   }
 
   function renderQuestions() {
@@ -3476,7 +3484,6 @@ const tutorialJs = `(() => {
     if (step.action === 'closeFileModal' && !document.querySelector('[data-file-modal]')?.hidden) {
       document.querySelector('[data-file-modal-close]')?.click();
     }
-    if (step.action === 'openFormsBuilder') document.querySelector('[data-tab=\"builder\"]')?.click();
     if (step.action === 'openFormModal' && document.querySelector('[data-form-modal]')?.hidden) document.querySelector('[data-form-new]')?.click();
     if (step.action === 'openFormsPreview') document.querySelector('[data-tab=\"preview\"]')?.click();
     if (step.action === 'openFormsResponses') document.querySelector('[data-tab=\"responses\"]')?.click();
