@@ -1,6 +1,7 @@
 (() => {
   const QUEST_SUPABASE_URL = 'https://lpzotcznihwyyudxycmd.supabase.co';
   const QUEST_SUPABASE_KEY = 'sb_publishable_Gd1aHMtItu-7daoq2YofeA_9wl1pQ07';
+  const QUEST_LOGIN_STORAGE_KEY = 'quest-hq-last-login';
   const pageName = (document.body.dataset.page || '').split('/').pop();
   const isLoginPage = pageName === 'login.html';
   const returnParam = new URLSearchParams(window.location.search).get('return_url');
@@ -33,6 +34,7 @@
   async function initLoginPage() {
     document.body.classList.remove('auth-loading');
     bindLoginForms();
+    prefillLastLogin();
     const { data } = await questClient.auth.getSession();
     if (!data.session) return;
     const profile = await loadQuestProfile(data.session.user.id);
@@ -88,16 +90,13 @@
   function bindLoginForms() {
     document.querySelectorAll('[data-auth-mode]').forEach((button) => {
       button.addEventListener('click', () => {
-        const mode = button.dataset.authMode;
-        document.querySelectorAll('[data-auth-mode]').forEach((item) => item.classList.toggle('active', item === button));
-        document.querySelectorAll('[data-auth-form]').forEach((form) => { form.hidden = form.dataset.authForm !== mode; });
-        document.querySelector('[data-auth-pending]').hidden = true;
-        showAuthMessage('');
+        switchAuthMode(button.dataset.authMode);
       });
     });
     document.querySelector('[data-auth-form="signin"]')?.addEventListener('submit', async (event) => {
       event.preventDefault();
       const form = event.currentTarget;
+      if (form.dataset.busy === 'true') return;
       showAuthMessage('Signing in...', true);
       const payload = Object.fromEntries(new FormData(form).entries());
       let email = '';
@@ -106,49 +105,67 @@
       } catch (error) {
         return showAuthMessage(error.message || 'Enter a username or email.');
       }
-      const { data, error } = await questClient.auth.signInWithPassword({
-        email,
-        password: String(payload.password || '')
-      });
-      if (error) return showAuthMessage(error.message || 'Could not sign in.');
-      const profile = await loadQuestProfile(data.user.id);
-      if (profile && profile.approved) window.location.replace(sameOriginReturn);
-      else showPendingState();
+      const password = String(payload.password || '');
+      if (!password) return showAuthMessage('Enter your password.');
+      setFormBusy(form, true, 'Signing in...');
+      try {
+        const { data, error } = await questClient.auth.signInWithPassword({ email, password });
+        if (error) return showAuthMessage(authMessage(error, 'Could not sign in.'));
+        rememberLastLogin(payload.login);
+        const profile = await loadQuestProfile(data.user.id);
+        if (profile && profile.approved) window.location.replace(sameOriginReturn);
+        else showPendingState('Signed in. Waiting for admin approval.');
+      } finally {
+        setFormBusy(form, false);
+      }
     });
     document.querySelector('[data-auth-form="signup"]')?.addEventListener('submit', async (event) => {
       event.preventDefault();
       const form = event.currentTarget;
+      if (form.dataset.busy === 'true') return;
       showAuthMessage('Creating account...', true);
       const payload = Object.fromEntries(new FormData(form).entries());
+      const fullName = String(payload.full_name || '').trim();
+      if (!fullName) return showAuthMessage('Enter a display name.');
       let email = '';
       try {
         email = normalizeQuestLogin(payload.login);
       } catch (error) {
         return showAuthMessage(error.message || 'Enter a username.');
       }
-      const { data, error } = await questClient.auth.signUp({
-        email,
-        password: String(payload.password || ''),
-        options: { data: { full_name: String(payload.full_name || '').trim(), username: String(payload.login || '').trim() } }
-      });
-      if (error) return showAuthMessage(error.message || 'Could not create account.');
-      if (data.session && data.user) {
-        const profile = await loadQuestProfile(data.user.id);
-        if (profile && profile.approved) {
-          window.location.replace(sameOriginReturn);
+      const password = String(payload.password || '');
+      if (password.length < 8) return showAuthMessage('Use at least 8 characters for the password.');
+      setFormBusy(form, true, 'Creating...');
+      try {
+        const { data, error } = await questClient.auth.signUp({
+          email,
+          password,
+          options: { data: { full_name: fullName, username: String(payload.login || '').trim() } }
+        });
+        if (error) return showAuthMessage(authMessage(error, 'Could not create account.'));
+        rememberLastLogin(payload.login);
+        if (data.session && data.user) {
+          const profile = await loadQuestProfile(data.user.id);
+          if (profile && profile.approved) {
+            window.location.replace(sameOriginReturn);
+            return;
+          }
+          showPendingState('Account created. Waiting for admin approval.');
           return;
         }
-        showPendingState();
-        return;
+        switchAuthMode('signin');
+        showAuthMessage('Account created. Sign in with your username and password.', true);
+      } finally {
+        setFormBusy(form, false);
       }
-      showAuthMessage('Account created. Sign in with your username and password.', true);
     });
     document.querySelector('[data-auth-refresh]')?.addEventListener('click', async () => {
+      showAuthMessage('Checking approval...', true);
       const { data } = await questClient.auth.getSession();
       if (!data.session) return showAuthMessage('Sign in again to check approval.');
       const profile = await loadQuestProfile(data.session.user.id);
       if (profile && profile.approved) window.location.replace(sameOriginReturn);
-      else showPendingState();
+      else showPendingState('Still pending admin approval.');
     });
     document.querySelector('[data-auth-sign-out]')?.addEventListener('click', async () => {
       await questClient.auth.signOut();
@@ -156,10 +173,20 @@
     });
   }
 
-  function showPendingState() {
+  function switchAuthMode(mode) {
+    const targetMode = mode === 'signup' ? 'signup' : 'signin';
+    document.querySelectorAll('[data-auth-mode]').forEach((item) => item.classList.toggle('active', item.dataset.authMode === targetMode));
+    document.querySelectorAll('[data-auth-form]').forEach((form) => { form.hidden = form.dataset.authForm !== targetMode; });
+    document.querySelector('[data-auth-pending]').hidden = true;
+    showAuthMessage('');
+    const activeForm = document.querySelector('[data-auth-form="' + targetMode + '"]');
+    window.setTimeout(() => activeForm?.querySelector('input')?.focus(), 0);
+  }
+
+  function showPendingState(message = 'Account pending admin approval.') {
     document.querySelectorAll('[data-auth-form]').forEach((form) => { form.hidden = true; });
     document.querySelector('[data-auth-pending]').hidden = false;
-    showAuthMessage('Account pending admin approval.', true);
+    showAuthMessage(message, true);
   }
 
   function showAuthMessage(message, ok = false) {
@@ -167,6 +194,39 @@
     if (!node) return;
     node.textContent = message || '';
     node.classList.toggle('ok', !!ok);
+  }
+
+  function authMessage(error, fallback) {
+    const message = String(error && error.message || '').toLowerCase();
+    if (message.includes('invalid login credentials')) return 'Username or password is incorrect.';
+    if (message.includes('already registered') || message.includes('already exists')) return 'That username already exists. Sign in instead.';
+    if (message.includes('password')) return error.message;
+    return fallback;
+  }
+
+  function setFormBusy(form, busy, busyText = '') {
+    if (!form) return;
+    form.dataset.busy = busy ? 'true' : 'false';
+    form.querySelectorAll('input,button').forEach((control) => { control.disabled = !!busy; });
+    const submit = form.querySelector('button[type="submit"]');
+    if (!submit) return;
+    if (!submit.dataset.label) submit.dataset.label = submit.textContent || '';
+    submit.textContent = busy ? busyText : submit.dataset.label;
+  }
+
+  function rememberLastLogin(value) {
+    try { window.localStorage.setItem(QUEST_LOGIN_STORAGE_KEY, String(value || '').trim()); } catch (error) {}
+  }
+
+  function prefillLastLogin() {
+    let saved = '';
+    try { saved = window.localStorage.getItem(QUEST_LOGIN_STORAGE_KEY) || ''; } catch (error) {}
+    const input = document.querySelector('[data-auth-form="signin"] input[name="login"]');
+    if (input && saved && !input.value) input.value = saved;
+    window.setTimeout(() => {
+      const field = input && input.value ? document.querySelector('[data-auth-form="signin"] input[name="password"]') : input;
+      field?.focus();
+    }, 0);
   }
 
   function paintQuestAccount(user, profile) {
