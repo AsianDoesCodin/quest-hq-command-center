@@ -338,23 +338,23 @@ function loginPage() {
         <div>
           <span class="eyebrow">Secure access</span>
           <h1>Sign in to Quest HQ</h1>
-          <p class="muted">Use one Quest account for the operations command center and TaskManagement.</p>
+          <p class="muted">Use a Quest username or email for the operations command center and TaskManagement.</p>
         </div>
         <div class="quest-auth-tabs">
           <button class="active" type="button" data-auth-mode="signin">Sign in</button>
           <button type="button" data-auth-mode="signup">Create account</button>
         </div>
         <form class="quest-auth-form" data-auth-form="signin">
-          <label>Email<input name="email" type="email" autocomplete="email" required /></label>
+          <label>Username or email<input name="login" type="text" autocomplete="username" required /></label>
           <label>Password<input name="password" type="password" autocomplete="current-password" required /></label>
           <button class="primary-button" type="submit">Sign in</button>
         </form>
         <form class="quest-auth-form" data-auth-form="signup" hidden>
           <label>Display name<input name="full_name" autocomplete="name" required /></label>
-          <label>Email<input name="email" type="email" autocomplete="email" required /></label>
+          <label>Username<input name="login" type="text" autocomplete="username" required /></label>
           <label>Password<input name="password" type="password" autocomplete="new-password" required minlength="8" /></label>
           <button class="primary-button" type="submit">Create account</button>
-          <p class="muted">An admin must approve the account before it can enter Quest HQ or TaskManagement.</p>
+          <p class="muted">No email verification. The first account is approved automatically; later accounts wait for admin approval.</p>
         </form>
         <section class="quest-pending-card" data-auth-pending hidden>
           <h2>Awaiting approval</h2>
@@ -1423,6 +1423,15 @@ const js = `(() => {
     return data;
   }
 
+  function normalizeQuestLogin(value) {
+    const raw = String(value || '').trim().toLowerCase();
+    if (!raw) throw new Error('Enter a username or email.');
+    if (raw.includes('@')) return raw;
+    const username = raw.replace(/[^a-z0-9._-]+/g, '-').replace(/^-+|-+$/g, '');
+    if (!username || username.length < 2) throw new Error('Use at least 2 letters or numbers for the username.');
+    return username + '@quest-hq.local';
+  }
+
   function bindLoginForms() {
     document.querySelectorAll('[data-auth-mode]').forEach((button) => {
       button.addEventListener('click', () => {
@@ -1438,8 +1447,14 @@ const js = `(() => {
       const form = event.currentTarget;
       showAuthMessage('Signing in...', true);
       const payload = Object.fromEntries(new FormData(form).entries());
+      let email = '';
+      try {
+        email = normalizeQuestLogin(payload.login);
+      } catch (error) {
+        return showAuthMessage(error.message || 'Enter a username or email.');
+      }
       const { data, error } = await questClient.auth.signInWithPassword({
-        email: String(payload.email || '').trim(),
+        email,
         password: String(payload.password || '')
       });
       if (error) return showAuthMessage(error.message || 'Could not sign in.');
@@ -1452,10 +1467,16 @@ const js = `(() => {
       const form = event.currentTarget;
       showAuthMessage('Creating account...', true);
       const payload = Object.fromEntries(new FormData(form).entries());
+      let email = '';
+      try {
+        email = normalizeQuestLogin(payload.login);
+      } catch (error) {
+        return showAuthMessage(error.message || 'Enter a username.');
+      }
       const { data, error } = await questClient.auth.signUp({
-        email: String(payload.email || '').trim(),
+        email,
         password: String(payload.password || ''),
-        options: { data: { full_name: String(payload.full_name || '').trim() } }
+        options: { data: { full_name: String(payload.full_name || '').trim(), username: String(payload.login || '').trim() } }
       });
       if (error) return showAuthMessage(error.message || 'Could not create account.');
       if (data.session && data.user) {
@@ -1467,7 +1488,7 @@ const js = `(() => {
         showPendingState();
         return;
       }
-      showAuthMessage('Account created. Check email confirmation before signing in.', true);
+      showAuthMessage('Account created. Sign in with your username and password.', true);
     });
     document.querySelector('[data-auth-refresh]')?.addEventListener('click', async () => {
       const { data } = await questClient.auth.getSession();

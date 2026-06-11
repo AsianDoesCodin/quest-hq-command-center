@@ -16,23 +16,23 @@
         <div>
           <span class="eyebrow">Secure access</span>
           <h1>Sign in to Quest HQ</h1>
-          <p class="muted">Use one Quest account for the operations command center and TaskManagement.</p>
+          <p class="muted">Use a Quest username or email for the operations command center and TaskManagement.</p>
         </div>
         <div class="quest-auth-tabs">
           <button class="active" type="button" data-auth-mode="signin">Sign in</button>
           <button type="button" data-auth-mode="signup">Create account</button>
         </div>
         <form class="quest-auth-form" data-auth-form="signin">
-          <label>Email<input name="email" type="email" autocomplete="email" required /></label>
+          <label>Username or email<input name="login" type="text" autocomplete="username" required /></label>
           <label>Password<input name="password" type="password" autocomplete="current-password" required /></label>
           <button class="primary-button" type="submit">Sign in</button>
         </form>
         <form class="quest-auth-form" data-auth-form="signup" hidden>
           <label>Display name<input name="full_name" autocomplete="name" required /></label>
-          <label>Email<input name="email" type="email" autocomplete="email" required /></label>
+          <label>Username<input name="login" type="text" autocomplete="username" required /></label>
           <label>Password<input name="password" type="password" autocomplete="new-password" required minlength="8" /></label>
           <button class="primary-button" type="submit">Create account</button>
-          <p class="muted">An admin must approve the account before it can enter Quest HQ or TaskManagement.</p>
+          <p class="muted">No email verification. The first account is approved automatically; later accounts wait for admin approval.</p>
         </form>
         <section class="quest-pending-card" data-auth-pending hidden>
           <h2>Awaiting approval</h2>

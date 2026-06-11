@@ -76,6 +76,15 @@
     return data;
   }
 
+  function normalizeQuestLogin(value) {
+    const raw = String(value || '').trim().toLowerCase();
+    if (!raw) throw new Error('Enter a username or email.');
+    if (raw.includes('@')) return raw;
+    const username = raw.replace(/[^a-z0-9._-]+/g, '-').replace(/^-+|-+$/g, '');
+    if (!username || username.length < 2) throw new Error('Use at least 2 letters or numbers for the username.');
+    return username + '@quest-hq.local';
+  }
+
   function bindLoginForms() {
     document.querySelectorAll('[data-auth-mode]').forEach((button) => {
       button.addEventListener('click', () => {
@@ -91,8 +100,14 @@
       const form = event.currentTarget;
       showAuthMessage('Signing in...', true);
       const payload = Object.fromEntries(new FormData(form).entries());
+      let email = '';
+      try {
+        email = normalizeQuestLogin(payload.login);
+      } catch (error) {
+        return showAuthMessage(error.message || 'Enter a username or email.');
+      }
       const { data, error } = await questClient.auth.signInWithPassword({
-        email: String(payload.email || '').trim(),
+        email,
         password: String(payload.password || '')
       });
       if (error) return showAuthMessage(error.message || 'Could not sign in.');
@@ -105,10 +120,16 @@
       const form = event.currentTarget;
       showAuthMessage('Creating account...', true);
       const payload = Object.fromEntries(new FormData(form).entries());
+      let email = '';
+      try {
+        email = normalizeQuestLogin(payload.login);
+      } catch (error) {
+        return showAuthMessage(error.message || 'Enter a username.');
+      }
       const { data, error } = await questClient.auth.signUp({
-        email: String(payload.email || '').trim(),
+        email,
         password: String(payload.password || ''),
-        options: { data: { full_name: String(payload.full_name || '').trim() } }
+        options: { data: { full_name: String(payload.full_name || '').trim(), username: String(payload.login || '').trim() } }
       });
       if (error) return showAuthMessage(error.message || 'Could not create account.');
       if (data.session && data.user) {
@@ -120,7 +141,7 @@
         showPendingState();
         return;
       }
-      showAuthMessage('Account created. Check email confirmation before signing in.', true);
+      showAuthMessage('Account created. Sign in with your username and password.', true);
     });
     document.querySelector('[data-auth-refresh]')?.addEventListener('click', async () => {
       const { data } = await questClient.auth.getSession();
