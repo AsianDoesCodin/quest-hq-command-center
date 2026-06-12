@@ -390,6 +390,7 @@ const state = {
   selectedFormId: '',
   selectedQuestionId: '',
   formStartTemplateId: '',
+  formStartTab: 'blank',
   query: '',
   fileQuery: '',
   formQuery: '',
@@ -1444,19 +1445,22 @@ function renderFormsLibrary(companyId, forms, current) {
       <article class="forms-start-panel panel">
         <div class="forms-panel-head">
           <div>
-            <strong>Start a form</strong>
-            <span>Blank form or a common company template.</span>
+            <strong>Forms workspace</strong>
+            <span>Create client forms, inspection checklists, approvals, and company intake forms.</span>
           </div>
-          <button class="btn btn-primary" type="button" data-action="new-form"><i class="ti ti-plus"></i>Blank form</button>
+          <button class="btn btn-primary" type="button" data-action="new-form"><i class="ti ti-plus"></i>New form</button>
         </div>
-        <div class="form-template-strip">
-          ${formTemplates().map((template) => `
-            <button type="button" class="form-template-tile" data-action="new-form" data-template-id="${h(template.id)}">
-              <span><i class="ti ti-template"></i></span>
-              <strong>${h(template.title)}</strong>
-              <small>${h(template.type)} / ${template.questions.length} questions</small>
-            </button>
-          `).join('')}
+        <div class="forms-start-actions">
+          <button type="button" class="form-start-choice" data-action="new-form" data-start-tab="blank">
+            <span><i class="ti ti-clipboard-plus"></i></span>
+            <strong>Blank builder</strong>
+            <small>Open a builder modal with one starter question.</small>
+          </button>
+          <button type="button" class="form-start-choice" data-action="new-form" data-start-tab="templates">
+            <span><i class="ti ti-template"></i></span>
+            <strong>Use template</strong>
+            <small>Choose an inspection, approval, intake, or safety starter inside the modal.</small>
+          </button>
         </div>
       </article>
       <article class="forms-recent-panel panel">
@@ -1915,38 +1919,92 @@ function renderFormsToolsModal(companyId) {
 }
 
 function renderNewFormModal(companyId) {
-  const template = state.formStartTemplateId ? formTemplates().find((item) => item.id === state.formStartTemplateId) : null;
-  const title = template?.title || '';
-  const description = template?.description || '';
-  const type = template?.type || 'Internal';
-  return renderModalShell('Forms', template ? `Create from ${template.title}` : 'Create form', `
-    <form class="new-form-modal" data-new-form-form>
-      <input type="hidden" name="template_id" value="${h(template?.id || '')}" />
-      <div class="new-form-start">
-        <span><i class="ti ${template ? 'ti-template' : 'ti-clipboard-plus'}"></i></span>
-        <div>
-          <strong>${template ? h(template.title) : 'Blank form'}</strong>
-          <small>${template ? h(`${template.type} / ${template.questions.length} starter questions`) : 'Start with one short-answer question.'}</small>
+  const startTab = state.formStartTab === 'templates' ? 'templates' : 'blank';
+  const templates = formTemplates();
+  const selectedTemplate = startTab === 'templates'
+    ? templates.find((item) => item.id === state.formStartTemplateId) || templates[0] || null
+    : null;
+  const title = selectedTemplate?.title || '';
+  const description = selectedTemplate?.description || '';
+  const type = selectedTemplate?.type || 'Internal';
+  const starterQuestions = selectedTemplate?.questions || [{ type: 'short', label: 'First question', required: false, options: [] }];
+  return renderModalShell('Forms', 'New form builder', `
+    <form class="new-form-modal builder-create-modal" data-new-form-form>
+      <input type="hidden" name="template_id" value="${h(selectedTemplate?.id || '')}" />
+      <div class="form-start-tabs" role="tablist" aria-label="New form start type">
+        <button class="${startTab === 'blank' ? 'active' : ''}" type="button" data-action="set-form-start-tab" data-tab="blank"><i class="ti ti-clipboard-plus"></i>Blank</button>
+        <button class="${startTab === 'templates' ? 'active' : ''}" type="button" data-action="set-form-start-tab" data-tab="templates"><i class="ti ti-template"></i>Templates</button>
+      </div>
+      ${startTab === 'templates' ? `
+        <div class="new-form-template-grid">
+          ${templates.map((template) => `
+            <button class="${selectedTemplate?.id === template.id ? 'active' : ''}" type="button" data-action="select-form-start-template" data-template-id="${h(template.id)}">
+              <span><i class="ti ti-template"></i></span>
+              <strong>${h(template.title)}</strong>
+              <small>${h(template.type)} / ${template.questions.length} questions</small>
+            </button>
+          `).join('')}
         </div>
-      </div>
-      <label><span>Title</span><input name="title" value="${h(title)}" placeholder="Untitled form" required /></label>
-      <label><span>Description</span><textarea name="description" rows="3" placeholder="What should people know before filling this out?">${h(description)}</textarea></label>
-      <div class="new-form-grid">
-        <label><span>Type</span><select name="type">${FORM_TYPES.map((item) => `<option value="${h(item)}" ${item === type ? 'selected' : ''}>${h(item)}</option>`).join('')}</select></label>
-        <label><span>Audience</span><input name="audience" value="Internal" /></label>
-        <label><span>Linked job</span><select name="linked_job_id"><option value="">Company level</option>${companyJobs(companyId).map((job) => `<option value="${h(job.id)}" ${state.route?.jobId === job.id ? 'selected' : ''}>${h(job.name)}</option>`).join('')}</select></label>
-        <label><span>Submit button</span><input name="submit_label" value="Submit" /></label>
-      </div>
-      <div class="new-form-checks">
-        <label class="check-row"><input type="checkbox" name="collect_email" checked /> Collect email</label>
-        <label class="check-row"><input type="checkbox" name="require_approval" /> Require approval</label>
-      </div>
-      <div class="form-actions">
-        <button class="btn btn-primary" type="submit">Create and open builder</button>
-        <button class="btn" type="button" data-action="close-modal">Cancel</button>
+      ` : `
+        <div class="new-form-start">
+          <span><i class="ti ti-clipboard-plus"></i></span>
+          <div>
+            <strong>Blank form</strong>
+            <small>Start with a title card and one short-answer question.</small>
+          </div>
+        </div>
+      `}
+      <div class="new-form-builder-grid">
+        <section class="new-form-builder-main">
+          <article class="panel gform-title-card new-form-title-card">
+            <div class="gform-accent-strip" style="--form-accent:${h(companyColor(companyId))}"></div>
+            <label><span>Form title</span><input name="title" value="${h(title)}" placeholder="Untitled form" required /></label>
+            <label><span>Form description</span><textarea name="description" rows="3" placeholder="What should people know before filling this out?">${h(description)}</textarea></label>
+          </article>
+          <div class="new-form-question-list">
+            ${starterQuestions.map((question, index) => renderStarterQuestionCard(question, index)).join('')}
+          </div>
+        </section>
+        <aside class="panel new-form-settings-card">
+          <div class="section-head"><div><h2>Setup</h2><p>${selectedTemplate ? h(selectedTemplate.title) : 'Blank starter'}</p></div></div>
+          <div class="new-form-grid">
+            <label><span>Type</span><select name="type">${FORM_TYPES.map((item) => `<option value="${h(item)}" ${item === type ? 'selected' : ''}>${h(item)}</option>`).join('')}</select></label>
+            <label><span>Audience</span><input name="audience" value="Internal" /></label>
+            <label><span>Linked job</span><select name="linked_job_id"><option value="">Company level</option>${companyJobs(companyId).map((job) => `<option value="${h(job.id)}" ${state.route?.jobId === job.id ? 'selected' : ''}>${h(job.name)}</option>`).join('')}</select></label>
+            <label><span>Submit button</span><input name="submit_label" value="Submit" /></label>
+          </div>
+          <div class="new-form-checks">
+            <label class="check-row"><input type="checkbox" name="collect_email" checked /> Collect email</label>
+            <label class="check-row"><input type="checkbox" name="require_approval" /> Require approval</label>
+          </div>
+          <div class="form-actions">
+            <button class="btn btn-primary" type="submit">Create form</button>
+            <button class="btn" type="button" data-action="close-modal">Cancel</button>
+          </div>
+        </aside>
       </div>
     </form>
-  `, 'wide-modal form-create-modal');
+  `, 'form-create-modal builder-modal');
+}
+
+function renderStarterQuestionCard(question, index) {
+  const options = questionHasOptions(question) ? `
+    <div class="starter-options">
+      ${(question.options || ['Option 1', 'Option 2']).map((option) => `<span>${h(option)}</span>`).join('')}
+    </div>
+  ` : '';
+  return `
+    <article class="question-card starter-question-card">
+      <div class="question-card-head">
+        <span>${index + 1}</span>
+        <strong>${h(questionTypeLabel(question.type))}</strong>
+      </div>
+      <label><span>Question</span><input value="${h(question.label || 'Untitled question')}" readonly /></label>
+      ${question.help ? `<small>${h(question.help)}</small>` : ''}
+      ${options}
+      <label class="check-row"><input type="checkbox" ${question.required ? 'checked' : ''} disabled /> Required</label>
+    </article>
+  `;
 }
 
 function renderFormPreviewModal(companyId, form) {
@@ -2061,6 +2119,21 @@ function handleAction(event, node) {
     render();
     return;
   }
+  if (action === 'set-form-start-tab') {
+    event.preventDefault();
+    state.formStartTab = node.dataset.tab === 'templates' ? 'templates' : 'blank';
+    if (state.formStartTab === 'blank') state.formStartTemplateId = '';
+    if (state.formStartTab === 'templates' && !state.formStartTemplateId) state.formStartTemplateId = formTemplates()[0]?.id || '';
+    render();
+    return;
+  }
+  if (action === 'select-form-start-template') {
+    event.preventDefault();
+    state.formStartTab = 'templates';
+    state.formStartTemplateId = node.dataset.templateId || formTemplates()[0]?.id || '';
+    render();
+    return;
+  }
   if (action === 'close-modal') {
     event.preventDefault();
     closeActiveModal();
@@ -2120,6 +2193,8 @@ function handleAction(event, node) {
   if (action === 'new-form') {
     event.preventDefault();
     state.formStartTemplateId = node.dataset.templateId || '';
+    state.formStartTab = node.dataset.startTab === 'templates' || state.formStartTemplateId ? 'templates' : 'blank';
+    if (state.formStartTab === 'templates' && !state.formStartTemplateId) state.formStartTemplateId = formTemplates()[0]?.id || '';
     state.modal = 'form-new';
     render();
     return;
@@ -2177,6 +2252,7 @@ function handleAction(event, node) {
   if (action === 'use-form-template') {
     event.preventDefault();
     state.formStartTemplateId = node.dataset.templateId || '';
+    state.formStartTab = 'templates';
     state.modal = 'form-new';
     render();
     return;
@@ -2226,6 +2302,7 @@ function closeActiveModal() {
   const route = state.route || getRoute();
   state.modal = '';
   state.formStartTemplateId = '';
+  state.formStartTab = 'blank';
   if (route.name === 'company' && route.section === 'tasks' && (route.params.get('new') || route.params.get('edit') || route.params.get('task_id'))) {
     navigate(companyPath('tasks', route.jobId ? { job_id: route.jobId } : {}, route.companyId), { replace: true });
     return;
@@ -3466,6 +3543,10 @@ function questionTypeIcon(type) {
   }[type] || 'ti-plus';
 }
 
+function questionTypeLabel(type) {
+  return QUESTION_TYPES.find(([id]) => id === type)?.[1] || titleCase(type || 'Question');
+}
+
 function previewWrap(question, control) {
   return `
     <div class="response-question">
@@ -3590,6 +3671,7 @@ function createForm(companyId, overrides = {}) {
   state.formEditorTab = 'questions';
   state.modal = '';
   state.formStartTemplateId = '';
+  state.formStartTab = 'blank';
   saveFormsState('New form created');
   render();
   return form;

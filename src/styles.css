@@ -2838,16 +2838,18 @@ button.side-item {
   min-height: 0;
 }
 
-.form-template-strip {
+.forms-start-actions {
   display: grid;
-  grid-template-columns: repeat(4, minmax(160px, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 12px;
 }
 
-.form-template-tile {
+.form-start-choice {
   display: grid;
+  grid-template-columns: 44px minmax(0, 1fr);
   gap: 8px;
-  min-height: 126px;
+  align-items: center;
+  min-height: 92px;
   border: 1px solid var(--border);
   border-radius: 8px;
   background: var(--surface);
@@ -2856,31 +2858,32 @@ button.side-item {
   text-align: left;
 }
 
-.form-template-tile:hover,
-.form-template-tile:focus-visible {
+.form-start-choice:hover,
+.form-start-choice:focus-visible {
   border-color: var(--amber);
   background: #fff8e7;
 }
 
-.form-template-tile span {
+.form-start-choice span {
   display: grid;
   place-items: center;
-  width: 36px;
-  height: 36px;
+  grid-row: span 2;
+  width: 40px;
+  height: 40px;
   border-radius: 8px;
   background: #242019;
   color: var(--amber);
   font-size: 18px;
 }
 
-.form-template-tile strong,
-.form-template-tile small,
+.form-start-choice strong,
+.form-start-choice small,
 .form-card em {
   display: block;
   min-width: 0;
 }
 
-.form-template-tile small,
+.form-start-choice small,
 .form-card em {
   color: var(--muted);
   font-size: 12px;
@@ -3014,6 +3017,11 @@ button.side-item {
   font-weight: 850;
 }
 
+.builder-modal {
+  width: min(1180px, calc(100vw - 40px));
+}
+
+.builder-create-modal,
 .new-form-modal {
   display: grid;
   gap: 14px;
@@ -3060,9 +3068,137 @@ button.side-item {
   margin-top: 3px;
 }
 
+.form-start-tabs {
+  display: inline-flex;
+  width: max-content;
+  max-width: 100%;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: #fbf7ee;
+  padding: 4px;
+}
+
+.form-start-tabs button {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 34px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--muted);
+  padding: 0 13px;
+  font-weight: 950;
+}
+
+.form-start-tabs button.active,
+.form-start-tabs button:hover {
+  background: var(--amber);
+  color: #111;
+}
+
+.new-form-template-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(150px, 1fr));
+  gap: 10px;
+}
+
+.new-form-template-grid button {
+  display: grid;
+  gap: 7px;
+  min-height: 112px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--ink);
+  padding: 12px;
+  text-align: left;
+}
+
+.new-form-template-grid button.active,
+.new-form-template-grid button:hover {
+  border-color: var(--amber);
+  background: #fff8e7;
+}
+
+.new-form-template-grid span {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  background: #242019;
+  color: var(--amber);
+}
+
+.new-form-template-grid strong,
+.new-form-template-grid small {
+  display: block;
+  min-width: 0;
+}
+
+.new-form-template-grid small {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 850;
+}
+
+.new-form-builder-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 300px;
+  gap: 14px;
+  align-items: start;
+}
+
+.new-form-builder-main,
+.new-form-question-list {
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+}
+
+.new-form-title-card {
+  width: 100%;
+}
+
+.new-form-settings-card {
+  position: sticky;
+  top: 78px;
+  display: grid;
+  gap: 12px;
+}
+
+.starter-question-card {
+  background: var(--surface);
+}
+
+.starter-question-card input[readonly] {
+  color: var(--ink);
+}
+
+.starter-question-card small {
+  color: var(--muted);
+  font-weight: 800;
+}
+
+.starter-options {
+  display: grid;
+  gap: 7px;
+}
+
+.starter-options span {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: #fbf7ee;
+  color: var(--muted);
+  padding: 8px 10px;
+  font-size: 13px;
+  font-weight: 850;
+}
+
 .new-form-grid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: 1fr;
   gap: 12px;
 }
 
@@ -3180,9 +3316,15 @@ button.side-item {
 @media (max-width: 980px) {
   .modal-action-grid,
   .compact-settings-grid,
-  .form-template-strip,
+  .forms-start-actions,
+  .new-form-template-grid,
+  .new-form-builder-grid,
   .new-form-grid {
     grid-template-columns: 1fr;
+  }
+
+  .new-form-settings-card {
+    position: static;
   }
 
   .drawer-overlay {
@@ -3271,5 +3413,16 @@ button.side-item {
   .form-preview-modal,
   .form-create-modal {
     width: calc(100vw - 20px);
+  }
+
+  .form-start-tabs {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    width: 100%;
+    border-radius: 8px;
+  }
+
+  .form-start-tabs button {
+    justify-content: center;
   }
 }
