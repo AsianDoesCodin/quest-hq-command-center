@@ -1581,8 +1581,7 @@ textarea:focus {
 }
 
 .drive-folder-grid,
-.file-grid-live,
-.forms-template-grid {
+.file-grid-live {
   display: grid;
   grid-template-columns: repeat(4, minmax(170px, 1fr));
   gap: 12px;
@@ -2352,28 +2351,6 @@ textarea:focus {
   padding-bottom: 12px;
 }
 
-.template-card {
-  display: grid;
-  gap: 10px;
-  align-content: start;
-  min-height: 220px;
-}
-
-.template-icon {
-  display: grid;
-  place-items: center;
-  width: 44px;
-  height: 44px;
-  border-radius: 8px;
-  background: #242019;
-  color: var(--amber);
-  font-size: 20px;
-}
-
-.template-card p {
-  color: var(--muted);
-}
-
 .analytics-workspace {
   display: grid;
   gap: 14px;
@@ -2632,8 +2609,7 @@ textarea:focus {
 
 @media (max-width: 1280px) {
   .drive-folder-grid,
-  .file-grid-live,
-  .forms-template-grid {
+  .file-grid-live {
     grid-template-columns: repeat(3, minmax(160px, 1fr));
   }
 
@@ -2660,7 +2636,6 @@ textarea:focus {
   .drive-context-strip,
   .drive-folder-grid,
   .file-grid-live,
-  .forms-template-grid,
   .forms-settings-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -2720,7 +2695,6 @@ textarea:focus {
   .drive-context-strip,
   .drive-folder-grid,
   .file-grid-live,
-  .forms-template-grid,
   .forms-settings-grid {
     grid-template-columns: 1fr;
   }

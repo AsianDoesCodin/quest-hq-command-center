@@ -1415,6 +1415,7 @@ function renderSettingsPage(route, companyId) {
 function renderFormsPage(companyId) {
   const forms = filteredForms(companyId);
   const current = selectedForm(companyId);
+  const activeTab = state.formsTab === 'builder' && current ? 'builder' : state.formsTab === 'responses' ? 'responses' : 'library';
   return `
     <section class="tool-page forms-center">
       <div class="forms-command panel">
@@ -1426,15 +1427,16 @@ function renderFormsPage(companyId) {
         <button class="btn" type="button" data-action="open-forms-tools"><i class="ti ti-adjustments"></i>Tools</button>
         <button class="btn btn-primary" type="button" data-action="new-form"><i class="ti ti-plus"></i>New form</button>
       </div>
-      <nav class="tabbar forms-tabs" aria-label="Forms workspace">
-        ${['library', 'builder', 'responses', 'templates'].map((tab) => `
-          <button class="${state.formsTab === tab ? 'active' : ''}" type="button" data-action="set-forms-tab" data-tab="${h(tab)}">${h(titleCase(tab))}</button>
-        `).join('')}
-      </nav>
-      ${state.formsTab === 'library' ? renderFormsLibrary(companyId, forms, current) : ''}
-      ${state.formsTab === 'builder' ? renderFormsBuilder(companyId, current) : ''}
-      ${state.formsTab === 'responses' ? renderFormsResponses(companyId, current) : ''}
-      ${state.formsTab === 'templates' ? renderFormsTemplates(companyId) : ''}
+      ${activeTab === 'builder' ? '' : `
+        <nav class="tabbar forms-tabs" aria-label="Forms workspace">
+          ${['library', 'responses'].map((tab) => `
+            <button class="${activeTab === tab ? 'active' : ''}" type="button" data-action="set-forms-tab" data-tab="${h(tab)}">${h(titleCase(tab))}</button>
+          `).join('')}
+        </nav>
+      `}
+      ${activeTab === 'library' ? renderFormsLibrary(companyId, forms, current) : ''}
+      ${activeTab === 'builder' ? renderFormsBuilder(companyId, current) : ''}
+      ${activeTab === 'responses' ? renderFormsResponses(companyId, current) : ''}
     </section>
   `;
 }
@@ -1713,25 +1715,6 @@ function renderFormsResponses(companyId, form) {
       <aside class="panel response-detail">
         ${selected ? renderResponseDetail(selected) : emptyState('No response selected.')}
       </aside>
-    </section>
-  `;
-}
-
-function renderFormsTemplates(companyId) {
-  return `
-    <section class="forms-template-grid">
-      ${formTemplates().map((template) => `
-        <article class="template-card panel">
-          <span class="template-icon"><i class="ti ti-template"></i></span>
-          <strong>${h(template.title)}</strong>
-          <p>${h(template.description)}</p>
-          <div class="forms-simple-meta">
-            <span>${h(template.type)}</span>
-            <span>${template.questions.length} questions</span>
-          </div>
-          <button class="btn btn-primary" type="button" data-action="use-form-template" data-template-id="${h(template.id)}">Use template</button>
-        </article>
-      `).join('')}
     </section>
   `;
 }
@@ -2180,7 +2163,7 @@ function handleAction(event, node) {
   }
   if (action === 'set-forms-tab') {
     event.preventDefault();
-    state.formsTab = node.dataset.tab || 'library';
+    state.formsTab = node.dataset.tab === 'responses' ? 'responses' : 'library';
     render();
     return;
   }
@@ -2247,14 +2230,6 @@ function handleAction(event, node) {
   if (action === 'export-forms') {
     event.preventDefault();
     exportForms(activeCompanyId());
-    return;
-  }
-  if (action === 'use-form-template') {
-    event.preventDefault();
-    state.formStartTemplateId = node.dataset.templateId || '';
-    state.formStartTab = 'templates';
-    state.modal = 'form-new';
-    render();
     return;
   }
   if (action === 'add-question') {
