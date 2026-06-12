@@ -3100,7 +3100,7 @@ function normalizeForm(input) {
     type,
     status,
     audience: String(input.audience || 'Internal').trim(),
-    creator_id: String(input.creator_id || input.created_by || activeSession().profile.member_id || 'basic-quest-user'),
+    creator_id: String(input.creator_id || input.created_by || input.created_by_id || ''),
     linked_job_id: String(input.linked_job_id || input.job_id || ''),
     theme_color: String(input.theme_color || '#f0b23b'),
     background: String(input.background || 'clean'),
@@ -3519,6 +3519,7 @@ function formQuestionCount(form) {
 function formCreatorLabel(form) {
   const creatorId = String(form?.creator_id || '');
   const profile = activeSession().profile;
+  if (!creatorId) return form?.created_by_label || profile.full_name || 'Quest HQ';
   if (creatorId && (creatorId === profile.member_id || creatorId === profile.id)) return profile.full_name || 'Quest Basic Mode';
   return memberName(creatorId) || form?.created_by_label || 'Quest HQ';
 }
