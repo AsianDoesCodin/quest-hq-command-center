@@ -1,7 +1,7 @@
 import './styles.css';
 
 const CONFIG = {
-  buildId: 'Quest HQ SPA Foundation v1',
+  buildId: 'Quest HQ Company Workspace v1',
   questAuthEnabled: false,
   localLoginEnabled: true,
   localUsername: 'lumen123',
@@ -14,8 +14,28 @@ const BASE_PATH = new URL(import.meta.env.BASE_URL || '/', window.location.origi
 const SESSION_KEY = 'quest-hq-local-session';
 const PROFILE_KEY = 'quest-hq-local-profile';
 const JOB_CACHE_KEY = 'quest-hq-job-cache-v2';
+const TASK_CACHE_KEY = 'quest-hq-task-cache-v1';
+const FILE_CACHE_KEY = 'quest-hq-file-cache-v1';
+const TEAM_CACHE_KEY = 'quest-hq-team-cache-v1';
+const MEMBERSHIP_CACHE_KEY = 'quest-hq-company-membership-cache-v1';
+const COMPANY_KEY = 'quest-hq-active-company';
+const TASK_VIEW_KEY = 'quest-hq-task-view';
+const DRIVE_VIEW_KEY = 'quest-hq-drive-view';
+
 const STAGES = ['Lead', 'Site Review', 'Estimate', 'Approved', 'Active', 'Closed'];
-const JOB_TABS = ['pipeline', 'list', 'profile', 'tasks', 'files', 'forms', 'analytics', 'editor'];
+const JOB_TABS = ['pipeline', 'list', 'profile', 'editor'];
+const TASK_STATUSES = ['todo', 'pending', 'hold', 'review', 'done'];
+const TASK_PRIORITIES = ['critical', 'urgent', 'high', 'medium', 'low'];
+const TASK_TYPES = ['lead', 'bid', 'admin', 'invoicing', 'ar', 'meeting', 'web_dev'];
+const DRIVE_FOLDERS = [
+  ['jobs', 'Jobs', 'Job-linked folders and deliverables', 'ti-folders'],
+  ['shared', 'Shared', 'Company-wide files', 'ti-folder-share'],
+  ['forms', 'Forms', 'Completed forms and templates', 'ti-clipboard-list'],
+  ['photos', 'Photos', 'Site photos and field media', 'ti-photo'],
+  ['permits', 'Permits', 'Permit packets and approvals', 'ti-file-certificate'],
+  ['contracts', 'Contracts', 'Signed agreements and estimates', 'ti-file-dollar'],
+  ['archive', 'Archive', 'Closed or historical files', 'ti-archive'],
+];
 
 const companiesFallback = [
   { id: 'roofing', name: 'Quest Roofing', short_name: 'Roofing', color: '#f0b23b' },
@@ -39,8 +59,8 @@ const jobsFallback = [
     notes: 'Client reported active leak after monsoon storm.',
     estimate_total: 6800,
     invoice_total: 0,
-    task_count: 7,
-    file_count: 12,
+    task_count: 4,
+    file_count: 5,
     updated_at: new Date().toISOString(),
   },
   {
@@ -58,8 +78,8 @@ const jobsFallback = [
     notes: 'Board wants estimate and permit notes before approval.',
     estimate_total: 18400,
     invoice_total: 0,
-    task_count: 5,
-    file_count: 8,
+    task_count: 3,
+    file_count: 4,
     updated_at: new Date(Date.now() - 86400000).toISOString(),
   },
   {
@@ -77,9 +97,147 @@ const jobsFallback = [
     notes: 'Waiting on latest measurements.',
     estimate_total: 4200,
     invoice_total: 0,
-    task_count: 3,
-    file_count: 4,
+    task_count: 2,
+    file_count: 3,
     updated_at: new Date(Date.now() - 172800000).toISOString(),
+  },
+];
+
+const teamMembersFallback = [
+  { id: 'abraham', name: 'Abraham', full_name: 'Abraham Flores', email: 'abraham@quest-hq.local', color: '#f0b23b', active: true, company_ids: ['roofing', 'drafting'] },
+  { id: 'maya', name: 'Maya', full_name: 'Maya Rosales', email: 'maya@quest-hq.local', color: '#60a5fa', active: true, company_ids: ['roofing'] },
+  { id: 'andre', name: 'Andre', full_name: 'Andre Lee', email: 'andre@quest-hq.local', color: '#f97316', active: true, company_ids: ['roofing'] },
+  { id: 'noah', name: 'Noah', full_name: 'Noah Park', email: 'noah@quest-hq.local', color: '#a78bfa', active: true, company_ids: ['drafting'] },
+  { id: 'lumen-ops', name: 'Lumen Ops', full_name: 'Lumen Operations', email: 'ops@lumen.local', color: '#7c3aed', active: true, company_ids: ['lumen'] },
+];
+
+const membershipsFallback = [
+  { company_id: 'roofing', profile_id: 'basic-quest-user', role: 'developer', status: 'active' },
+  { company_id: 'drafting', profile_id: 'basic-quest-user', role: 'developer', status: 'active' },
+  { company_id: 'lumen', profile_id: 'basic-quest-user', role: 'developer', status: 'active' },
+];
+
+const tasksFallback = [
+  {
+    id: 'task-roofing-leak-1',
+    title: 'Call client and confirm active leak area',
+    description: 'Confirm access window, roof area, and whether temporary dry-in is still holding.',
+    type: 'lead',
+    company_id: 'roofing',
+    project_id: '11111111-1111-4111-8111-111111111111',
+    creator_id: 'abraham',
+    assignee_id: 'maya',
+    due: isoDate(0),
+    priority: 'urgent',
+    urgency: 'urgent',
+    status: 'todo',
+  },
+  {
+    id: 'task-roofing-leak-2',
+    title: 'Upload inspection photos',
+    description: 'Attach site photos to the company drive and tag the Queen Creek job folder.',
+    type: 'admin',
+    company_id: 'roofing',
+    project_id: '11111111-1111-4111-8111-111111111111',
+    creator_id: 'maya',
+    assignee_id: 'andre',
+    due: isoDate(1),
+    priority: 'high',
+    urgency: 'high',
+    status: 'pending',
+  },
+  {
+    id: 'task-roofing-mesa-1',
+    title: 'Prepare repair estimate packet',
+    description: 'Draft scope, estimate total, and permit notes for board review.',
+    type: 'bid',
+    company_id: 'roofing',
+    project_id: '22222222-2222-4222-8222-222222222222',
+    creator_id: 'abraham',
+    assignee_id: 'maya',
+    due: isoDate(3),
+    priority: 'high',
+    urgency: 'high',
+    status: 'review',
+  },
+  {
+    id: 'task-drafting-package-1',
+    title: 'Request final measurements',
+    description: 'Get latest field measurements before starting permit drawings.',
+    type: 'admin',
+    company_id: 'drafting',
+    project_id: '33333333-3333-4333-8333-333333333333',
+    creator_id: 'abraham',
+    assignee_id: 'noah',
+    due: isoDate(2),
+    priority: 'medium',
+    urgency: 'medium',
+    status: 'hold',
+  },
+  {
+    id: 'task-lumen-ops-1',
+    title: 'Create client onboarding checklist',
+    description: 'Internal Lumen setup task to prove company workspace isolation.',
+    type: 'meeting',
+    company_id: 'lumen',
+    project_id: '',
+    creator_id: 'abraham',
+    assignee_id: 'lumen-ops',
+    due: isoDate(5),
+    priority: 'medium',
+    urgency: 'medium',
+    status: 'todo',
+  },
+];
+
+const filesFallback = [
+  {
+    id: 'file-roofing-1',
+    company_id: 'roofing',
+    job_id: '11111111-1111-4111-8111-111111111111',
+    folder: 'photos',
+    file_name: 'queen-creek-leak-photos.zip',
+    mime_type: 'application/zip',
+    size_bytes: 18400000,
+    category: 'Photos',
+    uploaded_by_label: 'Maya Rosales',
+    created_at: new Date(Date.now() - 3600000).toISOString(),
+  },
+  {
+    id: 'file-roofing-2',
+    company_id: 'roofing',
+    job_id: '22222222-2222-4222-8222-222222222222',
+    folder: 'permits',
+    file_name: 'mesa-storage-permit-notes.pdf',
+    mime_type: 'application/pdf',
+    size_bytes: 860000,
+    category: 'Permits',
+    uploaded_by_label: 'Andre Lee',
+    created_at: new Date(Date.now() - 86400000).toISOString(),
+  },
+  {
+    id: 'file-drafting-1',
+    company_id: 'drafting',
+    job_id: '33333333-3333-4333-8333-333333333333',
+    folder: 'contracts',
+    file_name: 'horizon-hvac-drawing-agreement.pdf',
+    mime_type: 'application/pdf',
+    size_bytes: 420000,
+    category: 'Contracts',
+    uploaded_by_label: 'Noah Park',
+    created_at: new Date(Date.now() - 172800000).toISOString(),
+  },
+  {
+    id: 'file-lumen-1',
+    company_id: 'lumen',
+    job_id: '',
+    folder: 'shared',
+    file_name: 'lumen-shared-brand-assets.zip',
+    mime_type: 'application/zip',
+    size_bytes: 3200000,
+    category: 'Shared',
+    uploaded_by_label: 'Lumen Operations',
+    created_at: new Date(Date.now() - 259200000).toISOString(),
   },
 ];
 
@@ -88,11 +246,22 @@ const state = {
   session: readJson(SESSION_KEY, null),
   profileDraft: readJson(PROFILE_KEY, null),
   jobs: readJson(JOB_CACHE_KEY, jobsFallback).map(normalizeJob),
+  tasks: readJson(TASK_CACHE_KEY, tasksFallback).map(normalizeTask),
+  files: readJson(FILE_CACHE_KEY, filesFallback).map(normalizeFile),
+  teamMembers: readJson(TEAM_CACHE_KEY, teamMembersFallback).map(normalizeTeamMember),
+  memberships: readJson(MEMBERSHIP_CACHE_KEY, membershipsFallback),
   companies: companiesFallback,
+  activeCompanyId: localStorage.getItem(COMPANY_KEY) || '',
   selectedJobId: '',
+  selectedTaskId: '',
   query: '',
   stageFilter: 'all',
-  sync: { label: 'Loading jobs...', mode: 'loading' },
+  taskStatusFilter: 'all',
+  taskPriorityFilter: 'all',
+  taskView: localStorage.getItem(TASK_VIEW_KEY) || 'table',
+  driveFolder: 'home',
+  driveView: localStorage.getItem(DRIVE_VIEW_KEY) || 'grid',
+  sync: { label: 'Loading workspace...', mode: 'loading' },
   dataLoaded: false,
   dataLoading: false,
   loginError: '',
@@ -126,9 +295,16 @@ function render() {
   }
 
   ensureDataLoad();
+  const redirect = routeRedirect(state.route);
+  if (redirect) {
+    navigate(redirect, { replace: true });
+    return;
+  }
+
+  reconcileCompany(state.route);
   reconcileSelection(state.route);
   if (state.route.params.get('account') === 'profile') state.modal = 'profile';
-  document.title = `${routeTitle(state.route)} | Quest HQ`;
+  document.title = `${routeTitle(state.route)} | ${companyName(activeCompanyId())} | Quest HQ`;
   app.innerHTML = shellTemplate(state.route, renderWorkspace(state.route));
 }
 
@@ -143,14 +319,12 @@ function ensureDataLoad() {
   state.dataLoading = true;
   loadSupabaseData()
     .catch(() => {
-      state.jobs = jobsFallback.map(normalizeJob);
-      state.companies = companiesFallback;
       state.sync = { label: 'Local fallback', mode: 'local' };
     })
     .finally(() => {
       state.dataLoaded = true;
       state.dataLoading = false;
-      persistJobs();
+      persistAll();
       render();
     });
 }
@@ -162,20 +336,42 @@ async function loadSupabaseData() {
     return;
   }
 
-  const [jobsResult, companiesResult] = await Promise.all([
-    client.from('jobs').select('*').order('updated_at', { ascending: false }),
+  const [companiesResult, jobsResult, tasksResult, filesResult, teamResult, membershipsResult] = await Promise.all([
     client.from('companies').select('*').order('name', { ascending: true }),
+    client.from('jobs').select('*').order('updated_at', { ascending: false }),
+    client.from('tasks').select('*').order('updated_at', { ascending: false }),
+    client.from('job_files').select('*').is('deleted_at', null).order('created_at', { ascending: false }),
+    client.from('team_members').select('*').order('name', { ascending: true }),
+    client.from('company_memberships').select('*'),
   ]);
 
-  if (jobsResult.error) throw jobsResult.error;
-  state.jobs = (jobsResult.data || []).map(normalizeJob);
-  if (!state.jobs.length) state.jobs = jobsFallback.map(normalizeJob);
-
-  if (!companiesResult.error && companiesResult.data && companiesResult.data.length) {
-    state.companies = companiesResult.data;
+  let liveTables = 0;
+  if (!companiesResult.error) {
+    state.companies = companiesResult.data?.length ? companiesResult.data.map(normalizeCompany) : companiesFallback;
+    liveTables += 1;
+  }
+  if (!jobsResult.error) {
+    state.jobs = (jobsResult.data || []).map(normalizeJob);
+    liveTables += 1;
+  }
+  if (!tasksResult.error) {
+    state.tasks = (tasksResult.data || []).map(normalizeTask);
+    liveTables += 1;
+  }
+  if (!filesResult.error) {
+    state.files = (filesResult.data || []).map(normalizeFile);
+    liveTables += 1;
+  }
+  if (!teamResult.error) {
+    state.teamMembers = (teamResult.data || []).map(normalizeTeamMember);
+    liveTables += 1;
+  }
+  if (!membershipsResult.error) {
+    state.memberships = (membershipsResult.data || []).map(normalizeMembership);
+    liveTables += 1;
   }
 
-  state.sync = { label: 'Supabase live', mode: 'live' };
+  state.sync = liveTables ? { label: 'Quest Supabase live', mode: 'live' } : { label: 'Local fallback', mode: 'local' };
 }
 
 function createSupabaseClient() {
@@ -185,33 +381,40 @@ function createSupabaseClient() {
 
 function shellTemplate(route, workspace) {
   const session = activeSession();
+  const companyId = activeCompanyId();
   return `
     <div class="quest-app" data-route="${h(route.name)}">
       <header class="topbar">
         <div class="topbar-left">
-          <a class="logo" href="${appHref('/command')}" data-router aria-label="Quest HQ Operations Command">
+          <a class="logo" href="${appHref(companyPath('jobs', {}, companyId))}" data-router aria-label="Quest HQ workspace">
             <i class="ti ti-bolt"></i>
           </a>
           <div>
             <div class="brand-name">Quest HQ</div>
-            <div class="brand-sub">Operations Command</div>
+            <div class="brand-sub">${h(CONFIG.buildId)}</div>
           </div>
         </div>
         <div class="topbar-right">
+          <label class="company-switch">
+            <i class="ti ti-building"></i>
+            <select data-company-switch aria-label="Active company">
+              ${allowedCompanies().map((company) => `<option value="${h(company.id)}" ${company.id === companyId ? 'selected' : ''}>${h(companyLabel(company))}</option>`).join('')}
+            </select>
+          </label>
           <label class="global-search">
             <i class="ti ti-search" aria-hidden="true"></i>
-            <input data-global-search value="${h(state.query)}" placeholder="Search jobs, clients, owners, addresses" />
+            <input data-global-search value="${h(state.query)}" placeholder="Search this company" />
           </label>
           <span class="sync-pill ${h(state.sync.mode)}" data-sync-state>${h(state.sync.label)}</span>
-          <button class="btn" type="button" data-action="refresh-data"><i class="ti ti-refresh"></i>Refresh</button>
-          <a class="btn btn-primary" href="${appHref('/jobs?tab=editor')}" data-router><i class="ti ti-plus"></i>Add Job</a>
+          <button class="btn" type="button" data-action="refresh-data" title="Refresh workspace data"><i class="ti ti-refresh"></i></button>
+          <a class="btn btn-primary" href="${appHref(companyPath('tasks', { new: '1' }, companyId))}" data-router><i class="ti ti-plus"></i>New task</a>
           <div class="account-menu">
             <button class="avatar-button" type="button" data-action="open-profile" aria-label="Open Quest profile">
               ${renderAvatar(session.profile, 'avatar')}
             </button>
             <div class="account-popover">
               <strong>${h(session.profile.full_name)}</strong>
-              <span>${h(session.profile.role_label)}</span>
+              <span>${h(session.profile.role_label)} - ${h(companyName(companyId))}</span>
               <button type="button" data-action="open-profile"><i class="ti ti-user-circle"></i>Profile</button>
               <button type="button" data-action="sign-out"><i class="ti ti-logout"></i>Sign out</button>
             </div>
@@ -228,46 +431,37 @@ function shellTemplate(route, workspace) {
       </div>
     </div>
     ${state.modal === 'profile' ? renderProfileModal(session.profile) : ''}
+    ${state.modal === 'file-upload' ? renderFileUploadModal() : ''}
   `;
 }
 
 function renderDeck(route) {
-  const jobCount = state.jobs.length;
-  const urgentCount = state.jobs.filter((job) => job.priority === 'Urgent').length;
+  const companyId = activeCompanyId();
+  const jobs = companyJobs(companyId);
+  const tasks = companyTasks(companyId);
+  const files = companyFiles(companyId);
+  const users = companyMembers(companyId);
   return `
-    <div class="side-brand">
-      <span class="side-mark">Q</span>
-      <span><strong>Quest HQ</strong><small>${h(CONFIG.buildId)}</small></span>
+    <div class="company-card">
+      <span style="background:${h(companyColor(companyId))}"></span>
+      <strong>${h(companyName(companyId))}</strong>
+      <small>${h(roleForCompany(companyId))} workspace</small>
     </div>
-    ${navGroup('Command', [
-      navItem(route, '/command', 'ti-layout-dashboard', 'Operations command'),
+    ${navGroup('Workspace', [
+      navItem(route, companyPath('jobs', {}, companyId), 'ti-briefcase', 'Jobs', jobs.length),
+      navItem(route, companyPath('tasks', {}, companyId), 'ti-list-check', 'Tasks', tasks.length),
+      navItem(route, companyPath('files', {}, companyId), 'ti-folder', 'Files', files.length),
+      navItem(route, companyPath('forms', {}, companyId), 'ti-clipboard-list', 'Forms'),
+      navItem(route, companyPath('analytics', {}, companyId), 'ti-chart-bar', 'Dashboard'),
     ])}
-    ${navGroup('Job Center', [
-      navItem(route, '/jobs', 'ti-briefcase', 'Jobs', jobCount),
-      navItem(route, '/jobs?tab=tasks', 'ti-list-check', 'Task execution'),
-      navItem(route, '/files', 'ti-folder', 'Files'),
-      navItem(route, '/forms', 'ti-clipboard-list', 'Forms'),
+    ${navGroup('Company', [
+      navItem(route, companyPath('users', {}, companyId), 'ti-users', 'Users', users.length),
+      navItem(route, companyPath('settings', {}, companyId), 'ti-settings', 'Settings'),
     ])}
     ${navGroup('Operations', [
-      navItem(route, '/time', 'ti-clock', 'My time', '3.3h'),
-      navItem(route, '/team', 'ti-users', 'Team workload', state.jobs.length),
-      navItem(route, '/approvals', 'ti-user-check', 'Approvals', 0),
-      navItem(route, '/clock', 'ti-clock-play', 'Clock dashboard', 0),
+      navItem(route, companyPath('time', {}, companyId), 'ti-clock', 'My time', '3.3h'),
+      navItem(route, companyPath('approvals', {}, companyId), 'ti-user-check', 'Approvals', 0),
     ])}
-    ${navGroup('System', [
-      navItem(route, '/analytics', 'ti-chart-bar', 'Analytics'),
-      navItem(route, '/admin', 'ti-settings', 'Admin'),
-      navItem(route, '/crm', 'ti-address-book', 'CRM', 'Planned'),
-      navItem(route, '/finance', 'ti-receipt', 'Finance', 'Planned'),
-      navItem(route, '/knowledge', 'ti-books', 'Knowledge', 'Planned'),
-      navItem(route, '/automations', 'ti-route', 'Automations', 'Planned'),
-      navItem(route, '/tickets', 'ti-ticket', 'Tickets', 'Planned'),
-      navItem(route, '/templates', 'ti-template', 'Templates', 'Planned'),
-    ])}
-    <div class="deck-note">
-      <strong>Boundary</strong>
-      <span>Quest owns jobs, people, roles, files, forms, time, approvals, and admin. TaskManagement executes tasks only.</span>
-    </div>
   `;
 }
 
@@ -282,9 +476,8 @@ function navGroup(label, items) {
 
 function navItem(route, path, icon, label, count = '') {
   const active = isActiveNav(route, path);
-  const planned = String(count).toLowerCase() === 'planned';
   return `
-    <a class="side-item ${active ? 'active' : ''} ${planned ? 'planned' : ''}" href="${appHref(path)}" data-router>
+    <a class="side-item ${active ? 'active' : ''}" href="${appHref(path)}" data-router>
       <i class="ti ${h(icon)}"></i>
       <span>${h(label)}</span>
       ${count !== '' ? `<b>${h(String(count))}</b>` : ''}
@@ -293,82 +486,78 @@ function navItem(route, path, icon, label, count = '') {
 }
 
 function renderWorkspace(route) {
-  if (route.name === 'command') return renderCommand();
-  if (route.name === 'jobs') return renderJobCenter(route);
-  if (route.name === 'files') return renderFilesPage();
-  if (route.name === 'forms') return renderFormsPage();
-  if (route.name === 'analytics') return renderAnalyticsPage();
-  if (route.name === 'admin') return renderAdminPage();
-  if (['time', 'team', 'approvals', 'clock'].includes(route.name)) return renderOperationsPage(route.name);
-  return renderPlannedPage(route.name);
+  if (route.name === 'command') return renderCompanyDashboard(activeCompanyId());
+  if (route.name !== 'company') return renderPlannedPage(route.name);
+  const companyId = route.companyId;
+  if (route.section === 'jobs') return renderJobsPage(route, companyId);
+  if (route.section === 'tasks') return renderTasksPage(route, companyId);
+  if (route.section === 'files') return renderFilesPage(route, companyId);
+  if (route.section === 'users') return renderUsersPage(companyId);
+  if (route.section === 'settings') return renderSettingsPage(companyId);
+  if (route.section === 'forms') return renderFormsPage(companyId);
+  if (route.section === 'analytics') return renderCompanyDashboard(companyId);
+  if (route.section === 'time' || route.section === 'approvals') return renderOperationsPage(route.section, companyId);
+  return renderPlannedPage(route.section);
 }
 
-function renderCommand() {
-  const active = state.jobs.filter((job) => job.stage !== 'Closed');
-  const urgent = state.jobs.filter((job) => job.priority === 'Urgent');
-  const selected = selectedJob();
+function renderCompanyDashboard(companyId) {
+  const jobs = companyJobs(companyId);
+  const tasks = companyTasks(companyId);
+  const urgent = tasks.filter((task) => ['critical', 'urgent'].includes(task.priority));
+  const files = companyFiles(companyId);
   return `
-    ${pageHead('Operations Command', 'Single command surface for jobs, task execution, time, team workload, approvals, files, forms, and admin.', `
-      <a class="btn btn-primary" href="${appHref('/jobs?tab=editor')}" data-router><i class="ti ti-plus"></i>Add Job</a>
+    ${workspaceHeader('Company dashboard', 'Live context for this company workspace.', `
+      <a class="btn" href="${appHref(companyPath('files', {}, companyId))}" data-router><i class="ti ti-folder"></i>Open drive</a>
+      <a class="btn btn-primary" href="${appHref(companyPath('tasks', { new: '1' }, companyId))}" data-router><i class="ti ti-plus"></i>New task</a>
     `)}
     ${metricGrid([
-      ['Active jobs', active.length],
-      ['Urgent work', urgent.length],
-      ['Linked tasks', sum(state.jobs, 'task_count')],
-      ['Pipeline value', money(sum(state.jobs, 'estimate_total'))],
+      ['Jobs', jobs.length],
+      ['Open tasks', tasks.filter((task) => task.status !== 'done').length],
+      ['Urgent tasks', urgent.length],
+      ['Drive files', files.length],
     ])}
     <section class="dashboard-grid">
       <article class="panel span-2">
         <div class="section-head">
-          <div><h2>Priority Job Queue</h2><p>Live job containers. Task execution opens inside this shell.</p></div>
-          <a class="btn" href="${appHref('/jobs')}" data-router>Open Job Center</a>
+          <div><h2>Priority work</h2><p>Tasks and jobs filtered by the active company.</p></div>
+          <a class="btn" href="${appHref(companyPath('tasks', {}, companyId))}" data-router>Open tasks</a>
         </div>
         <div class="queue-list">
-          ${active.slice(0, 6).map((job) => jobQueueRow(job)).join('') || emptyState('No active jobs found.')}
+          ${tasks.slice(0, 6).map((task) => taskQueueRow(task)).join('') || emptyState('No tasks in this company yet.')}
         </div>
       </article>
       <article class="panel">
-        <div class="section-head"><div><h2>Task Handoff</h2><p>Job id feeds TaskManagement project_id.</p></div></div>
-        ${selected ? contractRows([
-          ['Selected job', selected.name],
-          ['project_id', selected.id],
-          ['Task runtime', 'Embedded tasks only'],
-          ['Standalone recovery', 'taskmanagement/app.html'],
-        ]) : emptyState('Create or select a job to scope task execution.')}
-        <a class="btn btn-primary full" href="${appHref('/jobs?tab=tasks' + (selected ? `&job_id=${encodeURIComponent(selected.id)}` : ''))}" data-router>Open job tasks</a>
-      </article>
-      <article class="panel">
-        <div class="section-head"><div><h2>Operations Ownership</h2><p>These are Quest modules now, not embedded task sidebar items.</p></div></div>
-        <div class="module-stack">
-          ${miniLink('/time', 'ti-clock', 'My time', 'Local shift surface')}
-          ${miniLink('/team', 'ti-users', 'Team workload', 'Supervisor view')}
-          ${miniLink('/approvals', 'ti-user-check', 'Approvals', 'Quest account access')}
-          ${miniLink('/clock', 'ti-clock-play', 'Clock dashboard', 'Admin clock review')}
-        </div>
+        <div class="section-head"><div><h2>Company scope</h2><p>Client-side filtering while auth is disabled.</p></div></div>
+        ${contractRows([
+          ['Company', companyName(companyId)],
+          ['Visible users', companyMembers(companyId).length],
+          ['Auth mode', CONFIG.questAuthEnabled ? 'Supabase auth' : 'Local basic gate'],
+          ['RLS status', CONFIG.questAuthEnabled ? 'Ready for enforcement' : 'Prepared, not enforced'],
+        ])}
       </article>
       <article class="panel span-3">
-        <div class="section-head"><div><h2>Recent Operating Activity</h2><p>Derived from current job records until activity tables are wired into the shell.</p></div></div>
-        <div class="activity-list">
-          ${activityRows().map(([title, text]) => `<div><strong>${h(title)}</strong><span>${h(text)}</span></div>`).join('')}
+        <div class="section-head"><div><h2>Job queue</h2><p>Workspace records without leaving the Quest shell.</p></div></div>
+        <div class="queue-list">
+          ${jobs.slice(0, 8).map((job) => jobQueueRow(job)).join('') || emptyState('No jobs in this company yet.')}
         </div>
       </article>
     </section>
   `;
 }
 
-function renderJobCenter(route) {
-  const tab = normalizeJobTab(route.tab);
+function renderJobsPage(route, companyId) {
+  const tab = normalizeJobTab(route.params.get('tab'));
   const job = selectedJob();
   return `
-    ${pageHead('Job Center', 'The production shell for job records and job-scoped task execution.', `
-      <button class="btn" type="button" data-action="refresh-data"><i class="ti ti-refresh"></i>Refresh</button>
-      <a class="btn btn-primary" href="${appHref('/jobs?tab=editor' + (job ? `&job_id=${encodeURIComponent(job.id)}` : ''))}" data-router><i class="ti ti-plus"></i>Add Job</a>
+    ${workspaceHeader('Jobs', 'Company job records, clients, scope, and linked work.', `
+      <a class="btn" href="${appHref(companyPath('files', job ? { job_id: job.id } : {}, companyId))}" data-router><i class="ti ti-folder"></i>Drive</a>
+      <a class="btn btn-primary" href="${appHref(companyPath('jobs', { tab: 'editor', ...(job ? { job_id: job.id } : {}) }, companyId))}" data-router><i class="ti ti-plus"></i>Add job</a>
     `)}
     <section class="job-toolbar">
       <label>
         <span>Stage</span>
         <select data-stage-filter>
-          ${['all'].concat(STAGES).map((stage) => `<option value="${h(stage)}" ${state.stageFilter === stage ? 'selected' : ''}>${h(stage === 'all' ? 'All business statuses' : stage)}</option>`).join('')}
+          ${['all'].concat(STAGES).map((stage) => `<option value="${h(stage)}" ${state.stageFilter === stage ? 'selected' : ''}>${h(stage === 'all' ? 'All stages' : stage)}</option>`).join('')}
         </select>
       </label>
       <div class="selected-job-chip">
@@ -376,27 +565,23 @@ function renderJobCenter(route) {
         <strong>${job ? h(job.name) : 'No job selected'}</strong>
       </div>
     </section>
-    <nav class="tabbar" aria-label="Job Center sections">
-      ${JOB_TABS.map((item) => `<a class="${item === tab ? 'active' : ''}" href="${appHref('/jobs?' + new URLSearchParams({ tab: item, ...(job ? { job_id: job.id } : {}) }).toString())}" data-router>${h(labelForTab(item))}</a>`).join('')}
+    <nav class="tabbar" aria-label="Job sections">
+      ${JOB_TABS.map((item) => `<a class="${item === tab ? 'active' : ''}" href="${appHref(companyPath('jobs', { tab: item, ...(job ? { job_id: job.id } : {}) }, companyId))}" data-router>${h(labelForTab(item))}</a>`).join('')}
     </nav>
-    ${renderJobPanel(tab, job)}
+    ${renderJobPanel(tab, companyId, job)}
   `;
 }
 
-function renderJobPanel(tab, job) {
-  if (tab === 'pipeline') return renderPipeline();
-  if (tab === 'list') return renderJobList();
-  if (tab === 'profile') return renderJobProfile(job);
-  if (tab === 'tasks') return renderTaskRuntime(job);
-  if (tab === 'files') return renderJobFiles(job);
-  if (tab === 'forms') return renderJobForms(job);
-  if (tab === 'analytics') return renderJobAnalytics(job);
-  if (tab === 'editor') return renderJobEditor(job);
-  return renderPipeline();
+function renderJobPanel(tab, companyId, job) {
+  if (tab === 'pipeline') return renderPipeline(companyId);
+  if (tab === 'list') return renderJobList(companyId);
+  if (tab === 'profile') return renderJobProfile(companyId, job);
+  if (tab === 'editor') return renderJobEditor(companyId, job);
+  return renderPipeline(companyId);
 }
 
-function renderPipeline() {
-  const visible = filteredJobs();
+function renderPipeline(companyId) {
+  const visible = filteredJobs(companyId);
   return `
     <section class="job-board">
       ${STAGES.map((stage) => {
@@ -412,11 +597,11 @@ function renderPipeline() {
   `;
 }
 
-function renderJobList() {
-  const rows = filteredJobs();
+function renderJobList(companyId) {
+  const rows = filteredJobs(companyId);
   return `
     <section class="panel">
-      <div class="section-head"><div><h2>Job List</h2><p>${rows.length} visible job${rows.length === 1 ? '' : 's'}</p></div></div>
+      <div class="section-head"><div><h2>Job list</h2><p>${rows.length} visible job${rows.length === 1 ? '' : 's'}</p></div></div>
       <div class="data-table jobs-table">
         <div class="table-head"><span>Job</span><span>Stage</span><span>Priority</span><span>Owner</span><span>Tasks</span><span>Value</span></div>
         ${rows.map((job) => `
@@ -425,7 +610,7 @@ function renderJobList() {
             <span>${h(job.stage)}</span>
             <span>${priorityPill(job.priority)}</span>
             <span>${h(job.owner_name || 'Unassigned')}</span>
-            <span>${h(job.task_count)}</span>
+            <span>${h(taskCountForJob(job.id))}</span>
             <span>${money(job.estimate_total)}</span>
           </button>
         `).join('') || emptyState('No jobs match this view.')}
@@ -434,20 +619,20 @@ function renderJobList() {
   `;
 }
 
-function renderJobProfile(job) {
+function renderJobProfile(companyId, job) {
   if (!job) return emptyState('Create a job to see the profile workspace.');
   return `
     <section class="profile-layout">
       <article class="panel job-profile-hero">
         <div class="hero-image"></div>
         <div class="hero-content">
-          <span>${h(companyName(job.company_id))} - ${h(job.job_type)}</span>
+          <span>${h(companyName(companyId))} - ${h(job.job_type)}</span>
           <h2>${h(job.name)}</h2>
           <p>${h(job.scope || 'No scope written yet.')}</p>
         </div>
       </article>
       <aside class="panel">
-        <div class="section-head"><div><h2>Job Controls</h2><p>Quest owns the job context and handoff.</p></div></div>
+        <div class="section-head"><div><h2>Job controls</h2><p>Job context feeds company tasks and drive folders.</p></div></div>
         ${contractRows([
           ['Client', job.client_name || 'No client'],
           ['Contact', job.contact_name || 'No contact'],
@@ -455,104 +640,35 @@ function renderJobProfile(job) {
           ['Stage', job.stage],
           ['Priority', job.priority],
           ['Estimate', money(job.estimate_total)],
-          ['Task project_id', job.id],
         ])}
         <div class="button-grid">
-          <a class="btn btn-primary" href="${appHref('/jobs?tab=tasks&job_id=' + encodeURIComponent(job.id))}" data-router>Open tasks</a>
-          <a class="btn" href="${appHref('/jobs?tab=editor&job_id=' + encodeURIComponent(job.id))}" data-router>Edit job</a>
+          <a class="btn btn-primary" href="${appHref(companyPath('tasks', { job_id: job.id }, companyId))}" data-router>Open tasks</a>
+          <a class="btn" href="${appHref(companyPath('jobs', { tab: 'editor', job_id: job.id }, companyId))}" data-router>Edit job</a>
         </div>
       </aside>
       <article class="panel span-2">
-        <div class="section-head"><div><h2>Linked Workspaces</h2><p>Files, forms, analytics, and task execution remain inside Job Center.</p></div></div>
+        <div class="section-head"><div><h2>Linked workspace</h2><p>Native Quest modules scoped to this job.</p></div></div>
         <div class="linked-grid">
-          ${miniLink('/jobs?tab=tasks&job_id=' + encodeURIComponent(job.id), 'ti-list-check', 'Tasks', `${job.task_count} linked tasks`)}
-          ${miniLink('/jobs?tab=files&job_id=' + encodeURIComponent(job.id), 'ti-folder', 'Files', `${job.file_count} files`)}
-          ${miniLink('/jobs?tab=forms&job_id=' + encodeURIComponent(job.id), 'ti-clipboard-list', 'Forms', 'Inspections and surveys')}
-          ${miniLink('/jobs?tab=analytics&job_id=' + encodeURIComponent(job.id), 'ti-chart-bar', 'Analytics', 'Job health')}
+          ${miniLink(companyPath('tasks', { job_id: job.id }, companyId), 'ti-list-check', 'Tasks', `${taskCountForJob(job.id)} linked tasks`)}
+          ${miniLink(companyPath('files', { job_id: job.id }, companyId), 'ti-folder', 'Files', `${fileCountForJob(job.id)} files`)}
+          ${miniLink(companyPath('forms', { job_id: job.id }, companyId), 'ti-clipboard-list', 'Forms', 'Inspections and surveys')}
+          ${miniLink(companyPath('analytics', { job_id: job.id }, companyId), 'ti-chart-bar', 'Dashboard', 'Job health')}
         </div>
       </article>
     </section>
   `;
 }
 
-function renderTaskRuntime(job) {
-  const src = taskRuntimeUrl(job);
-  return `
-    <section class="task-runtime panel">
-      <div class="runtime-head">
-        <div>
-          <div class="eyebrow">TaskManagement execution</div>
-          <h2>${job ? h(job.name) : 'All task work'}</h2>
-          <p>${job ? `Scoped through project_id ${h(job.id)}.` : 'Select a job to scope TaskManagement to a project_id.'}</p>
-        </div>
-        <div class="runtime-actions">
-          <button class="btn" type="button" data-action="reload-task-frame"><i class="ti ti-refresh"></i>Reload</button>
-          <a class="btn" href="${h(taskRuntimeUrl(job, false))}" target="_blank" rel="noreferrer">Open full view</a>
-        </div>
-      </div>
-      <iframe title="Job-scoped TaskManagement" data-task-frame src="${h(src)}" loading="lazy" referrerpolicy="same-origin"></iframe>
-    </section>
-  `;
-}
-
-function renderJobFiles(job) {
-  if (!job) return emptyState('Select a job to inspect file context.');
-  return `
-    <section class="panel">
-      <div class="section-head"><div><h2>${h(job.name)} Files</h2><p>Quest owns files and documents. TaskManagement stays focused on task execution.</p></div><a class="btn" href="${appHref('/files?job_id=' + encodeURIComponent(job.id))}" data-router>Open File Center</a></div>
-      <div class="file-grid">
-        ${['Inspection photos', 'Permit packet', 'Client approval', 'Final walkthrough'].map((name, index) => fileTile(name, job, index)).join('')}
-      </div>
-    </section>
-  `;
-}
-
-function renderJobForms(job) {
-  if (!job) return emptyState('Select a job to inspect form context.');
-  return `
-    <section class="panel">
-      <div class="section-head"><div><h2>${h(job.name)} Forms</h2><p>Inspection and survey surfaces live in Quest, not inside the task iframe.</p></div><a class="btn" href="${appHref('/forms?job_id=' + encodeURIComponent(job.id))}" data-router>Open Forms</a></div>
-      <div class="card-grid">
-        ${['Roof inspection checklist', 'Client approval form', 'Final walkthrough survey', 'Internal request intake'].map((title) => `
-          <article class="mini-card"><strong>${h(title)}</strong><span>${h(job.name)}</span><small>Ready for module data wiring</small></article>
-        `).join('')}
-      </div>
-    </section>
-  `;
-}
-
-function renderJobAnalytics(job) {
-  const jobs = job ? [job] : state.jobs;
-  return `
-    <section class="panel">
-      <div class="section-head"><div><h2>${job ? h(job.name) : 'Job'} Analytics</h2><p>Rollups from the Job Center record set.</p></div></div>
-      ${metricGrid([
-        ['Jobs in scope', jobs.length],
-        ['Urgent', jobs.filter((item) => item.priority === 'Urgent').length],
-        ['Tasks', sum(jobs, 'task_count')],
-        ['Files', sum(jobs, 'file_count')],
-      ])}
-      <div class="stage-bars">
-        ${STAGES.map((stage) => {
-          const count = jobs.filter((item) => item.stage === stage).length;
-          const pct = jobs.length ? Math.round((count / jobs.length) * 100) : 0;
-          return `<div><span>${h(stage)}</span><b><i style="width:${pct}%"></i></b><strong>${count}</strong></div>`;
-        }).join('')}
-      </div>
-    </section>
-  `;
-}
-
-function renderJobEditor(job) {
-  const edit = job || blankJob();
+function renderJobEditor(companyId, job) {
+  const edit = job || blankJob(companyId);
   return `
     <form class="panel job-editor" data-job-form>
       <input type="hidden" name="id" value="${h(edit.id || '')}" />
       <div class="section-head span-2">
-        <div><h2>${job ? 'Edit Job Workspace' : 'Create Job Workspace'}</h2><p>Creates the business container that feeds files, forms, analytics, and TaskManagement project_id.</p></div>
+        <div><h2>${job ? 'Edit job' : 'Create job'}</h2><p>Creates the company job container for tasks, files, forms, and reporting.</p></div>
       </div>
       ${field('Workspace name', 'name', edit.name, true)}
-      ${selectField('Company', 'company_id', edit.company_id || firstCompanyId(), state.companies.map((company) => [company.id, company.name || company.short_name || company.id]))}
+      ${selectField('Company', 'company_id', companyId, allowedCompanies().map((company) => [company.id, companyLabel(company)]))}
       ${field('Client', 'client_name', edit.client_name)}
       ${field('Contact', 'contact_name', edit.contact_name)}
       ${field('Account owner', 'owner_name', edit.owner_name)}
@@ -564,203 +680,410 @@ function renderJobEditor(job) {
       ${textareaField('Scope', 'scope', edit.scope, 'span-2')}
       ${textareaField('Notes', 'notes', edit.notes, 'span-2')}
       <div class="form-actions span-2">
-        <button class="btn btn-primary" type="submit">Save Workspace</button>
+        <button class="btn btn-primary" type="submit">Save job</button>
         ${job ? `<button class="btn danger" type="button" data-action="delete-job" data-job-id="${h(job.id)}">Delete</button>` : ''}
       </div>
     </form>
   `;
 }
 
-function renderFilesPage() {
-  const requested = getRoute().params.get('job_id');
-  const job = requested ? jobById(requested) : selectedJob();
+function renderTasksPage(route, companyId) {
+  const job = route.jobId ? jobById(route.jobId) : null;
+  const taskId = route.params.get('task_id') || state.selectedTaskId;
+  const task = taskId ? taskById(taskId) : filteredTasks(companyId, job?.id)[0] || null;
+  const editing = route.params.get('new') === '1' || route.params.get('edit') === '1';
+  const tasks = filteredTasks(companyId, job?.id);
   return `
-    ${pageHead('File Center', 'Job-linked photos, permits, drawings, contracts, estimates, and closeout documents.', `
-      <a class="btn" href="${appHref('/jobs?tab=files' + (job ? `&job_id=${encodeURIComponent(job.id)}` : ''))}" data-router>Open in Job Center</a>
+    ${workspaceHeader(job ? `${job.name} tasks` : 'Tasks', 'Native Quest task execution backed by the company task table.', `
+      <a class="btn" href="${appHref(companyPath('jobs', job ? { tab: 'profile', job_id: job.id } : {}, companyId))}" data-router><i class="ti ti-briefcase"></i>Jobs</a>
+      <a class="btn btn-primary" href="${appHref(companyPath('tasks', { ...(job ? { job_id: job.id } : {}), new: '1' }, companyId))}" data-router><i class="ti ti-plus"></i>New task</a>
     `)}
-    ${metricGrid([
-      ['Files', sum(state.jobs, 'file_count')],
-      ['Jobs with files', state.jobs.filter((item) => item.file_count > 0).length],
-      ['Photos', Math.max(0, sum(state.jobs, 'file_count') - 5)],
-      ['Unlinked', 0],
+    ${renderTaskToolbar(companyId, job)}
+    <section class="task-layout ${editing ? 'editing' : ''}">
+      <article class="panel task-main">
+        ${state.taskView === 'board' ? renderTaskBoard(companyId, tasks) : renderTaskTable(companyId, tasks)}
+      </article>
+      <aside class="panel detail-panel">
+        ${editing ? renderTaskForm(companyId, job, route.params.get('edit') === '1' ? task : null) : renderTaskDetail(companyId, task)}
+      </aside>
+    </section>
+  `;
+}
+
+function renderTaskToolbar(companyId, job) {
+  const jobs = companyJobs(companyId);
+  return `
+    <section class="workspace-toolbar">
+      <label>
+        <span>Job</span>
+        <select data-task-job-filter>
+          <option value="">All jobs</option>
+          ${jobs.map((item) => `<option value="${h(item.id)}" ${job?.id === item.id ? 'selected' : ''}>${h(item.name)}</option>`).join('')}
+        </select>
+      </label>
+      <label>
+        <span>Status</span>
+        <select data-task-status-filter>
+          ${['all'].concat(TASK_STATUSES).map((status) => `<option value="${h(status)}" ${state.taskStatusFilter === status ? 'selected' : ''}>${h(status === 'all' ? 'All statuses' : statusLabel(status))}</option>`).join('')}
+        </select>
+      </label>
+      <label>
+        <span>Priority</span>
+        <select data-task-priority-filter>
+          ${['all'].concat(TASK_PRIORITIES).map((priority) => `<option value="${h(priority)}" ${state.taskPriorityFilter === priority ? 'selected' : ''}>${h(priority === 'all' ? 'All priorities' : titleCase(priority))}</option>`).join('')}
+        </select>
+      </label>
+      <div class="segmented" role="group" aria-label="Task view">
+        <button class="${state.taskView === 'table' ? 'active' : ''}" type="button" data-action="set-task-view" data-view="table"><i class="ti ti-table"></i>Table</button>
+        <button class="${state.taskView === 'board' ? 'active' : ''}" type="button" data-action="set-task-view" data-view="board"><i class="ti ti-layout-kanban"></i>Board</button>
+      </div>
+    </section>
+  `;
+}
+
+function renderTaskTable(companyId, tasks) {
+  return `
+    <div class="data-table task-table">
+      <div class="table-head"><span>Task</span><span>Job</span><span>Assignee</span><span>Priority</span><span>Status</span><span>Due</span></div>
+      ${tasks.map((task) => `
+        <button class="table-row ${task.id === state.selectedTaskId ? 'active' : ''}" type="button" data-select-task="${h(task.id)}">
+          <span><strong>${h(task.title)}</strong><small>${h(task.description || taskTypeLabel(task.type))}</small></span>
+          <span>${h(jobById(task.project_id)?.name || 'Company task')}</span>
+          <span>${h(memberName(task.assignee_id))}</span>
+          <span>${taskPriorityPill(task.priority)}</span>
+          <span>${taskStatusPill(task.status)}</span>
+          <span>${formatDate(task.due)}</span>
+        </button>
+      `).join('') || emptyState('No tasks match this workspace view.')}
+    </div>
+  `;
+}
+
+function renderTaskBoard(companyId, tasks) {
+  return `
+    <div class="task-board">
+      ${TASK_STATUSES.map((status) => {
+        const column = tasks.filter((task) => task.status === status);
+        return `
+          <section class="task-column">
+            <h2><span>${h(statusLabel(status))}</span><b>${column.length}</b></h2>
+            ${column.map((task) => `
+              <button class="task-card priority-${h(task.priority)}" type="button" data-select-task="${h(task.id)}">
+                <strong>${h(task.title)}</strong>
+                <span>${h(jobById(task.project_id)?.name || companyName(companyId))}</span>
+                <small>${h(memberName(task.assignee_id))} - ${formatDate(task.due)}</small>
+              </button>
+            `).join('') || `<div class="lane-empty">No tasks</div>`}
+          </section>
+        `;
+      }).join('')}
+    </div>
+  `;
+}
+
+function renderTaskDetail(companyId, task) {
+  if (!task) {
+    return `
+      <div class="section-head"><div><h2>Task detail</h2><p>Select a task or create the first one.</p></div></div>
+      ${emptyState('No task selected.')}
+    `;
+  }
+  return `
+    <div class="section-head">
+      <div><h2>${h(task.title)}</h2><p>${h(jobById(task.project_id)?.name || companyName(companyId))}</p></div>
+      <a class="btn" href="${appHref(companyPath('tasks', { ...(task.project_id ? { job_id: task.project_id } : {}), task_id: task.id, edit: '1' }, companyId))}" data-router>Edit</a>
+    </div>
+    ${contractRows([
+      ['Status', statusLabel(task.status)],
+      ['Priority', titleCase(task.priority)],
+      ['Type', taskTypeLabel(task.type)],
+      ['Assignee', memberName(task.assignee_id)],
+      ['Due', formatDate(task.due)],
+      ['Company ID', task.company_id],
+      ['Project ID', task.project_id || 'Company-level task'],
     ])}
-    <section class="file-layout">
-      <article class="panel">
-        <div class="section-head"><div><h2>Folders by Job</h2><p>Selecting a folder keeps the same shell and routes into job context.</p></div></div>
-        <div class="folder-grid">
-          ${state.jobs.map((item) => `
-            <a class="folder-card ${job && item.id === job.id ? 'active' : ''}" href="${appHref('/files?job_id=' + encodeURIComponent(item.id))}" data-router>
-              <i class="ti ti-folder"></i>
-              <strong>${h(item.name)}</strong>
-              <span>${h(companyName(item.company_id))}</span>
-              <small>${h(item.file_count)} files</small>
-            </a>
-          `).join('')}
-        </div>
-      </article>
-      <aside class="panel">
-        <div class="section-head"><div><h2>${job ? h(job.name) : 'No job selected'}</h2><p>Selected file workspace</p></div></div>
-        ${job ? contractRows([
-          ['Client', job.client_name || 'No client'],
-          ['Files', job.file_count],
-          ['Storage bucket', 'quest-job-files'],
-          ['Task link', job.id],
-        ]) : emptyState('Select a job folder.')}
-      </aside>
-    </section>
+    <div class="detail-copy">
+      <strong>Description</strong>
+      <p>${h(task.description || 'No description yet.')}</p>
+    </div>
   `;
 }
 
-function renderFormsPage() {
-  const templates = ['Roof inspection checklist', 'Client approval form', 'Final walkthrough survey', 'Internal request intake', 'Safety tailgate form', 'Warranty handoff'];
+function renderTaskForm(companyId, job, task) {
+  const edit = task || blankTask(companyId, job?.id || '');
   return `
-    ${pageHead('Forms & Surveys', 'Inspection, approval, intake, and response review owned by Quest HQ.', `
-      <a class="btn" href="${appHref('/jobs?tab=forms')}" data-router>Open job forms</a>
+    <form class="task-form" data-task-form>
+      <input type="hidden" name="id" value="${h(task ? edit.id : '')}" />
+      <div class="section-head">
+        <div><h2>${task ? 'Edit task' : 'New task'}</h2><p>Writes company_id and optional project_id directly to Quest tasks.</p></div>
+      </div>
+      ${field('Task title', 'title', edit.title, true)}
+      ${selectField('Job', 'project_id', edit.project_id || '', [['', 'Company-level task']].concat(companyJobs(companyId).map((item) => [item.id, item.name])))}
+      ${selectField('Status', 'status', edit.status, TASK_STATUSES.map((item) => [item, statusLabel(item)]))}
+      ${selectField('Priority', 'priority', edit.priority, TASK_PRIORITIES.map((item) => [item, titleCase(item)]))}
+      ${selectField('Type', 'type', edit.type, TASK_TYPES.map((item) => [item, taskTypeLabel(item)]))}
+      ${selectField('Assignee', 'assignee_id', edit.assignee_id, companyMembers(companyId).map((item) => [item.id, memberName(item.id)]))}
+      ${field('Due date', 'due', edit.due || isoDate(1), true, 'date')}
+      ${textareaField('Description', 'description', edit.description)}
+      <div class="form-actions">
+        <button class="btn btn-primary" type="submit">Save task</button>
+        ${task ? `<button class="btn danger" type="button" data-action="delete-task" data-task-id="${h(task.id)}">Delete</button>` : ''}
+        <a class="btn" href="${appHref(companyPath('tasks', { ...(edit.project_id ? { job_id: edit.project_id } : {}) }, companyId))}" data-router>Cancel</a>
+      </div>
+    </form>
+  `;
+}
+
+function renderFilesPage(route, companyId) {
+  const folder = route.params.get('folder') || state.driveFolder || 'home';
+  const job = route.jobId ? jobById(route.jobId) : null;
+  const files = filteredFiles(companyId, folder, job?.id);
+  return `
+    ${workspaceHeader(job ? `${job.name} files` : 'Company Drive', 'Company-scoped file manager for shared and job-linked documents.', `
+      <button class="btn" type="button" data-action="open-file-upload"><i class="ti ti-upload"></i>Upload</button>
+      <a class="btn btn-primary" href="${appHref(companyPath('jobs', {}, companyId))}" data-router><i class="ti ti-briefcase"></i>Jobs</a>
     `)}
-    <section class="forms-layout">
-      <article class="panel">
-        <div class="section-head"><div><h2>Template Library</h2><p>Form records are ready to wire to Supabase module tables.</p></div></div>
-        <div class="card-grid">
-          ${templates.map((title, index) => `<article class="mini-card"><strong>${h(title)}</strong><span>${index % 2 ? 'Draft' : 'Published'}</span><small>Quest HQ module</small></article>`).join('')}
-        </div>
-      </article>
-      <aside class="panel">
-        <div class="section-head"><div><h2>Response Center</h2><p>Recent survey and inspection responses.</p></div></div>
-        <div class="activity-list">
-          ${state.jobs.slice(0, 4).map((job) => `<div><strong>${h(job.name)}</strong><span>Inspection response workspace ready.</span></div>`).join('') || emptyState('No jobs available.')}
-        </div>
-      </aside>
+    <section class="drive-toolbar">
+      <nav class="breadcrumbs" aria-label="Drive location">
+        <a href="${appHref(companyPath('files', {}, companyId))}" data-router>${h(companyName(companyId))}</a>
+        ${folder !== 'home' ? `<span>/</span><a href="${appHref(companyPath('files', { folder }, companyId))}" data-router>${h(folderLabel(folder))}</a>` : ''}
+        ${job ? `<span>/</span><strong>${h(job.name)}</strong>` : ''}
+      </nav>
+      <div class="segmented" role="group" aria-label="Drive view">
+        <button class="${state.driveView === 'grid' ? 'active' : ''}" type="button" data-action="set-drive-view" data-view="grid"><i class="ti ti-layout-grid"></i>Grid</button>
+        <button class="${state.driveView === 'list' ? 'active' : ''}" type="button" data-action="set-drive-view" data-view="list"><i class="ti ti-list"></i>List</button>
+      </div>
+    </section>
+    ${folder === 'home' && !job ? renderDriveHome(companyId) : renderDriveFiles(companyId, files)}
+  `;
+}
+
+function renderDriveHome(companyId) {
+  const jobs = companyJobs(companyId);
+  return `
+    <section class="drive-grid">
+      ${DRIVE_FOLDERS.map(([id, label, text, icon]) => `
+        <a class="folder-tile" href="${appHref(companyPath('files', { folder: id }, companyId))}" data-router>
+          <i class="ti ${h(icon)}"></i>
+          <strong>${h(label)}</strong>
+          <span>${h(text)}</span>
+          <small>${h(filteredFiles(companyId, id).length)} files</small>
+        </a>
+      `).join('')}
+    </section>
+    <section class="panel top-gap">
+      <div class="section-head"><div><h2>Job folders</h2><p>Each job keeps its files under the same company drive.</p></div></div>
+      <div class="folder-grid">
+        ${jobs.map((job) => `
+          <a class="folder-card" href="${appHref(companyPath('files', { folder: 'jobs', job_id: job.id }, companyId))}" data-router>
+            <i class="ti ti-folder"></i>
+            <strong>${h(job.name)}</strong>
+            <span>${h(job.client_name || companyName(companyId))}</span>
+            <small>${fileCountForJob(job.id)} files</small>
+          </a>
+        `).join('') || emptyState('No job folders yet.')}
+      </div>
     </section>
   `;
 }
 
-function renderAnalyticsPage() {
-  return `
-    ${pageHead('Analytics', 'Central reporting for jobs, workload, task handoff, files, and operational health.', '')}
-    ${renderJobAnalytics(null)}
-    <section class="dashboard-grid top-gap">
-      <article class="panel">
-        <div class="section-head"><div><h2>Module Health</h2><p>Production boundaries and readiness.</p></div></div>
-        ${contractRows([
-          ['Job Center', 'Live Supabase table'],
-          ['TaskManagement', 'Embedded task engine'],
-          ['Files', 'Quest-owned module'],
-          ['Forms', 'Quest-owned module'],
-          ['Auth', CONFIG.questAuthEnabled ? 'Supabase auth' : 'Local basic gate'],
-        ])}
-      </article>
-      <article class="panel span-2">
-        <div class="section-head"><div><h2>Pipeline Breakdown</h2><p>Jobs grouped by business status.</p></div></div>
-        <div class="stage-bars">
-          ${STAGES.map((stage) => {
-            const count = state.jobs.filter((job) => job.stage === stage).length;
-            const pct = state.jobs.length ? Math.round((count / state.jobs.length) * 100) : 0;
-            return `<div><span>${h(stage)}</span><b><i style="width:${pct}%"></i></b><strong>${count}</strong></div>`;
-          }).join('')}
+function renderDriveFiles(companyId, files) {
+  if (state.driveView === 'list') {
+    return `
+      <section class="panel">
+        <div class="data-table drive-list">
+          <div class="table-head"><span>Name</span><span>Folder</span><span>Job</span><span>Owner</span><span>Size</span><span>Updated</span></div>
+          ${files.map((file) => `
+            <div class="table-row">
+              <span><strong>${h(file.file_name)}</strong><small>${h(file.mime_type)}</small></span>
+              <span>${h(folderLabel(file.folder))}</span>
+              <span>${h(jobById(file.job_id)?.name || 'Company shared')}</span>
+              <span>${h(file.uploaded_by_label || 'Quest HQ')}</span>
+              <span>${formatBytes(file.size_bytes)}</span>
+              <span>${formatDate(file.created_at)}</span>
+            </div>
+          `).join('') || emptyState('No files in this location yet.')}
         </div>
-      </article>
+      </section>
+    `;
+  }
+  return `
+    <section class="drive-grid">
+      ${files.map((file) => `
+        <article class="file-card">
+          <i class="ti ${h(fileIcon(file))}"></i>
+          <strong>${h(file.file_name)}</strong>
+          <span>${h(jobById(file.job_id)?.name || folderLabel(file.folder))}</span>
+          <small>${formatBytes(file.size_bytes)} - ${formatDate(file.created_at)}</small>
+        </article>
+      `).join('') || emptyState('No files in this location yet.')}
     </section>
   `;
 }
 
-function renderAdminPage() {
+function renderFileUploadModal() {
+  const companyId = activeCompanyId();
   return `
-    ${pageHead('Admin', 'Quest-owned users, roles, companies, approvals, and access settings.', '')}
+    <div class="modal-overlay">
+      <div class="modal-panel" role="dialog" aria-modal="true" aria-labelledby="upload-title">
+        <div class="modal-head">
+          <div><div class="eyebrow">Company Drive</div><h2 id="upload-title">Upload entry</h2></div>
+          <button class="btn" type="button" data-action="close-modal">Close</button>
+        </div>
+        <form class="profile-form" data-file-form>
+          <div class="notice">This pass creates the company-scoped file record. Binary storage upload is the next wire-up step once auth/RLS is enabled.</div>
+          ${field('File name', 'file_name', '', true)}
+          ${selectField('Folder', 'folder', state.driveFolder === 'home' ? 'shared' : state.driveFolder, DRIVE_FOLDERS.map(([id, label]) => [id, label]))}
+          ${selectField('Job', 'job_id', state.route?.jobId || '', [['', 'Company shared file']].concat(companyJobs(companyId).map((job) => [job.id, job.name])))}
+          ${selectField('Category', 'category', 'Shared', DRIVE_FOLDERS.map(([id, label]) => [label, label]))}
+          ${field('Size bytes', 'size_bytes', 0, false, 'number')}
+          ${textareaField('Notes', 'notes', '')}
+          <div class="form-actions">
+            <button class="btn btn-primary" type="submit">Save file record</button>
+            <button class="btn" type="button" data-action="close-modal">Cancel</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  `;
+}
+
+function renderUsersPage(companyId) {
+  const members = companyMembers(companyId);
+  return `
+    ${workspaceHeader('Users', 'Company members, roles, workers, and access context.', `
+      <a class="btn btn-primary" href="${appHref(companyPath('settings', {}, companyId))}" data-router><i class="ti ti-settings"></i>Settings</a>
+    `)}
+    <section class="users-grid">
+      ${members.map((member) => `
+        <article class="user-card">
+          ${renderAvatar({ full_name: member.full_name, avatar_url: member.avatar_url }, 'avatar')}
+          <div>
+            <strong>${h(member.full_name)}</strong>
+            <span>${h(member.email)}</span>
+            <small>${h(roleForMember(companyId, member.id))}</small>
+          </div>
+        </article>
+      `).join('') || emptyState('No users assigned to this company yet.')}
+    </section>
+    <section class="panel top-gap">
+      <div class="section-head"><div><h2>Membership model</h2><p>company_memberships is the canonical table; legacy company_ids remain as backfill fields.</p></div></div>
+      ${contractRows([
+        ['Tenant key', 'company_id on jobs, tasks, files, forms, users, settings'],
+        ['Privacy status', CONFIG.questAuthEnabled ? 'RLS can enforce membership' : 'Client-filtered only while auth is disabled'],
+        ['Active role', roleForCompany(companyId)],
+      ])}
+    </section>
+  `;
+}
+
+function renderSettingsPage(companyId) {
+  const company = companyById(companyId);
+  return `
+    ${workspaceHeader('Settings', 'Company settings, roles, approvals, and admin controls.', '')}
     <section class="dashboard-grid">
       <article class="panel">
-        <div class="section-head"><div><h2>Companies</h2><p>Company context used by jobs and task scopes.</p></div></div>
-        <div class="company-list">
-          ${state.companies.map((company) => `<div><b style="background:${h(company.color || '#f0b23b')}"></b><strong>${h(company.name || company.id)}</strong><span>${h(company.id)}</span></div>`).join('')}
-        </div>
-      </article>
-      <article class="panel">
-        <div class="section-head"><div><h2>Users & Roles</h2><p>Quest shell owns account role display while Supabase auth is disabled.</p></div></div>
+        <div class="section-head"><div><h2>Company</h2><p>Workspace identity.</p></div></div>
         ${contractRows([
-          ['Current user', activeSession().profile.full_name],
-          ['Role', activeSession().profile.role_label],
-          ['Companies', activeSession().profile.company_ids.join(', ')],
-          ['Supabase auth', CONFIG.questAuthEnabled ? 'Enabled' : 'Disabled'],
+          ['Name', companyName(companyId)],
+          ['Company ID', companyId],
+          ['Color', company?.color || companyColor(companyId)],
+          ['Visible jobs', companyJobs(companyId).length],
         ])}
       </article>
       <article class="panel">
-        <div class="section-head"><div><h2>Approvals</h2><p>Moved out of embedded TaskManagement.</p></div></div>
-        ${emptyState('No pending local approvals. Real approval rows wire here when Supabase auth is re-enabled.')}
+        <div class="section-head"><div><h2>Access</h2><p>Prepared for Supabase Auth and RLS.</p></div></div>
+        ${contractRows([
+          ['Auth switch', CONFIG.questAuthEnabled ? 'Enabled' : 'Disabled'],
+          ['Local login', CONFIG.localLoginEnabled ? 'Enabled' : 'Disabled'],
+          ['Isolation', CONFIG.questAuthEnabled ? 'Server-enforced' : 'Client-filtered only'],
+          ['Memberships', String(state.memberships.filter((item) => item.company_id === companyId).length)],
+        ])}
+      </article>
+      <article class="panel">
+        <div class="section-head"><div><h2>Approvals</h2><p>Quest-owned access approval queue.</p></div></div>
+        ${emptyState('No pending company approvals.')}
       </article>
       <article class="panel span-3">
-        <div class="section-head"><div><h2>Team Chart</h2><p>Org and workload surfaces belong in Quest HQ.</p></div></div>
+        <div class="section-head"><div><h2>Workers and roles</h2><p>Company users stay here, not inside TaskManagement.</p></div></div>
         <div class="team-chart">
-          <div><strong>Operations Lead</strong><span>Quest HQ</span></div>
-          <div><strong>Roofing Supervisor</strong><span>${state.jobs.filter((job) => job.company_id === 'roofing').length} jobs</span></div>
-          <div><strong>Drafting Supervisor</strong><span>${state.jobs.filter((job) => job.company_id === 'drafting').length} jobs</span></div>
-          <div><strong>Lumen Lead</strong><span>${state.jobs.filter((job) => job.company_id === 'lumen').length} jobs</span></div>
+          ${companyMembers(companyId).map((member) => `<div><strong>${h(member.full_name)}</strong><span>${h(roleForMember(companyId, member.id))}</span></div>`).join('') || emptyState('No workers assigned.')}
         </div>
       </article>
     </section>
   `;
 }
 
-function renderOperationsPage(name) {
-  const titles = {
-    time: ['My Time', 'Personal time tracking belongs to Quest shell while task timers remain available in full TaskManagement recovery mode.'],
-    team: ['Team Workload', 'Supervisor workload view by job, company, owner, and urgency.'],
-    approvals: ['Approvals', 'Account approval and role assignment lives in Quest HQ.'],
-    clock: ['Clock Dashboard', 'Admin clock review and exceptions live in Quest HQ.'],
-  };
-  const [title, summary] = titles[name] || titles.time;
-  const urgent = state.jobs.filter((job) => job.priority === 'Urgent');
+function renderFormsPage(companyId) {
+  const templates = ['Inspection checklist', 'Client approval', 'Final walkthrough', 'Internal request intake', 'Safety form', 'Warranty handoff'];
   return `
-    ${pageHead(title, summary, '')}
+    ${workspaceHeader('Forms', 'Company forms and survey response surfaces.', '')}
+    <section class="forms-layout">
+      <article class="panel">
+        <div class="section-head"><div><h2>Template library</h2><p>Company-scoped templates ready for form table wiring.</p></div></div>
+        <div class="card-grid">
+          ${templates.map((title, index) => `<article class="mini-card"><strong>${h(title)}</strong><span>${index % 2 ? 'Draft' : 'Published'}</span><small>${h(companyName(companyId))}</small></article>`).join('')}
+        </div>
+      </article>
+      <aside class="panel">
+        <div class="section-head"><div><h2>Response queue</h2><p>Recent job-linked responses.</p></div></div>
+        <div class="activity-list">
+          ${companyJobs(companyId).slice(0, 4).map((job) => `<div><strong>${h(job.name)}</strong><span>Response workspace ready.</span></div>`).join('') || emptyState('No jobs available.')}
+        </div>
+      </aside>
+    </section>
+  `;
+}
+
+function renderOperationsPage(name, companyId) {
+  const labels = {
+    time: ['My time', 'Personal time and shift context inside the company workspace.'],
+    approvals: ['Approvals', 'Company access approvals and role requests.'],
+  };
+  const [title, summary] = labels[name] || labels.time;
+  return `
+    ${workspaceHeader(title, summary, '')}
     <section class="dashboard-grid">
       <article class="panel">
         <div class="section-head"><div><h2>Summary</h2><p>Quest-owned operational surface.</p></div></div>
         ${contractRows([
-          ['Visible jobs', state.jobs.length],
-          ['Urgent jobs', urgent.length],
-          ['Linked tasks', sum(state.jobs, 'task_count')],
+          ['Company', companyName(companyId)],
+          ['Visible jobs', companyJobs(companyId).length],
+          ['Open tasks', companyTasks(companyId).filter((task) => task.status !== 'done').length],
           ['Mode', CONFIG.questAuthEnabled ? 'Supabase auth' : 'Local basic mode'],
         ])}
       </article>
       <article class="panel span-2">
-        <div class="section-head"><div><h2>Workload Queue</h2><p>Sorted by urgency and recent updates.</p></div></div>
-        <div class="queue-list">${state.jobs.slice(0, 8).map((job) => jobQueueRow(job)).join('') || emptyState('No jobs found.')}</div>
+        <div class="section-head"><div><h2>Workload queue</h2><p>Sorted by active company and urgency.</p></div></div>
+        <div class="queue-list">${companyTasks(companyId).slice(0, 8).map((task) => taskQueueRow(task)).join('') || emptyState('No tasks found.')}</div>
       </article>
     </section>
   `;
 }
 
 function renderPlannedPage(name) {
-  const labels = {
-    crm: 'CRM',
-    finance: 'Finance',
-    knowledge: 'Knowledge Base',
-    automations: 'Automations',
-    tickets: 'Tickets',
-    templates: 'Templates',
-  };
-  const title = labels[name] || 'Workspace';
   return `
-    ${pageHead(title, `${title} now opens inside the same Quest shell. This module is intentionally empty until its real data model is approved.`, '')}
+    ${workspaceHeader(titleCase(name || 'workspace'), 'This module will use the same company workspace shell when wired.', '')}
     <section class="panel">
-      <div class="section-head"><div><h2>${h(title)} Workspace</h2><p>No duplicate shell, no separate app jump, no TaskManagement ownership leak.</p></div></div>
-      ${emptyState('Module data model pending. Navigation and shell integration are production-ready.')}
+      ${emptyState('Module data model pending.')}
     </section>
   `;
 }
 
 function renderLogin() {
   document.title = 'Sign in | Quest HQ';
-  const returnUrl = safeReturnUrl(state.route.params.get('return_url') || appHref('/command'));
+  const returnUrl = safeReturnUrl(state.route.params.get('return_url') || appHref(companyPath('jobs', {}, defaultCompanyId())));
   app.innerHTML = `
     <main class="login-shell">
       <section class="login-panel">
         <div class="login-brand">
           <span class="side-mark">Q</span>
-          <span><strong>Quest HQ</strong><small>Operations Command</small></span>
+          <span><strong>Quest HQ</strong><small>Company Workspace</small></span>
         </div>
         <div>
           <div class="eyebrow">Local access</div>
           <h1>Sign in to Quest HQ</h1>
-          <p>Supabase auth is disabled while the app foundation is stabilized. Use the temporary local credentials.</p>
+          <p>Supabase auth is switched off while the company workspace foundation is stabilized.</p>
         </div>
         <form data-login-form>
           <label>Username<input name="username" value="${h(CONFIG.localUsername)}" autocomplete="username" /></label>
@@ -813,6 +1136,13 @@ function onDocumentClick(event) {
     return;
   }
 
+  const selectTask = event.target.closest('[data-select-task]');
+  if (selectTask) {
+    event.preventDefault();
+    setSelectedTask(selectTask.dataset.selectTask);
+    return;
+  }
+
   const link = event.target.closest('a[href][data-router]');
   if (!link) return;
   if (link.target || link.hasAttribute('download')) return;
@@ -842,28 +1172,40 @@ function handleAction(event, node) {
     render();
     return;
   }
-  if (action === 'close-modal') {
+  if (action === 'open-file-upload') {
     event.preventDefault();
-    state.modal = '';
-    if (state.route && state.route.params.get('account') === 'profile') {
-      const params = new URLSearchParams(state.route.params);
-      params.delete('account');
-      const search = params.toString();
-      navigate(state.route.path + (search ? `?${search}` : ''), { replace: true });
-      return;
-    }
+    state.modal = 'file-upload';
     render();
     return;
   }
-  if (action === 'reload-task-frame') {
+  if (action === 'close-modal') {
     event.preventDefault();
-    const frame = document.querySelector('[data-task-frame]');
-    if (frame) frame.src = frame.src;
+    state.modal = '';
+    render();
+    return;
+  }
+  if (action === 'set-task-view') {
+    event.preventDefault();
+    state.taskView = node.dataset.view === 'board' ? 'board' : 'table';
+    localStorage.setItem(TASK_VIEW_KEY, state.taskView);
+    render();
+    return;
+  }
+  if (action === 'set-drive-view') {
+    event.preventDefault();
+    state.driveView = node.dataset.view === 'list' ? 'list' : 'grid';
+    localStorage.setItem(DRIVE_VIEW_KEY, state.driveView);
+    render();
     return;
   }
   if (action === 'delete-job') {
     event.preventDefault();
     deleteJob(node.dataset.jobId);
+    return;
+  }
+  if (action === 'delete-task') {
+    event.preventDefault();
+    deleteTask(node.dataset.taskId);
   }
 }
 
@@ -880,7 +1222,7 @@ function onDocumentSubmit(event) {
     state.loginError = '';
     state.session = buildLocalSession();
     writeJson(SESSION_KEY, state.session);
-    navigate(safeReturnUrl(form.return_url || appHref('/command')), { replace: true });
+    navigate(safeReturnUrl(form.return_url || appHref(companyPath('jobs', {}, defaultCompanyId()))), { replace: true });
     return;
   }
 
@@ -904,6 +1246,18 @@ function onDocumentSubmit(event) {
   if (event.target.matches('[data-job-form]')) {
     event.preventDefault();
     saveJob(event.target);
+    return;
+  }
+
+  if (event.target.matches('[data-task-form]')) {
+    event.preventDefault();
+    saveTask(event.target);
+    return;
+  }
+
+  if (event.target.matches('[data-file-form]')) {
+    event.preventDefault();
+    saveFileRecord(event.target);
   }
 }
 
@@ -915,15 +1269,36 @@ function onDocumentInput(event) {
 }
 
 function onDocumentChange(event) {
+  if (event.target.matches('[data-company-switch]')) {
+    const nextCompanyId = event.target.value || defaultCompanyId();
+    setActiveCompany(nextCompanyId);
+    return;
+  }
   if (event.target.matches('[data-stage-filter]')) {
     state.stageFilter = event.target.value || 'all';
     render();
+    return;
+  }
+  if (event.target.matches('[data-task-status-filter]')) {
+    state.taskStatusFilter = event.target.value || 'all';
+    render();
+    return;
+  }
+  if (event.target.matches('[data-task-priority-filter]')) {
+    state.taskPriorityFilter = event.target.value || 'all';
+    render();
+    return;
+  }
+  if (event.target.matches('[data-task-job-filter]')) {
+    const jobId = event.target.value;
+    navigate(companyPath('tasks', jobId ? { job_id: jobId } : {}, activeCompanyId()));
   }
 }
 
 async function saveJob(form) {
   const payload = normalizeJob(Object.fromEntries(new FormData(form).entries()));
   payload.id = payload.id || crypto.randomUUID();
+  payload.company_id = payload.company_id || activeCompanyId();
   payload.estimate_total = Number(payload.estimate_total || 0);
   payload.updated_at = new Date().toISOString();
 
@@ -931,31 +1306,114 @@ async function saveJob(form) {
   const client = createSupabaseClient();
 
   if (client) {
-    const savePayload = { ...payload };
     const result = existing
-      ? await client.from('jobs').update(savePayload).eq('id', payload.id).select().single()
-      : await client.from('jobs').insert(savePayload).select().single();
+      ? await client.from('jobs').update(payload).eq('id', payload.id).select().single()
+      : await client.from('jobs').insert(payload).select().single();
     if (!result.error && result.data) {
       upsertJob(normalizeJob(result.data));
-      state.sync = { label: 'Supabase live', mode: 'live' };
-      navigate('/jobs?tab=profile&job_id=' + encodeURIComponent(result.data.id), { replace: true });
+      state.sync = { label: 'Quest Supabase live', mode: 'live' };
+      navigate(companyPath('jobs', { tab: 'profile', job_id: result.data.id }, payload.company_id), { replace: true });
       return;
     }
     state.sync = { label: 'Saved locally', mode: 'local' };
   }
 
   upsertJob(payload);
-  navigate('/jobs?tab=profile&job_id=' + encodeURIComponent(payload.id), { replace: true });
+  navigate(companyPath('jobs', { tab: 'profile', job_id: payload.id }, payload.company_id), { replace: true });
 }
 
 async function deleteJob(id) {
   if (!id) return;
+  const companyId = activeCompanyId();
   const client = createSupabaseClient();
   if (client) await client.from('jobs').delete().eq('id', id);
   state.jobs = state.jobs.filter((job) => job.id !== id);
-  state.selectedJobId = state.jobs[0]?.id || '';
-  persistJobs();
-  navigate('/jobs?tab=list', { replace: true });
+  state.selectedJobId = companyJobs(companyId)[0]?.id || '';
+  persistAll();
+  navigate(companyPath('jobs', { tab: 'list' }, companyId), { replace: true });
+}
+
+async function saveTask(form) {
+  const companyId = activeCompanyId();
+  const formData = Object.fromEntries(new FormData(form).entries());
+  const payload = normalizeTask({
+    ...formData,
+    id: String(formData.id || '').trim() || `task-${crypto.randomUUID()}`,
+    company_id: companyId,
+    creator_id: activeSession().profile.member_id || companyMembers(companyId)[0]?.id || 'abraham',
+    urgency: formData.priority || 'medium',
+    watchers: [],
+    subtasks: [],
+    activity: [],
+    updated_at: new Date().toISOString(),
+  });
+
+  const existing = state.tasks.some((task) => task.id === payload.id);
+  const client = createSupabaseClient();
+  if (client) {
+    const savePayload = taskPayload(payload);
+    const result = existing
+      ? await client.from('tasks').update(savePayload).eq('id', payload.id).select().single()
+      : await client.from('tasks').insert(savePayload).select().single();
+    if (!result.error && result.data) {
+      upsertTask(normalizeTask(result.data));
+      state.sync = { label: 'Quest Supabase live', mode: 'live' };
+      navigate(companyPath('tasks', { ...(payload.project_id ? { job_id: payload.project_id } : {}), task_id: payload.id }, companyId), { replace: true });
+      return;
+    }
+    state.sync = { label: 'Task saved locally', mode: 'local' };
+  }
+
+  upsertTask(payload);
+  navigate(companyPath('tasks', { ...(payload.project_id ? { job_id: payload.project_id } : {}), task_id: payload.id }, companyId), { replace: true });
+}
+
+async function deleteTask(id) {
+  if (!id) return;
+  const companyId = activeCompanyId();
+  const client = createSupabaseClient();
+  if (client) await client.from('tasks').delete().eq('id', id);
+  state.tasks = state.tasks.filter((task) => task.id !== id);
+  state.selectedTaskId = '';
+  persistAll();
+  navigate(companyPath('tasks', {}, companyId), { replace: true });
+}
+
+async function saveFileRecord(form) {
+  const companyId = activeCompanyId();
+  const formData = Object.fromEntries(new FormData(form).entries());
+  const payload = normalizeFile({
+    id: crypto.randomUUID(),
+    company_id: companyId,
+    job_id: formData.job_id || '',
+    folder: formData.folder || 'shared',
+    file_name: formData.file_name,
+    mime_type: 'application/octet-stream',
+    size_bytes: Number(formData.size_bytes || 0),
+    category: formData.category || folderLabel(formData.folder || 'shared'),
+    notes: formData.notes || '',
+    uploaded_by_label: activeSession().profile.full_name,
+    bucket_id: 'quest-job-files',
+    object_path: `${companyId}/${formData.folder || 'shared'}/${Date.now()}-${slugify(formData.file_name || 'file')}`,
+    created_at: new Date().toISOString(),
+  });
+
+  const client = createSupabaseClient();
+  if (client) {
+    const result = await client.from('job_files').insert(filePayload(payload)).select().single();
+    if (!result.error && result.data) {
+      upsertFile(normalizeFile(result.data));
+      state.sync = { label: 'Quest Supabase live', mode: 'live' };
+      state.modal = '';
+      navigate(companyPath('files', { folder: payload.folder, ...(payload.job_id ? { job_id: payload.job_id } : {}) }, companyId), { replace: true });
+      return;
+    }
+    state.sync = { label: 'File record saved locally', mode: 'local' };
+  }
+
+  upsertFile(payload);
+  state.modal = '';
+  navigate(companyPath('files', { folder: payload.folder, ...(payload.job_id ? { job_id: payload.job_id } : {}) }, companyId), { replace: true });
 }
 
 function upsertJob(job) {
@@ -963,7 +1421,22 @@ function upsertJob(job) {
   if (index >= 0) state.jobs[index] = job;
   else state.jobs.unshift(job);
   state.selectedJobId = job.id;
-  persistJobs();
+  persistAll();
+}
+
+function upsertTask(task) {
+  const index = state.tasks.findIndex((item) => item.id === task.id);
+  if (index >= 0) state.tasks[index] = task;
+  else state.tasks.unshift(task);
+  state.selectedTaskId = task.id;
+  persistAll();
+}
+
+function upsertFile(file) {
+  const index = state.files.findIndex((item) => item.id === file.id);
+  if (index >= 0) state.files[index] = file;
+  else state.files.unshift(file);
+  persistAll();
 }
 
 function updateWorkspaceOnly() {
@@ -976,70 +1449,88 @@ function updateWorkspaceOnly() {
 function getRoute() {
   const path = appPathname();
   const params = new URLSearchParams(window.location.search);
-  const jobTaskMatch = path.match(/^\/jobs\/([^/]+)\/tasks\/?$/);
-  if (jobTaskMatch) {
-    params.set('job_id', jobTaskMatch[1]);
-    params.set('tab', 'tasks');
-    return { name: 'jobs', path, params, tab: 'tasks', jobId: jobTaskMatch[1] };
+  if (path === '/login') return { name: 'login', path, params, section: '', companyId: '', jobId: '' };
+  if (path === '/' || path === '/command') return { name: 'command', path, params, section: 'dashboard', companyId: activeCompanyId(), jobId: params.get('job_id') || '' };
+  const companyMatch = path.match(/^\/company\/([^/]+)(?:\/([^/]+))?\/?$/);
+  if (companyMatch) {
+    const section = companyMatch[2] || 'jobs';
+    return {
+      name: 'company',
+      path,
+      params,
+      companyId: decodeURIComponent(companyMatch[1]),
+      section,
+      jobId: params.get('job_id') || '',
+    };
   }
-  const map = {
-    '/': 'command',
-    '/command': 'command',
-    '/jobs': 'jobs',
-    '/files': 'files',
-    '/forms': 'forms',
-    '/analytics': 'analytics',
-    '/admin': 'admin',
-    '/time': 'time',
-    '/team': 'team',
-    '/approvals': 'approvals',
-    '/clock': 'clock',
-    '/crm': 'crm',
-    '/finance': 'finance',
-    '/knowledge': 'knowledge',
-    '/automations': 'automations',
-    '/tickets': 'tickets',
-    '/templates': 'templates',
-    '/login': 'login',
-  };
-  const name = map[path] || 'command';
-  return {
-    name,
-    path,
-    params,
-    tab: name === 'jobs' ? normalizeJobTab(params.get('tab')) : '',
-    jobId: params.get('job_id') || '',
-  };
+  return { name: path.replace(/^\//, '') || 'command', path, params, section: '', companyId: activeCompanyId(), jobId: params.get('job_id') || '' };
 }
 
 function normalizeLegacyLocation() {
   const path = appPathname();
   const params = new URLSearchParams(window.location.search);
+  const companyId = params.get('company_id') || params.get('company') || companyIdForJob(params.get('job_id') || params.get('project_id')) || localStorage.getItem(COMPANY_KEY) || defaultCompanyId();
   const map = {
-    '/index.html': '/command',
-    '/admin.html': '/admin',
-    '/automations.html': '/automations',
-    '/crm.html': '/crm',
-    '/dashboards.html': '/analytics',
-    '/files.html': '/files',
-    '/finance.html': '/finance',
-    '/forms.html': '/forms',
-    '/jobs.html': '/jobs',
-    '/knowledge.html': '/knowledge',
+    '/index.html': companyPath('jobs', {}, companyId),
+    '/command.html': companyPath('jobs', {}, companyId),
+    '/admin.html': companyPath('settings', {}, companyId),
+    '/automations.html': companyPath('settings', {}, companyId),
+    '/crm.html': companyPath('users', {}, companyId),
+    '/dashboards.html': companyPath('analytics', {}, companyId),
+    '/files.html': companyPath('files', {}, companyId),
+    '/finance.html': companyPath('analytics', {}, companyId),
+    '/forms.html': companyPath('forms', {}, companyId),
+    '/jobs.html': companyPath('jobs', {}, companyId),
+    '/knowledge.html': companyPath('files', { folder: 'shared' }, companyId),
     '/login.html': '/login',
-    '/templates.html': '/templates',
-    '/tickets.html': '/tickets',
+    '/templates.html': companyPath('forms', {}, companyId),
+    '/tickets.html': companyPath('tasks', {}, companyId),
   };
+
   let target = map[path];
-  if (path === '/task-management.html') {
-    target = '/jobs';
-    params.set('tab', 'tasks');
-    if (params.has('project_id') && !params.has('job_id')) params.set('job_id', params.get('project_id'));
-    params.delete('project_id');
+  if (path === '/jobs') {
+    const tab = params.get('tab');
+    if (tab === 'tasks') target = companyPath('tasks', copyParams(params, ['job_id', 'task_id', 'new', 'edit']), companyId);
+    else if (tab === 'files') target = companyPath('files', copyParams(params, ['job_id', 'folder']), companyId);
+    else if (tab === 'forms') target = companyPath('forms', copyParams(params, ['job_id']), companyId);
+    else if (tab === 'analytics') target = companyPath('analytics', copyParams(params, ['job_id']), companyId);
+    else target = companyPath('jobs', copyParams(params, ['job_id', 'tab']), companyId);
   }
+  if (path === '/files') target = companyPath('files', copyParams(params, ['job_id', 'folder']), companyId);
+  if (path === '/forms') target = companyPath('forms', copyParams(params, ['job_id']), companyId);
+  if (path === '/analytics') target = companyPath('analytics', copyParams(params, ['job_id']), companyId);
+  if (path === '/admin') target = companyPath('settings', {}, companyId);
+  if (path === '/time') target = companyPath('time', {}, companyId);
+  if (path === '/team') target = companyPath('users', {}, companyId);
+  if (path === '/approvals') target = companyPath('approvals', {}, companyId);
+  if (path === '/clock') target = companyPath('settings', {}, companyId);
+  if (path === '/task-management.html') {
+    const jobId = params.get('project_id') || params.get('job_id') || '';
+    target = companyPath('tasks', jobId ? { job_id: jobId } : {}, companyIdForJob(jobId) || companyId);
+  }
+  const jobTaskMatch = path.match(/^\/jobs\/([^/]+)\/tasks\/?$/);
+  if (jobTaskMatch) {
+    const jobId = decodeURIComponent(jobTaskMatch[1]);
+    target = companyPath('tasks', { job_id: jobId }, companyIdForJob(jobId) || companyId);
+  }
+
   if (!target) return;
-  const search = params.toString();
-  window.history.replaceState({}, '', appHref(target + (search ? `?${search}` : '')));
+  window.history.replaceState({}, '', appHref(target));
+}
+
+function routeRedirect(route) {
+  if (route.name !== 'company') return '';
+  const allowed = allowedCompanyIds();
+  if (!allowed.includes(route.companyId)) {
+    return companyPath(route.section || 'jobs', Object.fromEntries(route.params.entries()), allowed[0] || defaultCompanyId());
+  }
+  const validSections = ['jobs', 'tasks', 'files', 'forms', 'analytics', 'users', 'settings', 'time', 'approvals'];
+  if (!validSections.includes(route.section)) return companyPath('jobs', {}, route.companyId);
+  const jobCompanyId = route.jobId ? companyIdForJob(route.jobId) : '';
+  if (jobCompanyId && jobCompanyId !== route.companyId && allowed.includes(jobCompanyId)) {
+    return companyPath(route.section, Object.fromEntries(route.params.entries()), jobCompanyId);
+  }
+  return '';
 }
 
 function appPathname() {
@@ -1057,7 +1548,7 @@ function appHref(path) {
 }
 
 function navigate(path, options = {}) {
-  const href = path.startsWith(BASE_PATH || '/') ? path : appHref(path);
+  const href = /^https?:\/\//i.test(path) || path.startsWith(BASE_PATH + '/') || (BASE_PATH === '' && path.startsWith('/')) ? path : appHref(path);
   if (options.replace) window.history.replaceState({}, '', href);
   else window.history.pushState({}, '', href);
   render();
@@ -1070,70 +1561,33 @@ function currentAppUrl() {
 function safeReturnUrl(value) {
   try {
     const url = new URL(value, window.location.origin);
-    if (url.origin !== window.location.origin) return appHref('/command');
+    if (url.origin !== window.location.origin) return appHref(companyPath('jobs', {}, defaultCompanyId()));
     return `${url.pathname}${url.search}`;
   } catch {
-    return appHref('/command');
+    return appHref(companyPath('jobs', {}, defaultCompanyId()));
   }
+}
+
+function companyPath(section = 'jobs', params = {}, companyId = activeCompanyId()) {
+  const search = new URLSearchParams(params);
+  for (const [key, value] of [...search.entries()]) {
+    if (value === undefined || value === null || value === '') search.delete(key);
+  }
+  return `/company/${encodeURIComponent(companyId || defaultCompanyId())}/${section}${search.toString() ? `?${search.toString()}` : ''}`;
 }
 
 function routeTitle(route) {
-  const labels = {
-    command: 'Operations Command',
-    jobs: 'Job Center',
-    files: 'File Center',
-    forms: 'Forms & Surveys',
-    analytics: 'Analytics',
-    admin: 'Admin',
-    time: 'My Time',
-    team: 'Team Workload',
-    approvals: 'Approvals',
-    clock: 'Clock Dashboard',
-    crm: 'CRM',
-    finance: 'Finance',
-    knowledge: 'Knowledge Base',
-    automations: 'Automations',
-    tickets: 'Tickets',
-    templates: 'Templates',
-    login: 'Sign in',
-  };
-  return labels[route.name] || 'Operations Command';
+  if (route.name === 'company') return titleCase(route.section);
+  if (route.name === 'command') return 'Company Dashboard';
+  if (route.name === 'login') return 'Sign in';
+  return titleCase(route.name || 'Workspace');
 }
 
 function isActiveNav(route, path) {
-  const [targetPath, targetSearch = ''] = path.split('?');
-  if (targetPath === '/jobs' && route.name === 'jobs') {
-    const tab = new URLSearchParams(targetSearch).get('tab');
-    if (!tab) return route.name === 'jobs' && !['tasks'].includes(route.tab);
-    return route.tab === tab;
-  }
-  const targetRoute = getRouteNameFromPath(targetPath);
-  return route.name === targetRoute;
-}
-
-function getRouteNameFromPath(path) {
-  return getRouteNameMap()[path] || 'command';
-}
-
-function getRouteNameMap() {
-  return {
-    '/command': 'command',
-    '/jobs': 'jobs',
-    '/files': 'files',
-    '/forms': 'forms',
-    '/analytics': 'analytics',
-    '/admin': 'admin',
-    '/time': 'time',
-    '/team': 'team',
-    '/approvals': 'approvals',
-    '/clock': 'clock',
-    '/crm': 'crm',
-    '/finance': 'finance',
-    '/knowledge': 'knowledge',
-    '/automations': 'automations',
-    '/tickets': 'tickets',
-    '/templates': 'templates',
-  };
+  const [targetPath] = path.split('?');
+  const target = targetPath.match(/^\/company\/([^/]+)\/([^/]+)/);
+  if (!target || route.name !== 'company') return false;
+  return route.companyId === decodeURIComponent(target[1]) && route.section === target[2];
 }
 
 function normalizeJobTab(value) {
@@ -1143,44 +1597,86 @@ function normalizeJobTab(value) {
 function labelForTab(tab) {
   return {
     pipeline: 'Pipeline',
-    list: 'Job List',
+    list: 'List',
     profile: 'Profile',
-    tasks: 'Tasks',
-    files: 'Files',
-    forms: 'Forms',
-    analytics: 'Analytics',
     editor: 'Editor',
   }[tab] || tab;
 }
 
+function reconcileCompany(route) {
+  const target = route.companyId || state.activeCompanyId || defaultCompanyId();
+  const allowed = allowedCompanyIds();
+  state.activeCompanyId = allowed.includes(target) ? target : allowed[0] || defaultCompanyId();
+  localStorage.setItem(COMPANY_KEY, state.activeCompanyId);
+}
+
 function reconcileSelection(route) {
-  if (route.jobId && state.jobs.some((job) => job.id === route.jobId)) {
-    state.selectedJobId = route.jobId;
+  const companyId = activeCompanyId();
+  if (route.jobId && companyJobs(companyId).some((job) => job.id === route.jobId)) state.selectedJobId = route.jobId;
+  if (!state.selectedJobId || !companyJobs(companyId).some((job) => job.id === state.selectedJobId)) {
+    state.selectedJobId = companyJobs(companyId)[0]?.id || '';
   }
-  if (!state.selectedJobId || !state.jobs.some((job) => job.id === state.selectedJobId)) {
-    state.selectedJobId = state.jobs[0]?.id || '';
-  }
+  const taskId = route.params.get('task_id');
+  if (taskId && companyTasks(companyId).some((task) => task.id === taskId)) state.selectedTaskId = taskId;
+  if (route.section !== 'tasks') state.selectedTaskId = '';
+  state.driveFolder = route.params.get('folder') || 'home';
+}
+
+function setActiveCompany(companyId) {
+  const allowed = allowedCompanyIds();
+  const next = allowed.includes(companyId) ? companyId : allowed[0] || defaultCompanyId();
+  state.activeCompanyId = next;
+  localStorage.setItem(COMPANY_KEY, next);
+  const route = state.route || getRoute();
+  const section = route.name === 'company' ? route.section : 'jobs';
+  navigate(companyPath(section, {}, next));
 }
 
 function setSelectedJob(id) {
-  if (!state.jobs.some((job) => job.id === id)) return;
+  const job = jobById(id);
+  if (!job) return;
   state.selectedJobId = id;
-  const route = state.route || getRoute();
-  const tab = route.name === 'jobs' ? route.tab : 'profile';
-  navigate('/jobs?' + new URLSearchParams({ tab, job_id: id }).toString());
+  navigate(companyPath('jobs', { tab: 'profile', job_id: id }, job.company_id));
+}
+
+function setSelectedTask(id) {
+  const task = taskById(id);
+  if (!task) return;
+  state.selectedTaskId = id;
+  navigate(companyPath('tasks', { ...(task.project_id ? { job_id: task.project_id } : {}), task_id: id }, task.company_id));
 }
 
 function selectedJob() {
-  return jobById(state.selectedJobId) || state.jobs[0] || null;
+  return jobById(state.selectedJobId) || companyJobs(activeCompanyId())[0] || null;
 }
 
 function jobById(id) {
   return state.jobs.find((job) => job.id === id) || null;
 }
 
-function filteredJobs() {
+function taskById(id) {
+  return state.tasks.find((task) => task.id === id) || null;
+}
+
+function companyJobs(companyId = activeCompanyId()) {
+  return state.jobs.filter((job) => job.company_id === companyId);
+}
+
+function companyTasks(companyId = activeCompanyId()) {
+  return state.tasks.filter((task) => task.company_id === companyId);
+}
+
+function companyFiles(companyId = activeCompanyId()) {
+  return state.files.filter((file) => file.company_id === companyId);
+}
+
+function companyMembers(companyId = activeCompanyId()) {
+  return state.teamMembers.filter((member) => Array.isArray(member.company_ids) && member.company_ids.includes(companyId));
+}
+
+function filteredJobs(companyId = activeCompanyId()) {
   const q = state.query.trim().toLowerCase();
-  return state.jobs.filter((job) => {
+  return companyJobs(companyId).filter((job) => {
     if (state.stageFilter !== 'all' && job.stage !== state.stageFilter) return false;
     if (!q) return true;
     return [job.name, job.client_name, job.contact_name, job.owner_name, job.site_address, job.job_type, companyName(job.company_id)]
@@ -1188,10 +1684,115 @@ function filteredJobs() {
   });
 }
 
+function filteredTasks(companyId = activeCompanyId(), jobId = '') {
+  const q = state.query.trim().toLowerCase();
+  return companyTasks(companyId).filter((task) => {
+    if (jobId && task.project_id !== jobId) return false;
+    if (state.taskStatusFilter !== 'all' && task.status !== state.taskStatusFilter) return false;
+    if (state.taskPriorityFilter !== 'all' && task.priority !== state.taskPriorityFilter) return false;
+    if (!q) return true;
+    return [task.title, task.description, taskTypeLabel(task.type), memberName(task.assignee_id), jobById(task.project_id)?.name]
+      .some((value) => String(value || '').toLowerCase().includes(q));
+  });
+}
+
+function filteredFiles(companyId = activeCompanyId(), folder = 'home', jobId = '') {
+  const q = state.query.trim().toLowerCase();
+  return companyFiles(companyId).filter((file) => {
+    if (jobId && file.job_id !== jobId) return false;
+    if (!jobId && folder && folder !== 'home' && folder !== 'jobs' && file.folder !== folder) return false;
+    if (!jobId && folder === 'jobs' && !file.job_id) return false;
+    if (!q) return true;
+    return [file.file_name, file.category, file.uploaded_by_label, jobById(file.job_id)?.name]
+      .some((value) => String(value || '').toLowerCase().includes(q));
+  });
+}
+
+function allowedCompanies() {
+  const ids = allowedCompanyIds();
+  return state.companies.filter((company) => ids.includes(company.id));
+}
+
+function allowedCompanyIds() {
+  const profile = activeSession().profile;
+  const allIds = state.companies.map((company) => company.id);
+  if (['developer', 'admin'].includes(profile.role)) return allIds.length ? allIds : companiesFallback.map((company) => company.id);
+  const membershipIds = state.memberships
+    .filter((item) => item.profile_id === profile.id && item.status !== 'disabled')
+    .map((item) => item.company_id);
+  const ids = membershipIds.length ? membershipIds : profile.company_ids || [];
+  return ids.filter((id) => allIds.includes(id));
+}
+
+function activeCompanyId() {
+  const allowed = allowedCompanyIds();
+  if (allowed.includes(state.activeCompanyId)) return state.activeCompanyId;
+  return allowed[0] || defaultCompanyId();
+}
+
+function defaultCompanyId() {
+  return companiesFallback[0].id;
+}
+
+function companyById(id) {
+  return state.companies.find((item) => item.id === id) || companiesFallback.find((item) => item.id === id) || null;
+}
+
+function companyName(id) {
+  const company = companyById(id);
+  return company ? companyLabel(company) : id || 'Company';
+}
+
+function companyLabel(company) {
+  return company.short_name || company.label || company.name || company.id;
+}
+
+function companyColor(id) {
+  return companyById(id)?.color || '#f0b23b';
+}
+
+function companyIdForJob(jobId) {
+  return state.jobs.find((job) => job.id === jobId)?.company_id || '';
+}
+
+function roleForCompany(companyId) {
+  const profile = activeSession().profile;
+  if (['developer', 'admin'].includes(profile.role)) return titleCase(profile.role);
+  return titleCase(state.memberships.find((item) => item.company_id === companyId && item.profile_id === profile.id)?.role || profile.role || 'member');
+}
+
+function roleForMember(companyId, memberId) {
+  const membership = state.memberships.find((item) => item.company_id === companyId && (item.member_id === memberId || item.profile_id === memberId));
+  return titleCase(membership?.role || 'member');
+}
+
+function memberName(id) {
+  const member = state.teamMembers.find((item) => item.id === id);
+  return member?.full_name || member?.name || id || 'Unassigned';
+}
+
+function taskCountForJob(jobId) {
+  return state.tasks.filter((task) => task.project_id === jobId).length;
+}
+
+function fileCountForJob(jobId) {
+  return state.files.filter((file) => file.job_id === jobId).length;
+}
+
+function normalizeCompany(input) {
+  return {
+    id: String(input.id || '').trim(),
+    name: String(input.name || input.short_name || input.id || '').trim(),
+    short_name: String(input.short_name || input.label || input.name || input.id || '').trim(),
+    color: String(input.color || '#f0b23b'),
+    label: String(input.label || input.short_name || input.name || input.id || '').trim(),
+  };
+}
+
 function normalizeJob(input) {
   return {
     id: String(input.id || ''),
-    company_id: String(input.company_id || firstCompanyId()),
+    company_id: String(input.company_id || defaultCompanyId()),
     name: String(input.name || '').trim() || 'Untitled Job',
     client_name: String(input.client_name || '').trim(),
     contact_name: String(input.contact_name || '').trim(),
@@ -1211,10 +1812,82 @@ function normalizeJob(input) {
   };
 }
 
-function blankJob() {
+function normalizeTask(input) {
+  const priority = TASK_PRIORITIES.includes(String(input.priority || '').toLowerCase()) ? String(input.priority).toLowerCase() : 'medium';
+  const status = TASK_STATUSES.includes(String(input.status || '').toLowerCase()) ? String(input.status).toLowerCase() : 'todo';
+  return {
+    id: String(input.id || ''),
+    title: String(input.title || '').trim() || 'Untitled task',
+    description: String(input.description || '').trim(),
+    type: TASK_TYPES.includes(input.type) ? input.type : 'admin',
+    label: input.label || null,
+    bid_status: input.bid_status || null,
+    company_id: String(input.company_id || defaultCompanyId()),
+    creator_id: String(input.creator_id || 'abraham'),
+    assignee_id: String(input.assignee_id || input.creator_id || 'abraham'),
+    project_id: String(input.project_id || ''),
+    due: String(input.due || isoDate(1)).slice(0, 10),
+    due_time: input.due_time || null,
+    reminder_at: input.reminder_at || null,
+    priority,
+    urgency: TASK_PRIORITIES.includes(String(input.urgency || '').toLowerCase()) ? String(input.urgency).toLowerCase() : priority,
+    status,
+    watchers: Array.isArray(input.watchers) ? input.watchers : [],
+    subtasks: Array.isArray(input.subtasks) ? input.subtasks : [],
+    activity: Array.isArray(input.activity) ? input.activity : [],
+    cleared_at: input.cleared_at || null,
+    created_at: input.created_at || new Date().toISOString(),
+    updated_at: input.updated_at || new Date().toISOString(),
+  };
+}
+
+function normalizeFile(input) {
+  const category = String(input.category || input.folder || 'Shared');
+  return {
+    id: String(input.id || crypto.randomUUID()),
+    company_id: String(input.company_id || defaultCompanyId()),
+    job_id: String(input.job_id || ''),
+    folder: String(input.folder || folderIdFromCategory(category)),
+    file_name: String(input.file_name || input.name || 'Untitled file'),
+    mime_type: String(input.mime_type || 'application/octet-stream'),
+    size_bytes: number(input.size_bytes),
+    category,
+    bucket_id: input.bucket_id || 'quest-job-files',
+    object_path: input.object_path || '',
+    uploaded_by_label: String(input.uploaded_by_label || 'Quest HQ'),
+    notes: String(input.notes || ''),
+    created_at: input.created_at || new Date().toISOString(),
+    updated_at: input.updated_at || input.created_at || new Date().toISOString(),
+  };
+}
+
+function normalizeTeamMember(input) {
+  return {
+    id: String(input.id || ''),
+    name: String(input.name || input.full_name || '').trim(),
+    full_name: String(input.full_name || input.name || '').trim(),
+    email: String(input.email || '').trim(),
+    color: String(input.color || '#f0b23b'),
+    avatar_url: String(input.avatar_url || ''),
+    active: input.active !== false,
+    company_ids: Array.isArray(input.company_ids) ? input.company_ids : [],
+  };
+}
+
+function normalizeMembership(input) {
+  return {
+    company_id: String(input.company_id || ''),
+    profile_id: String(input.profile_id || input.member_id || ''),
+    member_id: input.member_id ? String(input.member_id) : '',
+    role: String(input.role || 'member'),
+    status: String(input.status || 'active'),
+  };
+}
+
+function blankJob(companyId = activeCompanyId()) {
   return normalizeJob({
     id: '',
-    company_id: firstCompanyId(),
+    company_id: companyId,
     name: '',
     stage: 'Lead',
     priority: 'Medium',
@@ -1222,13 +1895,60 @@ function blankJob() {
   });
 }
 
-function firstCompanyId() {
-  return state.companies[0]?.id || companiesFallback[0].id;
+function blankTask(companyId = activeCompanyId(), jobId = '') {
+  return normalizeTask({
+    id: '',
+    title: '',
+    company_id: companyId,
+    project_id: jobId,
+    assignee_id: companyMembers(companyId)[0]?.id || 'abraham',
+    creator_id: activeSession().profile.member_id || 'abraham',
+    due: isoDate(1),
+    priority: 'medium',
+    status: 'todo',
+    type: 'admin',
+  });
 }
 
-function companyName(id) {
-  const company = state.companies.find((item) => item.id === id) || companiesFallback.find((item) => item.id === id);
-  return company ? (company.short_name || company.name || company.id) : id || 'Company';
+function taskPayload(task) {
+  return {
+    id: task.id,
+    title: task.title,
+    description: task.description,
+    type: task.type,
+    label: task.label,
+    bid_status: task.bid_status,
+    company_id: task.company_id,
+    creator_id: task.creator_id,
+    assignee_id: task.assignee_id,
+    project_id: task.project_id || null,
+    due: task.due,
+    due_time: task.due_time,
+    reminder_at: task.reminder_at,
+    priority: task.priority,
+    urgency: task.urgency,
+    status: task.status,
+    watchers: task.watchers,
+    subtasks: task.subtasks,
+    activity: task.activity,
+    cleared_at: task.cleared_at,
+  };
+}
+
+function filePayload(file) {
+  return {
+    company_id: file.company_id,
+    job_id: file.job_id || null,
+    bucket_id: file.bucket_id,
+    object_path: file.object_path,
+    file_name: file.file_name,
+    mime_type: file.mime_type,
+    size_bytes: file.size_bytes,
+    category: file.category,
+    folder: file.folder,
+    uploaded_by_label: file.uploaded_by_label,
+    notes: file.notes,
+  };
 }
 
 function activeSession() {
@@ -1252,6 +1972,7 @@ function buildLocalSession() {
     full_name: 'Quest Basic Mode',
     role: 'developer',
     role_label: 'Developer',
+    member_id: 'abraham',
     company_ids: ['roofing', 'drafting', 'lumen'],
     avatar_url: '',
     ...(state.profileDraft || {}),
@@ -1263,11 +1984,11 @@ function buildLocalSession() {
   };
 }
 
-function pageHead(title, summary, actions = '') {
+function workspaceHeader(title, summary, actions = '') {
   return `
-    <section class="page-head">
+    <section class="workspace-head">
       <div>
-        <div class="eyebrow">Quest HQ</div>
+        <div class="context-line"><span>${h(companyName(activeCompanyId()))}</span><b>${h(roleForCompany(activeCompanyId()))}</b></div>
         <h1>${h(title)}</h1>
         <p>${h(summary)}</p>
       </div>
@@ -1290,25 +2011,24 @@ function jobQueueRow(job) {
   `;
 }
 
+function taskQueueRow(task) {
+  return `
+    <button class="queue-row" type="button" data-select-task="${h(task.id)}">
+      <span><strong>${h(task.title)}</strong><small>${h(jobById(task.project_id)?.name || companyName(task.company_id))}</small></span>
+      ${taskPriorityPill(task.priority)}
+      <b>${h(statusLabel(task.status))}</b>
+    </button>
+  `;
+}
+
 function jobCard(job) {
   return `
     <button class="job-card priority-${h(job.priority.toLowerCase())} ${job.id === state.selectedJobId ? 'active' : ''}" type="button" data-select-job="${h(job.id)}">
       <strong>${h(job.name)}</strong>
       <span>${h(job.client_name || 'No client')}</span>
       <small>${h(companyName(job.company_id))} - ${h(job.owner_name || 'Unassigned')}</small>
-      <em>${h(job.task_count)} tasks</em>
+      <em>${h(taskCountForJob(job.id))} tasks</em>
     </button>
-  `;
-}
-
-function fileTile(name, job, index) {
-  const types = ['Photos', 'PDF', 'Drawing', 'Contract'];
-  return `
-    <article class="file-tile">
-      <div><i class="ti ti-file-${index === 0 ? 'photo' : 'description'}"></i></div>
-      <strong>${h(name)}</strong>
-      <span>${h(types[index] || 'Document')} - ${h(job.name)}</span>
-    </article>
   `;
 }
 
@@ -1325,16 +2045,6 @@ function contractRows(rows) {
   return `<div class="contract-rows">${rows.map(([label, value]) => `<div><span>${h(label)}</span><strong>${h(value)}</strong></div>`).join('')}</div>`;
 }
 
-function activityRows() {
-  const first = state.jobs[0];
-  return [
-    ['Supabase status', state.sync.mode === 'live' ? 'Live jobs loaded from the Quest HQ project.' : 'Using local fallback job records.'],
-    ['Priority review', `${state.jobs.find((job) => job.priority === 'Urgent')?.name || first?.name || 'No urgent job'} is first in the operations queue.`],
-    ['TaskManagement ready', `${sum(state.jobs, 'task_count')} linked tasks represented through project_id.`],
-    ['Shell ownership', 'Time, team workload, approvals, clock dashboard, profile, and roles render in Quest HQ.'],
-  ];
-}
-
 function field(label, name, value = '', required = false, type = 'text', className = '') {
   return `<label class="${h(className)}"><span>${h(label)}</span><input name="${h(name)}" type="${h(type)}" value="${h(value)}" ${required ? 'required' : ''} /></label>`;
 }
@@ -1346,13 +2056,21 @@ function textareaField(label, name, value = '', className = '') {
 function selectField(label, name, value, options) {
   return `
     <label><span>${h(label)}</span><select name="${h(name)}">
-      ${options.map(([id, text]) => `<option value="${h(id)}" ${id === value ? 'selected' : ''}>${h(text)}</option>`).join('')}
+      ${options.map(([id, text]) => `<option value="${h(id)}" ${String(id) === String(value) ? 'selected' : ''}>${h(text)}</option>`).join('')}
     </select></label>
   `;
 }
 
 function priorityPill(priority) {
-  return `<span class="priority ${h(priority.toLowerCase())}">${h(priority)}</span>`;
+  return `<span class="priority ${h(String(priority).toLowerCase())}">${h(priority)}</span>`;
+}
+
+function taskPriorityPill(priority) {
+  return `<span class="priority ${h(priority)}">${h(titleCase(priority))}</span>`;
+}
+
+function taskStatusPill(status) {
+  return `<span class="status-pill ${h(status)}">${h(statusLabel(status))}</span>`;
 }
 
 function renderAvatar(profile, className) {
@@ -1365,15 +2083,94 @@ function emptyState(text) {
   return `<div class="empty-state">${h(text)}</div>`;
 }
 
-function taskRuntimeUrl(job, embedded = true) {
-  const params = new URLSearchParams({ return_url: window.location.href });
-  if (embedded) params.set('embed', '1');
-  if (job && job.id) params.set('project_id', job.id);
-  return `${appHref('/taskmanagement/app.html')}?${params.toString()}`;
+function copyParams(params, keys) {
+  const next = {};
+  keys.forEach((key) => {
+    const value = params.get(key);
+    if (value) next[key] = value;
+  });
+  return next;
 }
 
-function persistJobs() {
+function persistAll() {
   writeJson(JOB_CACHE_KEY, state.jobs);
+  writeJson(TASK_CACHE_KEY, state.tasks);
+  writeJson(FILE_CACHE_KEY, state.files);
+  writeJson(TEAM_CACHE_KEY, state.teamMembers);
+  writeJson(MEMBERSHIP_CACHE_KEY, state.memberships);
+}
+
+function statusLabel(status) {
+  return {
+    todo: 'To do',
+    pending: 'Pending',
+    hold: 'On hold',
+    review: 'Review',
+    done: 'Done',
+  }[status] || titleCase(status);
+}
+
+function taskTypeLabel(type) {
+  return {
+    lead: 'Lead',
+    bid: 'Bid',
+    admin: 'Admin',
+    invoicing: 'Invoicing',
+    ar: 'AR',
+    meeting: 'Meeting',
+    web_dev: 'Web dev',
+  }[type] || titleCase(type);
+}
+
+function folderLabel(id) {
+  return DRIVE_FOLDERS.find(([folderId]) => folderId === id)?.[1] || titleCase(id || 'Shared');
+}
+
+function folderIdFromCategory(category) {
+  const lower = String(category || '').toLowerCase();
+  if (lower.includes('photo')) return 'photos';
+  if (lower.includes('permit')) return 'permits';
+  if (lower.includes('contract')) return 'contracts';
+  if (lower.includes('form')) return 'forms';
+  if (lower.includes('archive')) return 'archive';
+  return 'shared';
+}
+
+function fileIcon(file) {
+  if (file.mime_type.includes('image')) return 'ti-photo';
+  if (file.mime_type.includes('pdf')) return 'ti-file-type-pdf';
+  if (file.mime_type.includes('zip')) return 'ti-file-zip';
+  return 'ti-file-description';
+}
+
+function titleCase(value) {
+  return String(value || '')
+    .replace(/[_-]+/g, ' ')
+    .replace(/\b\w/g, (char) => char.toUpperCase());
+}
+
+function isoDate(offsetDays = 0) {
+  const date = new Date(Date.now() + offsetDays * 86400000);
+  return date.toISOString().slice(0, 10);
+}
+
+function formatDate(value) {
+  if (!value) return 'No date';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return String(value);
+  return new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric' }).format(date);
+}
+
+function formatBytes(value) {
+  const bytes = number(value);
+  if (!bytes) return '0 B';
+  const units = ['B', 'KB', 'MB', 'GB'];
+  const index = Math.min(Math.floor(Math.log(bytes) / Math.log(1024)), units.length - 1);
+  return `${(bytes / 1024 ** index).toFixed(index ? 1 : 0)} ${units[index]}`;
+}
+
+function slugify(value) {
+  return String(value || 'file').toLowerCase().replace(/[^a-z0-9.]+/g, '-').replace(/^-+|-+$/g, '') || 'file';
 }
 
 function sum(items, field) {

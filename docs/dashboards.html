@@ -8,28 +8,58 @@
       (function () {
         var file = "dashboards.html";
         var params = new URLSearchParams(window.location.search);
-        var route = '/command';
+        var company = params.get('company_id') || params.get('company') || localStorage.getItem('quest-hq-active-company') || 'roofing';
+        var route = '/company/' + encodeURIComponent(company) + '/jobs';
+        function workspace(section) {
+          return '/company/' + encodeURIComponent(company) + '/' + section;
+        }
+        function keep(keys) {
+          var next = new URLSearchParams();
+          keys.forEach(function (key) {
+            if (params.has(key)) next.set(key, params.get(key));
+          });
+          return next;
+        }
         var map = {
-          'admin.html': '/admin',
-          'automations.html': '/automations',
-          'crm.html': '/crm',
-          'dashboards.html': '/analytics',
-          'files.html': '/files',
-          'finance.html': '/finance',
-          'forms.html': '/forms',
-          'jobs.html': '/jobs',
-          'knowledge.html': '/knowledge',
+          'admin.html': workspace('settings'),
+          'automations.html': workspace('settings'),
+          'crm.html': workspace('users'),
+          'dashboards.html': workspace('analytics'),
+          'files.html': workspace('files'),
+          'finance.html': workspace('analytics'),
+          'forms.html': workspace('forms'),
+          'jobs.html': workspace('jobs'),
+          'knowledge.html': workspace('files'),
           'login.html': '/login',
-          'templates.html': '/templates',
-          'tickets.html': '/tickets'
+          'templates.html': workspace('forms'),
+          'tickets.html': workspace('tasks')
         };
         if (file === 'task-management.html') {
-          route = '/jobs';
-          params.set('tab', 'tasks');
+          route = workspace('tasks');
           if (params.has('project_id') && !params.has('job_id')) params.set('job_id', params.get('project_id'));
-          params.delete('project_id');
+          params = keep(['job_id', 'task_id']);
         } else {
           route = map[file] || '/command';
+          if (file === 'jobs.html') {
+            if (params.get('tab') === 'tasks') {
+              route = workspace('tasks');
+              params = keep(['job_id', 'task_id']);
+            } else if (params.get('tab') === 'files') {
+              route = workspace('files');
+              params = keep(['job_id', 'folder']);
+            } else if (params.get('tab') === 'forms') {
+              route = workspace('forms');
+              params = keep(['job_id']);
+            } else {
+              params = keep(['job_id', 'tab']);
+            }
+          } else if (file === 'files.html') {
+            params = keep(['job_id', 'folder']);
+          } else if (file === 'forms.html') {
+            params = keep(['job_id']);
+          } else {
+            params = keep([]);
+          }
         }
         var base = window.location.pathname.slice(0, window.location.pathname.lastIndexOf('/'));
         var target = new URL((base || '') + route, window.location.origin);
