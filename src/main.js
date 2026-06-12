@@ -1065,6 +1065,7 @@ function renderTaskForm(companyId, job, task) {
 
 function renderFilesPage(route, companyId) {
   const folder = route.params.get('folder') || state.driveFolder || 'home';
+  state.driveFolder = folder;
   const job = route.jobId ? jobById(route.jobId) : null;
   const files = filteredDriveFiles(companyId, folder, job?.id || '');
   const selected = selectedDriveFile(files);
@@ -1073,9 +1074,12 @@ function renderFilesPage(route, companyId) {
     <section class="tool-page drive-page">
       <section class="drive-app panel">
         <header class="drive-topbar">
-          <div>
-            <h2>${h(job ? job.name : 'Company Drive')}</h2>
-            <p>${h(job ? `${job.client_name || companyName(companyId)} file workspace` : 'Company folders, shared files, job packets, photos, and forms.')}</p>
+          <div class="drive-location">
+            <span class="drive-logo"><i class="ti ti-folder"></i></span>
+            <div>
+              <strong>${h(job ? job.name : 'Company Drive')}</strong>
+              <small>${h(job ? `${job.client_name || companyName(companyId)} file workspace` : `${companyName(companyId)} file manager`)}</small>
+            </div>
           </div>
           <label class="drive-search">
             <i class="ti ti-search"></i>
@@ -1089,7 +1093,20 @@ function renderFilesPage(route, companyId) {
         </header>
         <div class="drive-shell">
           <aside class="drive-rail">
-            ${DRIVE_FILTERS.map(([id, label, icon]) => driveFilterButton(id, label, icon)).join('')}
+            <div class="drive-rail-section">
+              <span>Drive</span>
+              ${DRIVE_FILTERS.map(([id, label, icon]) => driveFilterButton(id, label, icon, driveFilterCount(companyId, id))).join('')}
+            </div>
+            <div class="drive-rail-section">
+              <span>Folders</span>
+              ${DRIVE_FOLDERS.map(([id, label,, icon]) => `
+                <a class="${folder === id && !job ? 'active' : ''}" href="${appHref(companyPath('files', { folder: id }, companyId))}" data-router>
+                  <i class="ti ${h(icon)}"></i>
+                  <span>${h(label)}</span>
+                  <b>${h(String(driveFolderCount(companyId, id)))}</b>
+                </a>
+              `).join('')}
+            </div>
             <div class="drive-rail-block">
               <span>Job folder</span>
               <select data-file-job-filter>
@@ -1100,6 +1117,7 @@ function renderFilesPage(route, companyId) {
             <div class="drive-capacity">
               <span>${formatBytes(metrics.bytes)} of 1 GB</span>
               <b><i style="width:${h(String(Math.min(100, Math.round((metrics.bytes / 1073741824) * 100))))}%"></i></b>
+              <small>${metrics.count} file${metrics.count === 1 ? '' : 's'} in this company</small>
             </div>
           </aside>
           <div class="drive-main">
@@ -1127,6 +1145,12 @@ function renderFilesPage(route, companyId) {
                 <button class="${state.driveView === 'list' ? 'active' : ''}" type="button" data-action="set-drive-view" data-view="list"><i class="ti ti-list"></i>List</button>
               </div>
             </section>
+            <section class="drive-context-strip">
+              ${driveContextPill('Scope', job ? job.name : folder === 'home' ? 'All company files' : folderLabel(folder))}
+              ${driveContextPill('Visible', `${files.length} file${files.length === 1 ? '' : 's'}`)}
+              ${driveContextPill('Category', state.fileCategoryFilter)}
+              ${driveContextPill('Storage', formatBytes(metrics.bytes))}
+            </section>
             ${folder === 'home' && state.driveFilter === 'my-drive' && !job ? renderDriveHome(companyId) : ''}
             ${renderDriveFiles(companyId, files)}
           </div>
@@ -1144,6 +1168,7 @@ function renderDriveHome(companyId) {
   return `
     <section class="drive-section-title">
       <div><h3>Company folders</h3><span>Folders are scoped to ${h(companyName(companyId))}</span></div>
+      <button class="btn" type="button" data-action="open-file-upload"><i class="ti ti-upload"></i>Upload</button>
     </section>
     <section class="drive-folder-grid">
       ${DRIVE_FOLDERS.map(([id, label, text, icon]) => `
@@ -1157,6 +1182,7 @@ function renderDriveHome(companyId) {
     </section>
     <section class="drive-section-title recent-title">
       <div><h3>Job folders</h3><span>Each job has a linked drive folder.</span></div>
+      <a class="btn" href="${appHref(companyPath('jobs', {}, companyId))}" data-router><i class="ti ti-briefcase"></i>Open jobs</a>
     </section>
     <section class="drive-folder-grid">
       ${jobs.map((job) => `
@@ -1176,6 +1202,9 @@ function renderDriveFiles(companyId, files) {
   return `
     <section class="drive-section-title recent-title">
       <div><h3>${h(title)}</h3><span>${files.length} visible file${files.length === 1 ? '' : 's'}</span></div>
+      <div class="drive-inline-actions">
+        <button class="btn" type="button" data-action="open-file-upload"><i class="ti ti-plus"></i>New</button>
+      </div>
     </section>
     ${state.driveView === 'list' ? `
       <div class="file-table-live">
@@ -1209,6 +1238,11 @@ function renderFileDetails(file, companyId) {
       <div class="file-detail-preview"><span class="file-doc-icon"><i class="ti ti-folder-open"></i></span></div>
       <h3>${h(companyName(companyId))} Drive</h3>
       <p>Pick a file to see metadata, job context, storage path, and actions.</p>
+      <div class="file-detail-list">
+        ${detailRow('Company folders', DRIVE_FOLDERS.length)}
+        ${detailRow('Job folders', companyJobs(companyId).length)}
+        ${detailRow('Visible files', filteredDriveFiles(companyId, state.driveFolder).length)}
+      </div>
     `;
   }
   return `
@@ -1232,12 +1266,13 @@ function renderFileDetails(file, companyId) {
 
 function renderFileUploadModal() {
   const companyId = activeCompanyId();
-  const folder = state.driveFolder === 'home' ? 'shared' : state.driveFolder;
+  const folder = state.route?.params?.get('folder') || (state.driveFolder === 'home' ? 'shared' : state.driveFolder);
+  const jobId = state.route?.jobId || '';
   return `
     <div class="modal-overlay">
       <div class="modal-panel file-modal-panel" role="dialog" aria-modal="true" aria-labelledby="upload-title">
         <div class="modal-head">
-          <div><div class="eyebrow">Company Drive</div><h2 id="upload-title">Upload files</h2></div>
+          <div><div class="eyebrow">${h(companyName(companyId))} Drive</div><h2 id="upload-title">Upload files</h2></div>
           <button class="btn" type="button" data-action="close-modal">Close</button>
         </div>
         <form class="file-upload-panel" data-file-form>
@@ -1251,13 +1286,18 @@ function renderFileUploadModal() {
           </label>
           ${field('Metadata-only file name', 'file_name', '')}
           ${selectField('Folder', 'folder', folder, DRIVE_FOLDERS.map(([id, label]) => [id, label]))}
-          ${selectField('Job', 'job_id', state.route?.jobId || '', [['', 'Company shared file']].concat(companyJobs(companyId).map((job) => [job.id, job.name])))}
+          ${selectField('Job', 'job_id', jobId, [['', 'Company shared file']].concat(companyJobs(companyId).map((job) => [job.id, job.name])))}
           ${selectField('Category', 'category', folderLabel(folder), FILE_CATEGORIES.filter((item) => item !== 'All categories').map((item) => [item, item]))}
           ${field('Uploaded by', 'uploaded_by_label', activeSession().profile.full_name || 'Quest HQ')}
           ${textareaField('Notes', 'notes', '', 'span-2')}
           <div class="form-actions span-2">
             <button class="btn btn-primary" type="submit">Upload to drive</button>
             <button class="btn" type="button" data-action="close-modal">Cancel</button>
+            <button class="btn" type="reset">Clear</button>
+          </div>
+          <div class="file-upload-log span-2">
+            <strong>Upload target</strong>
+            <span>${h(companyId)}/${h(jobId ? `jobs/${jobId}` : folder)}</span>
           </div>
         </form>
       </div>
@@ -1369,12 +1409,23 @@ function renderFormsLibrary(companyId, forms, current) {
   return `
     <section class="forms-library-grid">
       <article class="forms-library-panel panel">
+        <div class="forms-panel-head">
+          <div>
+            <strong>Company library</strong>
+            <span>${forms.length} visible form${forms.length === 1 ? '' : 's'} in ${h(companyName(companyId))}</span>
+          </div>
+          <button class="btn" type="button" data-action="new-form"><i class="ti ti-plus"></i>Blank form</button>
+        </div>
         <div class="forms-list">
           ${forms.map((form) => `
             <button class="form-card ${current?.id === form.id ? 'active' : ''}" type="button" data-action="select-form" data-form-id="${h(form.id)}">
+              <span class="form-card-top">
+                <i class="ti ti-clipboard-list"></i>
+                <b>${h(form.status)}</b>
+              </span>
               <strong>${h(form.title)}</strong>
               <span>${h(form.description || 'No description yet.')}</span>
-              <small>${h(form.type)} / ${h(form.status)} / ${formQuestionCount(form)} questions</small>
+              <small>${h(form.type)} / ${h(form.audience || 'Internal')} / ${formQuestionCount(form)} questions</small>
             </button>
           `).join('') || emptyState('No forms match this company view.')}
         </div>
@@ -1435,42 +1486,141 @@ function renderFormsBuilder(companyId, form) {
       </section>
     `;
   }
+  const mode = ['questions', 'responses', 'settings'].includes(state.formEditorTab) ? state.formEditorTab : 'questions';
   return `
-    <section class="forms-builder-grid">
-      <aside class="panel form-settings-panel">
-        <div class="section-head"><div><h2>Settings</h2><p>${h(form.status)} / ${h(form.type)}</p></div></div>
-        ${formInput('Title', 'title', form.title, true)}
-        ${formTextarea('Description', 'description', form.description)}
-        ${formSelect('Type', 'type', form.type, FORM_TYPES.map((type) => [type, type]))}
-        ${formSelect('Status', 'status', form.status, FORM_STATUSES.map((status) => [status, status]))}
-        ${formInput('Audience', 'audience', form.audience)}
-        ${formSelect('Linked job', 'linked_job_id', form.linked_job_id || '', [['', 'Company level']].concat(companyJobs(companyId).map((job) => [job.id, job.name])))}
-        ${formInput('Theme color', 'theme_color', form.theme_color || companyColor(companyId), false, 'color')}
-        ${formSelect('Background', 'background', form.background || 'clean', [['clean', 'Clean'], ['paper', 'Paper'], ['grid', 'Grid'], ['dark', 'Dark']])}
-        ${formInput('Submit button', 'submit_label', form.submit_label || 'Submit')}
-        <label class="check-row"><input type="checkbox" data-form-field="collect_email" ${form.collect_email ? 'checked' : ''} /> Collect email</label>
-        <label class="check-row"><input type="checkbox" data-form-field="require_approval" ${form.require_approval ? 'checked' : ''} /> Require approval</label>
-        <div class="form-actions">
-          <button class="btn btn-primary" type="button" data-action="save-form" data-form-id="${h(form.id)}">Save</button>
-          <button class="btn" type="button" data-action="publish-form" data-form-id="${h(form.id)}">Publish</button>
+    <section class="forms-builder-grid gform-editor" data-form-editor-mode="${h(mode)}">
+      ${renderFormEditorTabs(form, mode)}
+      ${mode === 'questions' ? `
+        ${renderFormIdentityPanel(companyId, form)}
+        ${renderQuestionWorkbench(form)}
+        ${renderFormsPreviewPanel(companyId, form)}
+      ` : ''}
+      ${mode === 'settings' ? `
+        <article class="panel form-settings-panel forms-settings-wide">
+          ${renderFormSettingsEditor(companyId, form)}
+        </article>
+        ${renderFormsPreviewPanel(companyId, form)}
+      ` : ''}
+      ${mode === 'responses' ? renderFormResponseEditor(companyId, form) : ''}
+    </section>
+  `;
+}
+
+function renderFormEditorTabs(form, mode) {
+  const responses = responsesForForm(form.id);
+  return `
+    <div class="gform-editor-tabs panel" role="tablist" aria-label="Form editor sections">
+      <div>
+        <strong>${h(form.title)}</strong>
+        <span>${h(form.status)} / ${formQuestionCount(form)} questions / ${responses.length} responses</span>
+      </div>
+      ${['questions', 'responses', 'settings'].map((tab) => `
+        <button class="${mode === tab ? 'active' : ''}" type="button" data-action="set-form-editor-tab" data-tab="${h(tab)}">
+          ${tab === 'questions' ? '<i class="ti ti-list-details"></i>' : tab === 'responses' ? '<i class="ti ti-inbox"></i>' : '<i class="ti ti-settings"></i>'}
+          ${h(titleCase(tab))}
+        </button>
+      `).join('')}
+      <button class="btn btn-primary" type="button" data-action="save-form" data-form-id="${h(form.id)}">Save</button>
+    </div>
+  `;
+}
+
+function renderFormIdentityPanel(companyId, form) {
+  return `
+    <aside class="panel form-settings-panel form-identity-panel">
+      <div class="section-head"><div><h2>Form setup</h2><p>${h(form.status)} / ${h(form.type)}</p></div></div>
+      ${formInput('Title', 'title', form.title, true)}
+      ${formTextarea('Description', 'description', form.description)}
+      ${formSelect('Type', 'type', form.type, FORM_TYPES.map((type) => [type, type]))}
+      ${formSelect('Linked job', 'linked_job_id', form.linked_job_id || '', [['', 'Company level']].concat(companyJobs(companyId).map((job) => [job.id, job.name])))}
+      <div class="forms-simple-meta">
+        <span>${h(form.audience || 'Internal')}</span>
+        <span>${h(companyName(companyId))}</span>
+      </div>
+      <div class="form-actions">
+        <button class="btn" type="button" data-action="set-form-editor-tab" data-tab="settings">More settings</button>
+        <button class="btn" type="button" data-action="publish-form" data-form-id="${h(form.id)}">Publish</button>
+      </div>
+    </aside>
+  `;
+}
+
+function renderQuestionWorkbench(form) {
+  return `
+    <article class="panel question-workbench">
+      <div class="section-head">
+        <div><h2>Questions</h2><p>${formQuestionCount(form)} question${formQuestionCount(form) === 1 ? '' : 's'}</p></div>
+        <div class="question-add-menu compact">
+          ${QUESTION_TYPES.slice(0, 5).map(([type, label]) => `<button class="btn" type="button" data-action="add-question" data-question-type="${h(type)}">${h(label)}</button>`).join('')}
         </div>
-      </aside>
-      <article class="panel question-workbench">
-        <div class="section-head">
-          <div><h2>Questions</h2><p>${formQuestionCount(form)} question${formQuestionCount(form) === 1 ? '' : 's'}</p></div>
-          <div class="question-add-menu">
-            ${QUESTION_TYPES.slice(0, 5).map(([type, label]) => `<button class="btn" type="button" data-action="add-question" data-question-type="${h(type)}">${h(label)}</button>`).join('')}
-          </div>
+      </div>
+      <div class="question-canvas">
+        <div class="gform-floating-toolbar" aria-label="Builder tools">
+          ${QUESTION_TYPES.map(([type, label]) => `<button type="button" data-action="add-question" data-question-type="${h(type)}" title="${h(label)}">${h(questionTypeGlyph(type))}</button>`).join('')}
         </div>
         <div class="question-list">
           ${form.questions.map((question, index) => renderQuestionCard(question, index)).join('') || emptyState('Add the first question.')}
         </div>
-      </article>
-      <aside class="panel forms-preview-panel">
-        <div class="section-head"><div><h2>Preview</h2><p>Submits into the local company response queue.</p></div></div>
-        ${renderFormPreview(companyId, form)}
-      </aside>
-    </section>
+      </div>
+    </article>
+  `;
+}
+
+function renderFormsPreviewPanel(companyId, form) {
+  return `
+    <aside class="panel forms-preview-panel">
+      <div class="section-head"><div><h2>Preview</h2><p>Submits into the local company response queue.</p></div></div>
+      ${renderFormPreview(companyId, form)}
+    </aside>
+  `;
+}
+
+function renderFormSettingsEditor(companyId, form) {
+  return `
+    <div class="section-head"><div><h2>Settings</h2><p>Publishing, audience, theme, and response behavior.</p></div></div>
+    <div class="forms-settings-grid">
+      ${formInput('Title', 'title', form.title, true)}
+      ${formSelect('Status', 'status', form.status, FORM_STATUSES.map((status) => [status, status]))}
+      ${formTextarea('Description', 'description', form.description)}
+      ${formSelect('Type', 'type', form.type, FORM_TYPES.map((type) => [type, type]))}
+      ${formInput('Audience', 'audience', form.audience)}
+      ${formSelect('Linked job', 'linked_job_id', form.linked_job_id || '', [['', 'Company level']].concat(companyJobs(companyId).map((job) => [job.id, job.name])))}
+      ${formInput('Theme color', 'theme_color', form.theme_color || companyColor(companyId), false, 'color')}
+      ${formSelect('Background', 'background', form.background || 'clean', [['clean', 'Clean'], ['paper', 'Paper'], ['grid', 'Grid'], ['dark', 'Dark']])}
+      ${formInput('Submit button', 'submit_label', form.submit_label || 'Submit')}
+      <label class="check-row"><input type="checkbox" data-form-field="collect_email" ${form.collect_email ? 'checked' : ''} /> Collect email</label>
+      <label class="check-row"><input type="checkbox" data-form-field="require_approval" ${form.require_approval ? 'checked' : ''} /> Require approval</label>
+    </div>
+    <div class="form-actions">
+      <button class="btn btn-primary" type="button" data-action="save-form" data-form-id="${h(form.id)}">Save settings</button>
+      <button class="btn" type="button" data-action="publish-form" data-form-id="${h(form.id)}">Publish</button>
+      <button class="btn danger" type="button" data-action="delete-form" data-form-id="${h(form.id)}">Delete</button>
+    </div>
+  `;
+}
+
+function renderFormResponseEditor(companyId, form) {
+  const responses = responsesForForm(form.id);
+  const selected = responses[0] || null;
+  return `
+    <article class="panel response-list-panel forms-response-editor">
+      <div class="section-head">
+        <div><h2>Response inbox</h2><p>${responses.length} captured response${responses.length === 1 ? '' : 's'} for this form.</p></div>
+        <button class="btn" type="button" data-action="set-form-editor-tab" data-tab="questions"><i class="ti ti-list-details"></i>Questions</button>
+      </div>
+      <div class="response-list">
+        ${responses.map((response) => `
+          <button type="button" class="response-card">
+            <strong>${h(response.submitted_by || response.submitter_email || 'Anonymous')}</strong>
+            <span>${h(form.title)}</span>
+            <small>${formatDate(response.created_at)}</small>
+          </button>
+        `).join('') || emptyState('No responses yet. Submit a preview response from the builder.')}
+      </div>
+    </article>
+    <aside class="panel response-detail">
+      ${selected ? renderResponseDetail(selected) : emptyState('No response selected.')}
+    </aside>
   `;
 }
 
@@ -1573,6 +1723,7 @@ function renderFormsTemplates(companyId) {
     <section class="forms-template-grid">
       ${formTemplates().map((template) => `
         <article class="template-card panel">
+          <span class="template-icon"><i class="ti ti-template"></i></span>
           <strong>${h(template.title)}</strong>
           <p>${h(template.description)}</p>
           <div class="forms-simple-meta">
@@ -1779,6 +1930,12 @@ function handleAction(event, node) {
     render();
     return;
   }
+  if (action === 'set-form-editor-tab') {
+    event.preventDefault();
+    state.formEditorTab = node.dataset.tab || 'questions';
+    render();
+    return;
+  }
   if (action === 'new-form') {
     event.preventDefault();
     createForm(activeCompanyId());
@@ -1793,6 +1950,7 @@ function handleAction(event, node) {
     event.preventDefault();
     selectForm(node.dataset.formId);
     state.formsTab = 'builder';
+    state.formEditorTab = 'questions';
     render();
     return;
   }
@@ -2932,17 +3090,35 @@ function detailRow(label, value) {
   return `<div><strong>${h(label)}</strong><span>${h(value)}</span></div>`;
 }
 
-function driveFilterButton(id, label, icon) {
+function driveFilterButton(id, label, icon, count = '') {
   return `
     <button class="${state.driveFilter === id ? 'active' : ''}" type="button" data-action="set-drive-filter" data-filter="${h(id)}">
       <i class="ti ${h(icon)}"></i>
       <span>${h(label)}</span>
+      ${count !== '' ? `<b>${h(String(count))}</b>` : ''}
     </button>
   `;
 }
 
 function driveViewLabel() {
   return DRIVE_FILTERS.find(([id]) => id === state.driveFilter)?.[1] || 'My Drive';
+}
+
+function driveFilterCount(companyId, filter) {
+  const files = companyFiles(companyId);
+  if (filter === 'images') return files.filter((file) => file.mime_type.includes('image') || file.folder === 'photos').length;
+  if (filter === 'documents') return files.filter((file) => !file.mime_type.includes('image') && file.folder !== 'photos').length;
+  return files.length;
+}
+
+function driveFolderCount(companyId, folder) {
+  const files = companyFiles(companyId);
+  if (folder === 'jobs') return files.filter((file) => file.job_id).length;
+  return files.filter((file) => file.folder === folder).length;
+}
+
+function driveContextPill(label, value) {
+  return `<span><b>${h(label)}</b>${h(value)}</span>`;
 }
 
 function driveMetrics(companyId = activeCompanyId()) {
@@ -3079,6 +3255,20 @@ function questionHasOptions(question) {
   return ['multiple', 'checkbox', 'dropdown'].includes(question.type);
 }
 
+function questionTypeGlyph(type) {
+  return {
+    short: 'T',
+    paragraph: 'P',
+    multiple: 'MC',
+    checkbox: 'CB',
+    dropdown: 'V',
+    date: 'D',
+    rating: '*',
+    yesno: 'Y',
+    file: '+',
+  }[type] || '+';
+}
+
 function previewWrap(question, control) {
   return `
     <div class="response-question">
@@ -3191,6 +3381,7 @@ function createForm(companyId) {
   state.selectedFormId = form.id;
   state.selectedQuestionId = form.questions[0]?.id || '';
   state.formsTab = 'builder';
+  state.formEditorTab = 'questions';
   saveFormsState('New form created');
   render();
 }
@@ -3288,6 +3479,7 @@ function useFormTemplate(companyId, templateId) {
   state.selectedFormId = form.id;
   state.selectedQuestionId = form.questions[0]?.id || '';
   state.formsTab = 'builder';
+  state.formEditorTab = 'questions';
   saveFormsState('Template added');
   render();
 }
