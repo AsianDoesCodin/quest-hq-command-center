@@ -273,6 +273,7 @@ const formsFallback = [
     type: 'Inspection',
     status: 'Published',
     audience: 'Field team',
+    creator_id: 'abraham',
     linked_job_id: '11111111-1111-4111-8111-111111111111',
     theme_color: '#f0b23b',
     background: 'paper',
@@ -296,6 +297,7 @@ const formsFallback = [
     type: 'Client approval',
     status: 'Draft',
     audience: 'Client',
+    creator_id: 'maya',
     linked_job_id: '22222222-2222-4222-8222-222222222222',
     theme_color: '#f45d22',
     background: 'clean',
@@ -318,6 +320,7 @@ const formsFallback = [
     type: 'Intake',
     status: 'Published',
     audience: 'Client',
+    creator_id: 'noah',
     linked_job_id: '33333333-3333-4333-8333-333333333333',
     theme_color: '#60a5fa',
     background: 'grid',
@@ -340,6 +343,7 @@ const formsFallback = [
     type: 'Intake',
     status: 'Draft',
     audience: 'Client',
+    creator_id: 'lumen-ops',
     linked_job_id: '',
     theme_color: '#a78bfa',
     background: 'clean',
@@ -389,6 +393,7 @@ const state = {
   selectedFileId: '',
   selectedFormId: '',
   selectedQuestionId: '',
+  expandedFormIds: new Set(),
   formStartTemplateId: '',
   formStartTab: 'blank',
   query: '',
@@ -1473,22 +1478,35 @@ function renderFormsLibrary(companyId, forms, current) {
         </div>
         <div class="forms-list forms-list-cards">
           ${forms.map((form) => `
-            <button class="form-card ${current?.id === form.id ? 'active' : ''}" type="button" data-action="edit-form" data-form-id="${h(form.id)}">
+            <article class="form-card ${state.expandedFormIds.has(form.id) ? 'expanded' : ''} ${current?.id === form.id ? 'active' : ''}">
               <span class="form-card-top">
                 <i class="ti ti-clipboard-list"></i>
                 <b>${h(form.status)}</b>
               </span>
               <span class="form-card-main">
                 <strong>${h(form.title)}</strong>
-                <span>${h(form.description || 'No description yet.')}</span>
+                <span>Created by ${h(formCreatorLabel(form))}</span>
               </span>
+              <button class="form-card-toggle" type="button" data-action="toggle-form-card" data-form-id="${h(form.id)}" aria-expanded="${state.expandedFormIds.has(form.id) ? 'true' : 'false'}">
+                <i class="ti ${state.expandedFormIds.has(form.id) ? 'ti-chevron-up' : 'ti-chevron-down'}"></i>
+                ${state.expandedFormIds.has(form.id) ? 'Less' : 'Details'}
+              </button>
               <span class="form-card-meta">
                 <small>${h(form.type)} / ${h(form.audience || 'Internal')}</small>
                 <small>${formQuestionCount(form)} questions</small>
                 <em>${responsesForForm(form.id).length} responses</em>
                 <em>Updated ${formatDate(form.updated_at)}</em>
               </span>
-            </button>
+              ${state.expandedFormIds.has(form.id) ? `
+                <div class="form-card-detail">
+                  <p>${h(form.description || 'No description yet.')}</p>
+                  <div class="form-actions">
+                    <button class="btn btn-primary" type="button" data-action="edit-form" data-form-id="${h(form.id)}"><i class="ti ti-pencil"></i>Open builder</button>
+                    <button class="btn" type="button" data-action="open-form-preview" data-form-id="${h(form.id)}"><i class="ti ti-eye"></i>Preview</button>
+                  </div>
+                </div>
+              ` : ''}
+            </article>
           `).join('') || emptyState('No forms match this company view.')}
         </div>
       </article>
@@ -2190,6 +2208,14 @@ function handleAction(event, node) {
   if (action === 'select-form') {
     event.preventDefault();
     selectForm(node.dataset.formId);
+    return;
+  }
+  if (action === 'toggle-form-card') {
+    event.preventDefault();
+    const id = node.dataset.formId || '';
+    if (state.expandedFormIds.has(id)) state.expandedFormIds.delete(id);
+    else state.expandedFormIds.add(id);
+    render();
     return;
   }
   if (action === 'edit-form') {
@@ -3074,6 +3100,7 @@ function normalizeForm(input) {
     type,
     status,
     audience: String(input.audience || 'Internal').trim(),
+    creator_id: String(input.creator_id || input.created_by || activeSession().profile.member_id || 'basic-quest-user'),
     linked_job_id: String(input.linked_job_id || input.job_id || ''),
     theme_color: String(input.theme_color || '#f0b23b'),
     background: String(input.background || 'clean'),
@@ -3489,6 +3516,13 @@ function formQuestionCount(form) {
   return Array.isArray(form?.questions) ? form.questions.length : 0;
 }
 
+function formCreatorLabel(form) {
+  const creatorId = String(form?.creator_id || '');
+  const profile = activeSession().profile;
+  if (creatorId && (creatorId === profile.member_id || creatorId === profile.id)) return profile.full_name || 'Quest Basic Mode';
+  return memberName(creatorId) || form?.created_by_label || 'Quest HQ';
+}
+
 function formInput(label, key, value = '', required = false, type = 'text') {
   return `<label><span>${h(label)}</span><input data-form-field="${h(key)}" type="${h(type)}" value="${h(value)}" ${required ? 'required' : ''} /></label>`;
 }
@@ -3670,6 +3704,7 @@ function createFormFromModal(formEl) {
     description,
     type: FORM_TYPES.includes(data.type) ? data.type : template?.type || 'Internal',
     audience: String(data.audience || 'Internal').trim() || 'Internal',
+    creator_id: activeSession().profile.member_id || activeSession().profile.id || 'basic-quest-user',
     linked_job_id: String(data.linked_job_id || ''),
     theme_color: companyColor(activeCompanyId()),
     background: 'clean',
