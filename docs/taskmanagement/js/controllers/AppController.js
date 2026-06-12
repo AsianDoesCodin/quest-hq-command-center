@@ -11,6 +11,7 @@ App.AppController = class AppController {
     this.notifModel = notifModel;
     this.currentUser = currentUser;
     this.dataStore = dataStore;
+    this.embeddedInJobCenter = !!(App.commandCenterIntegration && App.commandCenterIntegration.embedded);
 
     this.uiState = {
       view: App.can('tasks.view') ? 'all' : 'time:mine',
@@ -52,6 +53,9 @@ App.AppController = class AppController {
   getUserName(userId) { return App.PEOPLE[userId] ? App.PEOPLE[userId].name : userId; }
   can(permission) { return App.can(permission); }
   canView(view) {
+    if (this.embeddedInJobCenter) {
+      return ['all', 'mine', 'hot', 'today', 'overdue', 'watching'].includes(view) && App.can('tasks.view');
+    }
     if (view === 'approvals') return App.can('roles.manage');
     if (view === 'admin:clock') return App.can('clock.admin');
     if (view === 'team:hierarchy') return App.can('team.view');

@@ -29,7 +29,7 @@ App.authReady = (async function () {
     };
     App.signOut = function () {
       window.location.replace(App.commandCenterIntegration && App.commandCenterIntegration.hosted
-        ? `${window.location.origin}${App.commandCenterIntegration.basePath || '../'}index.html`
+        ? `${window.location.origin}${App.commandCenterIntegration.basePath || '../'}command`
         : window.location.pathname);
     };
     const wireBasicMode = () => {

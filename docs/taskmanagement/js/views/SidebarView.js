@@ -216,6 +216,10 @@ App.SidebarView = class SidebarView {
       });
     }
 
+    if (App.commandCenterIntegration && App.commandCenterIntegration.embedded) {
+      return sections;
+    }
+
     const timeItems = [];
     if (App.can('time.own') || App.can('clock.use')) {
       timeItems.push({ view: 'time:mine', label: 'My time', icon: 'ti-clock', count: App.utils.formatHours(this.timeModel.totalForUser(this.currentUser)) });

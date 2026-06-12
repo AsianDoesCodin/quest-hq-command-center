@@ -118,6 +118,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     currentUser: App.CURRENT_USER,
     dataStore,
   });
+  const embeddedInJobCenter = !!(App.commandCenterIntegration && App.commandCenterIntegration.embedded);
+  document.body.classList.toggle('task-only-embed', embeddedInJobCenter);
 
   // Resolve the user's accessible companies + active company before any view
   // renders, so the first paint is already company-scoped.
@@ -133,7 +135,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   const toastView = new App.ToastView('toastContainer');
   const newTaskModal = new App.NewTaskModalView({ controller, currentUser: App.CURRENT_USER });
-  const profileView = new App.ProfileView({ controller });
+  const profileView = embeddedInJobCenter ? null : new App.ProfileView({ controller });
   controller.attachViews({ toastView, newTaskModal, profileView });
 
   // Last-resort handlers: any error that escaped its own try/catch ends up
@@ -155,14 +157,14 @@ document.addEventListener('DOMContentLoaded', async () => {
   window.addEventListener('error', (e) => surfaceUnhandled(e.error || e.message));
   window.addEventListener('unhandledrejection', (e) => surfaceUnhandled(e.reason));
 
-  new App.TopbarView({ timeModel, notifModel, controller, currentUser: App.CURRENT_USER });
+  if (!embeddedInJobCenter) new App.TopbarView({ timeModel, notifModel, controller, currentUser: App.CURRENT_USER });
   new App.SidebarView({ taskModel, timeModel, controller, currentUser: App.CURRENT_USER });
   new App.TaskListView({ taskModel, timeModel, controller, currentUser: App.CURRENT_USER });
   new App.TaskDetailView({ taskModel, timeModel, controller, currentUser: App.CURRENT_USER });
   new App.FilterBarView({ controller });
   new App.ResizeHandleView({ controller });
   new App.ToolbarMenuView({ controller });
-  new App.UiScaleView();
+  if (!embeddedInJobCenter) new App.UiScaleView();
   new App.ProgressWidgetView({ taskModel, currentUser: App.CURRENT_USER });
   new App.UpNextWidgetView({ taskModel, timeModel, controller, currentUser: App.CURRENT_USER });
 
@@ -175,10 +177,12 @@ document.addEventListener('DOMContentLoaded', async () => {
   });
   reminderEngine.start();
   App.reminderEngine = reminderEngine;
-  new App.TimeView({ taskModel, timeModel, controller, currentUser: App.CURRENT_USER });
-  new App.ApprovalView({ controller, dataStore });
-  new App.ClockDashboardView({ taskModel, timeModel, controller });
-  new App.HierarchyView({ controller });
+  if (!embeddedInJobCenter) {
+    new App.TimeView({ taskModel, timeModel, controller, currentUser: App.CURRENT_USER });
+    new App.ApprovalView({ controller, dataStore });
+    new App.ClockDashboardView({ taskModel, timeModel, controller });
+    new App.HierarchyView({ controller });
+  }
 
   applyRoleChrome(controller);
 
@@ -196,9 +200,9 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Otherwise, restore the view/layout the user left off on last session.
   if (App.previewMode) {
     const pv = new URLSearchParams(window.location.search).get('view');
-    if (pv) controller.setView(pv);
+    if (pv && !embeddedInJobCenter) controller.setView(pv);
   } else {
-    controller.restoreUiState();
+    if (!embeddedInJobCenter) controller.restoreUiState();
   }
 
   let persistTimer = null;
@@ -322,7 +326,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Interactive onboarding tour — role-aware, auto-shown once per NEW account.
   // Existing users skip it (migration 014 backfills them as onboarded), and
   // anyone can replay it via the avatar menu (see TopbarView).
-  App.tour = new App.TourView();
+  App.tour = embeddedInJobCenter ? null : new App.TourView();
   // Per-user localStorage key — fallback for when migration 015 hasn't been
   // run yet so the DB column doesn't exist. Survives reloads on this device
   // even if the Supabase write fails.
@@ -351,10 +355,9 @@ document.addEventListener('DOMContentLoaded', async () => {
       return !(data && data.onboarded);
     } catch (e) { return false; } // no onboarded column yet → don't nag
   };
-  App.startTour = () => App.tour.start({ onFinish: markOnboarded });
+  App.startTour = () => App.tour && App.tour.start({ onFinish: markOnboarded });
 
   const forceTour = new URLSearchParams(window.location.search).get('tour') === '1';
-  const embeddedInJobCenter = !!(App.commandCenterIntegration && App.commandCenterIntegration.embedded);
   if (!embeddedInJobCenter) {
     window.setTimeout(async () => {
       if (forceTour || await shouldAutoStartTour()) App.startTour();
@@ -369,6 +372,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       e.preventDefault();
       controller.openNewTaskModal();
     } else if (e.key === 't' || e.key === 'T') {
+      if (embeddedInJobCenter) return;
       e.preventDefault();
       controller.toggleGlobalClock();
     } else if (e.key === 'Escape') {

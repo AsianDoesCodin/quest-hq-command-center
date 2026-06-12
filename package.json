@@ -4,9 +4,9 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "npm run build && vite --host 127.0.0.1",
-    "build": "node scripts/build-static-site.mjs",
-    "build:pages": "node scripts/build-static-site.mjs",
+    "dev": "vite --host 127.0.0.1",
+    "build": "vite build && node scripts/sync-spa-assets.mjs dist",
+    "build:pages": "node scripts/build-pages.mjs",
     "preview": "vite preview --host 127.0.0.1"
   },
   "dependencies": {},

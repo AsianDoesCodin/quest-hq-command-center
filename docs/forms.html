@@ -3,259 +3,42 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
-    <meta http-equiv="Pragma" content="no-cache" />
-    <meta http-equiv="Expires" content="0" />
-    <title>Forms & Surveys | Quest HQ</title>
-    <link rel="icon" href="favicon.svg" type="image/svg+xml" />
-    <link rel="stylesheet" href="assets/quest-hq.css?v=quest-job-center-task-ui-merge-v2" />
+    <title>Opening Quest HQ</title>
+    <script>
+      (function () {
+        var file = "forms.html";
+        var params = new URLSearchParams(window.location.search);
+        var route = '/command';
+        var map = {
+          'admin.html': '/admin',
+          'automations.html': '/automations',
+          'crm.html': '/crm',
+          'dashboards.html': '/analytics',
+          'files.html': '/files',
+          'finance.html': '/finance',
+          'forms.html': '/forms',
+          'jobs.html': '/jobs',
+          'knowledge.html': '/knowledge',
+          'login.html': '/login',
+          'templates.html': '/templates',
+          'tickets.html': '/tickets'
+        };
+        if (file === 'task-management.html') {
+          route = '/jobs';
+          params.set('tab', 'tasks');
+          if (params.has('project_id') && !params.has('job_id')) params.set('job_id', params.get('project_id'));
+          params.delete('project_id');
+        } else {
+          route = map[file] || '/command';
+        }
+        var base = window.location.pathname.slice(0, window.location.pathname.lastIndexOf('/'));
+        var target = new URL((base || '') + route, window.location.origin);
+        target.search = params.toString();
+        window.location.replace(target.toString());
+      })();
+    </script>
   </head>
-  <body class="auth-loading" data-page="forms.html" data-module="forms">
-    <div class="app-shell">
-      <aside class="sidebar">
-        <a class="brand" href="index.html">
-          <span class="brand-mark">Q</span>
-          <span><strong>Quest HQ</strong><small>Operations Command</small></span>
-        </a>
-        <div class="build-badge">Quest Job Center Task UI Merge v2</div>
-        <section class="quest-account" data-quest-account hidden>
-          <button class="quest-account-main" type="button" data-quest-profile-open>
-            <span class="quest-avatar" data-quest-avatar>Q</span>
-            <span><strong data-quest-account-name>Loading account</strong><small data-quest-account-role>Checking access</small></span>
-          </button>
-          <div class="quest-account-actions">
-            <button type="button" data-quest-profile-open>Profile</button>
-            <button type="button" data-quest-sign-out>Sign out</button>
-          </div>
-        </section>
-        <button class="tour-replay" type="button" data-tour-start>Walkthrough</button>
-        <nav class="nav-list" aria-label="Main navigation">
-          <a class="nav-item" href="index.html"><span class="nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V21h5v-6h4v6h5V9.5"/></svg></span><span class="nav-label">Command Center</span></a><a class="nav-item" href="jobs.html"><span class="nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 6V5a2 2 0 0 1 2-2h0a2 2 0 0 1 2 2v1"/><path d="M3 8h18v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2Z"/><path d="M3 13h18"/><path d="M9 13v2h6v-2"/></svg></span><span class="nav-label">Job Center</span></a><a class="nav-item nav-planned" href="crm.html" data-nav-state="planned" aria-disabled="true" title="Planned for a later build"><span class="nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M16 21v-2a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v2"/><circle cx="9.5" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></span><span class="nav-label">CRM</span><small class="nav-status">Planned</small></a><a class="nav-item active" href="forms.html"><span class="nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="8" y="3" width="8" height="4" rx="1"/><path d="M9 5H6a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-3"/><path d="M8 12h8"/><path d="M8 16h5"/></svg></span><span class="nav-label">Forms & Surveys</span></a><a class="nav-item nav-planned" href="tickets.html" data-nav-state="planned" aria-disabled="true" title="Planned for a later build"><span class="nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2 9a3 3 0 0 0 0 6v3h20v-3a3 3 0 0 0 0-6V6H2Z"/><path d="M13 6v12"/><path d="M7 12h2"/></svg></span><span class="nav-label">Tickets</span><small class="nav-status">Planned</small></a><a class="nav-item" href="files.html"><span class="nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7a2 2 0 0 1 2-2h5l2 2h7a2 2 0 0 1 2 2v2H3Z"/><path d="M3 11h18l-2 8H5Z"/></svg></span><span class="nav-label">Files</span></a><a class="nav-item nav-planned" href="finance.html" data-nav-state="planned" aria-disabled="true" title="Planned for a later build"><span class="nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 3v18l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V3Z"/><path d="M8 8h8"/><path d="M8 12h8"/><path d="M8 16h5"/></svg></span><span class="nav-label">Finance</span><small class="nav-status">Planned</small></a><a class="nav-item nav-planned" href="knowledge.html" data-nav-state="planned" aria-disabled="true" title="Planned for a later build"><span class="nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 19V5"/><path d="M8 19V5"/><path d="M12 19V5"/><path d="m17 18-4-13"/><path d="m20 17-4-13"/></svg></span><span class="nav-label">Knowledge Base</span><small class="nav-status">Planned</small></a><a class="nav-item nav-planned" href="automations.html" data-nav-state="planned" aria-disabled="true" title="Planned for a later build"><span class="nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="6" cy="6" r="2"/><circle cx="18" cy="18" r="2"/><path d="M8 6h6a4 4 0 0 1 4 4v6"/><path d="M6 8v4a4 4 0 0 0 4 4h6"/></svg></span><span class="nav-label">Automations</span><small class="nav-status">Planned</small></a><a class="nav-item" href="dashboards.html"><span class="nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20V10"/><path d="M10 20V4"/><path d="M16 20v-7"/><path d="M22 20H2"/></svg></span><span class="nav-label">Analytics</span></a><a class="nav-item nav-planned" href="templates.html" data-nav-state="planned" aria-disabled="true" title="Planned for a later build"><span class="nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 3 9 5-9 5-9-5Z"/><path d="m3 12 9 5 9-5"/><path d="m3 16 9 5 9-5"/></svg></span><span class="nav-label">Templates</span><small class="nav-status">Planned</small></a><a class="nav-item" href="admin.html"><span class="nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7Z"/><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.88l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06A1.7 1.7 0 0 0 15 19.4a1.7 1.7 0 0 0-1 .6 1.7 1.7 0 0 0-.4 1.1V21a2 2 0 1 1-4 0v-.09A1.7 1.7 0 0 0 8.6 19.4a1.7 1.7 0 0 0-1.88.34l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.7 1.7 0 0 0 4.6 15a1.7 1.7 0 0 0-.6-1 1.7 1.7 0 0 0-1.1-.4H3a2 2 0 1 1 0-4h.09A1.7 1.7 0 0 0 4.6 8.6a1.7 1.7 0 0 0-.34-1.88l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.7 1.7 0 0 0 9 4.6a1.7 1.7 0 0 0 1-.6 1.7 1.7 0 0 0 .4-1.1V3a2 2 0 1 1 4 0v.09A1.7 1.7 0 0 0 15.4 4.6a1.7 1.7 0 0 0 1.88-.34l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.7 1.7 0 0 0 19.4 9c.1.35.3.7.6 1 .3.25.7.4 1.1.4H21a2 2 0 1 1 0 4h-.09a1.7 1.7 0 0 0-1.51.6Z"/></svg></span><span class="nav-label">Admin</span></a>
-        </nav>
-        <div class="sidebar-card">
-          <strong>Work Execution</strong>
-          <p>TaskManagement remains the task engine. Quest HQ owns jobs, clients, files, forms, finance, and operations context.</p>
-        </div>
-      </aside>
-      <main class="main">
-        <section class="workspace forms-center" data-form-center>
-    <div class="forms-command panel">
-      <span class="sync-pill live" data-form-state>Local autosafe</span>
-      <button class="secondary-button" type="button" data-form-export>Export JSON</button>
-      <button class="primary-button" type="button" data-form-new>New Form</button>
-    </div>
-
-    <div class="forms-dashboard">
-      <div class="metric"><span>Saved Forms</span><strong data-form-metric="forms">0</strong></div>
-      <div class="metric"><span>Published</span><strong data-form-metric="published">0</strong></div>
-      <div class="metric"><span>Responses</span><strong data-form-metric="responses">0</strong></div>
-      <div class="metric"><span>Questions</span><strong data-form-metric="questions">0</strong></div>
-    </div>
-
-    <div class="tabs" role="tablist">
-      <button class="active" data-tab="library">Library</button>
-      <button data-tab="templates">Templates</button>
-    </div>
-
-    <section class="tab-panel active" data-panel="library">
-      <div class="forms-library-grid">
-        <section class="panel forms-library-panel">
-          <div class="forms-toolbar">
-            <label>Search<input data-form-search placeholder="Search forms, types, owners" /></label>
-            <label>Type
-              <select data-form-type-filter>
-                <option value="all">All types</option>
-                <option>Inspection</option>
-                <option>Survey</option>
-                <option>Approval</option>
-                <option>Intake</option>
-                <option>Checklist</option>
-              </select>
-            </label>
-          </div>
-          <div class="forms-list" data-form-list></div>
-        </section>
-        <article class="panel forms-summary" data-form-summary hidden></article>
-      </div>
-    </section>
-
-    <section class="forms-builder-host" data-form-builder-host hidden>
-      <div class="forms-builder-grid gform-editor" data-form-editor-mode="questions">
-        <div class="gform-editor-tabs" role="tablist" aria-label="Form editor sections">
-          <button class="active" type="button" data-form-editor-tab="questions">Questions</button>
-          <button type="button" data-form-editor-tab="responses">Responses</button>
-          <button type="button" data-form-editor-tab="settings">Settings</button>
-        </div>
-        <form class="panel forms-settings" data-form-settings>
-          <div class="job-section-heading"><h2>Form</h2><span data-form-dirty>Unsaved draft</span></div>
-          <label class="span-2">Title<input name="title" required placeholder="Roof inspection checklist" /></label>
-          <label class="span-2">Description<textarea name="description" rows="3" placeholder="Purpose, audience, and completion notes"></textarea></label>
-          <div class="gform-settings-fields span-2">
-            <label>Type
-              <select name="type">
-                <option>Inspection</option>
-                <option>Survey</option>
-                <option>Approval</option>
-                <option>Intake</option>
-                <option>Checklist</option>
-              </select>
-            </label>
-            <label>Status
-              <select name="status">
-                <option>Draft</option>
-                <option>Published</option>
-                <option>Archived</option>
-              </select>
-            </label>
-            <label>Audience<input name="audience" placeholder="Client, field team, admin, vendor" /></label>
-            <label>Linked Job Context<input name="jobContext" placeholder="Optional job/client context" /></label>
-            <label>Theme Color<input type="color" name="themeColor" value="#f45d22" /></label>
-            <label>Background
-              <select name="backgroundStyle">
-                <option value="clean">Clean light</option>
-                <option value="warm">Warm paper</option>
-                <option value="blueprint">Blueprint</option>
-                <option value="dark">Dark slate</option>
-              </select>
-            </label>
-            <label class="span-2">Header Image URL<input name="headerImage" placeholder="Optional image URL for the respondent form header" /></label>
-            <label>Submit Button Label<input name="buttonLabel" placeholder="Submit" /></label>
-            <label class="forms-check"><input type="checkbox" name="collectEmail" /> Collect respondent email</label>
-            <label class="forms-check"><input type="checkbox" name="requireApproval" /> Require internal review</label>
-          </div>
-          <div class="form-actions span-2">
-            <button class="primary-button" type="submit">Save Form</button>
-            <button class="secondary-button" type="button" data-form-publish>Publish</button>
-            <button class="secondary-button" type="button" data-form-archive>Archive</button>
-          </div>
-        </form>
-
-        <section class="question-workbench">
-          <div class="question-canvas">
-            <div class="gform-floating-toolbar" aria-label="Builder tools">
-              <button type="button" data-question-add title="Add question">+</button>
-              <button type="button" data-question-add-type="title" title="Add title block">T</button>
-              <button type="button" data-question-add-type="section" title="Add section">=</button>
-            </div>
-            <div class="question-list" data-question-list></div>
-            <button class="gform-add-question" type="button" data-question-add>+ Add question</button>
-          </div>
-          <div class="question-context-menu" data-question-menu hidden>
-            <button type="button" data-menu-action="addBelow">Add question below</button>
-            <button type="button" data-menu-action="duplicate">Duplicate</button>
-            <button type="button" data-menu-action="moveUp">Move up</button>
-            <button type="button" data-menu-action="moveDown">Move down</button>
-            <button type="button" data-menu-action="delete">Delete</button>
-          </div>
-        </section>
-
-        <section class="panel gform-modal-responses" data-form-editor-responses>
-          <div class="job-section-heading"><h2>Responses</h2><span data-form-editor-response-count>0 responses</span></div>
-          <div data-form-editor-response-list></div>
-        </section>
-      </div>
-    </section>
-
-    <section class="tab-panel" data-panel="preview">
-      <div class="forms-preview-grid">
-        <form class="panel response-form" data-response-form></form>
-        <aside class="panel response-sidecar" data-response-sidecar></aside>
-      </div>
-    </section>
-
-    <section class="tab-panel" data-panel="responses">
-      <div class="forms-response-grid">
-        <aside class="panel">
-          <div class="job-section-heading"><h2>Response Inbox</h2><span data-response-count>0 responses</span></div>
-          <div class="response-list" data-response-list></div>
-        </aside>
-        <article class="panel response-detail" data-response-detail>
-          <div class="empty-state">Select a response to review submitted answers.</div>
-        </article>
-      </div>
-    </section>
-
-    <section class="tab-panel" data-panel="templates">
-      <div class="forms-template-grid">
-        <button type="button" data-form-template="inspection"><strong>Roof Inspection</strong><span>Photos, condition rating, repair recommendation, signoff.</span></button>
-        <button type="button" data-form-template="survey"><strong>Client Survey</strong><span>NPS rating, quality feedback, follow-up permission.</span></button>
-        <button type="button" data-form-template="approval"><strong>Estimate Approval</strong><span>Scope acceptance, payment acknowledgement, signature.</span></button>
-        <button type="button" data-form-template="intake"><strong>Service Intake</strong><span>Client details, issue category, urgency, requested files.</span></button>
-      </div>
-    </section>
-    <div class="modal-overlay" data-form-modal hidden>
-      <div class="modal-panel form-modal-panel" role="dialog" aria-modal="true" aria-labelledby="form-modal-title">
-        <div class="modal-header">
-          <div>
-            <div class="eyebrow">Forms & Surveys</div>
-            <h2 id="form-modal-title">Create Form</h2>
-          </div>
-          <button class="secondary-button" type="button" data-form-modal-close>Close</button>
-        </div>
-        <div class="form-modal-body" data-form-modal-body></div>
-      </div>
-    </div>
-    <div class="modal-overlay" data-form-detail-modal hidden>
-      <div class="modal-panel form-detail-modal-panel" role="dialog" aria-modal="true" aria-labelledby="form-detail-modal-title">
-        <div class="modal-header">
-          <div>
-            <div class="eyebrow">Selected Form</div>
-            <h2 id="form-detail-modal-title">Form Details</h2>
-          </div>
-          <button class="secondary-button" type="button" data-form-detail-close>Close</button>
-        </div>
-        <div class="form-detail-modal-body" data-form-detail-body></div>
-      </div>
-    </div>
-  </section>
-      </main>
-    </div>
-    <div class="modal-overlay" data-quest-profile-modal hidden>
-      <section class="modal-panel quest-profile-panel" role="dialog" aria-modal="true" aria-labelledby="quest-profile-title">
-        <div class="modal-header">
-          <div>
-            <span class="eyebrow">Quest Account</span>
-            <h2 id="quest-profile-title">Profile</h2>
-          </div>
-          <button class="secondary-button" type="button" data-quest-profile-close>Close</button>
-        </div>
-        <form class="quest-profile-form" data-quest-profile-form>
-          <div class="quest-profile-preview">
-            <span class="quest-avatar large" data-quest-profile-avatar>Q</span>
-            <div>
-              <strong data-quest-profile-email></strong>
-              <span data-quest-profile-access></span>
-            </div>
-          </div>
-          <label>Display name<input name="full_name" autocomplete="name" /></label>
-          <label>Avatar image<input name="avatar" type="file" accept="image/png,image/jpeg,image/webp" /></label>
-          <p class="muted">Quest HQ owns profile, avatar, login, approval, role, and company access. TaskManagement reads that session after launch.</p>
-          <div class="form-actions">
-            <button class="primary-button" type="submit">Save profile</button>
-            <button class="secondary-button" type="button" data-quest-profile-close>Cancel</button>
-          </div>
-          <div class="quest-auth-message" data-quest-profile-message></div>
-        </form>
-      </section>
-    </div>
-    <div class="tour-overlay" data-tour-overlay hidden>
-      <div class="tour-spotlight" data-tour-spotlight></div>
-      <section class="tour-card" data-tour-card role="dialog" aria-modal="true" aria-labelledby="tour-title">
-        <div class="tour-card-head">
-          <span data-tour-count></span>
-          <button type="button" data-tour-skip>Skip</button>
-        </div>
-        <div class="tour-progress" data-tour-progress aria-hidden="true"></div>
-        <h2 id="tour-title" data-tour-title>Welcome to Quest HQ</h2>
-        <p data-tour-body></p>
-        <div class="tour-actions">
-          <button class="secondary-button" type="button" data-tour-back>Back</button>
-          <button class="primary-button" type="button" data-tour-next>Next</button>
-        </div>
-      </section>
-    </div>
-    <script type="application/json" id="record-seed">[]</script>
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="assets/quest-hq.js?v=quest-job-center-task-ui-merge-v2" defer></script>
+  <body>
+    <p>Opening Quest HQ...</p>
   </body>
 </html>

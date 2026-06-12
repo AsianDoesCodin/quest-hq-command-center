@@ -15,7 +15,7 @@ const commandCenterBasePath = taskmanagementMount
   : App.basePath;
 
 const routeParams = new URLSearchParams(window.location.search);
-const defaultReturnUrl = `${window.location.origin}${commandCenterBasePath}jobs.html`;
+const defaultReturnUrl = `${window.location.origin}${commandCenterBasePath}jobs`;
 
 function sameOriginUrl(value, fallback) {
   try {
@@ -37,13 +37,13 @@ App.commandCenterIntegration = {
 App.routes = {
   // In Command Center mode, login/approval/profile ownership lives in the host app.
   login: App.commandCenterIntegration.hosted
-    ? `${window.location.origin}${commandCenterBasePath}login.html?return_url=${encodeURIComponent(window.location.href)}`
+    ? `${window.location.origin}${commandCenterBasePath}login?return_url=${encodeURIComponent(window.location.href)}`
     : `${window.location.origin}${App.basePath}`,
   app: `${window.location.origin}${App.basePath}app.html`,
 };
 
 App.commandCenterProfileUrl = App.commandCenterIntegration.hosted
-  ? `${window.location.origin}${commandCenterBasePath}index.html?account=profile`
+  ? `${window.location.origin}${commandCenterBasePath}command?account=profile`
   : '';
 
 App.defaultSupabaseConfig = {

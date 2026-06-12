@@ -3,239 +3,42 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
-    <meta http-equiv="Pragma" content="no-cache" />
-    <meta http-equiv="Expires" content="0" />
-    <title>Jobs | Quest HQ</title>
-    <link rel="icon" href="favicon.svg" type="image/svg+xml" />
-    <link rel="stylesheet" href="assets/quest-hq.css?v=quest-job-center-task-ui-merge-v2" />
+    <title>Opening Quest HQ</title>
+    <script>
+      (function () {
+        var file = "jobs.html";
+        var params = new URLSearchParams(window.location.search);
+        var route = '/command';
+        var map = {
+          'admin.html': '/admin',
+          'automations.html': '/automations',
+          'crm.html': '/crm',
+          'dashboards.html': '/analytics',
+          'files.html': '/files',
+          'finance.html': '/finance',
+          'forms.html': '/forms',
+          'jobs.html': '/jobs',
+          'knowledge.html': '/knowledge',
+          'login.html': '/login',
+          'templates.html': '/templates',
+          'tickets.html': '/tickets'
+        };
+        if (file === 'task-management.html') {
+          route = '/jobs';
+          params.set('tab', 'tasks');
+          if (params.has('project_id') && !params.has('job_id')) params.set('job_id', params.get('project_id'));
+          params.delete('project_id');
+        } else {
+          route = map[file] || '/command';
+        }
+        var base = window.location.pathname.slice(0, window.location.pathname.lastIndexOf('/'));
+        var target = new URL((base || '') + route, window.location.origin);
+        target.search = params.toString();
+        window.location.replace(target.toString());
+      })();
+    </script>
   </head>
-  <body class="auth-loading" data-page="jobs.html" data-module="jobs">
-    <div class="app-shell">
-      <aside class="sidebar">
-        <a class="brand" href="index.html">
-          <span class="brand-mark">Q</span>
-          <span><strong>Quest HQ</strong><small>Operations Command</small></span>
-        </a>
-        <div class="build-badge">Quest Job Center Task UI Merge v2</div>
-        <section class="quest-account" data-quest-account hidden>
-          <button class="quest-account-main" type="button" data-quest-profile-open>
-            <span class="quest-avatar" data-quest-avatar>Q</span>
-            <span><strong data-quest-account-name>Loading account</strong><small data-quest-account-role>Checking access</small></span>
-          </button>
-          <div class="quest-account-actions">
-            <button type="button" data-quest-profile-open>Profile</button>
-            <button type="button" data-quest-sign-out>Sign out</button>
-          </div>
-        </section>
-        <button class="tour-replay" type="button" data-tour-start>Walkthrough</button>
-        <nav class="nav-list" aria-label="Main navigation">
-          <a class="nav-item" href="index.html"><span class="nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V21h5v-6h4v6h5V9.5"/></svg></span><span class="nav-label">Command Center</span></a><a class="nav-item active" href="jobs.html"><span class="nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 6V5a2 2 0 0 1 2-2h0a2 2 0 0 1 2 2v1"/><path d="M3 8h18v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2Z"/><path d="M3 13h18"/><path d="M9 13v2h6v-2"/></svg></span><span class="nav-label">Job Center</span></a><a class="nav-item nav-planned" href="crm.html" data-nav-state="planned" aria-disabled="true" title="Planned for a later build"><span class="nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M16 21v-2a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v2"/><circle cx="9.5" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></span><span class="nav-label">CRM</span><small class="nav-status">Planned</small></a><a class="nav-item" href="forms.html"><span class="nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="8" y="3" width="8" height="4" rx="1"/><path d="M9 5H6a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-3"/><path d="M8 12h8"/><path d="M8 16h5"/></svg></span><span class="nav-label">Forms & Surveys</span></a><a class="nav-item nav-planned" href="tickets.html" data-nav-state="planned" aria-disabled="true" title="Planned for a later build"><span class="nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2 9a3 3 0 0 0 0 6v3h20v-3a3 3 0 0 0 0-6V6H2Z"/><path d="M13 6v12"/><path d="M7 12h2"/></svg></span><span class="nav-label">Tickets</span><small class="nav-status">Planned</small></a><a class="nav-item" href="files.html"><span class="nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7a2 2 0 0 1 2-2h5l2 2h7a2 2 0 0 1 2 2v2H3Z"/><path d="M3 11h18l-2 8H5Z"/></svg></span><span class="nav-label">Files</span></a><a class="nav-item nav-planned" href="finance.html" data-nav-state="planned" aria-disabled="true" title="Planned for a later build"><span class="nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 3v18l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V3Z"/><path d="M8 8h8"/><path d="M8 12h8"/><path d="M8 16h5"/></svg></span><span class="nav-label">Finance</span><small class="nav-status">Planned</small></a><a class="nav-item nav-planned" href="knowledge.html" data-nav-state="planned" aria-disabled="true" title="Planned for a later build"><span class="nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 19V5"/><path d="M8 19V5"/><path d="M12 19V5"/><path d="m17 18-4-13"/><path d="m20 17-4-13"/></svg></span><span class="nav-label">Knowledge Base</span><small class="nav-status">Planned</small></a><a class="nav-item nav-planned" href="automations.html" data-nav-state="planned" aria-disabled="true" title="Planned for a later build"><span class="nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="6" cy="6" r="2"/><circle cx="18" cy="18" r="2"/><path d="M8 6h6a4 4 0 0 1 4 4v6"/><path d="M6 8v4a4 4 0 0 0 4 4h6"/></svg></span><span class="nav-label">Automations</span><small class="nav-status">Planned</small></a><a class="nav-item" href="dashboards.html"><span class="nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20V10"/><path d="M10 20V4"/><path d="M16 20v-7"/><path d="M22 20H2"/></svg></span><span class="nav-label">Analytics</span></a><a class="nav-item nav-planned" href="templates.html" data-nav-state="planned" aria-disabled="true" title="Planned for a later build"><span class="nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 3 9 5-9 5-9-5Z"/><path d="m3 12 9 5 9-5"/><path d="m3 16 9 5 9-5"/></svg></span><span class="nav-label">Templates</span><small class="nav-status">Planned</small></a><a class="nav-item" href="admin.html"><span class="nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7Z"/><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.88l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06A1.7 1.7 0 0 0 15 19.4a1.7 1.7 0 0 0-1 .6 1.7 1.7 0 0 0-.4 1.1V21a2 2 0 1 1-4 0v-.09A1.7 1.7 0 0 0 8.6 19.4a1.7 1.7 0 0 0-1.88.34l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.7 1.7 0 0 0 4.6 15a1.7 1.7 0 0 0-.6-1 1.7 1.7 0 0 0-1.1-.4H3a2 2 0 1 1 0-4h.09A1.7 1.7 0 0 0 4.6 8.6a1.7 1.7 0 0 0-.34-1.88l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.7 1.7 0 0 0 9 4.6a1.7 1.7 0 0 0 1-.6 1.7 1.7 0 0 0 .4-1.1V3a2 2 0 1 1 4 0v.09A1.7 1.7 0 0 0 15.4 4.6a1.7 1.7 0 0 0 1.88-.34l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.7 1.7 0 0 0 19.4 9c.1.35.3.7.6 1 .3.25.7.4 1.1.4H21a2 2 0 1 1 0 4h-.09a1.7 1.7 0 0 0-1.51.6Z"/></svg></span><span class="nav-label">Admin</span></a>
-        </nav>
-        <div class="sidebar-card">
-          <strong>Work Execution</strong>
-          <p>TaskManagement remains the task engine. Quest HQ owns jobs, clients, files, forms, finance, and operations context.</p>
-        </div>
-      </aside>
-      <main class="main">
-        <section class="workspace job-center job-center-task-ui" data-job-center data-supabase-url="https://lpzotcznihwyyudxycmd.supabase.co" data-supabase-key="sb_publishable_Gd1aHMtItu-7daoq2YofeA_9wl1pQ07">
-    <div class="job-center-app">
-      <header class="job-center-topbar">
-        <div class="job-center-topbar-left">
-          <a class="job-center-logo" href="index.html" aria-label="Quest HQ Command Center">Q</a>
-          <div>
-            <div class="job-center-brand">Quest HQ</div>
-            <div class="job-center-sub">Job Center</div>
-          </div>
-        </div>
-        <div class="job-center-topbar-right">
-          <label class="job-center-global-search">
-            <span>Search</span>
-            <input data-job-search placeholder="Search jobs, clients, owners, addresses" />
-          </label>
-          <span class="sync-pill" data-job-sync>Connecting to Supabase...</span>
-          <button class="secondary-button" type="button" data-job-refresh>Refresh</button>
-          <button class="primary-button" type="button" data-job-new>Add Job</button>
-          <section class="quest-account job-center-account" data-quest-account hidden>
-            <button class="quest-account-main" type="button" data-quest-profile-open aria-label="Open Quest profile">
-              <span class="quest-avatar" data-quest-avatar>Q</span>
-              <span class="job-center-account-text"><strong data-quest-account-name>Loading account</strong><small data-quest-account-role>Checking access</small></span>
-            </button>
-            <div class="quest-account-actions">
-              <button type="button" data-quest-profile-open>Profile</button>
-              <button type="button" data-quest-sign-out>Sign out</button>
-            </div>
-          </section>
-        </div>
-      </header>
-      <div class="job-center-body">
-        <aside class="job-center-deck" aria-label="Job Center navigation">
-          <div class="side-group">
-            <div class="side-label">Workspace</div>
-            <div class="tabs job-center-deck-tabs" role="tablist">
-              <button class="active" data-tab="pipeline">Pipeline</button>
-              <button data-tab="list">Job List</button>
-              <button data-tab="profile">Profile</button>
-              <button data-tab="tasks">Tasks</button>
-              <button data-tab="editor">Job Editor</button>
-            </div>
-          </div>
-          <div class="side-group">
-            <div class="side-label">Stage</div>
-            <select data-job-stage-filter aria-label="Filter jobs by stage">
-              <option value="all">All business statuses</option>
-              <option>Lead</option>
-              <option>Site Review</option>
-              <option>Estimate</option>
-              <option>Approved</option>
-              <option>Active</option>
-              <option>Closed</option>
-            </select>
-          </div>
-        </aside>
-        <main class="job-center-work" aria-label="Job Center work surface">
-    <section class="tab-panel active" data-panel="pipeline">
-      <div class="job-board" data-job-board></div>
-    </section>
-    <section class="tab-panel" data-panel="list">
-      <div class="panel job-list-panel">
-        <div class="job-section-heading"><h2>Job List</h2><span data-job-count>0 jobs</span></div>
-        <div class="job-table" data-job-table></div>
-      </div>
-    </section>
-    <section class="tab-panel" data-panel="profile">
-      <div class="job-profile-grid">
-        <article class="panel job-profile" data-job-profile></article>
-        <aside class="panel job-sidecar" data-job-sidecar></aside>
-      </div>
-    </section>
-    <section class="tab-panel" data-panel="tasks">
-      <div class="job-task-runtime panel" data-job-task-runtime>
-        <div class="job-task-runtime-head">
-          <div>
-            <div class="eyebrow">Job Center Tasks</div>
-            <h2 data-job-task-title>TaskManagement execution</h2>
-            <p class="muted" data-job-task-subtitle>Select a job to scope the embedded task workspace.</p>
-          </div>
-          <div class="job-task-runtime-actions">
-            <button class="secondary-button" type="button" data-job-task-reload>Reload Tasks</button>
-            <a class="secondary-button" data-job-task-popout href="taskmanagement/app.html">Open Full View</a>
-          </div>
-        </div>
-        <iframe
-          title="Job-scoped TaskManagement"
-          data-job-task-frame
-          loading="lazy"
-          referrerpolicy="same-origin"
-        ></iframe>
-      </div>
-    </section>
-    <section class="tab-panel" data-panel="editor">
-      <form class="panel job-editor" data-job-form>
-        <input type="hidden" name="id" />
-        <div class="job-section-heading span-2"><h2 data-job-editor-title>Job Workspace</h2><span>Creates the business space for files, forms, finance, and TaskManagement handoff.</span></div>
-        <label class="span-2">Workspace Name<input name="name" required placeholder="Client, site, or project name" /></label>
-        <label>Company
-          <select name="company_id" data-job-company-select></select>
-        </label>
-        <label>Client<input name="client_name" placeholder="Client or account name" /></label>
-        <label>Contact<input name="contact_name" /></label>
-        <label>Account Owner<input name="owner_name" placeholder="Internal business owner" /></label>
-        <label>Job Type<input name="job_type" /></label>
-        <label>Business Status
-          <select name="stage">
-            <option>Lead</option>
-            <option>Site Review</option>
-            <option>Estimate</option>
-            <option>Approved</option>
-            <option>Active</option>
-            <option>Closed</option>
-          </select>
-        </label>
-        <label>Client Urgency
-          <select name="priority">
-            <option>Low</option>
-            <option>Medium</option>
-            <option>High</option>
-            <option>Urgent</option>
-          </select>
-        </label>
-        <label>Estimate Total<input type="number" min="0" step="100" name="estimate_total" /></label>
-        <label class="span-2">Site Address<input name="site_address" /></label>
-        <label class="span-2">Scope<textarea name="scope" rows="4"></textarea></label>
-        <label class="span-2">Notes<textarea name="notes" rows="4"></textarea></label>
-        <div class="form-actions span-2">
-          <button class="primary-button" type="submit">Save Workspace</button>
-          <button class="secondary-button" type="button" data-job-modal-close>Close</button>
-          <button class="secondary-button" type="button" data-job-duplicate>Duplicate</button>
-          <button class="danger-button" type="button" data-job-delete>Delete</button>
-        </div>
-      </form>
-    </section>
-    <div class="modal-overlay" data-job-modal hidden>
-      <div class="modal-panel job-modal-panel" role="dialog" aria-modal="true" aria-labelledby="job-modal-title">
-        <div class="modal-header">
-          <div>
-            <div class="eyebrow">Job Center</div>
-            <h2 id="job-modal-title" data-job-modal-title>Create Job Workspace</h2>
-          </div>
-          <button class="secondary-button" type="button" data-job-modal-close>Close</button>
-        </div>
-        <div data-job-modal-body></div>
-      </div>
-    </div>
-        </main>
-      </div>
-    </div>
-  </section>
-      </main>
-    </div>
-    <div class="modal-overlay" data-quest-profile-modal hidden>
-      <section class="modal-panel quest-profile-panel" role="dialog" aria-modal="true" aria-labelledby="quest-profile-title">
-        <div class="modal-header">
-          <div>
-            <span class="eyebrow">Quest Account</span>
-            <h2 id="quest-profile-title">Profile</h2>
-          </div>
-          <button class="secondary-button" type="button" data-quest-profile-close>Close</button>
-        </div>
-        <form class="quest-profile-form" data-quest-profile-form>
-          <div class="quest-profile-preview">
-            <span class="quest-avatar large" data-quest-profile-avatar>Q</span>
-            <div>
-              <strong data-quest-profile-email></strong>
-              <span data-quest-profile-access></span>
-            </div>
-          </div>
-          <label>Display name<input name="full_name" autocomplete="name" /></label>
-          <label>Avatar image<input name="avatar" type="file" accept="image/png,image/jpeg,image/webp" /></label>
-          <p class="muted">Quest HQ owns profile, avatar, login, approval, role, and company access. TaskManagement reads that session after launch.</p>
-          <div class="form-actions">
-            <button class="primary-button" type="submit">Save profile</button>
-            <button class="secondary-button" type="button" data-quest-profile-close>Cancel</button>
-          </div>
-          <div class="quest-auth-message" data-quest-profile-message></div>
-        </form>
-      </section>
-    </div>
-    <div class="tour-overlay" data-tour-overlay hidden>
-      <div class="tour-spotlight" data-tour-spotlight></div>
-      <section class="tour-card" data-tour-card role="dialog" aria-modal="true" aria-labelledby="tour-title">
-        <div class="tour-card-head">
-          <span data-tour-count></span>
-          <button type="button" data-tour-skip>Skip</button>
-        </div>
-        <div class="tour-progress" data-tour-progress aria-hidden="true"></div>
-        <h2 id="tour-title" data-tour-title>Welcome to Quest HQ</h2>
-        <p data-tour-body></p>
-        <div class="tour-actions">
-          <button class="secondary-button" type="button" data-tour-back>Back</button>
-          <button class="primary-button" type="button" data-tour-next>Next</button>
-        </div>
-      </section>
-    </div>
-    <script type="application/json" id="record-seed">[]</script>
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="assets/quest-hq.js?v=quest-job-center-task-ui-merge-v2" defer></script>
+  <body>
+    <p>Opening Quest HQ...</p>
   </body>
 </html>

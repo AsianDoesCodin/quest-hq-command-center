@@ -219,7 +219,7 @@ App.TopbarView = class TopbarView {
     if (questProfile) {
       questProfile.addEventListener('click', () => {
         this.closeUserMenu();
-        window.location.href = App.commandCenterProfileUrl || '../index.html?account=profile';
+        window.location.href = App.commandCenterProfileUrl || '../command?account=profile';
       });
     }
     menu.querySelector('[data-action="show-tour"]').addEventListener('click', () => {

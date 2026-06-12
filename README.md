@@ -1,6 +1,6 @@
 # Quest HQ Command Center
 
-Quest HQ is the operations shell for Quest Roofing, Quest Drafting, and Lumen Marketing. It is currently built as a Vite-served static HTML/CSS/vanilla JS command center around jobs, clients, module records, and the existing TaskManagement app.
+Quest HQ is the operations shell for Quest Roofing, Quest Drafting, and Lumen Marketing. It is a single Vite SPA around jobs, clients, module records, and the vendored TaskManagement task engine.
 
 The key product boundary is intentional:
 
@@ -22,7 +22,7 @@ Install dependencies:
 npm install
 ```
 
-Start the local app:
+Start the local app when local verification is explicitly needed:
 
 ```bash
 npm run dev
@@ -53,13 +53,15 @@ npm run preview
 | Command | Purpose |
 | --- | --- |
 | `npm run dev` | Starts Vite locally on `127.0.0.1`. |
-| `npm run build` | Creates the static production bundle in `dist/`. |
-| `npm run build:pages` | Creates the GitHub Pages bundle in `docs/` with the repository base path. |
+| `npm run build` | Creates the Vercel production bundle in `dist/` and copies the TaskManagement runtime plus legacy redirects. |
+| `npm run build:pages` | Creates the GitHub Pages bundle in `docs/` with the repository base path, 404 fallback, `.nojekyll`, and legacy redirects. |
 | `npm run preview` | Serves the production bundle locally for a smoke test. |
 
 ## Environment Variables
 
 Vite only exposes client-side variables that start with `VITE_`. Do not put private Supabase service-role keys or other server secrets in Vite environment variables.
+
+The current SPA keeps Supabase Auth switched off while the shell is stabilized. The temporary local gate uses `lumen123` for both username and password and must be replaced before real customer data is entered.
 
 | Variable | Required | Used by | Notes |
 | --- | --- | --- | --- |
@@ -75,15 +77,15 @@ TaskManagement is vendored into this workspace under `taskmanagement/` and copie
 Expected handoff behavior:
 
 ```text
-login.html
-  authenticates the Quest HQ user and checks approval
+/login
+  temporary local gate while Supabase Auth is disabled
 
 Quest HQ Operations Command
-  opens jobs.html?job_id=<job.id>&tab=tasks
+  opens /jobs?job_id=<job.id>&tab=tasks
 
 TaskManagement runtime
   runs embedded inside the Job Center task tab from taskmanagement/app.html
-  uses the same Supabase session from Quest HQ
+  receives project_id from Quest HQ
   filters tasks where task.project_id = project_id
   can still open as a full view for debugging or recovery
 ```
@@ -93,7 +95,7 @@ Required data contract:
 - `jobs.id` is the stable Quest HQ job identifier.
 - `tasks.project_id` in TaskManagement stores the Quest HQ job id.
 - Quest HQ `profiles` stores login approval, display name, avatar, role, and company access for the shared session.
-- TaskManagement keeps its own refined company/settings/task execution behavior inside the vendored runtime.
+- TaskManagement keeps task execution behavior inside the vendored runtime. Embedded mode is tasks-only; profile, roles, time, team, approvals, and clock dashboard belong to Quest HQ.
 - Task rollups shown in Quest HQ should be read from TaskManagement or a shared view, not reimplemented as a separate task system.
 - Automations that create tasks should write to TaskManagement and preserve `project_id`.
 
@@ -134,12 +136,12 @@ Recommended production approach:
 
 ## Vercel Deployment
 
-This repository is configured as a static Vite app:
+This repository is configured as a static Vite SPA:
 
 - Framework preset: Vite
 - Build command: `npm run build`
 - Output directory: `dist`
-- SPA fallback: `vercel.json` rewrites all routes to `/index.html`
+- SPA fallback: `vercel.json` rewrites all non-file routes to `/index.html`
 
 Before production deployment:
 
