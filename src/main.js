@@ -1190,11 +1190,20 @@ function renderFolderRow(folder) {
 function renderFileRow(file) {
   return `
     <button type="button" class="explorer-row ${file.id === state.selectedFileId ? 'active' : ''}" data-action="select-file" data-file-id="${h(file.id)}" role="row">
-      <span class="explorer-name"><span class="file-type ${h(fileTypeClass(file))}">${h(fileTypeLabel(file).slice(0, 3).toUpperCase())}</span><strong>${h(file.file_name)}</strong></span>
+      <span class="explorer-name">${fileTypeBadge(file)}<strong>${h(file.file_name)}</strong></span>
       <span>${formatDate(file.updated_at || file.created_at)}</span>
       <span>${h(fileTypeLabel(file))}</span>
       <span>${formatBytes(file.size_bytes)}</span>
     </button>
+  `;
+}
+
+function fileTypeBadge(file) {
+  return `
+    <span class="file-type ${h(fileTypeClass(file))}">
+      <i class="ti ${h(fileIcon(file))}"></i>
+      <small>${h(fileTypeShortLabel(file))}</small>
+    </span>
   `;
 }
 
@@ -3574,6 +3583,18 @@ function fileThumb(file, large = false) {
   return `<span class="file-doc-icon ${h(fileTypeClass(file))} ${large ? 'large' : ''}"><i class="ti ${h(icon)}"></i></span>`;
 }
 
+function fileTypeShortLabel(file) {
+  const label = fileTypeLabel(file);
+  const ext = fileExtension(file);
+  if (label === 'Image') return ext && ext.length <= 4 ? ext.toUpperCase() : 'IMG';
+  if (label === 'Archive') return ext && ext.length <= 3 ? ext.toUpperCase() : 'ZIP';
+  if (label === 'Excel') return ext === 'csv' ? 'CSV' : 'XLS';
+  if (label === 'Word') return 'DOC';
+  if (label === 'PowerPoint') return 'PPT';
+  if (label === 'Text') return ext && ext.length <= 4 ? ext.toUpperCase() : 'TXT';
+  return label.length <= 4 ? label.toUpperCase() : (ext || 'FILE').slice(0, 4).toUpperCase();
+}
+
 function companyForms(companyId = activeCompanyId()) {
   return state.forms.filter((form) => form.company_id === companyId);
 }
@@ -4084,12 +4105,14 @@ function folderIdFromCategory(category) {
 }
 
 function fileIcon(file) {
-  const kind = fileTypeClass(file);
-  if (kind === 'image') return 'ti-photo';
-  if (kind === 'pdf') return 'ti-file-type-pdf';
-  if (kind === 'zip') return 'ti-file-zip';
-  if (kind === 'sheet') return 'ti-file-spreadsheet';
-  if (kind === 'text') return 'ti-file-text';
+  const label = fileTypeLabel(file);
+  if (label === 'Image') return 'ti-photo';
+  if (label === 'PDF') return 'ti-file-type-pdf';
+  if (label === 'Archive') return 'ti-file-zip';
+  if (label === 'Excel') return 'ti-file-spreadsheet';
+  if (label === 'Word') return 'ti-file-type-doc';
+  if (label === 'PowerPoint') return 'ti-file-type-ppt';
+  if (label === 'Text') return 'ti-file-text';
   return 'ti-file-description';
 }
 

@@ -1743,21 +1743,64 @@ textarea:focus {
   white-space: nowrap;
 }
 
-.file-type,
-.file-doc-icon {
+.file-type {
   position: relative;
   display: grid;
+  grid-template-rows: 1fr auto;
   place-items: center;
-  width: 28px;
-  height: 32px;
+  width: 30px;
+  height: 34px;
   border: 1px solid #c9d8ee;
   border-radius: 5px;
   background: linear-gradient(135deg, #ffffff 0 72%, #dbeafe 72% 100%);
   color: #2454a6;
-  font-size: 9px;
+  padding: 3px 2px 2px;
   font-weight: 950;
   line-height: 1;
-  letter-spacing: .02em;
+  box-shadow: 0 1px 0 rgba(21, 37, 64, .04);
+}
+
+.file-type::after {
+  content: "";
+  position: absolute;
+  right: -1px;
+  top: -1px;
+  width: 9px;
+  height: 9px;
+  border-left: 1px solid currentColor;
+  border-bottom: 1px solid currentColor;
+  border-radius: 0 5px 0 3px;
+  background: rgba(255, 255, 255, .72);
+  opacity: .28;
+}
+
+.file-type i {
+  font-size: 16px;
+  line-height: 1;
+}
+
+.file-type small {
+  position: relative;
+  z-index: 1;
+  display: block;
+  font-size: 7px;
+  font-weight: 950;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+}
+
+.file-doc-icon {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border: 1px solid #c9d8ee;
+  border-radius: 8px;
+  background: #dbeafe;
+  color: #1d4ed8;
+  font-size: 11px;
+  font-weight: 950;
 }
 
 .file-type.folder {
@@ -1806,13 +1849,15 @@ textarea:focus {
 
 .file-type.text,
 .file-doc-icon.text {
-  background: #f1f5f9;
+  border-color: #cbd5e1;
+  background: linear-gradient(135deg, #ffffff 0 72%, #e2e8f0 72% 100%);
   color: #475569;
 }
 
 .file-type.zip,
 .file-doc-icon.zip {
-  background: #fef3c7;
+  border-color: #f2d392;
+  background: linear-gradient(135deg, #fffdfa 0 72%, #fef3c7 72% 100%);
   color: #92400e;
 }
 
@@ -1833,20 +1878,30 @@ textarea:focus {
 
 .file-type.pdf,
 .file-doc-icon.pdf {
-  background: #fee2e2;
+  border-color: #fecaca;
+  background: linear-gradient(135deg, #fffafa 0 72%, #fee2e2 72% 100%);
   color: #991b1b;
 }
 
 .file-type.image,
 .file-doc-icon.image {
-  background: #dcfce7;
+  border-color: #bbf7d0;
+  background: linear-gradient(135deg, #fbfffd 0 72%, #dcfce7 72% 100%);
   color: #166534;
 }
 
 .file-type.sheet,
 .file-doc-icon.sheet {
-  background: #ecfdf5;
+  border-color: #a7f3d0;
+  background: linear-gradient(135deg, #fbfffd 0 72%, #ecfdf5 72% 100%);
   color: #047857;
+}
+
+.file-type.doc,
+.file-doc-icon.doc {
+  border-color: #bfdbfe;
+  background: linear-gradient(135deg, #ffffff 0 72%, #dbeafe 72% 100%);
+  color: #1d4ed8;
 }
 
 .file-detail-preview {
