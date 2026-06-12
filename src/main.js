@@ -1447,21 +1447,20 @@ function renderFormsLibrary(companyId, forms, current) {
       <article class="forms-start-panel panel">
         <div class="forms-panel-head">
           <div>
-            <strong>Forms workspace</strong>
-            <span>Create client forms, inspection checklists, approvals, and company intake forms.</span>
+            <strong>Create a form</strong>
+            <span>Start blank or pick a company-ready template.</span>
           </div>
-          <button class="btn btn-primary" type="button" data-action="new-form"><i class="ti ti-plus"></i>New form</button>
         </div>
         <div class="forms-start-actions">
           <button type="button" class="form-start-choice" data-action="new-form" data-start-tab="blank">
             <span><i class="ti ti-clipboard-plus"></i></span>
-            <strong>Blank builder</strong>
-            <small>Open a builder modal with one starter question.</small>
+            <strong>Blank form</strong>
+            <small>Build from a title card and one starter question.</small>
           </button>
           <button type="button" class="form-start-choice" data-action="new-form" data-start-tab="templates">
             <span><i class="ti ti-template"></i></span>
-            <strong>Use template</strong>
-            <small>Choose an inspection, approval, intake, or safety starter inside the modal.</small>
+            <strong>Template</strong>
+            <small>Choose inspection, approval, intake, or safety starters.</small>
           </button>
         </div>
       </article>
@@ -1479,10 +1478,16 @@ function renderFormsLibrary(companyId, forms, current) {
                 <i class="ti ti-clipboard-list"></i>
                 <b>${h(form.status)}</b>
               </span>
-              <strong>${h(form.title)}</strong>
-              <span>${h(form.description || 'No description yet.')}</span>
-              <small>${h(form.type)} / ${h(form.audience || 'Internal')} / ${formQuestionCount(form)} questions</small>
-              <em>${responsesForForm(form.id).length} responses / updated ${formatDate(form.updated_at)}</em>
+              <span class="form-card-main">
+                <strong>${h(form.title)}</strong>
+                <span>${h(form.description || 'No description yet.')}</span>
+              </span>
+              <span class="form-card-meta">
+                <small>${h(form.type)} / ${h(form.audience || 'Internal')}</small>
+                <small>${formQuestionCount(form)} questions</small>
+                <em>${responsesForForm(form.id).length} responses</em>
+                <em>Updated ${formatDate(form.updated_at)}</em>
+              </span>
             </button>
           `).join('') || emptyState('No forms match this company view.')}
         </div>
