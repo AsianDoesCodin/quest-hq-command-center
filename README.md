@@ -79,13 +79,13 @@ login.html
   authenticates the Quest HQ user and checks approval
 
 Quest HQ Operations Command
-  opens task-management.html?project_id=<job.id>&return_url=<quest-hq-url-with-job_id>
+  opens jobs.html?job_id=<job.id>&tab=tasks
 
 TaskManagement runtime
-  runs from taskmanagement/app.html inside this deployment
+  runs embedded inside the Job Center task tab from taskmanagement/app.html
   uses the same Supabase session from Quest HQ
   filters tasks where task.project_id = project_id
-  can use return_url to navigate back to the originating Quest HQ job context
+  can still open as a full view for debugging or recovery
 ```
 
 Required data contract:

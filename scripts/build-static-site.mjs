@@ -1,14 +1,13 @@
 import { cp, mkdir, rm, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 
-const buildId = 'Quest Auth Runtime Integration v6';
+const buildId = 'Quest Job Center Task Merge v1';
 const assetVersion = buildId.toLowerCase().replace(/[^a-z0-9]+/g, '-');
 const targets = ['.', 'dist', 'docs'];
 
 const nav = [
   ['index.html', 'Command Center', 'home', 'live'],
-  ['jobs.html', 'Jobs', 'briefcase', 'live'],
-  ['task-management.html', 'TaskManagement', 'kanban', 'live'],
+  ['jobs.html', 'Job Center', 'briefcase', 'live'],
   ['crm.html', 'CRM', 'users', 'planned'],
   ['forms.html', 'Forms & Surveys', 'clipboard', 'live'],
   ['tickets.html', 'Tickets', 'ticket', 'planned'],
@@ -414,7 +413,7 @@ function commandPage() {
         <div class="quick-action-grid">
           <a href="jobs.html?action=new">Create job<span>Supabase job record</span></a>
           <a href="jobs.html">Open Job Center<span>Pipeline, list, profile, editor</span></a>
-          <a href="task-management.html">TaskManagement<span>Job-scoped execution hub</span></a>
+          <a href="jobs.html?tab=tasks">Job Tasks<span>Execution hub inside Job Center</span></a>
           <a href="files.html">Files viewer<span>File cabinet workspace</span></a>
         </div>
       </section>
@@ -455,6 +454,7 @@ function jobsPage() {
       <button class="active" data-tab="pipeline">Pipeline</button>
       <button data-tab="list">Job List</button>
       <button data-tab="profile">Profile</button>
+      <button data-tab="tasks">Tasks</button>
       <button data-tab="editor">Job Editor</button>
     </div>
     <section class="tab-panel active" data-panel="pipeline">
@@ -470,6 +470,27 @@ function jobsPage() {
       <div class="job-profile-grid">
         <article class="panel job-profile" data-job-profile></article>
         <aside class="panel job-sidecar" data-job-sidecar></aside>
+      </div>
+    </section>
+    <section class="tab-panel" data-panel="tasks">
+      <div class="job-task-runtime panel" data-job-task-runtime>
+        <div class="job-task-runtime-head">
+          <div>
+            <div class="eyebrow">Job Center Tasks</div>
+            <h2 data-job-task-title>TaskManagement execution</h2>
+            <p class="muted" data-job-task-subtitle>Select a job to scope the embedded task workspace.</p>
+          </div>
+          <div class="job-task-runtime-actions">
+            <button class="secondary-button" type="button" data-job-task-reload>Reload Tasks</button>
+            <a class="secondary-button" data-job-task-popout href="taskmanagement/app.html">Open Full View</a>
+          </div>
+        </div>
+        <iframe
+          title="Job-scoped TaskManagement"
+          data-job-task-frame
+          loading="lazy"
+          referrerpolicy="same-origin"
+        ></iframe>
       </div>
     </section>
     <section class="tab-panel" data-panel="editor">
@@ -542,8 +563,8 @@ function taskManagementPage() {
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>TaskManagement - Quest HQ</title>
-  <meta http-equiv="refresh" content="0; url=taskmanagement/app.html" />
+  <title>Job Center Tasks - Quest HQ</title>
+  <meta http-equiv="refresh" content="0; url=jobs.html?tab=tasks" />
   <style>
     body{margin:0;min-height:100vh;display:grid;place-items:center;background:#f7f8fb;color:#172033;font-family:Inter,Arial,sans-serif}
     main{max-width:520px;padding:28px}
@@ -552,17 +573,17 @@ function taskManagementPage() {
 </head>
 <body>
   <main>
-    <h1>Opening TaskManagement</h1>
-    <p>Quest HQ is loading the integrated TaskManagement runtime.</p>
-    <p><a id="taskRuntimeLink" href="taskmanagement/app.html">Open TaskManagement</a></p>
+    <h1>Opening Job Center Tasks</h1>
+    <p>TaskManagement now lives inside the Job Center workspace.</p>
+    <p><a id="taskRuntimeLink" href="jobs.html?tab=tasks">Open Job Center Tasks</a></p>
   </main>
   <script>
     (function () {
-      var target = new URL('taskmanagement/app.html', window.location.href);
+      var target = new URL('jobs.html', window.location.href);
       var params = new URLSearchParams(window.location.search);
-      if (!params.has('return_url')) {
-        params.set('return_url', new URL('jobs.html', window.location.href).toString());
-      }
+      params.set('tab', 'tasks');
+      if (params.has('project_id') && !params.has('job_id')) params.set('job_id', params.get('project_id'));
+      params.delete('return_url');
       target.search = params.toString();
       var link = document.getElementById('taskRuntimeLink');
       if (link) link.href = target.toString();
@@ -1260,7 +1281,7 @@ function analyticsModuleHealth() {
   const rows = [
     ['Jobs', 'Live Supabase table', 'Connected'],
     ['Companies', 'Admin-managed Supabase table', 'Connected'],
-    ['TaskManagement', 'Bridge contract only', 'Planned'],
+    ['TaskManagement', 'Embedded in Job Center', 'Connected'],
     ['Files, Forms, Finance, Tickets', 'No production tables yet', 'Not connected']
   ];
   return `<div class="panel"><h2>Module Health</h2><div class="table analytics-health-table">${rows.map((row) => `<div>${row.map((cell) => `<span>${cell}</span>`).join('')}</div>`).join('')}</div></div>`;
@@ -1281,7 +1302,7 @@ function slug(value) {
 function slugPage(value) {
   const key = slug(value);
   if (key === 'command-center') return 'index.html';
-  if (key === 'taskmanagement-bridge') return 'task-management.html';
+  if (key === 'taskmanagement-bridge') return 'jobs.html?tab=tasks';
   return `${key}.html`;
 }
 
@@ -1334,6 +1355,8 @@ const formsLayoutRedoCss = `.forms-center{max-width:1320px}.forms-command.panel{
 const formsLibraryModalCss = `.forms-center{max-width:1240px}.forms-library-grid{display:block}.forms-library-panel{min-height:calc(100vh - 230px);padding:18px}.forms-toolbar{display:grid;grid-template-columns:minmax(240px,1fr) 220px;gap:12px;align-items:end;margin-bottom:16px}.forms-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:12px}.form-card{min-height:128px;text-align:left;border:1px solid var(--line);border-radius:8px;background:#fff;padding:16px;display:grid;gap:6px;align-content:start;box-shadow:0 12px 30px rgba(15,23,42,.04);transition:border-color .15s ease,box-shadow .15s ease,transform .15s ease}.form-card:hover{border-color:#f45d22;box-shadow:0 18px 34px rgba(15,23,42,.09);transform:translateY(-1px)}.form-card.active{background:#fff;border-color:#f45d22;box-shadow:inset 4px 0 0 #f45d22,0 18px 34px rgba(15,23,42,.08)}.form-card strong{font-size:18px;line-height:1.2}.form-card span{color:#52627a;font-size:14px}.form-card small{color:#52627a;font-size:13px;font-weight:850}.forms-summary[hidden]{display:none!important}.form-detail-modal-panel{width:min(780px,calc(100vw - 40px));max-height:min(760px,calc(100vh - 40px));overflow:hidden}.form-detail-modal-body{padding:22px;overflow:auto}.form-detail-modal-body .forms-summary-head{padding-bottom:14px}.form-detail-modal-body .forms-summary-head h2{font-size:30px}.form-detail-modal-body .forms-simple-meta{margin:14px 0 18px}.form-detail-modal-body .forms-summary-share{margin-top:0;background:#fbfcfe;border:1px solid var(--line);border-left:4px solid var(--orange);border-radius:8px}.form-detail-modal-body .forms-summary-actions{display:flex;flex-wrap:wrap;gap:10px}.form-detail-modal-body .forms-summary-actions button{min-height:42px}.form-detail-modal-body .forms-summary-share .form-actions{align-items:end}.forms-center .tab-panel[data-panel="library"]{display:block}.forms-center .tab-panel[data-panel="library"]:not(.active){display:none}@media(max-width:820px){.forms-toolbar{grid-template-columns:1fr}.forms-list{grid-template-columns:1fr}.form-detail-modal-body .forms-summary-share{grid-template-columns:1fr}.form-detail-modal-body .forms-summary-share .form-actions{grid-column:1}.form-detail-modal-body .forms-summary-actions{display:grid;grid-template-columns:1fr 1fr}.form-detail-modal-body .forms-summary-actions button{width:100%}}@media(max-width:560px){.form-detail-modal-body .forms-summary-actions{grid-template-columns:1fr}.form-detail-modal-body .forms-summary-head{display:grid}.form-detail-modal-body .forms-summary-head h2{font-size:24px}}`;
 
 const plannedTabsCss = `.tabs button.tab-planned,.tabs button.tab-planned:hover,.tabs button.tab-planned.active{color:#64748b;background:repeating-linear-gradient(135deg,#eef2f7 0,#eef2f7 8px,#e2e8f0 8px,#e2e8f0 16px);border-color:#94a3b8;box-shadow:none;cursor:not-allowed;opacity:1;filter:grayscale(1)}.tabs button.tab-planned.active{box-shadow:inset 0 -3px #94a3b8}.tabs button.tab-planned small{display:inline-flex;margin-left:8px;border:1px solid #94a3b8;border-radius:999px;background:#f8fafc;padding:2px 7px;color:#475569;font-size:10px;font-weight:900;text-transform:uppercase;vertical-align:middle}.tabs button:not(.tab-planned) small{display:none}@media(max-width:620px){.tabs button.tab-planned small{display:none}}`;
+
+const jobCenterTaskMergeCss = `.job-task-runtime{padding:0;overflow:hidden}.job-task-runtime-head{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;border-bottom:1px solid var(--line);background:#fff;padding:16px 18px}.job-task-runtime-head h2{margin:3px 0 4px;font-size:24px}.job-task-runtime-actions{display:flex;gap:10px;flex-wrap:wrap;justify-content:flex-end}.job-task-runtime iframe{display:block;width:100%;height:min(1120px,calc(100vh - 238px));min-height:720px;border:0;background:#f7f8fb}.job-center [data-panel="tasks"].active{display:block}.job-center [data-panel="tasks"]{margin-top:-4px}@media(max-width:980px){.job-task-runtime-head{display:grid}.job-task-runtime-actions{justify-content:flex-start}.job-task-runtime iframe{height:880px;min-height:680px}}@media(max-width:640px){.job-task-runtime-head{padding:14px}.job-task-runtime-actions{display:grid;grid-template-columns:1fr}.job-task-runtime-actions .secondary-button{width:100%}.job-task-runtime iframe{height:820px;min-height:620px}}`;
 
 const tutorialCss = `.tour-replay{display:inline-flex;align-items:center;justify-content:center;min-height:36px;border:1px solid #324055;border-radius:999px;background:#172234;color:#dbeafe;font-weight:850;cursor:pointer}.tour-replay:hover{border-color:#f45d22;color:#fff;background:#2a1816}.tour-overlay[hidden]{display:none}.tour-overlay{position:fixed;inset:0;z-index:130;background:rgba(15,23,42,.68);pointer-events:auto}.tour-spotlight{position:absolute;border:2px solid #f45d22;border-radius:12px;box-shadow:0 0 0 9999px rgba(15,23,42,.68),0 18px 60px rgba(0,0,0,.32);transition:all .18s ease;background:rgba(255,255,255,.04);pointer-events:none}.tour-card{position:absolute;width:min(440px,calc(100vw - 28px));border:1px solid var(--line);border-radius:10px;background:#fff;color:var(--ink);box-shadow:0 28px 90px rgba(0,0,0,.34);padding:18px}.tour-card-head{display:flex;justify-content:flex-end;align-items:center;gap:12px;margin-bottom:8px}.tour-card-head span{display:none}.tour-card-head button{border:0;background:transparent;color:#52627a;font-weight:850;cursor:pointer}.tour-progress{display:flex;align-items:center;gap:8px;margin:0 0 16px}.tour-progress span{display:block;width:11px;height:11px;border-radius:50%;background:#dbe3ed;border:2px solid #dbe3ed}.tour-progress span.done{background:#111827;border-color:#111827}.tour-progress span.active{background:#f45d22;border-color:#f45d22;box-shadow:0 0 0 4px #ffedd5}.tour-card h2{font-size:23px;margin:0 0 8px}.tour-card p{color:#52627a;line-height:1.5;margin-bottom:16px}.tour-actions{display:flex;justify-content:space-between;gap:10px}.tour-actions button[disabled]{opacity:.45;cursor:not-allowed}body.tour-open{overflow:hidden}@media(max-width:820px){.tour-overlay{display:grid;place-items:end center;padding:12px}.tour-spotlight{display:none}.tour-card{position:static;width:100%}.tour-replay{width:100%}}`;
 
@@ -1801,6 +1824,11 @@ const jobCenterJs = `(() => {
     count: center.querySelector('[data-job-count]'),
     profile: center.querySelector('[data-job-profile]'),
     sidecar: center.querySelector('[data-job-sidecar]'),
+    taskFrame: center.querySelector('[data-job-task-frame]'),
+    taskTitle: center.querySelector('[data-job-task-title]'),
+    taskSubtitle: center.querySelector('[data-job-task-subtitle]'),
+    taskReload: center.querySelector('[data-job-task-reload]'),
+    taskPopout: center.querySelector('[data-job-task-popout]'),
     form: center.querySelector('[data-job-form]'),
     editorPanel: center.querySelector('[data-panel="editor"]'),
     modal: center.querySelector('[data-job-modal]'),
@@ -1820,6 +1848,7 @@ const jobCenterJs = `(() => {
   let formHome = null;
   let lastFocus = null;
   let draftJob = null;
+  let lastTaskRuntimeUrl = '';
 
   init();
 
@@ -1901,9 +1930,19 @@ const jobCenterJs = `(() => {
     nodes.board?.addEventListener('click', selectFromClick);
     nodes.table?.addEventListener('click', selectFromClick);
     nodes.form?.addEventListener('submit', saveJob);
+    nodes.taskReload?.addEventListener('click', () => renderTaskRuntime(true));
     center.querySelector('[data-job-duplicate]')?.addEventListener('click', duplicateJob);
     center.querySelector('[data-job-delete]')?.addEventListener('click', deleteJob);
     center.addEventListener('click', (event) => {
+      const taskLink = event.target.closest('a[href*=\"tab=tasks\"]');
+      if (taskLink) {
+        event.preventDefault();
+        const url = new URL(taskLink.href, window.location.href);
+        selectedId = url.searchParams.get('job_id') || selectedId;
+        render();
+        clickTab('tasks');
+        return;
+      }
       if (event.target.closest('[data-job-modal-close]')) closeJobModal();
     });
     nodes.modal?.addEventListener('click', (event) => {
@@ -2008,6 +2047,7 @@ const jobCenterJs = `(() => {
     renderBoard(visible);
     renderTable(visible);
     renderProfile();
+    renderTaskRuntime();
     fillForm();
   }
 
@@ -2066,7 +2106,7 @@ const jobCenterJs = `(() => {
     nodes.sidecar.innerHTML = detail('Workspace', 'Business context and records') +
       detail('Files', number(job.file_count) + ' files attached') +
       detail('Company', companyLabel(job.company_id)) +
-      '<a class=\"secondary-button\" href=\"' + escapeHtml(bridgeUrl(job)) + '\">Open Task Hub</a>' +
+      '<a class=\"secondary-button\" href=\"' + escapeHtml(bridgeUrl(job)) + '\">Open Tasks</a>' +
       '<a class=\"secondary-button\" href=\"' + escapeHtml(fileUrl(job)) + '\">Open Files</a>' +
       '<button class=\"primary-button\" type=\"button\" data-edit-selected>Edit Job</button>';
     nodes.sidecar.querySelector('[data-edit-selected]')?.addEventListener('click', () => openJobModal('Edit Job'));
@@ -2080,6 +2120,23 @@ const jobCenterJs = `(() => {
       ['Finance', money.format(number(job.estimate_total)) + ' estimate', 'Estimate, invoice, payment records', 'finance.html']
     ];
     return '<div class=\"linked-panel-grid\">' + items.map((item) => '<a href=\"' + escapeHtml(item[3]) + '\"><strong>' + escapeHtml(item[0]) + '</strong><span>' + escapeHtml(item[1]) + '</span><small>' + escapeHtml(item[2]) + '</small></a>').join('') + '</div>';
+  }
+
+  function renderTaskRuntime(force = false) {
+    if (!nodes.taskFrame) return;
+    const job = selectedJob();
+    const runtimeUrl = taskRuntimeUrl(job);
+    if (nodes.taskTitle) nodes.taskTitle.textContent = job ? job.name + ' Tasks' : 'All Job Tasks';
+    if (nodes.taskSubtitle) {
+      nodes.taskSubtitle.textContent = job
+        ? 'Embedded TaskManagement workspace scoped to project_id ' + job.id + '.'
+        : 'No job selected; showing task scope allowed by the current account.';
+    }
+    if (nodes.taskPopout) nodes.taskPopout.href = runtimeUrl;
+    if (force || runtimeUrl !== lastTaskRuntimeUrl) {
+      nodes.taskFrame.src = runtimeUrl;
+      lastTaskRuntimeUrl = runtimeUrl;
+    }
   }
 
   function activityTimeline(job) {
@@ -2282,10 +2339,19 @@ const jobCenterJs = `(() => {
 
   function bridgeUrl(job) {
     const params = new URLSearchParams({
-      project_id: job.id,
-      return_url: new URL('jobs.html?job_id=' + encodeURIComponent(job.id) + '&tab=profile', window.location.href).toString()
+      job_id: job.id,
+      tab: 'tasks'
     });
-    return 'task-management.html?' + params.toString();
+    return 'jobs.html?' + params.toString();
+  }
+
+  function taskRuntimeUrl(job) {
+    const params = new URLSearchParams({
+      embed: '1',
+      return_url: new URL('jobs.html' + (job ? '?job_id=' + encodeURIComponent(job.id) + '&tab=profile' : '?tab=profile'), window.location.href).toString()
+    });
+    if (job?.id) params.set('project_id', job.id);
+    return 'taskmanagement/app.html?' + params.toString();
   }
 
   function fileUrl(job) {
@@ -4547,7 +4613,7 @@ async function writeTarget(target) {
   if (target !== '.') await rm(absolute, { recursive: true, force: true });
   await mkdir(path.join(absolute, 'assets'), { recursive: true });
   await copyTaskManagementRuntime(target, absolute);
-  await writeFile(path.join(absolute, 'assets', 'quest-hq.css'), css + sidebarPolishCss + modalCss + plannedNavCss + fileViewerCss + fileCenterCss + driveFileCss + jobCenterCss + coreDemoCss + identityIntegrationCss + companyAdminCss + analyticsCss + formsCenterCss + googleFormsCss + formShareCss + formsLayoutRedoCss + formsLibraryModalCss + plannedTabsCss + tutorialCss + questAuthCss);
+  await writeFile(path.join(absolute, 'assets', 'quest-hq.css'), css + sidebarPolishCss + modalCss + plannedNavCss + fileViewerCss + fileCenterCss + driveFileCss + jobCenterCss + jobCenterTaskMergeCss + coreDemoCss + identityIntegrationCss + companyAdminCss + analyticsCss + formsCenterCss + googleFormsCss + formShareCss + formsLayoutRedoCss + formsLibraryModalCss + plannedTabsCss + tutorialCss + questAuthCss);
   await writeFile(path.join(absolute, 'assets', 'quest-hq.js'), js + jobCenterJs + fileCenterJs + companyAdminJs + analyticsJs + commandCenterJs + taskBridgeJs + formsCenterJs + tutorialJs);
   await writeFile(path.join(absolute, 'login.html'), loginPage());
   await writeFile(path.join(absolute, 'index.html'), commandPage());

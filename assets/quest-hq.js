@@ -458,6 +458,11 @@
     count: center.querySelector('[data-job-count]'),
     profile: center.querySelector('[data-job-profile]'),
     sidecar: center.querySelector('[data-job-sidecar]'),
+    taskFrame: center.querySelector('[data-job-task-frame]'),
+    taskTitle: center.querySelector('[data-job-task-title]'),
+    taskSubtitle: center.querySelector('[data-job-task-subtitle]'),
+    taskReload: center.querySelector('[data-job-task-reload]'),
+    taskPopout: center.querySelector('[data-job-task-popout]'),
     form: center.querySelector('[data-job-form]'),
     editorPanel: center.querySelector('[data-panel="editor"]'),
     modal: center.querySelector('[data-job-modal]'),
@@ -477,6 +482,7 @@
   let formHome = null;
   let lastFocus = null;
   let draftJob = null;
+  let lastTaskRuntimeUrl = '';
 
   init();
 
@@ -558,9 +564,19 @@
     nodes.board?.addEventListener('click', selectFromClick);
     nodes.table?.addEventListener('click', selectFromClick);
     nodes.form?.addEventListener('submit', saveJob);
+    nodes.taskReload?.addEventListener('click', () => renderTaskRuntime(true));
     center.querySelector('[data-job-duplicate]')?.addEventListener('click', duplicateJob);
     center.querySelector('[data-job-delete]')?.addEventListener('click', deleteJob);
     center.addEventListener('click', (event) => {
+      const taskLink = event.target.closest('a[href*="tab=tasks"]');
+      if (taskLink) {
+        event.preventDefault();
+        const url = new URL(taskLink.href, window.location.href);
+        selectedId = url.searchParams.get('job_id') || selectedId;
+        render();
+        clickTab('tasks');
+        return;
+      }
       if (event.target.closest('[data-job-modal-close]')) closeJobModal();
     });
     nodes.modal?.addEventListener('click', (event) => {
@@ -665,6 +681,7 @@
     renderBoard(visible);
     renderTable(visible);
     renderProfile();
+    renderTaskRuntime();
     fillForm();
   }
 
@@ -723,7 +740,7 @@
     nodes.sidecar.innerHTML = detail('Workspace', 'Business context and records') +
       detail('Files', number(job.file_count) + ' files attached') +
       detail('Company', companyLabel(job.company_id)) +
-      '<a class="secondary-button" href="' + escapeHtml(bridgeUrl(job)) + '">Open Task Hub</a>' +
+      '<a class="secondary-button" href="' + escapeHtml(bridgeUrl(job)) + '">Open Tasks</a>' +
       '<a class="secondary-button" href="' + escapeHtml(fileUrl(job)) + '">Open Files</a>' +
       '<button class="primary-button" type="button" data-edit-selected>Edit Job</button>';
     nodes.sidecar.querySelector('[data-edit-selected]')?.addEventListener('click', () => openJobModal('Edit Job'));
@@ -737,6 +754,23 @@
       ['Finance', money.format(number(job.estimate_total)) + ' estimate', 'Estimate, invoice, payment records', 'finance.html']
     ];
     return '<div class="linked-panel-grid">' + items.map((item) => '<a href="' + escapeHtml(item[3]) + '"><strong>' + escapeHtml(item[0]) + '</strong><span>' + escapeHtml(item[1]) + '</span><small>' + escapeHtml(item[2]) + '</small></a>').join('') + '</div>';
+  }
+
+  function renderTaskRuntime(force = false) {
+    if (!nodes.taskFrame) return;
+    const job = selectedJob();
+    const runtimeUrl = taskRuntimeUrl(job);
+    if (nodes.taskTitle) nodes.taskTitle.textContent = job ? job.name + ' Tasks' : 'All Job Tasks';
+    if (nodes.taskSubtitle) {
+      nodes.taskSubtitle.textContent = job
+        ? 'Embedded TaskManagement workspace scoped to project_id ' + job.id + '.'
+        : 'No job selected; showing task scope allowed by the current account.';
+    }
+    if (nodes.taskPopout) nodes.taskPopout.href = runtimeUrl;
+    if (force || runtimeUrl !== lastTaskRuntimeUrl) {
+      nodes.taskFrame.src = runtimeUrl;
+      lastTaskRuntimeUrl = runtimeUrl;
+    }
   }
 
   function activityTimeline(job) {
@@ -939,10 +973,19 @@
 
   function bridgeUrl(job) {
     const params = new URLSearchParams({
-      project_id: job.id,
-      return_url: new URL('jobs.html?job_id=' + encodeURIComponent(job.id) + '&tab=profile', window.location.href).toString()
+      job_id: job.id,
+      tab: 'tasks'
     });
-    return 'task-management.html?' + params.toString();
+    return 'jobs.html?' + params.toString();
+  }
+
+  function taskRuntimeUrl(job) {
+    const params = new URLSearchParams({
+      embed: '1',
+      return_url: new URL('jobs.html' + (job ? '?job_id=' + encodeURIComponent(job.id) + '&tab=profile' : '?tab=profile'), window.location.href).toString()
+    });
+    if (job?.id) params.set('project_id', job.id);
+    return 'taskmanagement/app.html?' + params.toString();
   }
 
   function fileUrl(job) {

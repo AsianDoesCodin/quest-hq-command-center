@@ -28,6 +28,7 @@ function sameOriginUrl(value, fallback) {
 
 App.commandCenterIntegration = {
   hosted: !!taskmanagementMount,
+  embedded: routeParams.get('embed') === '1',
   basePath: commandCenterBasePath,
   projectId: (routeParams.get('project_id') || '').trim(),
   returnUrl: sameOriginUrl((routeParams.get('return_url') || '').trim(), defaultReturnUrl),

@@ -11,6 +11,7 @@ window.App = window.App || {};
 
   onReady(() => {
     document.body.classList.add('hosted-by-command-center');
+    if (integration.embedded) document.body.classList.add('embedded-in-job-center');
 
     const bar = document.getElementById('commandCenterHostBar');
     const label = document.getElementById('commandCenterProjectLabel');
@@ -18,9 +19,15 @@ window.App = window.App || {};
 
     if (bar) bar.classList.remove('hidden');
     if (label) {
-      label.textContent = integration.projectId
-        ? `Job scope: ${integration.projectId}`
-        : 'No job selected; showing task scope allowed by your account';
+      if (integration.embedded && integration.projectId) {
+        label.textContent = `Job Center scope: ${integration.projectId}`;
+      } else if (integration.embedded) {
+        label.textContent = 'Embedded in Job Center';
+      } else if (integration.projectId) {
+        label.textContent = `Job scope: ${integration.projectId}`;
+      } else {
+        label.textContent = 'No job selected; showing task scope allowed by your account';
+      }
     }
     if (returnLink && integration.returnUrl) returnLink.href = integration.returnUrl;
   });

@@ -67,6 +67,10 @@ body {
   white-space: nowrap;
 }
 
+.embedded-in-job-center .command-center-host-bar a {
+  display: none;
+}
+
 @media (max-width: 720px) {
   .command-center-host-bar {
     max-width: none;
