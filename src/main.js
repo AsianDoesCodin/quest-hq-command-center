@@ -389,6 +389,7 @@ const state = {
   selectedFileId: '',
   selectedFormId: '',
   selectedQuestionId: '',
+  formStartTemplateId: '',
   query: '',
   fileQuery: '',
   formQuery: '',
@@ -1439,18 +1440,35 @@ function renderFormsPage(companyId) {
 
 function renderFormsLibrary(companyId, forms, current) {
   return `
-    <section class="forms-library-grid">
-      <article class="forms-library-panel panel">
+    <section class="forms-home">
+      <article class="forms-start-panel panel">
         <div class="forms-panel-head">
           <div>
-            <strong>Company library</strong>
+            <strong>Start a form</strong>
+            <span>Blank form or a common company template.</span>
+          </div>
+          <button class="btn btn-primary" type="button" data-action="new-form"><i class="ti ti-plus"></i>Blank form</button>
+        </div>
+        <div class="form-template-strip">
+          ${formTemplates().map((template) => `
+            <button type="button" class="form-template-tile" data-action="new-form" data-template-id="${h(template.id)}">
+              <span><i class="ti ti-template"></i></span>
+              <strong>${h(template.title)}</strong>
+              <small>${h(template.type)} / ${template.questions.length} questions</small>
+            </button>
+          `).join('')}
+        </div>
+      </article>
+      <article class="forms-recent-panel panel">
+        <div class="forms-panel-head">
+          <div>
+            <strong>Recent forms</strong>
             <span>${forms.length} visible form${forms.length === 1 ? '' : 's'} in ${h(companyName(companyId))}</span>
           </div>
-          <button class="btn" type="button" data-action="new-form"><i class="ti ti-plus"></i>Blank form</button>
         </div>
-        <div class="forms-list">
+        <div class="forms-list forms-list-cards">
           ${forms.map((form) => `
-            <button class="form-card ${current?.id === form.id ? 'active' : ''}" type="button" data-action="select-form" data-form-id="${h(form.id)}">
+            <button class="form-card ${current?.id === form.id ? 'active' : ''}" type="button" data-action="edit-form" data-form-id="${h(form.id)}">
               <span class="form-card-top">
                 <i class="ti ti-clipboard-list"></i>
                 <b>${h(form.status)}</b>
@@ -1458,44 +1476,12 @@ function renderFormsLibrary(companyId, forms, current) {
               <strong>${h(form.title)}</strong>
               <span>${h(form.description || 'No description yet.')}</span>
               <small>${h(form.type)} / ${h(form.audience || 'Internal')} / ${formQuestionCount(form)} questions</small>
+              <em>${responsesForForm(form.id).length} responses / updated ${formatDate(form.updated_at)}</em>
             </button>
           `).join('') || emptyState('No forms match this company view.')}
         </div>
       </article>
-      <aside class="forms-summary panel">
-        ${current ? renderFormSummary(companyId, current) : emptyState('Create a form or choose a template.')}
-      </aside>
     </section>
-  `;
-}
-
-function renderFormSummary(companyId, form) {
-  const responses = responsesForForm(form.id);
-  const job = jobById(form.linked_job_id);
-  return `
-    <div class="forms-summary-head">
-      <div>
-        <h2>${h(form.title)}</h2>
-        <p>${h(form.description || 'No description yet.')}</p>
-      </div>
-      <span>${h(form.status)}</span>
-    </div>
-    <div class="forms-simple-meta">
-      <span>${h(form.type)}</span>
-      <span>${h(form.audience || 'Internal')}</span>
-      <span>${h(job?.name || 'Company level')}</span>
-      <span>${formQuestionCount(form)} questions</span>
-      <span>${responses.length} responses</span>
-    </div>
-    <div class="summary-pill-grid">
-      ${metricCard('Updated', formatDate(form.updated_at), 'Last edit')}
-      ${metricCard('Approval', form.require_approval ? 'Required' : 'Not required', 'Review flow')}
-      ${metricCard('Email', form.collect_email ? 'Collected' : 'Optional', 'Submitter identity')}
-    </div>
-    <div class="forms-summary-actions">
-      <button class="btn btn-primary" type="button" data-action="edit-form" data-form-id="${h(form.id)}"><i class="ti ti-edit"></i>Edit</button>
-      <button class="btn" type="button" data-action="open-form-actions" data-form-id="${h(form.id)}"><i class="ti ti-dots"></i>Manage</button>
-    </div>
   `;
 }
 
@@ -1515,13 +1501,11 @@ function renderFormsBuilder(companyId, form) {
       ${mode === 'questions' ? `
         ${renderFormIdentityPanel(companyId, form)}
         ${renderQuestionWorkbench(form)}
-        ${renderFormsPreviewPanel(companyId, form)}
       ` : ''}
       ${mode === 'settings' ? `
         <article class="panel form-settings-panel forms-settings-wide">
           ${renderFormSettingsEditor(companyId, form)}
         </article>
-        ${renderFormsPreviewPanel(companyId, form)}
       ` : ''}
       ${mode === 'responses' ? renderFormResponseEditor(companyId, form) : ''}
     </section>
@@ -1542,6 +1526,8 @@ function renderFormEditorTabs(form, mode) {
           ${h(titleCase(tab))}
         </button>
       `).join('')}
+      <button class="btn" type="button" data-action="open-form-preview" data-form-id="${h(form.id)}"><i class="ti ti-eye"></i>Preview</button>
+      <button class="btn" type="button" data-action="open-form-actions" data-form-id="${h(form.id)}"><i class="ti ti-share"></i>Share</button>
       <button class="btn btn-primary" type="button" data-action="save-form" data-form-id="${h(form.id)}">Save</button>
     </div>
   `;
@@ -1549,51 +1535,38 @@ function renderFormEditorTabs(form, mode) {
 
 function renderFormIdentityPanel(companyId, form) {
   return `
-    <aside class="panel form-settings-panel form-identity-panel">
-      <div class="section-head"><div><h2>Form setup</h2><p>${h(form.status)} / ${h(form.type)}</p></div></div>
-      ${formInput('Title', 'title', form.title, true)}
-      ${formTextarea('Description', 'description', form.description)}
-      ${formSelect('Type', 'type', form.type, FORM_TYPES.map((type) => [type, type]))}
-      ${formSelect('Linked job', 'linked_job_id', form.linked_job_id || '', [['', 'Company level']].concat(companyJobs(companyId).map((job) => [job.id, job.name])))}
+    <article class="panel form-identity-panel gform-title-card">
+      <div class="gform-accent-strip" style="--form-accent:${h(form.theme_color || companyColor(companyId))}"></div>
+      ${formInput('Form title', 'title', form.title, true)}
+      ${formTextarea('Form description', 'description', form.description)}
       <div class="forms-simple-meta">
+        <span>${h(form.status)}</span>
+        <span>${h(form.type)}</span>
         <span>${h(form.audience || 'Internal')}</span>
+        <span>${h(jobById(form.linked_job_id)?.name || 'Company level')}</span>
         <span>${h(companyName(companyId))}</span>
       </div>
       <div class="form-actions">
-        <button class="btn" type="button" data-action="set-form-editor-tab" data-tab="settings">More settings</button>
+        <button class="btn" type="button" data-action="set-form-editor-tab" data-tab="settings">Settings</button>
+        <button class="btn" type="button" data-action="open-form-preview" data-form-id="${h(form.id)}">Preview</button>
         <button class="btn" type="button" data-action="publish-form" data-form-id="${h(form.id)}">Publish</button>
       </div>
-    </aside>
+    </article>
   `;
 }
 
 function renderQuestionWorkbench(form) {
   return `
-    <article class="panel question-workbench">
-      <div class="section-head">
-        <div><h2>Questions</h2><p>${formQuestionCount(form)} question${formQuestionCount(form) === 1 ? '' : 's'}</p></div>
-        <div class="question-add-menu compact">
-          ${QUESTION_TYPES.slice(0, 5).map(([type, label]) => `<button class="btn" type="button" data-action="add-question" data-question-type="${h(type)}">${h(label)}</button>`).join('')}
-        </div>
-      </div>
+    <article class="question-workbench">
       <div class="question-canvas">
         <div class="gform-floating-toolbar" aria-label="Builder tools">
-          ${QUESTION_TYPES.map(([type, label]) => `<button type="button" data-action="add-question" data-question-type="${h(type)}" title="${h(label)}">${h(questionTypeGlyph(type))}</button>`).join('')}
+          ${QUESTION_TYPES.map(([type, label]) => `<button type="button" data-action="add-question" data-question-type="${h(type)}" title="${h(label)}" aria-label="Add ${h(label)} question"><i class="ti ${h(questionTypeIcon(type))}"></i></button>`).join('')}
         </div>
         <div class="question-list">
           ${form.questions.map((question, index) => renderQuestionCard(question, index)).join('') || emptyState('Add the first question.')}
         </div>
       </div>
     </article>
-  `;
-}
-
-function renderFormsPreviewPanel(companyId, form) {
-  return `
-    <aside class="panel forms-preview-panel">
-      <div class="section-head"><div><h2>Preview</h2><p>Submits into the local company response queue.</p></div></div>
-      ${renderFormPreview(companyId, form)}
-    </aside>
   `;
 }
 
@@ -1857,6 +1830,8 @@ function renderActiveModal(route, session) {
   if (state.modal === 'file-detail') return renderFileDetailModal(activeCompanyId());
   if (state.modal === 'forms-tools') return renderFormsToolsModal(activeCompanyId());
   if (state.modal === 'form-actions') return renderFormActionsModal(activeCompanyId(), selectedForm(activeCompanyId()));
+  if (state.modal === 'form-new') return renderNewFormModal(activeCompanyId());
+  if (state.modal === 'form-preview') return renderFormPreviewModal(activeCompanyId(), selectedForm(activeCompanyId()));
   if (state.modal === 'job-new') return renderJobFormModal(activeCompanyId(), null);
   if (state.modal === 'job-edit') return renderJobFormModal(activeCompanyId(), selectedJob());
 
@@ -1937,6 +1912,50 @@ function renderFormsToolsModal(companyId) {
       <button class="btn btn-primary" type="button" data-action="new-form"><i class="ti ti-plus"></i>New form</button>
     </div>
   `);
+}
+
+function renderNewFormModal(companyId) {
+  const template = state.formStartTemplateId ? formTemplates().find((item) => item.id === state.formStartTemplateId) : null;
+  const title = template?.title || '';
+  const description = template?.description || '';
+  const type = template?.type || 'Internal';
+  return renderModalShell('Forms', template ? `Create from ${template.title}` : 'Create form', `
+    <form class="new-form-modal" data-new-form-form>
+      <input type="hidden" name="template_id" value="${h(template?.id || '')}" />
+      <div class="new-form-start">
+        <span><i class="ti ${template ? 'ti-template' : 'ti-clipboard-plus'}"></i></span>
+        <div>
+          <strong>${template ? h(template.title) : 'Blank form'}</strong>
+          <small>${template ? h(`${template.type} / ${template.questions.length} starter questions`) : 'Start with one short-answer question.'}</small>
+        </div>
+      </div>
+      <label><span>Title</span><input name="title" value="${h(title)}" placeholder="Untitled form" required /></label>
+      <label><span>Description</span><textarea name="description" rows="3" placeholder="What should people know before filling this out?">${h(description)}</textarea></label>
+      <div class="new-form-grid">
+        <label><span>Type</span><select name="type">${FORM_TYPES.map((item) => `<option value="${h(item)}" ${item === type ? 'selected' : ''}>${h(item)}</option>`).join('')}</select></label>
+        <label><span>Audience</span><input name="audience" value="Internal" /></label>
+        <label><span>Linked job</span><select name="linked_job_id"><option value="">Company level</option>${companyJobs(companyId).map((job) => `<option value="${h(job.id)}" ${state.route?.jobId === job.id ? 'selected' : ''}>${h(job.name)}</option>`).join('')}</select></label>
+        <label><span>Submit button</span><input name="submit_label" value="Submit" /></label>
+      </div>
+      <div class="new-form-checks">
+        <label class="check-row"><input type="checkbox" name="collect_email" checked /> Collect email</label>
+        <label class="check-row"><input type="checkbox" name="require_approval" /> Require approval</label>
+      </div>
+      <div class="form-actions">
+        <button class="btn btn-primary" type="submit">Create and open builder</button>
+        <button class="btn" type="button" data-action="close-modal">Cancel</button>
+      </div>
+    </form>
+  `, 'wide-modal form-create-modal');
+}
+
+function renderFormPreviewModal(companyId, form) {
+  if (!form) return renderModalShell('Forms', 'Preview form', emptyState('Choose a form first.'));
+  return renderModalShell('Forms', 'Preview form', `
+    <div class="form-preview-modal-body">
+      ${renderFormPreview(companyId, form)}
+    </div>
+  `, 'form-preview-modal');
 }
 
 function renderFormActionsModal(companyId, form) {
@@ -2035,6 +2054,13 @@ function handleAction(event, node) {
     render();
     return;
   }
+  if (action === 'open-form-preview') {
+    event.preventDefault();
+    selectForm(node.dataset.formId, false);
+    state.modal = 'form-preview';
+    render();
+    return;
+  }
   if (action === 'close-modal') {
     event.preventDefault();
     closeActiveModal();
@@ -2093,7 +2119,9 @@ function handleAction(event, node) {
   }
   if (action === 'new-form') {
     event.preventDefault();
-    createForm(activeCompanyId());
+    state.formStartTemplateId = node.dataset.templateId || '';
+    state.modal = 'form-new';
+    render();
     return;
   }
   if (action === 'select-form') {
@@ -2148,7 +2176,9 @@ function handleAction(event, node) {
   }
   if (action === 'use-form-template') {
     event.preventDefault();
-    useFormTemplate(activeCompanyId(), node.dataset.templateId);
+    state.formStartTemplateId = node.dataset.templateId || '';
+    state.modal = 'form-new';
+    render();
     return;
   }
   if (action === 'add-question') {
@@ -2195,6 +2225,7 @@ function handleAction(event, node) {
 function closeActiveModal() {
   const route = state.route || getRoute();
   state.modal = '';
+  state.formStartTemplateId = '';
   if (route.name === 'company' && route.section === 'tasks' && (route.params.get('new') || route.params.get('edit') || route.params.get('task_id'))) {
     navigate(companyPath('tasks', route.jobId ? { job_id: route.jobId } : {}, route.companyId), { replace: true });
     return;
@@ -2250,6 +2281,12 @@ function onDocumentSubmit(event) {
   if (event.target.matches('[data-task-form]')) {
     event.preventDefault();
     saveTask(event.target);
+    return;
+  }
+
+  if (event.target.matches('[data-new-form-form]')) {
+    event.preventDefault();
+    createFormFromModal(event.target);
     return;
   }
 
@@ -3415,18 +3452,18 @@ function questionHasOptions(question) {
   return ['multiple', 'checkbox', 'dropdown'].includes(question.type);
 }
 
-function questionTypeGlyph(type) {
+function questionTypeIcon(type) {
   return {
-    short: 'T',
-    paragraph: 'P',
-    multiple: 'MC',
-    checkbox: 'CB',
-    dropdown: 'V',
-    date: 'D',
-    rating: '*',
-    yesno: 'Y',
-    file: '+',
-  }[type] || '+';
+    short: 'ti-letter-t',
+    paragraph: 'ti-align-left',
+    multiple: 'ti-circle-dot',
+    checkbox: 'ti-checkbox',
+    dropdown: 'ti-select',
+    date: 'ti-calendar',
+    rating: 'ti-star',
+    yesno: 'ti-circle-check',
+    file: 'ti-paperclip',
+  }[type] || 'ti-plus';
 }
 
 function previewWrap(question, control) {
@@ -3535,16 +3572,50 @@ function blankQuestion(type = 'short', label = 'Untitled question', options = []
   });
 }
 
-function createForm(companyId) {
-  const form = blankForm(companyId);
+function createForm(companyId, overrides = {}) {
+  const base = blankForm(companyId);
+  const form = normalizeForm({
+    ...base,
+    ...overrides,
+    id: overrides.id || `form-${crypto.randomUUID()}`,
+    company_id: companyId,
+    questions: (overrides.questions || base.questions).map((question) => normalizeQuestion(question)),
+    created_at: overrides.created_at || new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  });
   state.forms.unshift(form);
   state.selectedFormId = form.id;
   state.selectedQuestionId = form.questions[0]?.id || '';
   state.formsTab = 'builder';
   state.formEditorTab = 'questions';
   state.modal = '';
+  state.formStartTemplateId = '';
   saveFormsState('New form created');
   render();
+  return form;
+}
+
+function createFormFromModal(formEl) {
+  const data = Object.fromEntries(new FormData(formEl).entries());
+  const template = data.template_id ? formTemplates().find((item) => item.id === data.template_id) : null;
+  const title = String(data.title || template?.title || 'Untitled form').trim() || 'Untitled form';
+  const description = String(data.description || template?.description || '').trim();
+  const questions = template
+    ? template.questions.map((question) => ({ ...clone(question), id: `q-${crypto.randomUUID()}` }))
+    : [blankQuestion('short', 'First question')];
+  createForm(activeCompanyId(), {
+    title,
+    description,
+    type: FORM_TYPES.includes(data.type) ? data.type : template?.type || 'Internal',
+    audience: String(data.audience || 'Internal').trim() || 'Internal',
+    linked_job_id: String(data.linked_job_id || ''),
+    theme_color: companyColor(activeCompanyId()),
+    background: 'clean',
+    submit_label: String(data.submit_label || 'Submit').trim() || 'Submit',
+    collect_email: data.collect_email === 'on',
+    require_approval: data.require_approval === 'on',
+    questions,
+  });
 }
 
 function selectForm(id, shouldRender = true) {
@@ -3618,33 +3689,6 @@ async function copyFormLink(id) {
 function exportForms(companyId) {
   const payload = JSON.stringify({ company_id: companyId, forms: companyForms(companyId), responses: companyFormResponses(companyId) }, null, 2);
   downloadText(`${companyId}-forms-export.json`, payload, 'application/json');
-}
-
-function useFormTemplate(companyId, templateId) {
-  const template = formTemplates().find((item) => item.id === templateId);
-  if (!template) return;
-  const form = normalizeForm({
-    ...template,
-    id: `form-${crypto.randomUUID()}`,
-    company_id: companyId,
-    status: 'Draft',
-    audience: 'Internal',
-    linked_job_id: state.route?.jobId || '',
-    theme_color: companyColor(companyId),
-    background: 'clean',
-    submit_label: 'Submit',
-    questions: template.questions.map((question) => ({ ...clone(question), id: `q-${crypto.randomUUID()}` })),
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
-  });
-  state.forms.unshift(form);
-  state.selectedFormId = form.id;
-  state.selectedQuestionId = form.questions[0]?.id || '';
-  state.formsTab = 'builder';
-  state.formEditorTab = 'questions';
-  state.modal = '';
-  saveFormsState('Template added');
-  render();
 }
 
 function updateFormField(target) {
@@ -3767,6 +3811,7 @@ function saveFormResponse(formEl) {
     created_at: new Date().toISOString(),
   }));
   state.formsTab = 'responses';
+  state.modal = '';
   saveFormsState('Preview response saved');
   render();
 }
