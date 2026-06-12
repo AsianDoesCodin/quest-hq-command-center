@@ -1393,7 +1393,7 @@ textarea:focus {
 
 .drive-topbar {
   display: grid;
-  grid-template-columns: minmax(220px, 1fr) minmax(240px, 420px) auto;
+  grid-template-columns: minmax(220px, .85fr) minmax(240px, 1fr) auto;
   gap: 14px;
   align-items: center;
   border-bottom: 1px solid var(--border);
@@ -1430,6 +1430,13 @@ textarea:focus {
   background: transparent;
   color: var(--ink);
   font-weight: 700;
+}
+
+.drive-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
 }
 
 .drive-shell {
@@ -1535,7 +1542,9 @@ textarea:focus {
 }
 
 .file-toolbar label,
+.forms-command label,
 .forms-mini-search label,
+.analytics-toolbar label,
 .form-settings-panel label,
 .question-card label,
 .response-form label {
@@ -1549,8 +1558,11 @@ textarea:focus {
 
 .file-toolbar input,
 .file-toolbar select,
+.forms-command input,
+.forms-command select,
 .forms-mini-search input,
 .forms-mini-search select,
+.analytics-toolbar select,
 .form-settings-panel input,
 .form-settings-panel select,
 .form-settings-panel textarea,
@@ -1848,7 +1860,7 @@ textarea:focus {
 
 .forms-command.panel {
   display: flex;
-  align-items: center;
+  align-items: end;
   justify-content: flex-end;
   gap: 10px;
   min-height: 0;
@@ -1857,6 +1869,11 @@ textarea:focus {
 
 .forms-command .sync-pill {
   margin-right: auto;
+  align-self: center;
+}
+
+.forms-command label {
+  min-width: 210px;
 }
 
 .forms-mini-search {
@@ -2259,6 +2276,116 @@ textarea:focus {
   color: var(--muted);
 }
 
+.analytics-workspace {
+  display: grid;
+  gap: 14px;
+}
+
+.analytics-toolbar {
+  display: grid;
+  grid-template-columns: minmax(200px, 1fr) minmax(220px, 360px) auto;
+  align-items: end;
+  gap: 12px;
+  padding: 12px 14px;
+}
+
+.analytics-toolbar > div {
+  display: grid;
+  gap: 3px;
+}
+
+.analytics-toolbar strong {
+  font-size: 18px;
+}
+
+.analytics-toolbar span {
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.analytics-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.analytics-main {
+  grid-column: span 3;
+}
+
+.analytics-side {
+  grid-column: span 1;
+}
+
+.analytics-score {
+  display: grid;
+  gap: 7px;
+  min-height: 118px;
+}
+
+.analytics-score > span {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 950;
+  text-transform: uppercase;
+}
+
+.analytics-score strong {
+  font-size: 29px;
+  line-height: 1;
+}
+
+.analytics-score small {
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 850;
+}
+
+.analytics-table {
+  display: grid;
+  gap: 8px;
+}
+
+.analytics-row {
+  display: grid;
+  grid-template-columns: minmax(220px, 1.4fr) 110px 70px 70px 100px;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: #fbf7ee;
+  padding: 11px 12px;
+}
+
+.analytics-row.head {
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  padding-top: 0;
+  padding-bottom: 0;
+  font-size: 11px;
+  font-weight: 950;
+  text-transform: uppercase;
+}
+
+.analytics-row:not(.head):hover {
+  border-color: var(--amber);
+  background: #fff8e7;
+}
+
+.analytics-row strong,
+.analytics-row small {
+  display: block;
+  min-width: 0;
+}
+
+.analytics-row small {
+  color: var(--muted);
+  margin-top: 3px;
+}
+
 @media (max-width: 1280px) {
   .job-board { grid-template-columns: repeat(3, minmax(180px, 1fr)); }
   .task-board { grid-template-columns: repeat(3, minmax(180px, 1fr)); }
@@ -2437,6 +2564,7 @@ textarea:focus {
   .drive-topbar,
   .drive-shell,
   .file-toolbar,
+  .analytics-toolbar,
   .forms-library-grid,
   .forms-builder-grid,
   .forms-response-grid {
@@ -2449,6 +2577,7 @@ textarea:focus {
 
   .file-metrics,
   .forms-dashboard,
+  .analytics-grid,
   .summary-pill-grid,
   .drive-folder-grid,
   .file-grid-live,
@@ -2472,6 +2601,7 @@ textarea:focus {
 
 @media (max-width: 720px) {
   .forms-command.panel,
+  .analytics-row,
   .forms-mini-search,
   .forms-summary-head,
   .forms-summary-share,
@@ -2485,12 +2615,22 @@ textarea:focus {
     display: grid;
   }
 
+  .analytics-main,
+  .analytics-side {
+    grid-column: auto;
+  }
+
   .forms-command .sync-pill {
     margin-right: 0;
   }
 
+  .forms-command label {
+    min-width: 0;
+  }
+
   .file-metrics,
   .forms-dashboard,
+  .analytics-grid,
   .summary-pill-grid,
   .drive-folder-grid,
   .file-grid-live,

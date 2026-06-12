@@ -595,7 +595,7 @@ function renderDeck(route) {
       navItem(route, companyPath('tasks', {}, companyId), 'ti-list-check', 'Tasks', tasks.length),
       navItem(route, companyPath('files', {}, companyId), 'ti-folder', 'Files', files.length),
       navItem(route, companyPath('forms', {}, companyId), 'ti-clipboard-list', 'Forms', forms.length),
-      navItem(route, companyPath('analytics', {}, companyId), 'ti-chart-bar', 'Dashboard'),
+      navItem(route, companyPath('analytics', {}, companyId), 'ti-chart-bar', 'Analytics'),
     ])}
     ${navGroup('Company', [
       navItem(route, companyPath('users', {}, companyId), 'ti-users', 'Users', users.length),
@@ -638,7 +638,7 @@ function renderWorkspace(route) {
   if (route.section === 'users') return renderUsersPage(companyId);
   if (route.section === 'settings') return renderSettingsPage(companyId);
   if (route.section === 'forms') return renderFormsPage(companyId);
-  if (route.section === 'analytics') return renderCompanyDashboard(companyId);
+  if (route.section === 'analytics') return renderAnalyticsPage(route, companyId);
   if (route.section === 'time' || route.section === 'approvals') return renderOperationsPage(route.section, companyId);
   return renderPlannedPage(route.section);
 }
@@ -684,6 +684,92 @@ function renderCompanyDashboard(companyId) {
           ${jobs.slice(0, 8).map((job) => jobQueueRow(job)).join('') || emptyState('No jobs in this company yet.')}
         </div>
       </article>
+    </section>
+  `;
+}
+
+function renderAnalyticsPage(route, companyId) {
+  const scopedJob = route.jobId ? jobById(route.jobId) : null;
+  const jobs = scopedJob ? [scopedJob] : companyJobs(companyId);
+  const tasks = companyTasks(companyId).filter((task) => !scopedJob || task.project_id === scopedJob.id);
+  const files = companyFiles(companyId).filter((file) => !scopedJob || file.job_id === scopedJob.id);
+  const forms = companyForms(companyId).filter((form) => !scopedJob || form.linked_job_id === scopedJob.id);
+  const openTasks = tasks.filter((task) => task.status !== 'done');
+  const lateTasks = tasks.filter((task) => task.status !== 'done' && task.due && new Date(task.due) < startOfToday());
+  const activeValue = sum(jobs, 'estimate_total');
+  return `
+    <section class="analytics-workspace">
+      <section class="analytics-toolbar panel">
+        <div>
+          <strong>Analytics</strong>
+          <span>${h(scopedJob ? scopedJob.name : companyName(companyId))}</span>
+        </div>
+        <label>
+          <span>Job</span>
+          <select data-analytics-job-filter>
+            <option value="">All jobs</option>
+            ${companyJobs(companyId).map((job) => `<option value="${h(job.id)}" ${scopedJob?.id === job.id ? 'selected' : ''}>${h(job.name)}</option>`).join('')}
+          </select>
+        </label>
+        <a class="btn" href="${appHref(companyPath('jobs', scopedJob ? { tab: 'profile', job_id: scopedJob.id } : {}, companyId))}" data-router><i class="ti ti-briefcase"></i>Jobs</a>
+      </section>
+      <section class="analytics-grid">
+        <article class="panel analytics-score">
+          <span>Open work</span>
+          <strong>${h(openTasks.length)}</strong>
+          <small>${h(lateTasks.length)} overdue / ${h(tasks.filter((task) => task.priority === 'urgent' || task.priority === 'critical').length)} urgent</small>
+        </article>
+        <article class="panel analytics-score">
+          <span>Pipeline value</span>
+          <strong>${h(money(activeValue))}</strong>
+          <small>${h(jobs.length)} visible job${jobs.length === 1 ? '' : 's'}</small>
+        </article>
+        <article class="panel analytics-score">
+          <span>Drive and forms</span>
+          <strong>${h(files.length + forms.length)}</strong>
+          <small>${h(files.length)} files / ${h(forms.length)} forms</small>
+        </article>
+        <article class="panel analytics-score">
+          <span>Completion</span>
+          <strong>${h(percent(tasks.filter((task) => task.status === 'done').length, tasks.length))}</strong>
+          <small>${h(tasks.filter((task) => task.status === 'done').length)} done of ${h(tasks.length)}</small>
+        </article>
+        <article class="panel analytics-main">
+          <div class="section-head"><div><h2>Job health</h2><p>Company-scoped operational summary.</p></div></div>
+          <div class="analytics-table">
+            <div class="analytics-row head"><span>Job</span><span>Stage</span><span>Tasks</span><span>Files</span><span>Value</span></div>
+            ${jobs.map((job) => `
+              <a class="analytics-row" href="${appHref(companyPath('analytics', { job_id: job.id }, companyId))}" data-router>
+                <span><strong>${h(job.name)}</strong><small>${h(job.client_name || companyName(companyId))}</small></span>
+                <span>${h(job.stage)}</span>
+                <span>${h(taskCountForJob(job.id))}</span>
+                <span>${h(fileCountForJob(job.id))}</span>
+                <span>${h(money(job.estimate_total))}</span>
+              </a>
+            `).join('') || emptyState('No jobs to analyze yet.')}
+          </div>
+        </article>
+        <article class="panel analytics-side">
+          <div class="section-head"><div><h2>Task status</h2><p>Breakdown for this scope.</p></div></div>
+          <div class="stage-bars">
+            ${TASK_STATUSES.map((status) => {
+              const count = tasks.filter((task) => task.status === status).length;
+              return `<div><span>${h(statusLabel(status))}</span><b><i style="width:${h(percentNumber(count, tasks.length))}%"></i></b><strong>${h(count)}</strong></div>`;
+            }).join('')}
+          </div>
+        </article>
+        <article class="panel span-3">
+          <div class="section-head"><div><h2>Priority queue</h2><p>Highest risk tasks first.</p></div></div>
+          <div class="queue-list">
+            ${tasks
+              .filter((task) => task.status !== 'done')
+              .sort((a, b) => priorityRank(b.priority) - priorityRank(a.priority))
+              .slice(0, 8)
+              .map((task) => taskQueueRow(task))
+              .join('') || emptyState('No open tasks in this scope.')}
+          </div>
+        </article>
+      </section>
     </section>
   `;
 }
@@ -985,33 +1071,21 @@ function renderFilesPage(route, companyId) {
   const metrics = driveMetrics(companyId);
   return `
     <section class="tool-page drive-page">
-      <div class="tool-strip">
-        <div>
-          <div class="context-line"><span>${h(companyName(companyId))}</span><b>${h(job ? job.name : driveViewLabel())}</b></div>
-          <h1>Company Drive</h1>
-        </div>
-        <div class="head-actions">
-          <button class="btn" type="button" data-action="open-file-upload"><i class="ti ti-upload"></i>Upload</button>
-          <a class="btn btn-primary" href="${appHref(companyPath('jobs', {}, companyId))}" data-router><i class="ti ti-briefcase"></i>Jobs</a>
-        </div>
-      </div>
-      <section class="file-metrics">
-        ${metricCard('Files', metrics.count, 'Company records')}
-        ${metricCard('Used', formatBytes(metrics.bytes), 'Tracked storage')}
-        ${metricCard('Job folders', companyJobs(companyId).length, 'Workspace folders')}
-        ${metricCard('Visible', files.length, job ? 'Job scoped' : driveViewLabel())}
-      </section>
       <section class="drive-app panel">
         <header class="drive-topbar">
           <div>
-            <h2>${h(job ? job.name : 'Drive browser')}</h2>
+            <h2>${h(job ? job.name : 'Company Drive')}</h2>
             <p>${h(job ? `${job.client_name || companyName(companyId)} file workspace` : 'Company folders, shared files, job packets, photos, and forms.')}</p>
           </div>
           <label class="drive-search">
             <i class="ti ti-search"></i>
             <input data-file-search value="${h(state.fileQuery)}" placeholder="Search drive" />
           </label>
-          <button class="btn" type="button" data-action="refresh-data"><i class="ti ti-refresh"></i>Refresh</button>
+          <div class="drive-actions">
+            <button class="btn" type="button" data-action="open-file-upload"><i class="ti ti-upload"></i>Upload</button>
+            <a class="btn btn-primary" href="${appHref(companyPath('jobs', {}, companyId))}" data-router><i class="ti ti-briefcase"></i>Jobs</a>
+            <button class="btn" type="button" data-action="refresh-data"><i class="ti ti-refresh"></i>Refresh</button>
+          </div>
         </header>
         <div class="drive-shell">
           <aside class="drive-rail">
@@ -1260,40 +1334,24 @@ function renderSettingsPage(companyId) {
 function renderFormsPage(companyId) {
   const forms = filteredForms(companyId);
   const current = selectedForm(companyId);
-  const responses = companyFormResponses(companyId);
-  const job = state.route?.jobId ? jobById(state.route.jobId) : null;
   return `
     <section class="tool-page forms-center">
       <div class="forms-command panel">
         <span class="sync-pill live"><i class="ti ti-device-floppy"></i>Local autosafe</span>
+        <label>
+          <span>Search</span>
+          <input data-form-search value="${h(state.formQuery)}" placeholder="Find form, audience, or job" />
+        </label>
+        <label>
+          <span>Type</span>
+          <select data-form-type-filter>
+            <option value="all" ${state.formTypeFilter === 'all' ? 'selected' : ''}>All types</option>
+            ${FORM_TYPES.map((type) => `<option value="${h(type)}" ${state.formTypeFilter === type ? 'selected' : ''}>${h(type)}</option>`).join('')}
+          </select>
+        </label>
         <button class="btn" type="button" data-action="export-forms"><i class="ti ti-download"></i>Export JSON</button>
         <button class="btn btn-primary" type="button" data-action="new-form"><i class="ti ti-plus"></i>New form</button>
       </div>
-      <div class="tool-strip">
-        <div>
-          <div class="context-line"><span>${h(companyName(companyId))}</span><b>${h(job ? job.name : `${forms.length} visible forms`)}</b></div>
-          <h1>Forms</h1>
-        </div>
-        <div class="forms-mini-search">
-          <label>
-            <span>Search</span>
-            <input data-form-search value="${h(state.formQuery)}" placeholder="Find form, audience, or job" />
-          </label>
-          <label>
-            <span>Type</span>
-            <select data-form-type-filter>
-              <option value="all" ${state.formTypeFilter === 'all' ? 'selected' : ''}>All types</option>
-              ${FORM_TYPES.map((type) => `<option value="${h(type)}" ${state.formTypeFilter === type ? 'selected' : ''}>${h(type)}</option>`).join('')}
-            </select>
-          </label>
-        </div>
-      </div>
-      <section class="forms-dashboard">
-        ${metricCard('Forms', companyForms(companyId).length, 'Company library')}
-        ${metricCard('Published', companyForms(companyId).filter((form) => form.status === 'Published').length, 'Live forms')}
-        ${metricCard('Responses', responses.length, 'Local response queue')}
-        ${metricCard('Templates', formTemplates().length, 'Reusable starts')}
-      </section>
       <nav class="tabbar forms-tabs" aria-label="Forms workspace">
         ${['library', 'builder', 'responses', 'templates'].map((tab) => `
           <button class="${state.formsTab === tab ? 'active' : ''}" type="button" data-action="set-forms-tab" data-tab="${h(tab)}">${h(titleCase(tab))}</button>
@@ -1927,6 +1985,11 @@ function onDocumentChange(event) {
   if (event.target.matches('[data-task-job-filter]')) {
     const jobId = event.target.value;
     navigate(companyPath('tasks', jobId ? { job_id: jobId } : {}, activeCompanyId()));
+    return;
+  }
+  if (event.target.matches('[data-analytics-job-filter]')) {
+    const jobId = event.target.value;
+    navigate(companyPath('analytics', jobId ? { job_id: jobId } : {}, activeCompanyId()));
     return;
   }
   if (event.target.matches('[data-file-category-filter]')) {
@@ -3434,6 +3497,32 @@ function formatBytes(value) {
   const units = ['B', 'KB', 'MB', 'GB'];
   const index = Math.min(Math.floor(Math.log(bytes) / Math.log(1024)), units.length - 1);
   return `${(bytes / 1024 ** index).toFixed(index ? 1 : 0)} ${units[index]}`;
+}
+
+function startOfToday() {
+  const date = new Date();
+  date.setHours(0, 0, 0, 0);
+  return date;
+}
+
+function percent(value, total) {
+  return `${percentNumber(value, total)}%`;
+}
+
+function percentNumber(value, total) {
+  const denominator = number(total);
+  if (!denominator) return 0;
+  return Math.max(0, Math.min(100, Math.round((number(value) / denominator) * 100)));
+}
+
+function priorityRank(priority) {
+  return {
+    critical: 5,
+    urgent: 4,
+    high: 3,
+    medium: 2,
+    low: 1,
+  }[String(priority || '').toLowerCase()] || 0;
 }
 
 function slugify(value) {
