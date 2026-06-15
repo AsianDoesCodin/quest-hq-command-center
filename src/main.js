@@ -596,7 +596,7 @@ const state = {
   financeVendors: readSeededList(FINANCE_VENDOR_CACHE_KEY, financeVendorsFallback).map(normalizeFinanceVendor),
   teamMembers: readSeededList(TEAM_CACHE_KEY, teamMembersFallback).map(normalizeTeamMember),
   memberships: readSeededList(MEMBERSHIP_CACHE_KEY, membershipsFallback),
-  companies: companiesFallback,
+  companies: mergeCompanies(companiesFallback.map(normalizeCompany)),
   activeCompanyId: localStorage.getItem(COMPANY_KEY) || '',
   selectedJobId: '',
   selectedTaskId: '',
@@ -711,7 +711,9 @@ async function loadSupabaseData() {
 
   let liveTables = 0;
   if (!companiesResult.error) {
-    state.companies = companiesResult.data?.length ? companiesResult.data.map(normalizeCompany) : companiesFallback;
+    state.companies = companiesResult.data?.length
+      ? mergeCompanies(companiesFallback.concat(companiesResult.data).map(normalizeCompany))
+      : mergeCompanies(companiesFallback.map(normalizeCompany));
     liveTables += 1;
   }
   if (!jobsResult.error) {
@@ -3685,7 +3687,7 @@ function companyPath(section = 'jobs', params = {}, companyId = activeCompanyId(
   for (const [key, value] of [...search.entries()]) {
     if (value === undefined || value === null || value === '') search.delete(key);
   }
-  return `/company/${encodeURIComponent(companyId || defaultCompanyId())}/${section}${search.toString() ? `?${search.toString()}` : ''}`;
+  return `/company/${encodeURIComponent(canonicalCompanyId(companyId || defaultCompanyId()))}/${section}${search.toString() ? `?${search.toString()}` : ''}`;
 }
 
 function routeTitle(route) {
@@ -3735,7 +3737,8 @@ function reconcileSelection(route) {
 
 function setActiveCompany(companyId) {
   const allowed = allowedCompanyIds();
-  const next = allowed.includes(companyId) ? companyId : allowed[0] || defaultCompanyId();
+  const target = canonicalCompanyId(companyId);
+  const next = allowed.includes(target) ? target : allowed[0] || defaultCompanyId();
   state.activeCompanyId = next;
   localStorage.setItem(COMPANY_KEY, next);
   const route = state.route || getRoute();
@@ -3983,12 +3986,12 @@ function allowedCompanies() {
 function allowedCompanyIds() {
   const profile = activeSession().profile;
   const allIds = state.companies.map((company) => company.id);
-  if (['developer', 'admin'].includes(profile.role)) return allIds.length ? allIds : companiesFallback.map((company) => company.id);
+  if (['developer', 'admin'].includes(profile.role)) return compactUnique(allIds.length ? allIds : companiesFallback.map((company) => canonicalCompanyId(company.id)));
   const membershipIds = state.memberships
     .filter((item) => item.profile_id === profile.id && item.status !== 'disabled')
-    .map((item) => item.company_id);
+    .map((item) => canonicalCompanyId(item.company_id));
   const ids = membershipIds.length ? membershipIds : profile.company_ids || [];
-  return ids.filter((id) => allIds.includes(id));
+  return compactUnique(ids.map(canonicalCompanyId)).filter((id) => allIds.includes(id));
 }
 
 function activeCompanyId() {
@@ -3998,11 +4001,12 @@ function activeCompanyId() {
 }
 
 function defaultCompanyId() {
-  return companiesFallback[0].id;
+  return canonicalCompanyId(companiesFallback[0].id);
 }
 
 function companyById(id) {
-  return state.companies.find((item) => item.id === id) || companiesFallback.find((item) => item.id === id) || null;
+  const canonical = canonicalCompanyId(id);
+  return state.companies.find((item) => item.id === canonical) || companiesFallback.map(normalizeCompany).find((item) => item.id === canonical) || null;
 }
 
 function companyName(id) {
@@ -4019,7 +4023,7 @@ function companyColor(id) {
 }
 
 function companyIdForJob(jobId) {
-  return state.jobs.find((job) => job.id === jobId)?.company_id || '';
+  return canonicalCompanyId(state.jobs.find((job) => job.id === jobId)?.company_id || '');
 }
 
 function roleForCompany(companyId) {
@@ -4046,9 +4050,26 @@ function fileCountForJob(jobId) {
   return state.files.filter((file) => file.job_id === jobId).length;
 }
 
-function normalizeCompany(input) {
+function canonicalCompanyId(id) {
   return {
-    id: String(input.id || '').trim(),
+    'quest-roofing': 'roofing',
+    'quest-drafting': 'drafting',
+  }[String(id || '').trim()] || String(id || '').trim();
+}
+
+function mergeCompanies(companies) {
+  const seen = new Map();
+  companies.map(normalizeCompany).forEach((company) => {
+    if (!company.id || seen.has(company.id)) return;
+    seen.set(company.id, company);
+  });
+  return Array.from(seen.values());
+}
+
+function normalizeCompany(input) {
+  const id = canonicalCompanyId(input.id || '');
+  return {
+    id,
     name: String(input.name || input.short_name || input.id || '').trim(),
     short_name: String(input.short_name || input.label || input.name || input.id || '').trim(),
     color: String(input.color || '#f0b23b'),
@@ -4059,7 +4080,7 @@ function normalizeCompany(input) {
 function normalizeJob(input) {
   return {
     id: String(input.id || ''),
-    company_id: String(input.company_id || defaultCompanyId()),
+    company_id: canonicalCompanyId(input.company_id || defaultCompanyId()),
     name: String(input.name || '').trim() || 'Untitled Job',
     client_name: String(input.client_name || '').trim(),
     contact_name: String(input.contact_name || '').trim(),
@@ -4089,7 +4110,7 @@ function normalizeTask(input) {
     type: TASK_TYPES.includes(input.type) ? input.type : 'admin',
     label: input.label || null,
     bid_status: input.bid_status || null,
-    company_id: String(input.company_id || defaultCompanyId()),
+    company_id: canonicalCompanyId(input.company_id || defaultCompanyId()),
     creator_id: String(input.creator_id || 'abraham'),
     assignee_id: String(input.assignee_id || input.creator_id || 'abraham'),
     project_id: String(input.project_id || ''),
@@ -4112,7 +4133,7 @@ function normalizeFile(input) {
   const category = String(input.category || input.folder || 'Shared');
   return {
     id: String(input.id || crypto.randomUUID()),
-    company_id: String(input.company_id || defaultCompanyId()),
+    company_id: canonicalCompanyId(input.company_id || defaultCompanyId()),
     job_id: String(input.job_id || ''),
     folder: String(input.folder || folderIdFromCategory(category)),
     file_name: String(input.file_name || input.name || 'Untitled file'),
@@ -4131,7 +4152,7 @@ function normalizeFile(input) {
 function normalizeDriveFolder(input) {
   return {
     id: String(input.id || `folder-${crypto.randomUUID()}`),
-    company_id: String(input.company_id || defaultCompanyId()),
+    company_id: canonicalCompanyId(input.company_id || defaultCompanyId()),
     name: String(input.name || 'New folder').trim() || 'New folder',
     parent_key: String(input.parent_key || 'home'),
     created_by_label: String(input.created_by_label || 'Quest HQ'),
@@ -4146,7 +4167,7 @@ function normalizeForm(input) {
   const status = FORM_STATUSES.includes(input.status) ? input.status : 'Draft';
   return {
     id: String(input.id || `form-${crypto.randomUUID()}`),
-    company_id: String(input.company_id || defaultCompanyId()),
+    company_id: canonicalCompanyId(input.company_id || defaultCompanyId()),
     title: String(input.title || 'Untitled form').trim() || 'Untitled form',
     description: String(input.description || '').trim(),
     type,
@@ -4182,7 +4203,7 @@ function normalizeQuestion(input) {
 function normalizeFormResponse(input) {
   return {
     id: String(input.id || `response-${crypto.randomUUID()}`),
-    company_id: String(input.company_id || defaultCompanyId()),
+    company_id: canonicalCompanyId(input.company_id || defaultCompanyId()),
     form_id: String(input.form_id || input.formId || ''),
     submitted_by: String(input.submitted_by || input.submitter_email || 'Anonymous'),
     submitter_email: String(input.submitter_email || ''),
@@ -4197,7 +4218,7 @@ function normalizeFinanceInvoice(input) {
   const total = number(input.total) || subtotal + tax;
   return {
     id: String(input.id || `invoice-${crypto.randomUUID()}`),
-    company_id: String(input.company_id || defaultCompanyId()),
+    company_id: canonicalCompanyId(input.company_id || defaultCompanyId()),
     job_id: String(input.job_id || ''),
     client_name: String(input.client_name || '').trim(),
     invoice_number: String(input.invoice_number || `INV-${Date.now()}`).trim(),
@@ -4216,7 +4237,7 @@ function normalizeFinanceInvoice(input) {
 function normalizeFinancePayment(input) {
   return {
     id: String(input.id || `payment-${crypto.randomUUID()}`),
-    company_id: String(input.company_id || defaultCompanyId()),
+    company_id: canonicalCompanyId(input.company_id || defaultCompanyId()),
     invoice_id: String(input.invoice_id || ''),
     amount: number(input.amount),
     method: PAYMENT_METHODS.includes(input.method) ? input.method : 'ACH',
@@ -4230,7 +4251,7 @@ function normalizeFinancePayment(input) {
 function normalizeFinanceExpense(input) {
   return {
     id: String(input.id || `expense-${crypto.randomUUID()}`),
-    company_id: String(input.company_id || defaultCompanyId()),
+    company_id: canonicalCompanyId(input.company_id || defaultCompanyId()),
     job_id: String(input.job_id || ''),
     vendor_id: String(input.vendor_id || ''),
     category: EXPENSE_CATEGORIES.includes(input.category) ? input.category : 'Other',
@@ -4246,7 +4267,7 @@ function normalizeFinanceExpense(input) {
 function normalizeFinanceVendor(input) {
   return {
     id: String(input.id || `vendor-${crypto.randomUUID()}`),
-    company_id: String(input.company_id || defaultCompanyId()),
+    company_id: canonicalCompanyId(input.company_id || defaultCompanyId()),
     name: String(input.name || 'New vendor').trim() || 'New vendor',
     contact_name: String(input.contact_name || '').trim(),
     email: String(input.email || '').trim(),
@@ -4268,13 +4289,13 @@ function normalizeTeamMember(input) {
     color: String(input.color || '#f0b23b'),
     avatar_url: String(input.avatar_url || ''),
     active: input.active !== false,
-    company_ids: Array.isArray(input.company_ids) ? input.company_ids : [],
+    company_ids: Array.isArray(input.company_ids) ? compactUnique(input.company_ids.map(canonicalCompanyId)) : [],
   };
 }
 
 function normalizeMembership(input) {
   return {
-    company_id: String(input.company_id || ''),
+    company_id: canonicalCompanyId(input.company_id || ''),
     profile_id: String(input.profile_id || input.member_id || ''),
     member_id: input.member_id ? String(input.member_id) : '',
     role: String(input.role || 'member'),
