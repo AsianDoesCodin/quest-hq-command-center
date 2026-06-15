@@ -2310,9 +2310,11 @@ function renderFinanceInvoiceFormModal(companyId, invoice = null) {
 
 function renderFinancePaymentFormModal(companyId, invoiceId = '') {
   const edit = blankFinancePayment(companyId, invoiceId);
+  const invoiceOptions = companyFinanceInvoices(companyId)
+    .map((invoice) => [invoice.id, `${invoice.invoice_number} - ${invoice.client_name || jobById(invoice.job_id)?.client_name || 'No client'}`]);
   return renderModalShell('Finance', 'Record payment', `
     <form class="finance-form" data-finance-payment-form>
-      ${selectField('Invoice', 'invoice_id', edit.invoice_id, companyFinanceInvoices(companyId).map((invoice) => [invoice.id, `${invoice.invoice_number} - ${invoice.client_name}`]))}
+      ${selectField('Invoice', 'invoice_id', edit.invoice_id, invoiceOptions.length ? invoiceOptions : [['', 'Create an invoice first']])}
       ${field('Amount', 'amount', edit.amount, true, 'number')}
       ${selectField('Method', 'method', edit.method, PAYMENT_METHODS.map((method) => [method, method]))}
       ${field('Received', 'received_at', edit.received_at, false, 'date')}
@@ -2328,10 +2330,11 @@ function renderFinancePaymentFormModal(companyId, invoiceId = '') {
 
 function renderFinanceExpenseFormModal(companyId, expense = null, vendorId = '') {
   const edit = expense || blankFinanceExpense(companyId, vendorId);
+  const vendorOptions = companyFinanceVendors(companyId).map((vendor) => [vendor.id, vendor.name]);
   return renderModalShell('Finance', expense ? 'Edit expense' : 'Add expense', `
     <form class="finance-form" data-finance-expense-form>
       <input type="hidden" name="id" value="${h(edit.id)}" />
-      ${selectField('Vendor', 'vendor_id', edit.vendor_id, companyFinanceVendors(companyId).map((vendor) => [vendor.id, vendor.name]))}
+      ${selectField('Vendor', 'vendor_id', edit.vendor_id, vendorOptions.length ? vendorOptions : [['', 'No vendor yet']])}
       ${selectField('Linked job', 'job_id', edit.job_id || '', [['', 'Company level']].concat(companyJobs(companyId).map((job) => [job.id, job.name])))}
       ${selectField('Category', 'category', edit.category, EXPENSE_CATEGORIES.map((category) => [category, category]))}
       ${selectField('Status', 'status', edit.status, EXPENSE_STATUSES.map((status) => [status, status]))}
@@ -2993,7 +2996,6 @@ function handleAction(event, node) {
 
 function closeActiveModal() {
   const route = state.route || getRoute();
-  const closingStateModal = state.modal;
   state.modal = '';
   state.formStartTemplateId = '';
   state.formStartTab = 'blank';
@@ -3009,11 +3011,11 @@ function closeActiveModal() {
     navigate(companyPath('jobs', { tab: job ? 'profile' : 'pipeline', ...(job ? { job_id: job.id } : {}) }, route.companyId), { replace: true });
     return;
   }
-  if (route.name === 'company' && route.section === 'crm' && route.params.get('account') && !closingStateModal) {
+  if (route.name === 'company' && route.section === 'crm' && route.params.get('account')) {
     navigate(companyPath('crm', {}, route.companyId), { replace: true });
     return;
   }
-  if (route.name === 'company' && route.section === 'finance' && (route.params.get('invoice') || route.params.get('expense') || route.params.get('vendor') || route.params.get('report')) && !closingStateModal) {
+  if (route.name === 'company' && route.section === 'finance' && (route.params.get('invoice') || route.params.get('expense') || route.params.get('vendor') || route.params.get('report'))) {
     navigate(companyPath('finance', {}, route.companyId), { replace: true });
     return;
   }
@@ -3416,6 +3418,12 @@ function saveFinanceInvoice(form) {
 function saveFinancePayment(form) {
   const fields = Object.fromEntries(new FormData(form).entries());
   const companyId = activeCompanyId();
+  const invoice = financeInvoiceById(fields.invoice_id);
+  if (!invoice || invoice.company_id !== companyId) {
+    state.sync = { label: 'Create an invoice before recording a payment', mode: 'local' };
+    render();
+    return;
+  }
   const payment = normalizeFinancePayment({
     ...fields,
     id: `payment-${crypto.randomUUID()}`,
@@ -3423,12 +3431,9 @@ function saveFinancePayment(form) {
     created_at: new Date().toISOString(),
   });
   state.financePayments.unshift(payment);
-  const invoice = financeInvoiceById(payment.invoice_id);
-  if (invoice) {
-    invoice.status = invoiceBalance(invoice.id) <= 0 ? 'Paid' : 'Partially paid';
-    invoice.updated_at = new Date().toISOString();
-    syncJobInvoiceTotal(invoice.job_id);
-  }
+  invoice.status = invoiceBalance(invoice.id) <= 0 ? 'Paid' : 'Partially paid';
+  invoice.updated_at = new Date().toISOString();
+  syncJobInvoiceTotal(invoice.job_id);
   persistAll();
   state.modal = '';
   state.sync = { label: 'Payment recorded locally', mode: 'local' };
@@ -3741,9 +3746,35 @@ function setActiveCompany(companyId) {
   const next = allowed.includes(target) ? target : allowed[0] || defaultCompanyId();
   state.activeCompanyId = next;
   localStorage.setItem(COMPANY_KEY, next);
+  resetScopedUiState();
   const route = state.route || getRoute();
   const section = route.name === 'company' ? route.section : 'jobs';
   navigate(companyPath(section, {}, next));
+}
+
+function resetScopedUiState() {
+  state.modal = '';
+  state.selectedJobId = '';
+  state.selectedTaskId = '';
+  state.selectedFileId = '';
+  state.selectedFormId = '';
+  state.selectedQuestionId = '';
+  state.selectedFinanceInvoiceId = '';
+  state.selectedFinanceExpenseId = '';
+  state.selectedFinanceVendorId = '';
+  state.query = '';
+  state.fileQuery = '';
+  state.formQuery = '';
+  state.crmQuery = '';
+  state.stageFilter = 'all';
+  state.crmStageFilter = 'all';
+  state.crmOwnerFilter = 'all';
+  state.taskStatusFilter = 'all';
+  state.taskPriorityFilter = 'all';
+  state.fileCategoryFilter = 'All categories';
+  state.formTypeFilter = 'all';
+  state.formsTab = 'library';
+  state.driveFolder = 'home';
 }
 
 function setSelectedJob(id) {
@@ -4347,7 +4378,8 @@ function blankFinanceInvoice(companyId = activeCompanyId()) {
 }
 
 function blankFinancePayment(companyId = activeCompanyId(), invoiceId = '') {
-  const invoice = invoiceId ? financeInvoiceById(invoiceId) : companyFinanceInvoices(companyId).find((item) => invoiceBalance(item.id) > 0);
+  const candidate = invoiceId ? financeInvoiceById(invoiceId) : companyFinanceInvoices(companyId).find((item) => invoiceBalance(item.id) > 0);
+  const invoice = candidate?.company_id === companyId ? candidate : null;
   return normalizeFinancePayment({
     id: '',
     company_id: companyId,

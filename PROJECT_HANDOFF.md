@@ -79,6 +79,8 @@ Live modules:
 - Files
 - Forms
 - Analytics
+- CRM
+- Finance
 - Users
 - Settings
 - My time
@@ -86,9 +88,7 @@ Live modules:
 
 Planned gray modules:
 
-- CRM
 - Tickets
-- Finance
 - Knowledge Base
 - Automations
 - Templates
@@ -217,6 +217,15 @@ npx vercel --prod --yes
 
 Browser verification should target production or the Vercel deployment URL.
 
+Production QA checklist:
+
+- Reusable checklist file: `PRODUCTION_QA_CHECKLIST.md`
+- Use `/login` with temporary credentials `lumen123` / `lumen123`.
+- Verify no duplicate company entries in the company switcher.
+- Verify every enabled module route loads for `roofing`, `drafting`, and `lumen`.
+- Verify CRM customer modals and Finance invoice/payment/expense/vendor/report modals open and close without stale query params.
+- Verify mobile widths do not show broken horizontal overflow or crowded modal actions.
+
 Useful routes:
 
 - `/login`
@@ -224,8 +233,12 @@ Useful routes:
 - `/company/lumen/forms`
 - `/company/lumen/jobs`
 - `/company/lumen/tasks`
+- `/company/lumen/crm`
+- `/company/lumen/finance`
 - `/company/roofing/files`
 - `/company/drafting/tasks`
+- `/crm.html`
+- `/finance.html`
 
 ## What To Watch For
 
@@ -243,7 +256,9 @@ Common mistakes to avoid:
 
 ## Current State At Handoff
 
-- Repo was clean after commit `62e7f79 Improve drive file type icons`.
+- CRM is live at `/company/:companyId/crm` and uses existing jobs grouped by customer/client name.
+- Finance is live at `/company/:companyId/finance` and uses local/demo-only finance caches while auth/RLS remain basic mode.
+- Company switcher dedupes legacy Supabase company ids like `quest-roofing` and `quest-drafting` into canonical `roofing` and `drafting`.
 - Production was deployed and aliased to `https://quest-hq-command-center.vercel.app`.
 - Live Files route was verified after latest deploy:
   - `/company/lumen/files`
@@ -255,19 +270,22 @@ Common mistakes to avoid:
 
 ## Near-Term Next Priorities
 
-1. Continue polishing Files into a true Explorer/SFTP-like manager:
+1. Stabilize current live modules before adding new features:
+   - production smoke test all enabled company routes
+   - fix broken routing, stale modal query params, mobile overflow, and bad local cache states
+   - deploy every meaningful fix to Vercel production
+2. Continue polishing Files into a true Explorer/SFTP-like manager:
    - folder open/create flows
    - clearer breadcrumb
    - file preview polish
    - right-click/context menu style actions if useful
-2. Polish Forms into a Google Forms-like library:
+3. Polish Forms into a Google Forms-like library:
    - clean library page
    - new form modal with blank/template tabs
    - compact expandable form rows/cards
    - creator metadata
-3. Continue decluttering modules:
+4. Continue decluttering modules:
    - use tabs, modals, drawers
    - keep topbar generic
    - keep module-specific actions inside modules
-4. Later, re-enable real Supabase Auth and RLS only after UI foundation is stable.
-
+5. Later, re-enable real Supabase Auth and RLS only after UI foundation is stable.

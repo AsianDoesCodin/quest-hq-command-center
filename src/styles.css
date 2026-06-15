@@ -769,6 +769,7 @@ textarea:focus {
 .data-table {
   display: grid;
   gap: 7px;
+  min-width: 0;
 }
 
 .table-head,
@@ -826,6 +827,13 @@ textarea:focus {
 
 .crm-account-row span {
   min-width: 0;
+}
+
+.crm-table .table-row > span,
+.finance-invoice-table .table-row > span,
+.crm-linked-jobs .table-row > span {
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .crm-account-modal {
@@ -945,6 +953,10 @@ textarea:focus {
   padding: 10px 11px;
 }
 
+.finance-compact-row > span {
+  min-width: 0;
+}
+
 .finance-compact-row:hover {
   border-color: var(--amber);
   background: #fff8e7;
@@ -953,6 +965,8 @@ textarea:focus {
 .finance-compact-row strong,
 .finance-compact-row small {
   display: block;
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .finance-compact-row b {
@@ -997,6 +1011,7 @@ textarea:focus {
 
 .finance-form label {
   display: grid;
+  min-width: 0;
   gap: 6px;
   color: var(--muted);
   font-size: 11px;
@@ -1557,6 +1572,10 @@ textarea:focus {
   border-bottom: 1px solid var(--border);
   background: var(--surface);
   padding: 16px 18px;
+}
+
+.modal-head h2 {
+  overflow-wrap: anywhere;
 }
 
 .profile-form {
@@ -3182,6 +3201,12 @@ textarea:focus {
 
   .crm-rollup-grid,
   .finance-aging-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .crm-modal-actions,
+  .finance-modal-actions {
+    display: grid;
     grid-template-columns: 1fr;
   }
 
