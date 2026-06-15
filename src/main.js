@@ -835,7 +835,7 @@ function renderDeck(route) {
       plannedNavItem('ti-hierarchy-3', 'Team chart'),
     ])}
     ${navGroup('Operations', [
-      navItem(route, companyPath('time', {}, companyId), 'ti-clock', 'My time', time.dueToday.length),
+      navItem(route, companyPath('time', {}, companyId), 'ti-clock', 'My time', time.focus.length),
       navItem(route, companyPath('approvals', {}, companyId), 'ti-user-check', 'Approvals', approvals.length),
       plannedNavItem('ti-users', 'Team workload'),
       plannedNavItem('ti-clock-hour-4', 'Clock dashboard'),
@@ -2411,7 +2411,7 @@ function renderTimePage(companyId) {
           <div class="section-head"><div><h2>Workload</h2><p>Simple task-based time view.</p></div></div>
           ${contractRows([
             ['Company', companyName(companyId)],
-            ['Assigned to you', String(summary.mine.length)],
+            ['Assigned to you', String(summary.assignedToMe.length)],
             ['Due this week', String(summary.thisWeek.length)],
             ['Completed', String(summary.done.length)],
           ])}
@@ -3996,19 +3996,19 @@ function timeSummary(companyId = activeCompanyId()) {
     const days = daysUntil(task.due);
     return days >= 0 && days <= 7;
   });
-  const mine = open.filter((task) => task.assignee_id === memberId || task.creator_id === memberId);
+  const assignedToMe = open.filter((task) => task.assignee_id === memberId);
   const review = open.filter((task) => ['review', 'pending'].includes(task.status));
   const done = tasks.filter((task) => task.status === 'done');
-  const focus = compactUnique(overdue.concat(dueToday, mine, review, thisWeek).map((task) => task.id))
+  const focus = compactUnique(overdue.concat(dueToday, assignedToMe, review, thisWeek).map((task) => task.id))
     .map((id) => tasks.find((task) => task.id === id))
     .filter(Boolean)
     .sort(taskSortForOperations);
-  return { tasks, open, dueToday, overdue, thisWeek, mine, review, done, focus };
+  return { tasks, open, dueToday, overdue, thisWeek, assignedToMe, review, done, focus };
 }
 
 function approvalItems(companyId = activeCompanyId()) {
   const formApprovals = companyForms(companyId)
-    .filter((form) => form.require_approval || form.type === 'Client approval')
+    .filter((form) => (form.require_approval || form.type === 'Client approval') && !['Archived', 'Closed', 'Approved'].includes(form.status))
     .map((form) => ({
       id: `form:${form.id}`,
       title: form.title,
