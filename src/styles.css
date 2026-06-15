@@ -1031,6 +1031,28 @@ textarea:focus {
   padding: 12px;
 }
 
+.operations-page {
+  max-width: 1280px;
+}
+
+.operations-metrics {
+  grid-template-columns: repeat(4, minmax(150px, 1fr));
+}
+
+.operations-table .table-head,
+.operations-table .table-row,
+.approval-table .table-head,
+.approval-table .table-row {
+  grid-template-columns: minmax(240px, 1.25fr) minmax(150px, .85fr) minmax(130px, .75fr) 100px 110px;
+  gap: 12px;
+}
+
+.operations-table .table-row > span,
+.approval-table .table-row > span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
 .profile-layout,
 .file-layout,
 .forms-layout {
@@ -3105,6 +3127,10 @@ textarea:focus {
   .crm-table .table-row,
   .finance-invoice-table .table-head,
   .finance-invoice-table .table-row,
+  .operations-table .table-head,
+  .operations-table .table-row,
+  .approval-table .table-head,
+  .approval-table .table-row,
   .drive-list .table-head,
   .drive-list .table-row { grid-template-columns: minmax(220px, 1fr) repeat(3, auto); }
   .task-table .table-head span:nth-child(n+5),
@@ -3113,6 +3139,10 @@ textarea:focus {
   .crm-table .table-row span:nth-child(n+5),
   .finance-invoice-table .table-head span:nth-child(n+5),
   .finance-invoice-table .table-row span:nth-child(n+5),
+  .operations-table .table-head span:nth-child(n+5),
+  .operations-table .table-row span:nth-child(n+5),
+  .approval-table .table-head span:nth-child(n+5),
+  .approval-table .table-row span:nth-child(n+5),
   .drive-list .table-head span:nth-child(n+5),
   .drive-list .table-row span:nth-child(n+5) { display: none; }
 
@@ -3192,10 +3222,14 @@ textarea:focus {
   .crm-table .table-row,
   .crm-linked-jobs .table-row,
   .finance-invoice-table .table-row,
+  .operations-table .table-row,
+  .approval-table .table-row,
   .drive-list .table-row { grid-template-columns: 1fr; }
 
   .crm-table .table-row span:nth-child(n+5),
-  .finance-invoice-table .table-row span:nth-child(n+5) {
+  .finance-invoice-table .table-row span:nth-child(n+5),
+  .operations-table .table-row span:nth-child(n+5),
+  .approval-table .table-row span:nth-child(n+5) {
     display: block;
   }
 

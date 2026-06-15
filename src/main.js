@@ -807,6 +807,8 @@ function renderDeck(route) {
   const forms = companyForms(companyId);
   const accounts = crmAccounts(companyId);
   const invoices = companyFinanceInvoices(companyId);
+  const time = timeSummary(companyId);
+  const approvals = approvalItems(companyId);
   const users = companyMembers(companyId);
   return `
     <div class="company-card">
@@ -833,8 +835,8 @@ function renderDeck(route) {
       plannedNavItem('ti-hierarchy-3', 'Team chart'),
     ])}
     ${navGroup('Operations', [
-      navItem(route, companyPath('time', {}, companyId), 'ti-clock', 'My time', '3.3h'),
-      navItem(route, companyPath('approvals', {}, companyId), 'ti-user-check', 'Approvals', 0),
+      navItem(route, companyPath('time', {}, companyId), 'ti-clock', 'My time', time.dueToday.length),
+      navItem(route, companyPath('approvals', {}, companyId), 'ti-user-check', 'Approvals', approvals.length),
       plannedNavItem('ti-users', 'Team workload'),
       plannedNavItem('ti-clock-hour-4', 'Clock dashboard'),
     ])}
@@ -2370,32 +2372,103 @@ function renderFinanceVendorFormModal(companyId, vendor = null) {
 }
 
 function renderOperationsPage(route, companyId) {
-  const name = route.section;
-  const labels = {
-    time: ['My time', 'Personal time and shift context inside the company workspace.'],
-    approvals: ['Approvals', 'Company access approvals and role requests.'],
-  };
-  const [title, summary] = labels[name] || labels.time;
+  if (route.section === 'approvals') return renderApprovalsPage(companyId);
+  return renderTimePage(companyId);
+}
+
+function renderOperationsTabs(companyId, active) {
   return `
-    ${workspaceHeader(title, summary, '')}
     ${compactTabs('Operations sections', [
-      [companyPath('time', {}, companyId), 'My time', name === 'time'],
-      [companyPath('approvals', {}, companyId), 'Approvals', name === 'approvals'],
+      [companyPath('time', {}, companyId), 'My time', active === 'time'],
+      [companyPath('approvals', {}, companyId), 'Approvals', active === 'approvals'],
     ])}
-    <section class="dashboard-grid">
-      <article class="panel">
-        <div class="section-head"><div><h2>Summary</h2><p>Quest-owned operational surface.</p></div></div>
-        ${contractRows([
-          ['Company', companyName(companyId)],
-          ['Visible jobs', companyJobs(companyId).length],
-          ['Open tasks', companyTasks(companyId).filter((task) => task.status !== 'done').length],
-          ['Mode', CONFIG.questAuthEnabled ? 'Supabase auth' : 'Local basic mode'],
-        ])}
-      </article>
+  `;
+}
+
+function renderTimePage(companyId) {
+  const summary = timeSummary(companyId);
+  return `
+    <section class="tool-page operations-page">
+      ${workspaceHeader('My time', "A compact personal work queue built from this company's tasks.", `
+        <a class="btn" href="${appHref(companyPath('tasks', {}, companyId))}" data-router><i class="ti ti-list-check"></i>Open tasks</a>
+        <a class="btn btn-primary" href="${appHref(companyPath('tasks', { new: '1' }, companyId))}" data-router><i class="ti ti-plus"></i>New task</a>
+      `)}
+      ${renderOperationsTabs(companyId, 'time')}
+      <section class="metric-grid operations-metrics">
+        ${metricCard('Due today', summary.dueToday.length)}
+        ${metricCard('Overdue', summary.overdue.length)}
+        ${metricCard('Open work', summary.open.length)}
+        ${metricCard('In review', summary.review.length)}
+      </section>
+      <section class="dashboard-grid operations-grid">
+        <article class="panel span-2">
+          <div class="section-head"><div><h2>Today</h2><p>Due now, overdue, and highest priority work.</p></div></div>
+          <div class="queue-list">
+            ${summary.focus.slice(0, 8).map((task) => taskQueueRow(task)).join('') || emptyState('No time-sensitive tasks for this company.')}
+          </div>
+        </article>
+        <article class="panel">
+          <div class="section-head"><div><h2>Workload</h2><p>Simple task-based time view.</p></div></div>
+          ${contractRows([
+            ['Company', companyName(companyId)],
+            ['Assigned to you', String(summary.mine.length)],
+            ['Due this week', String(summary.thisWeek.length)],
+            ['Completed', String(summary.done.length)],
+          ])}
+        </article>
       <article class="panel span-2">
-        <div class="section-head"><div><h2>Workload queue</h2><p>Sorted by active company and urgency.</p></div></div>
-        <div class="queue-list">${companyTasks(companyId).slice(0, 8).map((task) => taskQueueRow(task)).join('') || emptyState('No tasks found.')}</div>
-      </article>
+          <div class="section-head"><div><h2>This week</h2><p>Upcoming task commitments.</p></div></div>
+          <div class="data-table operations-table">
+            <div class="table-head"><span>Task</span><span>Job</span><span>Owner</span><span>Due</span><span>Status</span></div>
+            ${summary.thisWeek.slice(0, 8).map((task) => `
+              <a class="table-row" href="${appHref(companyPath('tasks', { ...(task.project_id ? { job_id: task.project_id } : {}), task_id: task.id }, companyId))}" data-router>
+                <span><strong>${h(task.title)}</strong><small>${h(task.description || taskTypeLabel(task.type))}</small></span>
+                <span>${h(jobById(task.project_id)?.name || 'Company task')}</span>
+                <span>${h(memberName(task.assignee_id))}</span>
+                <span>${formatDate(task.due)}</span>
+                <span>${taskStatusPill(task.status)}</span>
+              </a>
+            `).join('') || emptyState('No upcoming tasks this week.')}
+          </div>
+        </article>
+      </section>
+    </section>
+  `;
+}
+
+function renderApprovalsPage(companyId) {
+  const items = approvalItems(companyId);
+  const formItems = items.filter((item) => item.type === 'Form approval');
+  const taskItems = items.filter((item) => item.type === 'Task review');
+  const accessItems = items.filter((item) => item.type === 'Access request');
+  return `
+    <section class="tool-page operations-page">
+      ${workspaceHeader('Approvals', 'Company review queue for forms, task handoffs, and access requests.', `
+        <a class="btn" href="${appHref(companyPath('forms', {}, companyId))}" data-router><i class="ti ti-clipboard-list"></i>Forms</a>
+        <a class="btn btn-primary" href="${appHref(companyPath('tasks', {}, companyId))}" data-router><i class="ti ti-list-check"></i>Tasks</a>
+      `)}
+      ${renderOperationsTabs(companyId, 'approvals')}
+      <section class="metric-grid operations-metrics">
+        ${metricCard('Open approvals', items.length)}
+        ${metricCard('Forms', formItems.length)}
+        ${metricCard('Task reviews', taskItems.length)}
+        ${metricCard('Access', accessItems.length)}
+      </section>
+      <section class="panel">
+        <div class="section-head"><div><h2>Approval queue</h2><p>One calm list instead of a heavy dashboard.</p></div></div>
+        <div class="data-table approval-table">
+          <div class="table-head"><span>Item</span><span>Type</span><span>Owner</span><span>Status</span><span>Updated</span></div>
+          ${items.map((item) => `
+            <a class="table-row" href="${appHref(item.href)}" data-router>
+              <span><strong>${h(item.title)}</strong><small>${h(item.meta)}</small></span>
+              <span>${h(item.type)}</span>
+              <span>${h(item.owner)}</span>
+              <span>${h(item.status)}</span>
+              <span>${formatDate(item.updatedAt)}</span>
+            </a>
+          `).join('') || emptyState('No approvals need attention right now.')}
+        </div>
+      </section>
     </section>
   `;
 }
@@ -3913,6 +3986,77 @@ function crmOwnerOptions(companyId = activeCompanyId()) {
   return compactUnique(companyJobs(companyId).map((job) => job.owner_name)).sort((a, b) => a.localeCompare(b));
 }
 
+function timeSummary(companyId = activeCompanyId()) {
+  const memberId = activeSession().profile.member_id || '';
+  const tasks = companyTasks(companyId).slice().sort(taskSortForOperations);
+  const open = tasks.filter(isOpenTask);
+  const dueToday = open.filter((task) => task.due === isoDate(0));
+  const overdue = open.filter((task) => daysUntil(task.due) < 0);
+  const thisWeek = open.filter((task) => {
+    const days = daysUntil(task.due);
+    return days >= 0 && days <= 7;
+  });
+  const mine = open.filter((task) => task.assignee_id === memberId || task.creator_id === memberId);
+  const review = open.filter((task) => ['review', 'pending'].includes(task.status));
+  const done = tasks.filter((task) => task.status === 'done');
+  const focus = compactUnique(overdue.concat(dueToday, mine, review, thisWeek).map((task) => task.id))
+    .map((id) => tasks.find((task) => task.id === id))
+    .filter(Boolean)
+    .sort(taskSortForOperations);
+  return { tasks, open, dueToday, overdue, thisWeek, mine, review, done, focus };
+}
+
+function approvalItems(companyId = activeCompanyId()) {
+  const formApprovals = companyForms(companyId)
+    .filter((form) => form.require_approval || form.type === 'Client approval')
+    .map((form) => ({
+      id: `form:${form.id}`,
+      title: form.title,
+      meta: jobById(form.linked_job_id)?.name || form.description || 'Company form',
+      type: 'Form approval',
+      owner: memberName(form.creator_id),
+      status: form.status,
+      updatedAt: form.updated_at || form.created_at,
+      href: companyPath('forms', { form_id: form.id }, companyId),
+    }));
+  const taskApprovals = companyTasks(companyId)
+    .filter((task) => ['review', 'pending'].includes(task.status))
+    .map((task) => ({
+      id: `task:${task.id}`,
+      title: task.title,
+      meta: jobById(task.project_id)?.name || task.description || 'Company task',
+      type: 'Task review',
+      owner: memberName(task.assignee_id),
+      status: statusLabel(task.status),
+      updatedAt: task.updated_at || task.due,
+      href: companyPath('tasks', { ...(task.project_id ? { job_id: task.project_id } : {}), task_id: task.id }, companyId),
+    }));
+  const accessApprovals = state.memberships
+    .filter((membership) => membership.company_id === companyId && membership.status !== 'active')
+    .map((membership) => ({
+      id: `access:${membership.profile_id || membership.member_id}`,
+      title: memberName(membership.member_id || membership.profile_id),
+      meta: `${titleCase(membership.role)} access request`,
+      type: 'Access request',
+      owner: 'Quest admin',
+      status: titleCase(membership.status),
+      updatedAt: new Date().toISOString(),
+      href: companyPath('settings', { tab: 'access' }, companyId),
+    }));
+  return formApprovals.concat(taskApprovals, accessApprovals)
+    .sort((a, b) => Date.parse(b.updatedAt || 0) - Date.parse(a.updatedAt || 0));
+}
+
+function isOpenTask(task) {
+  return task.status !== 'done';
+}
+
+function taskSortForOperations(a, b) {
+  const dateDiff = Date.parse(a.due || 0) - Date.parse(b.due || 0);
+  if (dateDiff) return dateDiff;
+  return priorityRank(b.priority) - priorityRank(a.priority);
+}
+
 function companyFinanceInvoices(companyId = activeCompanyId()) {
   return state.financeInvoices
     .filter((invoice) => invoice.company_id === companyId)
@@ -5347,6 +5491,13 @@ function daysPastDue(value) {
   const due = new Date(`${String(value).slice(0, 10)}T00:00:00`);
   if (Number.isNaN(due.getTime())) return 0;
   return Math.floor((startOfToday().getTime() - due.getTime()) / 86400000);
+}
+
+function daysUntil(value) {
+  if (!value) return 999;
+  const target = new Date(`${String(value).slice(0, 10)}T00:00:00`);
+  if (Number.isNaN(target.getTime())) return 999;
+  return Math.floor((target.getTime() - startOfToday().getTime()) / 86400000);
 }
 
 function nextInvoiceNumber(companyId = activeCompanyId()) {
