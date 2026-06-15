@@ -1053,6 +1053,49 @@ textarea:focus {
   overflow-wrap: anywhere;
 }
 
+.team-chart-page {
+  max-width: 1280px;
+}
+
+.team-tree,
+.team-node,
+.team-node-children {
+  display: grid;
+  gap: 10px;
+}
+
+.team-node {
+  margin-left: calc(var(--depth, 0) * 18px);
+}
+
+.team-node-card {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: #fbf7ee;
+  padding: 10px 12px;
+}
+
+.team-node-card span {
+  display: grid;
+  min-width: 0;
+}
+
+.team-node-card small {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.clock-table .table-head,
+.clock-table .table-row {
+  grid-template-columns: minmax(240px, 1fr) 150px 150px 110px;
+  gap: 12px;
+}
+
 .profile-layout,
 .file-layout,
 .forms-layout {
@@ -3131,6 +3174,8 @@ textarea:focus {
   .operations-table .table-row,
   .approval-table .table-head,
   .approval-table .table-row,
+  .clock-table .table-head,
+  .clock-table .table-row,
   .drive-list .table-head,
   .drive-list .table-row { grid-template-columns: minmax(220px, 1fr) repeat(3, auto); }
   .task-table .table-head span:nth-child(n+5),
@@ -3143,6 +3188,8 @@ textarea:focus {
   .operations-table .table-row span:nth-child(n+5),
   .approval-table .table-head span:nth-child(n+5),
   .approval-table .table-row span:nth-child(n+5),
+  .clock-table .table-head span:nth-child(n+5),
+  .clock-table .table-row span:nth-child(n+5),
   .drive-list .table-head span:nth-child(n+5),
   .drive-list .table-row span:nth-child(n+5) { display: none; }
 
@@ -3224,12 +3271,14 @@ textarea:focus {
   .finance-invoice-table .table-row,
   .operations-table .table-row,
   .approval-table .table-row,
+  .clock-table .table-row,
   .drive-list .table-row { grid-template-columns: 1fr; }
 
   .crm-table .table-row span:nth-child(n+5),
   .finance-invoice-table .table-row span:nth-child(n+5),
   .operations-table .table-row span:nth-child(n+5),
-  .approval-table .table-row span:nth-child(n+5) {
+  .approval-table .table-row span:nth-child(n+5),
+  .clock-table .table-row span:nth-child(n+5) {
     display: block;
   }
 

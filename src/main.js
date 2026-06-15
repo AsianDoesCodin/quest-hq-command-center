@@ -25,9 +25,53 @@ const FINANCE_INVOICE_CACHE_KEY = 'quest-hq-finance-invoice-cache-v1';
 const FINANCE_PAYMENT_CACHE_KEY = 'quest-hq-finance-payment-cache-v1';
 const FINANCE_EXPENSE_CACHE_KEY = 'quest-hq-finance-expense-cache-v1';
 const FINANCE_VENDOR_CACHE_KEY = 'quest-hq-finance-vendor-cache-v1';
+const TIME_ENTRY_CACHE_KEY = 'quest-hq-time-entry-cache-v1';
+const ACTIVE_TIMER_KEY = 'quest-hq-active-timer-v1';
 const COMPANY_KEY = 'quest-hq-active-company';
 const TASK_VIEW_KEY = 'quest-hq-task-view';
 const DRIVE_VIEW_KEY = 'quest-hq-drive-view';
+
+const ROLE_PERMISSIONS = {
+  developer: ['*'],
+  admin: ['*'],
+  manager: ['jobs.manage', 'tasks.manage', 'files.manage', 'forms.manage', 'finance.view', 'team.view', 'clock.manage', 'approvals.manage', 'approvals.view', 'users.view', 'settings.view'],
+  member: ['jobs.view', 'tasks.manage', 'files.view', 'forms.view', 'time.track', 'approvals.view', 'users.view'],
+};
+
+const MODULE_REGISTRY = [
+  { id: 'jobs', group: 'Workspace', label: 'Jobs', icon: 'ti-briefcase', status: 'live', permission: 'jobs.view' },
+  { id: 'tasks', group: 'Workspace', label: 'Tasks', icon: 'ti-list-check', status: 'live', permission: 'tasks.manage' },
+  { id: 'files', group: 'Workspace', label: 'Files', icon: 'ti-folder', status: 'live', permission: 'files.view' },
+  { id: 'forms', group: 'Workspace', label: 'Forms', icon: 'ti-clipboard-list', status: 'live', permission: 'forms.view' },
+  { id: 'analytics', group: 'Workspace', label: 'Analytics', icon: 'ti-chart-bar', status: 'live', permission: 'jobs.view' },
+  { id: 'crm', group: 'Workspace', label: 'CRM', icon: 'ti-users-group', status: 'live', permission: 'jobs.view' },
+  { id: 'tickets', group: 'Workspace', label: 'Tickets', icon: 'ti-ticket', status: 'planned' },
+  { id: 'finance', group: 'Workspace', label: 'Finance', icon: 'ti-receipt-dollar', status: 'live', permission: 'finance.view' },
+  { id: 'knowledge', group: 'Workspace', label: 'Knowledge Base', icon: 'ti-books', status: 'planned' },
+  { id: 'automations', group: 'Workspace', label: 'Automations', icon: 'ti-automation', status: 'planned' },
+  { id: 'templates', group: 'Workspace', label: 'Templates', icon: 'ti-template', status: 'planned' },
+  { id: 'users', group: 'Company', label: 'Users', icon: 'ti-users', status: 'live', permission: 'users.view' },
+  { id: 'settings', group: 'Company', label: 'Settings', icon: 'ti-settings', status: 'live', permission: 'settings.view' },
+  { id: 'team-chart', group: 'Company', label: 'Team chart', icon: 'ti-hierarchy-3', status: 'live', permission: 'team.view' },
+  { id: 'time', group: 'Operations', label: 'My time', icon: 'ti-clock', status: 'live', permission: 'time.track' },
+  { id: 'approvals', group: 'Operations', label: 'Approvals', icon: 'ti-user-check', status: 'live', permission: 'approvals.view' },
+  { id: 'team-workload', group: 'Operations', label: 'Team workload', icon: 'ti-users', status: 'planned' },
+  { id: 'clock', group: 'Operations', label: 'Clock dashboard', icon: 'ti-clock-hour-4', status: 'live', permission: 'clock.manage' },
+];
+
+const LEGACY_ROUTE_SECTIONS = {
+  '/admin.html': 'settings',
+  '/automations.html': 'automations',
+  '/crm.html': 'crm',
+  '/dashboards.html': 'analytics',
+  '/files.html': 'files',
+  '/finance.html': 'finance',
+  '/forms.html': 'forms',
+  '/jobs.html': 'jobs',
+  '/knowledge.html': 'knowledge',
+  '/templates.html': 'templates',
+  '/tickets.html': 'tickets',
+};
 
 const STAGES = ['Lead', 'Site Review', 'Estimate', 'Approved', 'Active', 'Closed'];
 const JOB_TABS = ['pipeline', 'list', 'profile'];
@@ -130,11 +174,11 @@ const jobsFallback = [
 ];
 
 const teamMembersFallback = [
-  { id: 'abraham', name: 'Abraham', full_name: 'Abraham Flores', email: 'abraham@quest-hq.local', color: '#f0b23b', active: true, company_ids: ['roofing', 'drafting'] },
-  { id: 'maya', name: 'Maya', full_name: 'Maya Rosales', email: 'maya@quest-hq.local', color: '#60a5fa', active: true, company_ids: ['roofing'] },
-  { id: 'andre', name: 'Andre', full_name: 'Andre Lee', email: 'andre@quest-hq.local', color: '#f97316', active: true, company_ids: ['roofing'] },
-  { id: 'noah', name: 'Noah', full_name: 'Noah Park', email: 'noah@quest-hq.local', color: '#a78bfa', active: true, company_ids: ['drafting'] },
-  { id: 'lumen-ops', name: 'Lumen Ops', full_name: 'Lumen Operations', email: 'ops@lumen.local', color: '#7c3aed', active: true, company_ids: ['lumen'] },
+  { id: 'abraham', name: 'Abraham', full_name: 'Abraham Flores', email: 'abraham@quest-hq.local', color: '#f0b23b', active: true, company_ids: ['roofing', 'drafting'], supervisor_id: '' },
+  { id: 'maya', name: 'Maya', full_name: 'Maya Rosales', email: 'maya@quest-hq.local', color: '#60a5fa', active: true, company_ids: ['roofing'], supervisor_id: 'abraham' },
+  { id: 'andre', name: 'Andre', full_name: 'Andre Lee', email: 'andre@quest-hq.local', color: '#f97316', active: true, company_ids: ['roofing'], supervisor_id: 'maya' },
+  { id: 'noah', name: 'Noah', full_name: 'Noah Park', email: 'noah@quest-hq.local', color: '#a78bfa', active: true, company_ids: ['drafting'], supervisor_id: 'abraham' },
+  { id: 'lumen-ops', name: 'Lumen Ops', full_name: 'Lumen Operations', email: 'ops@lumen.local', color: '#7c3aed', active: true, company_ids: ['lumen'], supervisor_id: '' },
 ];
 
 const membershipsFallback = [
@@ -594,6 +638,8 @@ const state = {
   financePayments: readSeededList(FINANCE_PAYMENT_CACHE_KEY, financePaymentsFallback).map(normalizeFinancePayment),
   financeExpenses: readSeededList(FINANCE_EXPENSE_CACHE_KEY, financeExpensesFallback).map(normalizeFinanceExpense),
   financeVendors: readSeededList(FINANCE_VENDOR_CACHE_KEY, financeVendorsFallback).map(normalizeFinanceVendor),
+  timeEntries: readJson(TIME_ENTRY_CACHE_KEY, []),
+  activeTimer: readJson(ACTIVE_TIMER_KEY, null),
   teamMembers: readSeededList(TEAM_CACHE_KEY, teamMembersFallback).map(normalizeTeamMember),
   memberships: readSeededList(MEMBERSHIP_CACHE_KEY, membershipsFallback),
   companies: mergeCompanies(companiesFallback.map(normalizeCompany)),
@@ -801,45 +847,20 @@ function shellTemplate(route, workspace) {
 
 function renderDeck(route) {
   const companyId = activeCompanyId();
-  const jobs = companyJobs(companyId);
-  const tasks = companyTasks(companyId);
-  const files = companyFiles(companyId);
-  const forms = companyForms(companyId);
-  const accounts = crmAccounts(companyId);
-  const invoices = companyFinanceInvoices(companyId);
-  const time = timeSummary(companyId);
-  const approvals = approvalItems(companyId);
-  const users = companyMembers(companyId);
   return `
     <div class="company-card">
       <span style="background:${h(companyColor(companyId))}"></span>
       <strong>${h(companyName(companyId))}</strong>
       <small>${h(roleForCompany(companyId))} workspace</small>
     </div>
-    ${navGroup('Workspace', [
-      navItem(route, companyPath('jobs', {}, companyId), 'ti-briefcase', 'Jobs', jobs.length),
-      navItem(route, companyPath('tasks', {}, companyId), 'ti-list-check', 'Tasks', tasks.length),
-      navItem(route, companyPath('files', {}, companyId), 'ti-folder', 'Files', files.length),
-      navItem(route, companyPath('forms', {}, companyId), 'ti-clipboard-list', 'Forms', forms.length),
-      navItem(route, companyPath('analytics', {}, companyId), 'ti-chart-bar', 'Analytics'),
-      navItem(route, companyPath('crm', {}, companyId), 'ti-users-group', 'CRM', accounts.length),
-      plannedNavItem('ti-ticket', 'Tickets'),
-      navItem(route, companyPath('finance', {}, companyId), 'ti-receipt-dollar', 'Finance', invoices.length),
-      plannedNavItem('ti-books', 'Knowledge Base'),
-      plannedNavItem('ti-automation', 'Automations'),
-      plannedNavItem('ti-template', 'Templates'),
-    ])}
-    ${navGroup('Company', [
-      navItem(route, companyPath('users', {}, companyId), 'ti-users', 'Users', users.length),
-      navItem(route, companyPath('settings', {}, companyId), 'ti-settings', 'Settings'),
-      plannedNavItem('ti-hierarchy-3', 'Team chart'),
-    ])}
-    ${navGroup('Operations', [
-      navItem(route, companyPath('time', {}, companyId), 'ti-clock', 'My time', time.focus.length),
-      navItem(route, companyPath('approvals', {}, companyId), 'ti-user-check', 'Approvals', approvals.length),
-      plannedNavItem('ti-users', 'Team workload'),
-      plannedNavItem('ti-clock-hour-4', 'Clock dashboard'),
-    ])}
+    ${['Workspace', 'Company', 'Operations'].map((group) => navGroup(
+      group,
+      MODULE_REGISTRY
+        .filter((module) => module.group === group && canViewModule(module, companyId))
+        .map((module) => module.status === 'planned'
+          ? plannedNavItem(module.icon, module.label)
+          : navItem(route, companyPath(module.id, {}, companyId), module.icon, module.label, moduleBadgeCount(module.id, companyId))),
+    )).join('')}
   `;
 }
 
@@ -873,6 +894,24 @@ function plannedNavItem(icon, label) {
   `;
 }
 
+function canViewModule(module, companyId = activeCompanyId()) {
+  return module.status === 'planned' || can(module.permission || `${module.id}.view`, companyId);
+}
+
+function moduleBadgeCount(moduleId, companyId = activeCompanyId()) {
+  if (moduleId === 'jobs') return companyJobs(companyId).length;
+  if (moduleId === 'tasks') return companyTasks(companyId).length;
+  if (moduleId === 'files') return companyFiles(companyId).length;
+  if (moduleId === 'forms') return companyForms(companyId).length;
+  if (moduleId === 'crm') return crmAccounts(companyId).length;
+  if (moduleId === 'finance') return companyFinanceInvoices(companyId).length;
+  if (moduleId === 'users') return companyMembers(companyId).length;
+  if (moduleId === 'time') return timeSummary(companyId).focus.length;
+  if (moduleId === 'approvals') return approvalItems(companyId).length;
+  if (moduleId === 'clock') return activeTimerForCompany(companyId) ? 'On' : '';
+  return '';
+}
+
 function compactTabs(label, items) {
   return `
     <nav class="tabbar compact-tabbar" aria-label="${h(label)}">
@@ -894,7 +933,8 @@ function renderWorkspace(route) {
   if (route.section === 'analytics') return renderAnalyticsPage(route, companyId);
   if (route.section === 'crm') return renderCrmPage(route, companyId);
   if (route.section === 'finance') return renderFinancePage(route, companyId);
-  if (route.section === 'time' || route.section === 'approvals') return renderOperationsPage(route, companyId);
+  if (route.section === 'team-chart') return renderTeamChartPage(companyId);
+  if (route.section === 'time' || route.section === 'approvals' || route.section === 'clock') return renderOperationsPage(route, companyId);
   return renderPlannedPage(route.section);
 }
 
@@ -1624,6 +1664,45 @@ function renderUsersPage(route, companyId) {
       ])}
     </section>
     `}
+  `;
+}
+
+function renderTeamChartPage(companyId) {
+  const members = companyMembers(companyId);
+  const roots = members.filter((member) => !member.supervisor_id || !members.some((item) => item.id === member.supervisor_id));
+  return `
+    <section class="tool-page team-chart-page">
+      ${workspaceHeader('Team chart', 'Reporting lines, roles, and company coverage for this workspace.', `
+        <a class="btn" href="${appHref(companyPath('users', {}, companyId))}" data-router><i class="ti ti-users"></i>Users</a>
+        <a class="btn btn-primary" href="${appHref(companyPath('settings', { tab: 'team' }, companyId))}" data-router><i class="ti ti-settings"></i>Worker settings</a>
+      `)}
+      <section class="metric-grid operations-metrics">
+        ${metricCard('Members', members.length)}
+        ${metricCard('Leads', roots.length)}
+        ${metricCard('Open tasks', companyTasks(companyId).filter(isOpenTask).length)}
+        ${metricCard('Active timer', activeTimerForCompany(companyId) ? 'Yes' : 'No')}
+      </section>
+      <section class="panel">
+        <div class="section-head"><div><h2>Reporting chart</h2><p>Supervisor links are local/basic until Auth and RLS are restored.</p></div></div>
+        <div class="team-tree">
+          ${roots.map((member) => renderTeamNode(companyId, member, members)).join('') || emptyState('No workers assigned.')}
+        </div>
+      </section>
+    </section>
+  `;
+}
+
+function renderTeamNode(companyId, member, members, depth = 0) {
+  const reports = members.filter((item) => item.supervisor_id === member.id);
+  return `
+    <article class="team-node" style="--depth:${depth}">
+      <div class="team-node-card">
+        ${renderAvatar({ full_name: member.full_name, avatar_url: member.avatar_url }, 'avatar')}
+        <span><strong>${h(member.full_name)}</strong><small>${h(roleForMember(companyId, member.id))}</small></span>
+        <b>${companyTasks(companyId).filter((task) => task.assignee_id === member.id && isOpenTask(task)).length} open</b>
+      </div>
+      ${reports.length ? `<div class="team-node-children">${reports.map((report) => renderTeamNode(companyId, report, members, depth + 1)).join('')}</div>` : ''}
+    </article>
   `;
 }
 
@@ -2372,6 +2451,7 @@ function renderFinanceVendorFormModal(companyId, vendor = null) {
 }
 
 function renderOperationsPage(route, companyId) {
+  if (route.section === 'clock') return renderClockDashboardPage(companyId);
   if (route.section === 'approvals') return renderApprovalsPage(companyId);
   return renderTimePage(companyId);
 }
@@ -2381,17 +2461,19 @@ function renderOperationsTabs(companyId, active) {
     ${compactTabs('Operations sections', [
       [companyPath('time', {}, companyId), 'My time', active === 'time'],
       [companyPath('approvals', {}, companyId), 'Approvals', active === 'approvals'],
+      [companyPath('clock', {}, companyId), 'Clock dashboard', active === 'clock'],
     ])}
   `;
 }
 
 function renderTimePage(companyId) {
   const summary = timeSummary(companyId);
+  const active = activeTimerForCompany(companyId);
   return `
     <section class="tool-page operations-page">
       ${workspaceHeader('My time', "A compact personal work queue built from this company's tasks.", `
         <a class="btn" href="${appHref(companyPath('tasks', {}, companyId))}" data-router><i class="ti ti-list-check"></i>Open tasks</a>
-        <a class="btn btn-primary" href="${appHref(companyPath('tasks', { new: '1' }, companyId))}" data-router><i class="ti ti-plus"></i>New task</a>
+        <button class="btn btn-primary" type="button" data-action="${active ? 'clock-out' : 'clock-in'}"><i class="ti ${active ? 'ti-player-stop-filled' : 'ti-player-play-filled'}"></i>${active ? 'Clock out' : 'Clock in'}</button>
       `)}
       ${renderOperationsTabs(companyId, 'time')}
       <section class="metric-grid operations-metrics">
@@ -2429,6 +2511,54 @@ function renderTimePage(companyId) {
                 <span>${taskStatusPill(task.status)}</span>
               </a>
             `).join('') || emptyState('No upcoming tasks this week.')}
+          </div>
+        </article>
+      </section>
+    </section>
+  `;
+}
+
+function renderClockDashboardPage(companyId) {
+  const entries = timeEntriesForCompany(companyId);
+  const active = activeTimerForCompany(companyId);
+  const todayStart = startOfToday().getTime();
+  const weekStart = todayStart - 6 * 86400000;
+  const todayMs = totalTimeForCompany(companyId, todayStart) + (active ? Date.now() - Date.parse(active.started_at) : 0);
+  const weekMs = totalTimeForCompany(companyId, weekStart) + (active ? Date.now() - Date.parse(active.started_at) : 0);
+  return `
+    <section class="tool-page operations-page clock-page">
+      ${workspaceHeader('Clock dashboard', 'Local basic-mode clock tracking for the active company.', `
+        <button class="btn btn-primary" type="button" data-action="${active ? 'clock-out' : 'clock-in'}"><i class="ti ${active ? 'ti-player-stop-filled' : 'ti-player-play-filled'}"></i>${active ? 'Clock out' : 'Clock in'}</button>
+      `)}
+      ${renderOperationsTabs(companyId, 'clock')}
+      <section class="metric-grid operations-metrics">
+        ${metricCard('Today', formatDuration(todayMs))}
+        ${metricCard('Last 7 days', formatDuration(weekMs))}
+        ${metricCard('Entries', entries.length)}
+        ${metricCard('Status', active ? 'Clocked in' : 'Off clock')}
+      </section>
+      <section class="dashboard-grid operations-grid">
+        <article class="panel">
+          <div class="section-head"><div><h2>Active now</h2><p>Current local clock session.</p></div></div>
+          ${active ? contractRows([
+            ['User', memberName(active.user_id)],
+            ['Started', formatDateTime(active.started_at)],
+            ['Task', active.task_title || 'General shift'],
+            ['Elapsed', formatDuration(Date.now() - Date.parse(active.started_at))],
+          ]) : emptyState('Nobody is clocked in on this device.')}
+        </article>
+        <article class="panel span-2">
+          <div class="section-head"><div><h2>Recent entries</h2><p>Local time records for this company.</p></div></div>
+          <div class="data-table clock-table">
+            <div class="table-head"><span>Entry</span><span>User</span><span>Start</span><span>Duration</span></div>
+            ${entries.slice(0, 10).map((entry) => `
+              <div class="table-row">
+                <span><strong>${h(entry.task_title || 'General shift')}</strong><small>${h(entry.notes || 'Clock entry')}</small></span>
+                <span>${h(memberName(entry.user_id))}</span>
+                <span>${formatDateTime(entry.started_at)}</span>
+                <span>${formatDuration(entry.duration_ms)}</span>
+              </div>
+            `).join('') || emptyState('No clock entries yet.')}
           </div>
         </article>
       </section>
@@ -2878,6 +3008,16 @@ function handleAction(event, node) {
     state.driveView = node.dataset.view === 'list' ? 'list' : 'grid';
     localStorage.setItem(DRIVE_VIEW_KEY, state.driveView);
     render();
+    return;
+  }
+  if (action === 'clock-in') {
+    event.preventDefault();
+    startClock(activeCompanyId(), node.dataset.taskId || state.route?.params?.get('task_id') || '');
+    return;
+  }
+  if (action === 'clock-out') {
+    event.preventDefault();
+    stopClock();
     return;
   }
   if (action === 'select-file') {
@@ -3660,22 +3800,12 @@ function normalizeLegacyLocation() {
   const path = appPathname();
   const params = new URLSearchParams(window.location.search);
   const companyId = params.get('company_id') || params.get('company') || companyIdForJob(params.get('job_id') || params.get('project_id')) || localStorage.getItem(COMPANY_KEY) || defaultCompanyId();
-  const map = {
+  const map = Object.fromEntries(Object.entries(LEGACY_ROUTE_SECTIONS).map(([legacyPath, section]) => [legacyPath, companyPath(section, {}, companyId)]));
+  Object.assign(map, {
     '/index.html': companyPath('jobs', {}, companyId),
     '/command.html': companyPath('jobs', {}, companyId),
-    '/admin.html': companyPath('settings', {}, companyId),
-    '/automations.html': companyPath('settings', {}, companyId),
-    '/crm.html': companyPath('crm', {}, companyId),
-    '/dashboards.html': companyPath('analytics', {}, companyId),
-    '/files.html': companyPath('files', {}, companyId),
-    '/finance.html': companyPath('finance', {}, companyId),
-    '/forms.html': companyPath('forms', {}, companyId),
-    '/jobs.html': companyPath('jobs', {}, companyId),
-    '/knowledge.html': companyPath('files', { folder: 'shared' }, companyId),
     '/login.html': '/login',
-    '/templates.html': companyPath('forms', {}, companyId),
-    '/tickets.html': companyPath('tasks', {}, companyId),
-  };
+  });
 
   let target = map[path];
   if (path === '/jobs') {
@@ -3693,9 +3823,10 @@ function normalizeLegacyLocation() {
   if (path === '/finance') target = companyPath('finance', copyParams(params, ['invoice', 'expense', 'vendor', 'report']), companyId);
   if (path === '/admin') target = companyPath('settings', {}, companyId);
   if (path === '/time') target = companyPath('time', {}, companyId);
-  if (path === '/team') target = companyPath('users', {}, companyId);
+  if (path === '/team') target = companyPath('team-chart', {}, companyId);
+  if (path === '/team-chart') target = companyPath('team-chart', {}, companyId);
   if (path === '/approvals') target = companyPath('approvals', {}, companyId);
-  if (path === '/clock') target = companyPath('settings', {}, companyId);
+  if (path === '/clock') target = companyPath('clock', {}, companyId);
   if (path === '/task-management.html') {
     const jobId = params.get('project_id') || params.get('job_id') || '';
     target = companyPath('tasks', jobId ? { job_id: jobId } : {}, companyIdForJob(jobId) || companyId);
@@ -3716,7 +3847,7 @@ function routeRedirect(route) {
   if (!allowed.includes(route.companyId)) {
     return companyPath(route.section || 'jobs', Object.fromEntries(route.params.entries()), allowed[0] || defaultCompanyId());
   }
-  const validSections = ['jobs', 'tasks', 'files', 'forms', 'analytics', 'crm', 'finance', 'users', 'settings', 'time', 'approvals'];
+  const validSections = MODULE_REGISTRY.map((module) => module.id);
   if (!validSections.includes(route.section)) return companyPath('jobs', {}, route.companyId);
   const jobCompanyId = route.jobId ? companyIdForJob(route.jobId) : '';
   if (jobCompanyId && jobCompanyId !== route.companyId && allowed.includes(jobCompanyId)) {
@@ -4047,6 +4178,62 @@ function approvalItems(companyId = activeCompanyId()) {
     .sort((a, b) => Date.parse(b.updatedAt || 0) - Date.parse(a.updatedAt || 0));
 }
 
+function activeTimerForCompany(companyId = activeCompanyId()) {
+  const timer = state.activeTimer;
+  if (!timer || timer.company_id !== companyId) return null;
+  return timer;
+}
+
+function timeEntriesForCompany(companyId = activeCompanyId()) {
+  return state.timeEntries
+    .filter((entry) => entry.company_id === companyId)
+    .sort((a, b) => Date.parse(b.started_at || 0) - Date.parse(a.started_at || 0));
+}
+
+function totalTimeForCompany(companyId = activeCompanyId(), sinceMs = 0) {
+  return timeEntriesForCompany(companyId)
+    .filter((entry) => Date.parse(entry.started_at || 0) >= sinceMs)
+    .reduce((total, entry) => total + number(entry.duration_ms), 0);
+}
+
+function startClock(companyId = activeCompanyId(), taskId = '') {
+  if (state.activeTimer) stopClock(false);
+  const task = taskId ? taskById(taskId) : null;
+  state.activeTimer = {
+    id: `timer-${crypto.randomUUID()}`,
+    company_id: companyId,
+    user_id: activeSession().profile.member_id || activeSession().profile.id,
+    task_id: task?.company_id === companyId ? task.id : '',
+    task_title: task?.company_id === companyId ? task.title : '',
+    started_at: new Date().toISOString(),
+  };
+  persistTimeState();
+  state.sync = { label: 'Clock started locally', mode: 'local' };
+  render();
+}
+
+function stopClock(shouldRender = true) {
+  const timer = state.activeTimer;
+  if (!timer) return;
+  const endedAt = new Date().toISOString();
+  const durationMs = Math.max(0, Date.parse(endedAt) - Date.parse(timer.started_at || endedAt));
+  state.timeEntries.unshift({
+    id: `time-${crypto.randomUUID()}`,
+    company_id: timer.company_id,
+    user_id: timer.user_id,
+    task_id: timer.task_id || '',
+    task_title: timer.task_title || '',
+    started_at: timer.started_at,
+    ended_at: endedAt,
+    duration_ms: durationMs,
+    notes: timer.task_title ? 'Task timer' : 'General shift',
+  });
+  state.activeTimer = null;
+  persistTimeState();
+  state.sync = { label: 'Clock stopped locally', mode: 'local' };
+  if (shouldRender) render();
+}
+
 function isOpenTask(task) {
   return task.status !== 'done';
 }
@@ -4156,6 +4343,18 @@ function filteredTasks(companyId = activeCompanyId(), jobId = '') {
 function allowedCompanies() {
   const ids = allowedCompanyIds();
   return state.companies.filter((company) => ids.includes(company.id));
+}
+
+function can(permission, companyId = activeCompanyId()) {
+  if (!permission) return true;
+  const profile = activeSession().profile;
+  const role = String(
+    state.memberships.find((item) => item.company_id === companyId && item.profile_id === profile.id && item.status === 'active')?.role
+      || profile.role
+      || 'member',
+  ).toLowerCase();
+  const permissions = ROLE_PERMISSIONS[role] || ROLE_PERMISSIONS.member;
+  return permissions.includes('*') || permissions.includes(permission);
 }
 
 function allowedCompanyIds() {
@@ -4464,6 +4663,7 @@ function normalizeTeamMember(input) {
     color: String(input.color || '#f0b23b'),
     avatar_url: String(input.avatar_url || ''),
     active: input.active !== false,
+    supervisor_id: String(input.supervisor_id || input.manager_id || ''),
     company_ids: Array.isArray(input.company_ids) ? compactUnique(input.company_ids.map(canonicalCompanyId)) : [],
   };
 }
@@ -4757,8 +4957,15 @@ function persistAll() {
   writeJson(FINANCE_PAYMENT_CACHE_KEY, state.financePayments);
   writeJson(FINANCE_EXPENSE_CACHE_KEY, state.financeExpenses);
   writeJson(FINANCE_VENDOR_CACHE_KEY, state.financeVendors);
+  writeJson(TIME_ENTRY_CACHE_KEY, state.timeEntries);
+  writeJson(ACTIVE_TIMER_KEY, state.activeTimer);
   writeJson(TEAM_CACHE_KEY, state.teamMembers);
   writeJson(MEMBERSHIP_CACHE_KEY, state.memberships);
+}
+
+function persistTimeState() {
+  writeJson(TIME_ENTRY_CACHE_KEY, state.timeEntries);
+  writeJson(ACTIVE_TIMER_KEY, state.activeTimer);
 }
 
 function metricCard(label, value, text = '') {
@@ -5472,6 +5679,21 @@ function formatDate(value) {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return String(value);
   return new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric' }).format(date);
+}
+
+function formatDateTime(value) {
+  if (!value) return 'No time';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return String(value);
+  return new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }).format(date);
+}
+
+function formatDuration(value) {
+  const totalSeconds = Math.max(0, Math.floor(number(value) / 1000));
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  if (hours) return `${hours}h ${String(minutes).padStart(2, '0')}m`;
+  return `${minutes}m`;
 }
 
 function formatBytes(value) {
