@@ -39,24 +39,24 @@ const ROLE_PERMISSIONS = {
 };
 
 const MODULE_REGISTRY = [
-  { id: 'jobs', group: 'Workspace', label: 'Jobs', icon: 'ti-briefcase', status: 'live', permission: 'jobs.view' },
-  { id: 'tasks', group: 'Workspace', label: 'Tasks', icon: 'ti-list-check', status: 'live', permission: 'tasks.manage' },
-  { id: 'files', group: 'Workspace', label: 'Files', icon: 'ti-folder', status: 'live', permission: 'files.view' },
-  { id: 'forms', group: 'Workspace', label: 'Forms', icon: 'ti-clipboard-list', status: 'live', permission: 'forms.view' },
-  { id: 'analytics', group: 'Workspace', label: 'Analytics', icon: 'ti-chart-bar', status: 'live', permission: 'jobs.view' },
-  { id: 'crm', group: 'Workspace', label: 'CRM', icon: 'ti-users-group', status: 'live', permission: 'jobs.view' },
-  { id: 'tickets', group: 'Workspace', label: 'Tickets', icon: 'ti-ticket', status: 'planned' },
-  { id: 'finance', group: 'Workspace', label: 'Finance', icon: 'ti-receipt-dollar', status: 'live', permission: 'finance.view' },
-  { id: 'knowledge', group: 'Workspace', label: 'Knowledge Base', icon: 'ti-books', status: 'planned' },
-  { id: 'automations', group: 'Workspace', label: 'Automations', icon: 'ti-automation', status: 'planned' },
-  { id: 'templates', group: 'Workspace', label: 'Templates', icon: 'ti-template', status: 'planned' },
-  { id: 'users', group: 'Company', label: 'Users', icon: 'ti-users', status: 'live', permission: 'users.view' },
-  { id: 'settings', group: 'Company', label: 'Settings', icon: 'ti-settings', status: 'live', permission: 'settings.view' },
-  { id: 'team-chart', group: 'Company', label: 'Team chart', icon: 'ti-hierarchy-3', status: 'live', permission: 'team.view' },
-  { id: 'time', group: 'Operations', label: 'My time', icon: 'ti-clock', status: 'live', permission: 'time.track' },
-  { id: 'approvals', group: 'Operations', label: 'Approvals', icon: 'ti-user-check', status: 'live', permission: 'approvals.view' },
-  { id: 'team-workload', group: 'Operations', label: 'Team workload', icon: 'ti-users', status: 'planned' },
-  { id: 'clock', group: 'Operations', label: 'Clock dashboard', icon: 'ti-clock-hour-4', status: 'live', permission: 'clock.manage' },
+  { id: 'jobs', group: 'Workspace', label: 'Jobs', icon: 'ti-briefcase', symbol: 'q-symbol-jobs', status: 'live', permission: 'jobs.view' },
+  { id: 'tasks', group: 'Workspace', label: 'Tasks', icon: 'ti-list-check', symbol: 'q-symbol-tasks', status: 'live', permission: 'tasks.manage' },
+  { id: 'files', group: 'Workspace', label: 'Files', icon: 'ti-folder', symbol: 'q-symbol-files', status: 'live', permission: 'files.view' },
+  { id: 'forms', group: 'Workspace', label: 'Forms', icon: 'ti-clipboard-list', symbol: 'q-symbol-forms', status: 'live', permission: 'forms.view' },
+  { id: 'analytics', group: 'Workspace', label: 'Analytics', icon: 'ti-chart-bar', symbol: 'q-symbol-analytics', status: 'live', permission: 'jobs.view' },
+  { id: 'crm', group: 'Workspace', label: 'CRM', icon: 'ti-users-group', symbol: 'q-symbol-crm', status: 'live', permission: 'jobs.view' },
+  { id: 'tickets', group: 'Workspace', label: 'Tickets', icon: 'ti-ticket', symbol: 'q-symbol-tickets', status: 'planned' },
+  { id: 'finance', group: 'Workspace', label: 'Finance', icon: 'ti-receipt-dollar', symbol: 'q-symbol-finance', status: 'live', permission: 'finance.view' },
+  { id: 'knowledge', group: 'Workspace', label: 'Knowledge Base', icon: 'ti-books', symbol: 'q-symbol-knowledge', status: 'planned' },
+  { id: 'automations', group: 'Workspace', label: 'Automations', icon: 'ti-automation', symbol: 'q-symbol-automations', status: 'planned' },
+  { id: 'templates', group: 'Workspace', label: 'Templates', icon: 'ti-template', symbol: 'q-symbol-templates', status: 'planned' },
+  { id: 'users', group: 'Company', label: 'Users', icon: 'ti-users', symbol: 'q-symbol-users', status: 'live', permission: 'users.view' },
+  { id: 'settings', group: 'Company', label: 'Settings', icon: 'ti-settings', symbol: 'q-symbol-settings', status: 'live', permission: 'settings.view' },
+  { id: 'team-chart', group: 'Company', label: 'Team chart', icon: 'ti-hierarchy-3', symbol: 'q-symbol-team-chart', status: 'live', permission: 'team.view' },
+  { id: 'time', group: 'Operations', label: 'My time', icon: 'ti-clock', symbol: 'q-symbol-time', status: 'live', permission: 'time.track' },
+  { id: 'approvals', group: 'Operations', label: 'Approvals', icon: 'ti-user-check', symbol: 'q-symbol-approvals', status: 'live', permission: 'approvals.view' },
+  { id: 'team-workload', group: 'Operations', label: 'Team workload', icon: 'ti-users', symbol: 'q-symbol-team-workload', status: 'planned' },
+  { id: 'clock', group: 'Operations', label: 'Clock dashboard', icon: 'ti-clock-hour-4', symbol: 'q-symbol-clock', status: 'live', permission: 'clock.manage' },
 ];
 
 const LEGACY_ROUTE_SECTIONS = {
@@ -791,15 +791,142 @@ function createSupabaseClient() {
   return window.supabase.createClient(CONFIG.supabaseUrl, CONFIG.supabaseKey);
 }
 
+function renderSvgSprite() {
+  return `
+    <svg class="svg-sprite" aria-hidden="true" focusable="false">
+      <symbol id="q-logo" viewBox="0 0 32 32">
+        <path d="M4 25V12.8L16 5l12 7.8V25h-6.2v-9.2H10.2V25H4Z" />
+        <path d="M10.2 15.8 16 11.9l5.8 3.9" />
+        <path d="M12 21h8" />
+      </symbol>
+      <symbol id="q-company" viewBox="0 0 24 24">
+        <path d="M4 20V8l8-4 8 4v12" />
+        <path d="M8 20v-7h8v7" />
+        <path d="M9 9h.1M12 8h.1M15 9h.1" />
+      </symbol>
+      <symbol id="q-search" viewBox="0 0 24 24">
+        <circle cx="10.8" cy="10.8" r="6.3" />
+        <path d="m16 16 4.3 4.3" />
+      </symbol>
+      <symbol id="q-empty" viewBox="0 0 24 24">
+        <path d="M5 18.5V7.7L12 4l7 3.7v10.8" />
+        <path d="M8 12h8M9.5 15h5" />
+      </symbol>
+      <symbol id="q-symbol-jobs" viewBox="0 0 24 24">
+        <path d="M5 20V8h14v12H5Z" />
+        <path d="M9 8V5h6v3M8 12h8M8 16h5" />
+      </symbol>
+      <symbol id="q-symbol-tasks" viewBox="0 0 24 24">
+        <path d="M6 7h12M6 12h12M6 17h12" />
+        <path d="m4 7 .9.9L6.4 6.4M4 12l.9.9 1.5-1.5M4 17l.9.9 1.5-1.5" />
+      </symbol>
+      <symbol id="q-symbol-files" viewBox="0 0 24 24">
+        <path d="M4 19.5V6h6l2 2h8v11.5H4Z" />
+        <path d="M4 10h16" />
+      </symbol>
+      <symbol id="q-symbol-forms" viewBox="0 0 24 24">
+        <path d="M7 4h10v16H7V4Z" />
+        <path d="M9.5 8h5M9.5 12h5M9.5 16h3" />
+      </symbol>
+      <symbol id="q-symbol-analytics" viewBox="0 0 24 24">
+        <path d="M5 19V5" />
+        <path d="M5 19h14" />
+        <path d="M8 16v-4M12 16V8M16 16v-6" />
+      </symbol>
+      <symbol id="q-symbol-crm" viewBox="0 0 24 24">
+        <circle cx="9" cy="9" r="3" />
+        <path d="M3.8 19c.8-3 2.5-4.5 5.2-4.5s4.4 1.5 5.2 4.5" />
+        <path d="M15.5 8.2a2.7 2.7 0 1 1 0 5.4M16.8 15.2c1.8.6 3 1.9 3.6 3.8" />
+      </symbol>
+      <symbol id="q-symbol-tickets" viewBox="0 0 24 24">
+        <path d="M4 8.5h16v3a2 2 0 0 0 0 4v3H4v-3a2 2 0 0 0 0-4v-3Z" />
+        <path d="M9 9v10" />
+      </symbol>
+      <symbol id="q-symbol-finance" viewBox="0 0 24 24">
+        <path d="M6 4h12v16H6V4Z" />
+        <path d="M9 8h6M9 12h6M9 16h3" />
+        <path d="M15.5 14.5c0 1.4-1 2.5-3.2 2.5" />
+      </symbol>
+      <symbol id="q-symbol-knowledge" viewBox="0 0 24 24">
+        <path d="M5 5.5c2.8-.8 5-.4 7 1.2 2-1.6 4.2-2 7-1.2V19c-2.8-.8-5-.4-7 1.2-2-1.6-4.2-2-7-1.2V5.5Z" />
+        <path d="M12 6.7v13.5" />
+      </symbol>
+      <symbol id="q-symbol-automations" viewBox="0 0 24 24">
+        <path d="M7 8a4 4 0 0 1 8 0c0 3-4 3.5-4 7" />
+        <path d="M9 20h4M10 17h2M16.5 13.5l3 3M20 13l-3.5 3.5" />
+      </symbol>
+      <symbol id="q-symbol-templates" viewBox="0 0 24 24">
+        <path d="M5 5h14v14H5V5Z" />
+        <path d="M5 10h14M10 10v9" />
+      </symbol>
+      <symbol id="q-symbol-users" viewBox="0 0 24 24">
+        <circle cx="8.5" cy="9" r="3" />
+        <circle cx="16" cy="10" r="2.5" />
+        <path d="M3.8 19c.8-3 2.3-4.5 4.7-4.5s3.9 1.5 4.7 4.5M13.4 15.3c2.6 0 4.2 1.2 4.8 3.7" />
+      </symbol>
+      <symbol id="q-symbol-settings" viewBox="0 0 24 24">
+        <circle cx="12" cy="12" r="3" />
+        <path d="M12 3.8v2.4M12 17.8v2.4M4.9 6l1.7 1.7M17.4 16.3l1.7 1.7M3.8 12h2.4M17.8 12h2.4M4.9 18l1.7-1.7M17.4 7.7 19.1 6" />
+      </symbol>
+      <symbol id="q-symbol-team-chart" viewBox="0 0 24 24">
+        <path d="M12 5v5M7 15v4M17 15v4M7 15h10M12 10h-5v5M12 10h5v5" />
+        <circle cx="12" cy="4" r="2" />
+        <circle cx="7" cy="20" r="2" />
+        <circle cx="17" cy="20" r="2" />
+      </symbol>
+      <symbol id="q-symbol-time" viewBox="0 0 24 24">
+        <circle cx="12" cy="12" r="8" />
+        <path d="M12 7.5V12l3 2" />
+      </symbol>
+      <symbol id="q-symbol-approvals" viewBox="0 0 24 24">
+        <path d="M5 12.5 9.2 17 19 7" />
+        <path d="M5 5h14v14H5V5Z" />
+      </symbol>
+      <symbol id="q-symbol-team-workload" viewBox="0 0 24 24">
+        <path d="M4 18c.7-2.7 2.1-4 4.2-4s3.5 1.3 4.2 4M12.5 18c.7-2.7 2.1-4 4.2-4s3.5 1.3 4.2 4" />
+        <circle cx="8.2" cy="9" r="3" />
+        <circle cx="16.7" cy="9" r="3" />
+      </symbol>
+      <symbol id="q-symbol-clock" viewBox="0 0 24 24">
+        <circle cx="12" cy="12" r="8" />
+        <path d="M12 6.8v5.4l3.7 2.1" />
+        <path d="M5 4.8 3.5 6.3M19 4.8l1.5 1.5" />
+      </symbol>
+    </svg>
+  `;
+}
+
+function svgIcon(id, className = 'symbol-icon') {
+  return `<svg class="${h(className)}" aria-hidden="true" focusable="false"><use href="#${h(id)}"></use></svg>`;
+}
+
+function moduleSymbol(section = state.route?.section || 'jobs') {
+  return MODULE_REGISTRY.find((module) => module.id === section)?.symbol || 'q-empty';
+}
+
+function metricSymbol(label) {
+  const value = String(label || '').toLowerCase();
+  if (value.includes('job') || value.includes('pipeline')) return 'q-symbol-jobs';
+  if (value.includes('task') || value.includes('review')) return 'q-symbol-tasks';
+  if (value.includes('file')) return 'q-symbol-files';
+  if (value.includes('form')) return 'q-symbol-forms';
+  if (value.includes('account') || value.includes('customer') || value.includes('member') || value.includes('user') || value.includes('lead')) return 'q-symbol-crm';
+  if (value.includes('invoice') || value.includes('collected') || value.includes('expense') || value.includes('net') || value.includes('outstanding')) return 'q-symbol-finance';
+  if (value.includes('time') || value.includes('today') || value.includes('days') || value.includes('timer') || value.includes('entries')) return 'q-symbol-clock';
+  if (value.includes('approval') || value.includes('access')) return 'q-symbol-approvals';
+  return moduleSymbol();
+}
+
 function shellTemplate(route, workspace) {
   const session = activeSession();
   const companyId = activeCompanyId();
   return `
     <div class="quest-app" data-route="${h(route.name)}">
+      ${renderSvgSprite()}
       <header class="topbar">
         <div class="topbar-left">
           <a class="logo" href="${appHref(companyPath('jobs', {}, companyId))}" data-router aria-label="Quest HQ workspace">
-            <i class="ti ti-bolt"></i>
+            ${svgIcon('q-logo', 'brand-symbol')}
           </a>
           <div>
             <div class="brand-name">Quest HQ</div>
@@ -808,13 +935,13 @@ function shellTemplate(route, workspace) {
         </div>
         <div class="topbar-right">
           <label class="company-switch">
-            <i class="ti ti-building"></i>
+            ${svgIcon('q-company')}
             <select data-company-switch aria-label="Active company">
               ${allowedCompanies().map((company) => `<option value="${h(company.id)}" ${company.id === companyId ? 'selected' : ''}>${h(companyLabel(company))}</option>`).join('')}
             </select>
           </label>
           <label class="global-search">
-            <i class="ti ti-search" aria-hidden="true"></i>
+            ${svgIcon('q-search')}
             <input data-global-search value="${h(state.query)}" placeholder="Search this company" />
           </label>
           <span class="sync-pill ${h(state.sync.mode)}" data-sync-state>${h(state.sync.label)}</span>
@@ -849,17 +976,19 @@ function renderDeck(route) {
   const companyId = activeCompanyId();
   return `
     <div class="company-card">
-      <span style="background:${h(companyColor(companyId))}"></span>
-      <strong>${h(companyName(companyId))}</strong>
-      <small>${h(roleForCompany(companyId))} workspace</small>
+      <span class="company-card-symbol" style="--company-accent:${h(companyColor(companyId))}">${svgIcon('q-company')}</span>
+      <div>
+        <strong>${h(companyName(companyId))}</strong>
+        <small>${h(roleForCompany(companyId))} workspace</small>
+      </div>
     </div>
     ${['Workspace', 'Company', 'Operations'].map((group) => navGroup(
       group,
       MODULE_REGISTRY
         .filter((module) => module.group === group && canViewModule(module, companyId))
         .map((module) => module.status === 'planned'
-          ? plannedNavItem(module.icon, module.label)
-          : navItem(route, companyPath(module.id, {}, companyId), module.icon, module.label, moduleBadgeCount(module.id, companyId))),
+          ? plannedNavItem(module.symbol, module.label)
+          : navItem(route, companyPath(module.id, {}, companyId), module.symbol, module.label, moduleBadgeCount(module.id, companyId))),
     )).join('')}
   `;
 }
@@ -873,21 +1002,21 @@ function navGroup(label, items) {
   `;
 }
 
-function navItem(route, path, icon, label, count = '') {
+function navItem(route, path, symbol, label, count = '') {
   const active = isActiveNav(route, path);
   return `
     <a class="side-item ${active ? 'active' : ''}" href="${appHref(path)}" data-router>
-      <i class="ti ${h(icon)}"></i>
+      ${svgIcon(symbol)}
       <span>${h(label)}</span>
       ${count !== '' ? `<b>${h(String(count))}</b>` : ''}
     </a>
   `;
 }
 
-function plannedNavItem(icon, label) {
+function plannedNavItem(symbol, label) {
   return `
     <button class="side-item planned" type="button" disabled aria-disabled="true">
-      <i class="ti ${h(icon)}"></i>
+      ${svgIcon(symbol)}
       <span>${h(label)}</span>
       <b>Planned</b>
     </button>
@@ -4835,12 +4964,16 @@ function buildLocalSession() {
 }
 
 function workspaceHeader(title, summary, actions = '') {
+  const symbol = moduleSymbol();
   return `
     <section class="workspace-head">
-      <div>
-        <div class="context-line"><span>${h(companyName(activeCompanyId()))}</span><b>${h(roleForCompany(activeCompanyId()))}</b></div>
-        <h1>${h(title)}</h1>
-        <p>${h(summary)}</p>
+      <div class="head-copy">
+        <span class="head-symbol">${svgIcon(symbol)}</span>
+        <div>
+          <div class="context-line"><span>${h(companyName(activeCompanyId()))}</span><b>${h(roleForCompany(activeCompanyId()))}</b></div>
+          <h1>${h(title)}</h1>
+          <p>${h(summary)}</p>
+        </div>
       </div>
       ${actions ? `<div class="head-actions">${actions}</div>` : ''}
     </section>
@@ -4848,7 +4981,7 @@ function workspaceHeader(title, summary, actions = '') {
 }
 
 function metricGrid(items) {
-  return `<section class="metric-grid">${items.map(([label, value]) => `<article class="metric"><span>${h(label)}</span><strong>${h(value)}</strong></article>`).join('')}</section>`;
+  return `<section class="metric-grid">${items.map(([label, value]) => `<article class="metric">${svgIcon(metricSymbol(label), 'metric-symbol')}<span>${h(label)}</span><strong>${h(value)}</strong></article>`).join('')}</section>`;
 }
 
 function jobQueueRow(job) {
@@ -4934,7 +5067,7 @@ function renderAvatar(profile, className) {
 }
 
 function emptyState(text) {
-  return `<div class="empty-state">${h(text)}</div>`;
+  return `<div class="empty-state">${svgIcon('q-empty', 'empty-symbol')}<span>${h(text)}</span></div>`;
 }
 
 function copyParams(params, keys) {
@@ -4969,7 +5102,7 @@ function persistTimeState() {
 }
 
 function metricCard(label, value, text = '') {
-  return `<article class="metric"><span>${h(label)}</span><strong>${h(value)}</strong>${text ? `<small>${h(text)}</small>` : ''}</article>`;
+  return `<article class="metric">${svgIcon(metricSymbol(label), 'metric-symbol')}<span>${h(label)}</span><strong>${h(value)}</strong>${text ? `<small>${h(text)}</small>` : ''}</article>`;
 }
 
 function detailRow(label, value) {

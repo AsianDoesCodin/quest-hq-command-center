@@ -1,0 +1,10 @@
+{
+  "scanned_at": "2026-06-16",
+  "framework": "Vite vanilla SPA",
+  "font_stack": "IBM Plex Sans, Inter, system UI fallback",
+  "palette": "warm paper surfaces with amber, orange, blue, green, and red status accents",
+  "motion": "motion-cut; no motion library installed",
+  "spacing": "compact 8px-radius operational shell",
+  "preserve": ["compact tool pages", "modal-first workflows", "warm Quest palette"],
+  "introduced": ["inline SVG symbol system", "module-specific shell icons", "symbolic empty and metric states"]
+}
