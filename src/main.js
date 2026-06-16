@@ -64,6 +64,8 @@ const PERMISSION_KEYS = [
   ['clock.manage', 'Manage clock dashboard'],
   ['approvals.view', 'View approvals'],
   ['approvals.manage', 'Manage approvals'],
+  ['messages.view', 'View messages (planned)'],
+  ['messages.manage', 'Manage group chats (planned)'],
 ];
 
 const MODULE_REGISTRY = [
@@ -79,6 +81,7 @@ const MODULE_REGISTRY = [
   { id: 'automations', group: 'Workspace', label: 'Automations', icon: 'ti-automation', symbol: 'q-symbol-automations', status: 'planned' },
   { id: 'templates', group: 'Workspace', label: 'Templates', icon: 'ti-template', symbol: 'q-symbol-templates', status: 'planned' },
   { id: 'users', group: 'Company', label: 'Users', icon: 'ti-users', symbol: 'q-symbol-users', status: 'live', permission: 'users.view' },
+  { id: 'messages', group: 'Company', label: 'Messages', icon: 'ti-messages', symbol: 'q-symbol-messages', status: 'planned' },
   { id: 'settings', group: 'Company', label: 'Settings', icon: 'ti-settings', symbol: 'q-symbol-settings', status: 'live', permission: 'settings.view' },
   { id: 'team-chart', group: 'Company', label: 'Team chart', icon: 'ti-hierarchy-3', symbol: 'q-symbol-team-chart', status: 'live', permission: 'team.view' },
   { id: 'time', group: 'Operations', label: 'My time', icon: 'ti-clock', symbol: 'q-symbol-time', status: 'live', permission: 'time.track' },
@@ -1133,6 +1136,10 @@ function renderSvgSprite() {
         <circle cx="8.5" cy="9" r="3" />
         <circle cx="16" cy="10" r="2.5" />
         <path d="M3.8 19c.8-3 2.3-4.5 4.7-4.5s3.9 1.5 4.7 4.5M13.4 15.3c2.6 0 4.2 1.2 4.8 3.7" />
+      </symbol>
+      <symbol id="q-symbol-messages" viewBox="0 0 24 24">
+        <path d="M4.5 6.5h15v9.5h-8l-4.5 3v-3H4.5v-9.5Z" />
+        <path d="M8 10h8M8 13h5" />
       </symbol>
       <symbol id="q-symbol-settings" viewBox="0 0 24 24">
         <circle cx="12" cy="12" r="3" />

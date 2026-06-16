@@ -27,6 +27,25 @@ This file is the durable implementation checklist for the auth, permissions, peo
 - [x] Add a Clock Dashboard route for active timers, today totals, and team workload.
 - [x] Add clock-in/clock-out actions that persist locally in basic mode.
 
+## Notifications And Messages
+
+- [ ] Design and build a persistent notification system after auth/RLS hardening.
+  - [x] Record the notification system design in this durable checklist.
+  - [ ] Add a topbar bell, compact inbox popover, unread count, mark-all-read, and click-through notification links.
+  - [ ] Add local/demo seeded notifications without mixing them into Supabase live workspaces.
+  - [ ] Add Supabase notification persistence only after RLS permission tests pass.
+  - [ ] Keep toasts separate from notifications; toasts are temporary UI feedback only.
+- [ ] Future notification records should be company-scoped and user-targeted.
+  - Minimum record fields: `id`, `company_id`, `recipient_profile_id`, `type`, `title`, `body`, `href`, `source_type`, `source_id`, `read_at`, `created_at`.
+  - Event sources: task assignment, task status/priority changes, approvals, files/forms, invites/access, finance, subscription/billing, and future messages.
+  - Security rule: users can only read/update their own notification rows; admins do not get broad access to private inbox rows unless explicitly redesigned.
+- [ ] Build Messages as a future company communication module.
+  - [x] Add Messages as a disabled planned sidebar module.
+  - [ ] Admins/Owners can create company group chats.
+  - [ ] Group chats can target roles, individual users, or all company members.
+  - [ ] Messages must be company-scoped and permission-gated with future `messages.view` and `messages.manage` permissions.
+  - [ ] Do not add chat storage, live routes, or realtime behavior until the module is explicitly implemented.
+
 ## Persistence And Sync
 
 - [ ] Fix seeded local cache semantics so empty arrays stay empty after user deletion.
