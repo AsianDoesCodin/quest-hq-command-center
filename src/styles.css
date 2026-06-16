@@ -1715,6 +1715,28 @@ textarea:focus {
   color: var(--ink);
 }
 
+.demo-mode-box {
+  display: grid;
+  gap: 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: #fffaf0;
+  padding: 12px;
+}
+
+.demo-mode-box strong,
+.demo-mode-box span {
+  display: block;
+}
+
+.demo-mode-box span {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 1.35;
+  margin-top: 2px;
+}
+
 .demo-login-details {
   border-top: 1px solid var(--border);
   padding-top: 10px;

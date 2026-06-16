@@ -736,6 +736,11 @@ function init() {
 }
 
 async function initializeAuth() {
+  if (state.session?.auth === 'local-basic') {
+    resetDemoWorkspaceData();
+    state.authReady = true;
+    return;
+  }
   if (!CONFIG.questAuthEnabled) {
     state.authReady = true;
     return;
@@ -772,6 +777,7 @@ async function setSupabaseSession(session) {
   }
   const profile = await fetchSupabaseProfile(session.user);
   state.session = buildSupabaseSession(session, profile);
+  resetLiveWorkspaceData();
   writeJson(SESSION_KEY, state.session);
 }
 
@@ -892,6 +898,10 @@ function ensureDataLoad() {
 }
 
 async function loadSupabaseData() {
+  if (state.session?.auth === 'local-basic') {
+    state.sync = { label: 'Demo mode', mode: 'local' };
+    return;
+  }
   const client = createSupabaseClient();
   if (!client) {
     state.sync = { label: 'Supabase unavailable', mode: 'local' };
@@ -936,29 +946,27 @@ async function loadSupabaseData() {
 
   let liveTables = 0;
   if (!companiesResult.error) {
-    state.companies = companiesResult.data?.length
-      ? mergeCompanies(companiesFallback.concat(companiesResult.data).map(normalizeCompany))
-      : mergeCompanies(companiesFallback.map(normalizeCompany));
+    state.companies = (companiesResult.data || []).map(normalizeCompany);
     liveTables += 1;
   }
   if (!jobsResult.error) {
-    if (jobsResult.data?.length) state.jobs = jobsResult.data.map(normalizeJob);
+    state.jobs = (jobsResult.data || []).map(normalizeJob);
     liveTables += 1;
   }
   if (!tasksResult.error) {
-    if (tasksResult.data?.length) state.tasks = tasksResult.data.map(normalizeTask);
+    state.tasks = (tasksResult.data || []).map(normalizeTask);
     liveTables += 1;
   }
   if (!filesResult.error) {
-    if (filesResult.data?.length) state.files = filesResult.data.map(normalizeFile);
+    state.files = (filesResult.data || []).map(normalizeFile);
     liveTables += 1;
   }
   if (!teamResult.error) {
-    if (teamResult.data?.length) state.teamMembers = teamResult.data.map(normalizeTeamMember);
+    state.teamMembers = (teamResult.data || []).map(normalizeTeamMember);
     liveTables += 1;
   }
   if (!membershipsResult.error) {
-    if (membershipsResult.data?.length) state.memberships = membershipsResult.data.map(normalizeMembership);
+    state.memberships = (membershipsResult.data || []).map(normalizeMembership);
     liveTables += 1;
   }
   if (!profilesResult.error) {
@@ -990,6 +998,64 @@ function createSupabaseClient() {
     supabaseClientCache = window.supabase.createClient(CONFIG.supabaseUrl, CONFIG.supabaseKey);
   }
   return supabaseClientCache;
+}
+
+function resetLiveWorkspaceData() {
+  state.jobs = [];
+  state.tasks = [];
+  state.files = [];
+  state.driveFolders = [];
+  state.forms = [];
+  state.formResponses = [];
+  state.financeInvoices = [];
+  state.financePayments = [];
+  state.financeExpenses = [];
+  state.financeVendors = [];
+  state.timeEntries = [];
+  state.activeTimer = null;
+  state.teamMembers = [];
+  state.memberships = [];
+  state.profiles = [];
+  state.subscriptions = [];
+  state.roles = [];
+  state.rolePermissions = [];
+  state.roleAssignments = [];
+  state.resourceAcl = [];
+  state.fieldPermissions = [];
+  state.companyInvites = [];
+  state.joinRequests = [];
+  state.auditEvents = [];
+  state.companies = [];
+  state.sync = { label: 'Loading secure workspace...', mode: 'loading' };
+}
+
+function resetDemoWorkspaceData() {
+  state.jobs = readSeededList(JOB_CACHE_KEY, jobsFallback).map(normalizeJob);
+  state.tasks = readSeededList(TASK_CACHE_KEY, tasksFallback).map(normalizeTask);
+  state.files = readSeededList(FILE_CACHE_KEY, filesFallback).map(normalizeFile);
+  state.driveFolders = readSeededList(DRIVE_FOLDER_CACHE_KEY, []).map(normalizeDriveFolder);
+  state.forms = readSeededList(FORM_CACHE_KEY, formsFallback).map(normalizeForm);
+  state.formResponses = readSeededList(FORM_RESPONSE_CACHE_KEY, formResponsesFallback).map(normalizeFormResponse);
+  state.financeInvoices = readSeededList(FINANCE_INVOICE_CACHE_KEY, financeInvoicesFallback).map(normalizeFinanceInvoice);
+  state.financePayments = readSeededList(FINANCE_PAYMENT_CACHE_KEY, financePaymentsFallback).map(normalizeFinancePayment);
+  state.financeExpenses = readSeededList(FINANCE_EXPENSE_CACHE_KEY, financeExpensesFallback).map(normalizeFinanceExpense);
+  state.financeVendors = readSeededList(FINANCE_VENDOR_CACHE_KEY, financeVendorsFallback).map(normalizeFinanceVendor);
+  state.timeEntries = readJson(TIME_ENTRY_CACHE_KEY, []);
+  state.activeTimer = readJson(ACTIVE_TIMER_KEY, null);
+  state.teamMembers = readSeededList(TEAM_CACHE_KEY, teamMembersFallback).map(normalizeTeamMember);
+  state.memberships = readSeededList(MEMBERSHIP_CACHE_KEY, membershipsFallback);
+  state.profiles = [];
+  state.subscriptions = [];
+  state.roles = [];
+  state.rolePermissions = [];
+  state.roleAssignments = [];
+  state.resourceAcl = [];
+  state.fieldPermissions = [];
+  state.companyInvites = [];
+  state.joinRequests = [];
+  state.auditEvents = [];
+  state.companies = mergeCompanies(companiesFallback.map(normalizeCompany));
+  state.sync = { label: 'Demo mode', mode: 'local' };
 }
 
 function renderSvgSprite() {
@@ -3087,15 +3153,28 @@ function renderLogin() {
             <button class="${state.authMode === 'request' ? 'active' : ''}" type="button" data-action="set-auth-mode" data-auth-mode="request">Request access</button>
           </div>
           ${renderSupabaseAuthForm(returnUrl)}
-        ` : renderLocalLoginForm(returnUrl)}
+        ` : ''}
+        ${renderDemoModeLauncher(returnUrl)}
         ${CONFIG.localLoginEnabled && authEnabled ? `
           <details class="demo-login-details">
-            <summary>Demo access</summary>
+            <summary>Legacy demo credentials</summary>
             ${renderLocalLoginForm(returnUrl)}
           </details>
         ` : ''}
       </section>
     </main>
+  `;
+}
+
+function renderDemoModeLauncher(returnUrl) {
+  return `
+    <section class="demo-mode-box">
+      <div>
+        <strong>Demo mode</strong>
+        <span>Local-only sample workspace. No Supabase database reads or writes.</span>
+      </div>
+      <button class="btn full" type="button" data-action="start-demo-mode" data-return-url="${h(returnUrl)}">Open demo mode</button>
+    </section>
   `;
 }
 
@@ -3457,6 +3536,11 @@ function handleAction(event, node) {
     render();
     return;
   }
+  if (action === 'start-demo-mode') {
+    event.preventDefault();
+    startDemoMode(node.dataset.returnUrl || '');
+    return;
+  }
   if (action === 'set-auth-mode') {
     event.preventDefault();
     state.authMode = ['signin', 'register', 'request'].includes(node.dataset.authMode) ? node.dataset.authMode : 'signin';
@@ -3793,9 +3877,7 @@ function onDocumentSubmit(event) {
       return;
     }
     state.loginError = '';
-    state.session = buildLocalSession();
-    writeJson(SESSION_KEY, state.session);
-    navigate(safeReturnUrl(form.return_url || appHref(companyPath('jobs', {}, defaultCompanyId()))), { replace: true });
+    startDemoMode(form.return_url || appHref(companyPath('jobs', {}, defaultCompanyId())));
     return;
   }
 
@@ -3907,12 +3989,27 @@ function onDocumentSubmit(event) {
 }
 
 async function signOut() {
-  const client = createSupabaseClient();
-  if (CONFIG.questAuthEnabled && client?.auth) await client.auth.signOut();
+  if (state.session?.auth === 'supabase') {
+    const client = createSupabaseClient();
+    if (CONFIG.questAuthEnabled && client?.auth) await client.auth.signOut();
+  }
   localStorage.removeItem(SESSION_KEY);
   state.session = null;
   state.dataLoaded = false;
   navigate('/login', { replace: true });
+}
+
+function startDemoMode(returnUrl = '') {
+  state.loginError = '';
+  state.authMessage = '';
+  state.session = buildLocalSession();
+  resetDemoWorkspaceData();
+  state.activeCompanyId = activeCompanyId();
+  localStorage.setItem(COMPANY_KEY, state.activeCompanyId);
+  writeJson(SESSION_KEY, state.session);
+  state.dataLoaded = false;
+  state.dataLoading = false;
+  navigate(safeReturnUrl(returnUrl || appHref(companyPath('jobs', {}, activeCompanyId()))), { replace: true });
 }
 
 async function signInWithSupabase(formNode) {
@@ -5924,6 +6021,7 @@ function copyParams(params, keys) {
 }
 
 function persistAll() {
+  if (state.session?.auth === 'supabase') return;
   writeJson(JOB_CACHE_KEY, state.jobs);
   writeJson(TASK_CACHE_KEY, state.tasks);
   writeJson(FILE_CACHE_KEY, state.files);
@@ -5941,6 +6039,7 @@ function persistAll() {
 }
 
 function persistTimeState() {
+  if (state.session?.auth === 'supabase') return;
   writeJson(TIME_ENTRY_CACHE_KEY, state.timeEntries);
   writeJson(ACTIVE_TIMER_KEY, state.activeTimer);
 }
