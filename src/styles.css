@@ -48,7 +48,7 @@ button { cursor: pointer; }
 
 .quest-app {
   display: grid;
-  grid-template-rows: auto minmax(0, 1fr);
+  grid-template-rows: auto auto minmax(0, 1fr);
   min-height: 100vh;
   background: var(--bg);
 }
@@ -73,6 +73,36 @@ button { cursor: pointer; }
 }
 
 .topbar-right { flex: 1 1 auto; justify-content: flex-end; }
+
+.role-preview-banner {
+  display: grid;
+  grid-template-columns: 10px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  border-bottom: 1px solid color-mix(in srgb, var(--role-color), var(--border) 65%);
+  background: #fff5d9;
+  padding: 9px 24px;
+}
+
+.role-preview-banner > span {
+  width: 10px;
+  height: 34px;
+  border-radius: 999px;
+  background: var(--role-color);
+}
+
+.role-preview-banner strong,
+.role-preview-banner small {
+  display: block;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.role-preview-banner small {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+}
 
 .logo,
 .side-mark {
@@ -1984,6 +2014,13 @@ textarea:focus {
   font-size: 11px;
 }
 
+.role-row-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
 .permission-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -3611,6 +3648,16 @@ textarea:focus {
 }
 
 @media (max-width: 720px) {
+  .role-preview-banner {
+    grid-template-columns: 10px minmax(0, 1fr);
+    padding: 9px 14px;
+  }
+
+  .role-preview-banner .btn {
+    grid-column: 1 / -1;
+    justify-self: start;
+  }
+
   .topbar-right {
     display: contents;
   }
@@ -3671,6 +3718,14 @@ textarea:focus {
   .side-items { grid-template-columns: repeat(2, minmax(132px, 1fr)); }
   .selected-job-chip { display: grid; }
   .contract-rows div { grid-template-columns: 1fr; }
+  .role-row {
+    grid-template-columns: 10px minmax(0, 1fr);
+  }
+  .role-row-actions {
+    grid-column: 1 / -1;
+    justify-content: flex-start;
+    flex-wrap: wrap;
+  }
   .table-head { display: none; }
   .jobs-table .table-row,
   .task-table .table-row,

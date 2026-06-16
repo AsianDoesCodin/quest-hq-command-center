@@ -723,6 +723,7 @@ const state = {
   toastTimer: null,
   modal: '',
   accountMenuOpen: false,
+  rolePreview: null,
 };
 
 const app = document.getElementById('app');
@@ -1243,6 +1244,7 @@ function shellTemplate(route, workspace) {
           </div>
         </div>
       </header>
+      ${renderRolePreviewBanner(companyId)}
       <div class="app-body">
         <aside class="deck" aria-label="Quest navigation">
           ${renderDeck(route)}
@@ -1254,6 +1256,21 @@ function shellTemplate(route, workspace) {
     </div>
     ${renderActiveModal(route, session)}
     ${renderToast()}
+  `;
+}
+
+function renderRolePreviewBanner(companyId) {
+  const role = rolePreviewForCompany(companyId);
+  if (!role) return '';
+  return `
+    <div class="role-preview-banner" style="--role-color:${h(role.color)}">
+      <span></span>
+      <div>
+        <strong>Viewing as ${h(role.name)}</strong>
+        <small>Permission preview only. Your real account has not changed.</small>
+      </div>
+      <button class="btn" type="button" data-action="exit-role-preview"><i class="ti ti-eye-off"></i>Exit preview</button>
+    </div>
   `;
 }
 
@@ -2355,6 +2372,7 @@ function renderBillingSettings(companyId) {
 
 function renderRolesSettings(companyId) {
   const roles = companyRoles(companyId);
+  const previewRole = rolePreviewForCompany(companyId);
   return `
     <article class="panel span-2">
       <div class="section-head">
@@ -2365,11 +2383,17 @@ function renderRolesSettings(companyId) {
         ${roles.map((role) => {
           const permissionCount = state.rolePermissions.filter((item) => item.role_id === role.id && item.effect === 'allow').length;
           const userCount = state.roleAssignments.filter((item) => item.company_id === companyId && item.role_id === role.id).length;
+          const viewing = previewRole?.id === role.id;
           return `
             <article class="role-row" style="--role-color:${h(role.color)}">
               <span></span>
               <div><strong>${h(role.name)}</strong><small>${permissionCount || 'All'} permissions / ${userCount} users / priority ${role.priority}</small></div>
-              <b>${role.is_system ? 'System' : 'Custom'}</b>
+              <div class="role-row-actions">
+                <b>${role.is_system ? 'System' : 'Custom'}</b>
+                <button class="btn" type="button" data-action="view-as-role" data-role-id="${h(role.id)}" ${viewing ? 'disabled' : ''}>
+                  <i class="ti ${viewing ? 'ti-eye-check' : 'ti-eye'}"></i>${viewing ? 'Viewing' : 'View as role'}
+                </button>
+              </div>
             </article>
           `;
         }).join('') || emptyState('No custom roles yet.')}
@@ -3751,6 +3775,24 @@ function handleAction(event, node) {
     event.preventDefault();
     state.modal = 'role-new';
     render();
+    return;
+  }
+  if (action === 'view-as-role') {
+    event.preventDefault();
+    const companyId = activeCompanyId();
+    const role = roleById(companyId, node.dataset.roleId);
+    if (!role) {
+      showToast('That role is no longer available.', 'local', 'Role preview');
+      return;
+    }
+    state.rolePreview = { company_id: companyId, role_id: role.id };
+    showToast(`Viewing the workspace as ${role.name}.`, 'local', 'Role preview');
+    return;
+  }
+  if (action === 'exit-role-preview') {
+    event.preventDefault();
+    state.rolePreview = null;
+    showToast('Role preview ended.', 'live', 'Role preview');
     return;
   }
   if (action === 'open-invite-form') {
@@ -5501,6 +5543,24 @@ function roleById(companyId, roleId) {
   return companyRoles(companyId).find((role) => role.id === roleId) || null;
 }
 
+function rolePreviewForCompany(companyId = activeCompanyId()) {
+  if (!state.rolePreview || state.rolePreview.company_id !== companyId) return null;
+  return roleById(companyId, state.rolePreview.role_id);
+}
+
+function roleAllowsPermission(role, permission) {
+  if (!permission) return true;
+  const normalizedName = String(role?.name || '').toLowerCase();
+  if (['owner', 'admin', 'developer'].includes(normalizedName)) return true;
+  const explicit = state.rolePermissions.filter((item) => item.role_id === role?.id);
+  if (explicit.some((item) => (item.permission_key === permission || item.permission_key === '*') && item.effect === 'deny')) return false;
+  if (explicit.some((item) => (item.permission_key === permission || item.permission_key === '*') && item.effect === 'allow')) return true;
+  if (explicit.length) return false;
+  const fallbackRole = membershipRoleForRole(role);
+  const fallbackPermissions = ROLE_PERMISSIONS[fallbackRole] || ROLE_PERMISSIONS.member;
+  return fallbackPermissions.includes('*') || fallbackPermissions.includes(permission);
+}
+
 function roleIdForName(companyId, roleName) {
   const normalized = String(roleName || '').toLowerCase();
   return companyRoles(companyId).find((role) => role.name.toLowerCase() === normalized || role.id.toLowerCase() === normalized)?.id || '';
@@ -5855,6 +5915,8 @@ function allowedCompanies() {
 
 function can(permission, companyId = activeCompanyId()) {
   if (!permission) return true;
+  const previewRole = rolePreviewForCompany(companyId);
+  if (previewRole) return roleAllowsPermission(previewRole, permission);
   const profile = activeSession().profile;
   if (state.session?.auth === 'supabase') {
     const membership = membershipForProfile(companyId, profile.id);
@@ -5922,6 +5984,8 @@ function companyIdForJob(jobId) {
 }
 
 function roleForCompany(companyId) {
+  const previewRole = rolePreviewForCompany(companyId);
+  if (previewRole) return `Preview: ${previewRole.name}`;
   const profile = activeSession().profile;
   if (state.session?.auth !== 'supabase' && ['developer', 'admin'].includes(profile.role)) return titleCase(profile.role);
   return titleCase(membershipForProfile(companyId, profile.id)?.role || profile.role || 'member');
