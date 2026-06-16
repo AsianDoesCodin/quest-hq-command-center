@@ -4326,7 +4326,7 @@ async function saveUserAccess(formNode) {
 
   if (state.session?.auth === 'supabase' && client) {
     const canPersistRoleAssignment = isUuid(role.id);
-    const membershipResult = await client.from('company_memberships').upsert(membership, { onConflict: 'company_id,profile_id' }).select().single();
+    const membershipResult = await client.from('company_memberships').upsert(membershipPayload(membership), { onConflict: 'company_id,profile_id' }).select().single();
     if (membershipResult.error) {
       state.sync = { label: membershipResult.error.message || 'Access update failed', mode: 'local' };
       render();
@@ -4367,7 +4367,7 @@ async function updateJoinRequest(requestId, status) {
 
   if (state.session?.auth === 'supabase' && client) {
     if (status === 'approved') {
-      const membershipResult = await client.from('company_memberships').upsert(membership, { onConflict: 'company_id,profile_id' });
+      const membershipResult = await client.from('company_memberships').upsert(membershipPayload(membership), { onConflict: 'company_id,profile_id' });
       if (membershipResult.error) {
         state.sync = { label: membershipResult.error.message || 'Approval failed', mode: 'local' };
         render();
@@ -4833,6 +4833,15 @@ function upsertMembership(membership) {
 function replaceRoleAssignment(assignment) {
   state.roleAssignments = state.roleAssignments.filter((item) => item.company_id !== assignment.company_id || item.profile_id !== assignment.profile_id);
   if (assignment.role_id) state.roleAssignments.unshift(assignment);
+}
+
+function membershipPayload(membership) {
+  return {
+    company_id: membership.company_id,
+    profile_id: membership.profile_id,
+    role: membership.role,
+    status: membership.status,
+  };
 }
 
 function syncJobInvoiceTotal(jobId) {
