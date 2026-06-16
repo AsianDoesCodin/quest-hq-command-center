@@ -31,6 +31,7 @@ const ACTIVE_TIMER_KEY = 'quest-hq-active-timer-v1';
 const COMPANY_KEY = 'quest-hq-active-company';
 const TASK_VIEW_KEY = 'quest-hq-task-view';
 const DRIVE_VIEW_KEY = 'quest-hq-drive-view';
+const NOTIFICATION_CACHE_KEY = 'quest-hq-notification-cache-v1';
 
 const ROLE_PERMISSIONS = {
   developer: ['*'],
@@ -655,6 +656,74 @@ const financeExpensesFallback = [
   },
 ];
 
+const notificationsFallback = [
+  {
+    id: 'notification-roofing-task-assigned',
+    company_id: 'roofing',
+    recipient_profile_id: 'basic-quest-user',
+    type: 'task.assigned',
+    title: 'Task assigned',
+    body: 'Abraham assigned Leak inspection photos to you.',
+    href: '/company/roofing/tasks?job_id=roofing-leak&task_id=task-roofing-leak-1',
+    source_type: 'task',
+    source_id: 'task-roofing-leak-1',
+    read_at: '',
+    created_at: new Date(Date.now() - 7 * 60000).toISOString(),
+  },
+  {
+    id: 'notification-roofing-task-priority',
+    company_id: 'roofing',
+    recipient_profile_id: 'basic-quest-user',
+    type: 'task.priority',
+    title: 'Task priority changed',
+    body: 'Shan set priority to Urgent on HOA board approval package.',
+    href: '/company/roofing/tasks?job_id=roofing-mesa&task_id=task-roofing-mesa-1',
+    source_type: 'task',
+    source_id: 'task-roofing-mesa-1',
+    read_at: '',
+    created_at: new Date(Date.now() - 19 * 60000).toISOString(),
+  },
+  {
+    id: 'notification-roofing-approval',
+    company_id: 'roofing',
+    recipient_profile_id: 'basic-quest-user',
+    type: 'approval.ready',
+    title: 'Approval needs review',
+    body: 'Estimate approval is waiting in the company review queue.',
+    href: '/company/roofing/approvals',
+    source_type: 'form',
+    source_id: 'form-roofing-estimate-approval',
+    read_at: new Date(Date.now() - 5 * 60000).toISOString(),
+    created_at: new Date(Date.now() - 44 * 60000).toISOString(),
+  },
+  {
+    id: 'notification-drafting-task-review',
+    company_id: 'drafting',
+    recipient_profile_id: 'basic-quest-user',
+    type: 'task.status',
+    title: 'Task moved to review',
+    body: 'Drawing package QA is ready for review.',
+    href: '/company/drafting/tasks?job_id=drafting-package&task_id=task-drafting-package-1',
+    source_type: 'task',
+    source_id: 'task-drafting-package-1',
+    read_at: '',
+    created_at: new Date(Date.now() - 63 * 60000).toISOString(),
+  },
+  {
+    id: 'notification-lumen-finance',
+    company_id: 'lumen',
+    recipient_profile_id: 'basic-quest-user',
+    type: 'finance.invoice',
+    title: 'Invoice drafted',
+    body: 'Lumen onboarding invoice is ready for payment tracking.',
+    href: '/company/lumen/finance?invoice=invoice-lumen-onboarding',
+    source_type: 'invoice',
+    source_id: 'invoice-lumen-onboarding',
+    read_at: '',
+    created_at: new Date(Date.now() - 92 * 60000).toISOString(),
+  },
+];
+
 const state = {
   route: null,
   session: readJson(SESSION_KEY, null),
@@ -671,6 +740,7 @@ const state = {
   financePayments: readSeededList(FINANCE_PAYMENT_CACHE_KEY, financePaymentsFallback).map(normalizeFinancePayment),
   financeExpenses: readSeededList(FINANCE_EXPENSE_CACHE_KEY, financeExpensesFallback).map(normalizeFinanceExpense),
   financeVendors: readSeededList(FINANCE_VENDOR_CACHE_KEY, financeVendorsFallback).map(normalizeFinanceVendor),
+  notifications: readSeededList(NOTIFICATION_CACHE_KEY, notificationsFallback).map(normalizeNotification),
   timeEntries: readJson(TIME_ENTRY_CACHE_KEY, []),
   activeTimer: readJson(ACTIVE_TIMER_KEY, null),
   teamMembers: readSeededList(TEAM_CACHE_KEY, teamMembersFallback).map(normalizeTeamMember),
@@ -723,6 +793,7 @@ const state = {
   toastTimer: null,
   modal: '',
   accountMenuOpen: false,
+  notificationMenuOpen: false,
   rolePreview: null,
 };
 
@@ -1018,6 +1089,7 @@ function resetLiveWorkspaceData() {
   state.financePayments = [];
   state.financeExpenses = [];
   state.financeVendors = [];
+  state.notifications = [];
   state.timeEntries = [];
   state.activeTimer = null;
   state.teamMembers = [];
@@ -1047,6 +1119,7 @@ function resetDemoWorkspaceData() {
   state.financePayments = readSeededList(FINANCE_PAYMENT_CACHE_KEY, financePaymentsFallback).map(normalizeFinancePayment);
   state.financeExpenses = readSeededList(FINANCE_EXPENSE_CACHE_KEY, financeExpensesFallback).map(normalizeFinanceExpense);
   state.financeVendors = readSeededList(FINANCE_VENDOR_CACHE_KEY, financeVendorsFallback).map(normalizeFinanceVendor);
+  state.notifications = readSeededList(NOTIFICATION_CACHE_KEY, notificationsFallback).map(normalizeNotification);
   state.timeEntries = readJson(TIME_ENTRY_CACHE_KEY, []);
   state.activeTimer = readJson(ACTIVE_TIMER_KEY, null);
   state.teamMembers = readSeededList(TEAM_CACHE_KEY, teamMembersFallback).map(normalizeTeamMember);
@@ -1225,6 +1298,7 @@ function shellTemplate(route, workspace) {
           </label>
           <span class="sync-pill ${h(state.sync.mode)}" data-sync-state>${h(state.sync.label)}</span>
           <button class="btn" type="button" data-action="refresh-data" title="Refresh workspace data"><i class="ti ti-refresh"></i></button>
+          ${renderNotificationCenter(companyId)}
           <div class="account-menu ${state.accountMenuOpen ? 'open' : ''}">
             <button class="avatar-button" type="button" data-action="toggle-account-menu" aria-label="Open account menu" aria-expanded="${state.accountMenuOpen ? 'true' : 'false'}">
               ${renderAvatar(session.profile, 'avatar')}
@@ -1256,6 +1330,40 @@ function shellTemplate(route, workspace) {
     </div>
     ${renderActiveModal(route, session)}
     ${renderToast()}
+  `;
+}
+
+function renderNotificationCenter(companyId) {
+  const notifications = companyNotifications(companyId);
+  const unreadCount = notifications.filter((item) => !item.read_at).length;
+  return `
+    <div class="notification-center ${state.notificationMenuOpen ? 'open' : ''}">
+      <button class="icon-button notification-button" type="button" data-action="toggle-notifications" aria-label="Open notifications" aria-expanded="${state.notificationMenuOpen ? 'true' : 'false'}">
+        <i class="ti ti-bell"></i>
+        ${unreadCount ? `<b>${h(String(Math.min(unreadCount, 99)))}</b>` : ''}
+      </button>
+      <div class="notification-popover" role="dialog" aria-label="Notifications">
+        <div class="notification-head">
+          <div><strong>Inbox</strong><span>${h(companyName(companyId))}</span></div>
+          <button type="button" data-action="mark-all-notifications-read" ${unreadCount ? '' : 'disabled'}>Mark all read</button>
+        </div>
+        <div class="notification-list">
+          ${notifications.slice(0, 12).map((item) => renderNotificationItem(item)).join('') || emptyState(state.session?.auth === 'supabase' ? 'No live notifications yet. Supabase inbox persistence comes after RLS.' : 'No notifications yet.')}
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function renderNotificationItem(item) {
+  return `
+    <button class="notification-item ${item.read_at ? 'read' : 'unread'}" type="button" data-action="open-notification" data-notification-id="${h(item.id)}">
+      <span></span>
+      <div>
+        <small>${h(item.title)} - ${h(timeAgo(item.created_at))}</small>
+        <strong>${h(item.body)}</strong>
+      </div>
+    </button>
   `;
 }
 
@@ -3692,7 +3800,9 @@ function renderFormActionsModal(companyId, form) {
 
 function onDocumentClick(event) {
   const closeAccountMenu = state.accountMenuOpen && !event.target.closest('.account-menu');
+  const closeNotificationMenu = state.notificationMenuOpen && !event.target.closest('.notification-center');
   if (closeAccountMenu) state.accountMenuOpen = false;
+  if (closeNotificationMenu) state.notificationMenuOpen = false;
 
   const action = event.target.closest('[data-action]');
   if (action) {
@@ -3716,7 +3826,7 @@ function onDocumentClick(event) {
 
   const link = event.target.closest('a[href][data-router]');
   if (!link) {
-    if (closeAccountMenu) render();
+    if (closeAccountMenu || closeNotificationMenu) render();
     return;
   }
   if (link.target || link.hasAttribute('download')) return;
@@ -3742,6 +3852,26 @@ function handleAction(event, node) {
   if (action === 'toggle-account-menu') {
     event.preventDefault();
     state.accountMenuOpen = !state.accountMenuOpen;
+    state.notificationMenuOpen = false;
+    render();
+    return;
+  }
+  if (action === 'toggle-notifications') {
+    event.preventDefault();
+    state.notificationMenuOpen = !state.notificationMenuOpen;
+    state.accountMenuOpen = false;
+    render();
+    return;
+  }
+  if (action === 'mark-all-notifications-read') {
+    event.preventDefault();
+    markAllNotificationsRead(activeCompanyId());
+    render();
+    return;
+  }
+  if (action === 'open-notification') {
+    event.preventDefault();
+    openNotification(node.dataset.notificationId);
     render();
     return;
   }
@@ -4571,6 +4701,7 @@ async function saveInvite(formNode) {
     state.sync = { label: 'Invite code created locally', mode: 'local' };
   }
 
+  notifyLocalEvent('access.invite', 'Invite code created', `${actorName()} created an invite code for ${invite.email}.`, companyPath('settings', { tab: 'access' }, invite.company_id), 'invite', invite.id, invite.company_id);
   state.modal = '';
   render();
 }
@@ -4649,6 +4780,7 @@ async function revokeInvite(inviteId) {
     state.sync = { label: 'Invite revoked locally', mode: 'local' };
   }
   state.companyInvites = state.companyInvites.map((item) => (item.id === invite.id ? normalizeCompanyInvite({ ...item, status: 'revoked' }) : item));
+  notifyLocalEvent('access.invite', 'Invite revoked', `${actorName()} revoked the invite for ${invite.email}.`, companyPath('settings', { tab: 'access' }, invite.company_id), 'invite', invite.id, invite.company_id);
   persistAll();
   render();
 }
@@ -4706,6 +4838,7 @@ async function saveUserAccess(formNode) {
     state.sync = { label: 'User access saved locally', mode: 'local' };
   }
 
+  notifyLocalEvent('access.role', 'User access updated', `${actorName()} set ${profileName(profileId)} to ${role.name} / ${titleCase(status)}.`, companyPath('settings', { tab: 'access' }, companyId), 'membership', profileId, companyId);
   render();
 }
 
@@ -4744,6 +4877,7 @@ async function updateJoinRequest(requestId, status) {
   }
 
   state.joinRequests = state.joinRequests.map((item) => (item.id === request.id ? nextRequest : item));
+  notifyLocalEvent('access.request', status === 'approved' ? 'Access approved' : 'Access rejected', `${actorName()} ${status === 'approved' ? 'approved' : 'rejected'} ${request.requested_email || 'a join request'}.`, companyPath('settings', { tab: 'access' }, request.company_id), 'join_request', request.id, request.company_id);
   persistAll();
   render();
 }
@@ -4906,7 +5040,8 @@ async function saveTask(form) {
     updated_at: new Date().toISOString(),
   });
 
-  const existing = state.tasks.some((task) => task.id === payload.id);
+  const previous = taskById(payload.id);
+  const existing = !!previous;
   const client = createSupabaseClient();
   if (client) {
     const savePayload = taskPayload(payload);
@@ -4914,7 +5049,9 @@ async function saveTask(form) {
       ? await client.from('tasks').update(savePayload).eq('id', payload.id).select().single()
       : await client.from('tasks').insert(savePayload).select().single();
     if (!result.error && result.data) {
-      upsertTask(normalizeTask(result.data));
+      const savedTask = normalizeTask(result.data);
+      upsertTask(savedTask);
+      notifyTaskChange(savedTask, previous);
       state.sync = { label: 'Quest Supabase live', mode: 'live' };
       state.modal = '';
       navigate(companyPath('tasks', { ...(payload.project_id ? { job_id: payload.project_id } : {}), task_id: payload.id }, companyId), { replace: true });
@@ -4924,6 +5061,7 @@ async function saveTask(form) {
   }
 
   upsertTask(payload);
+  notifyTaskChange(payload, previous);
   state.modal = '';
   navigate(companyPath('tasks', { ...(payload.project_id ? { job_id: payload.project_id } : {}), task_id: payload.id }, companyId), { replace: true });
 }
@@ -4998,6 +5136,15 @@ async function saveFileRecord(form) {
   state.sync = liveSaved === uploadList.length
     ? { label: 'Quest Supabase live', mode: 'live' }
     : { label: liveSaved ? 'Some files saved locally' : 'File record saved locally', mode: liveSaved ? 'loading' : 'local' };
+  notifyLocalEvent(
+    'file.added',
+    uploadList.length > 1 ? 'Files added' : 'File added',
+    `${actorName()} added ${uploadList.length} file${uploadList.length === 1 ? '' : 's'} to ${folderLabel(fields.folder || 'shared')}.`,
+    companyPath('files', { folder: fields.folder || 'shared', ...(fields.job_id ? { job_id: fields.job_id } : {}) }, companyId),
+    'file',
+    fields.job_id || '',
+    companyId,
+  );
   state.modal = '';
   navigate(companyPath('files', { folder: fields.folder || 'shared', ...(fields.job_id ? { job_id: fields.job_id } : {}) }, companyId), { replace: true });
 }
@@ -5022,6 +5169,7 @@ function createDriveFolder(form) {
   state.driveFolders.unshift(folder);
   state.modal = '';
   state.sync = { label: 'Folder created locally', mode: 'local' };
+  notifyLocalEvent('file.folder', 'Folder created', `${actorName()} created ${folder.name}.`, companyPath('files', { folder: folder.id }, folder.company_id), 'folder', folder.id, folder.company_id);
   persistAll();
   render();
 }
@@ -5044,6 +5192,7 @@ function saveFinanceInvoice(form) {
   syncJobInvoiceTotal(invoice.job_id);
   state.modal = '';
   state.sync = { label: 'Finance saved locally', mode: 'local' };
+  notifyLocalEvent('finance.invoice', previous ? 'Invoice updated' : 'Invoice created', `${actorName()} ${previous ? 'updated' : 'created'} ${invoice.invoice_number}.`, companyPath('finance', { invoice: invoice.id }, companyId), 'invoice', invoice.id, companyId);
   navigate(companyPath('finance', { invoice: invoice.id }, companyId), { replace: true });
 }
 
@@ -5069,6 +5218,7 @@ function saveFinancePayment(form) {
   persistAll();
   state.modal = '';
   state.sync = { label: 'Payment recorded locally', mode: 'local' };
+  notifyLocalEvent('finance.payment', 'Payment recorded', `${actorName()} recorded ${money(payment.amount)} for ${invoice.invoice_number}.`, companyPath('finance', { invoice: payment.invoice_id }, companyId), 'payment', payment.id, companyId);
   navigate(companyPath('finance', payment.invoice_id ? { invoice: payment.invoice_id } : {}, companyId), { replace: true });
 }
 
@@ -5084,6 +5234,7 @@ function saveFinanceExpense(form) {
   upsertFinanceExpense(expense);
   state.modal = '';
   state.sync = { label: 'Expense saved locally', mode: 'local' };
+  notifyLocalEvent('finance.expense', 'Expense saved', `${actorName()} saved a ${money(expense.amount)} ${expense.category} expense.`, companyPath('finance', { expense: expense.id }, companyId), 'expense', expense.id, companyId);
   navigate(companyPath('finance', { expense: expense.id }, companyId), { replace: true });
 }
 
@@ -5099,6 +5250,7 @@ function saveFinanceVendor(form) {
   upsertFinanceVendor(vendor);
   state.modal = '';
   state.sync = { label: 'Vendor saved locally', mode: 'local' };
+  notifyLocalEvent('finance.vendor', 'Vendor saved', `${actorName()} saved vendor ${vendor.name}.`, companyPath('finance', { vendor: vendor.id }, companyId), 'vendor', vendor.id, companyId);
   navigate(companyPath('finance', { vendor: vendor.id }, companyId), { replace: true });
 }
 
@@ -5454,6 +5606,13 @@ function companyJobs(companyId = activeCompanyId()) {
 
 function companyTasks(companyId = activeCompanyId()) {
   return state.tasks.filter((task) => task.company_id === companyId);
+}
+
+function companyNotifications(companyId = activeCompanyId()) {
+  const profileId = activeSession().profile.id;
+  return state.notifications
+    .filter((item) => item.company_id === companyId && item.recipient_profile_id === profileId)
+    .sort((a, b) => Date.parse(b.created_at || 0) - Date.parse(a.created_at || 0));
 }
 
 function companyFiles(companyId = activeCompanyId()) {
@@ -6028,6 +6187,11 @@ function memberName(id) {
   return member?.full_name || member?.name || id || 'Unassigned';
 }
 
+function profileName(id) {
+  const profile = profileById(id);
+  return profile?.full_name || profile?.email || memberName(id);
+}
+
 function taskCountForJob(jobId) {
   return state.tasks.filter((task) => task.project_id === jobId).length;
 }
@@ -6590,6 +6754,22 @@ function normalizeProfile(input, fallback = {}) {
   };
 }
 
+function normalizeNotification(input) {
+  return {
+    id: String(input.id || `notification-${crypto.randomUUID()}`),
+    company_id: canonicalCompanyId(input.company_id || ''),
+    recipient_profile_id: String(input.recipient_profile_id || 'basic-quest-user'),
+    type: String(input.type || 'general'),
+    title: String(input.title || 'Notification'),
+    body: String(input.body || ''),
+    href: String(input.href || ''),
+    source_type: String(input.source_type || ''),
+    source_id: String(input.source_id || ''),
+    read_at: String(input.read_at || ''),
+    created_at: String(input.created_at || new Date().toISOString()),
+  };
+}
+
 function isSessionEmailVerified(session = activeSession()) {
   if (session.auth !== 'supabase') return true;
   return session.user?.email_verified === true || !!session.user?.email_confirmed_at || session.profile?.email_verified === true;
@@ -6727,12 +6907,127 @@ function persistAll() {
   writeJson(ACTIVE_TIMER_KEY, state.activeTimer);
   writeJson(TEAM_CACHE_KEY, state.teamMembers);
   writeJson(MEMBERSHIP_CACHE_KEY, state.memberships);
+  writeJson(NOTIFICATION_CACHE_KEY, state.notifications);
 }
 
 function persistTimeState() {
   if (state.session?.auth === 'supabase') return;
   writeJson(TIME_ENTRY_CACHE_KEY, state.timeEntries);
   writeJson(ACTIVE_TIMER_KEY, state.activeTimer);
+}
+
+function persistNotifications() {
+  if (state.session?.auth === 'supabase') return;
+  writeJson(NOTIFICATION_CACHE_KEY, state.notifications);
+}
+
+function canStoreLocalNotifications() {
+  return state.session?.auth !== 'supabase';
+}
+
+function createNotification(input) {
+  if (!canStoreLocalNotifications()) return null;
+  const notification = normalizeNotification({
+    id: `notification-${crypto.randomUUID()}`,
+    company_id: activeCompanyId(),
+    recipient_profile_id: activeSession().profile.id,
+    created_at: new Date().toISOString(),
+    ...input,
+  });
+  state.notifications = [notification]
+    .concat(state.notifications.filter((item) => item.id !== notification.id))
+    .slice(0, 100);
+  persistNotifications();
+  return notification;
+}
+
+function markAllNotificationsRead(companyId = activeCompanyId()) {
+  const now = new Date().toISOString();
+  const profileId = activeSession().profile.id;
+  state.notifications = state.notifications.map((item) => (
+    item.company_id === companyId && item.recipient_profile_id === profileId && !item.read_at
+      ? { ...item, read_at: now }
+      : item
+  ));
+  persistNotifications();
+}
+
+function openNotification(notificationId) {
+  const notification = state.notifications.find((item) => item.id === notificationId);
+  if (!notification) return;
+  state.notifications = state.notifications.map((item) => (
+    item.id === notification.id ? { ...item, read_at: item.read_at || new Date().toISOString() } : item
+  ));
+  state.notificationMenuOpen = false;
+  persistNotifications();
+  if (notification.href) navigate(notification.href);
+}
+
+function notifyTaskChange(task, previous = null) {
+  if (!canStoreLocalNotifications()) return;
+  const href = companyPath('tasks', { ...(task.project_id ? { job_id: task.project_id } : {}), task_id: task.id }, task.company_id);
+  const assignee = memberName(task.assignee_id);
+  if (!previous) {
+    createNotification({
+      company_id: task.company_id,
+      type: 'task.assigned',
+      title: 'Task assigned',
+      body: `${actorName()} assigned ${task.title} to ${assignee}.`,
+      href,
+      source_type: 'task',
+      source_id: task.id,
+    });
+    return;
+  }
+  if (previous.assignee_id !== task.assignee_id) {
+    createNotification({
+      company_id: task.company_id,
+      type: 'task.assigned',
+      title: 'Task reassigned',
+      body: `${actorName()} reassigned ${task.title} to ${assignee}.`,
+      href,
+      source_type: 'task',
+      source_id: task.id,
+    });
+  }
+  if (previous.priority !== task.priority) {
+    createNotification({
+      company_id: task.company_id,
+      type: 'task.priority',
+      title: 'Task priority changed',
+      body: `${actorName()} set priority to ${titleCase(task.priority)} on ${task.title}.`,
+      href,
+      source_type: 'task',
+      source_id: task.id,
+    });
+  }
+  if (previous.status !== task.status) {
+    createNotification({
+      company_id: task.company_id,
+      type: 'task.status',
+      title: 'Task status changed',
+      body: `${actorName()} moved ${task.title} to ${statusLabel(task.status)}.`,
+      href,
+      source_type: 'task',
+      source_id: task.id,
+    });
+  }
+}
+
+function notifyLocalEvent(type, title, body, href, sourceType = '', sourceId = '', companyId = activeCompanyId()) {
+  createNotification({
+    company_id: companyId,
+    type,
+    title,
+    body,
+    href,
+    source_type: sourceType,
+    source_id: sourceId,
+  });
+}
+
+function actorName() {
+  return activeSession().profile.full_name || activeSession().profile.email || 'Quest HQ';
 }
 
 function metricCard(label, value, text = '') {
@@ -7354,6 +7649,15 @@ function saveFormResponse(formEl) {
   state.formsTab = 'responses';
   state.modal = '';
   saveFormsState('Preview response saved');
+  notifyLocalEvent(
+    form.require_approval ? 'approval.form' : 'form.response',
+    form.require_approval ? 'Form approval ready' : 'Form response saved',
+    `${actorName()} saved a response for ${form.title}.`,
+    companyPath('forms', { form_id: form.id, tab: 'responses' }, form.company_id),
+    'form_response',
+    form.id,
+    form.company_id,
+  );
   render();
 }
 
@@ -7453,6 +7757,20 @@ function formatDateTime(value) {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return String(value);
   return new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }).format(date);
+}
+
+function timeAgo(value) {
+  const date = new Date(value);
+  if (!value || Number.isNaN(date.getTime())) return 'just now';
+  const seconds = Math.max(0, Math.floor((Date.now() - date.getTime()) / 1000));
+  if (seconds < 45) return 'just now';
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60) return `${minutes}m ago`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours}h ago`;
+  const days = Math.floor(hours / 24);
+  if (days < 7) return `${days}d ago`;
+  return formatDate(value);
 }
 
 function formatDuration(value) {

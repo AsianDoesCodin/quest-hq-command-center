@@ -29,14 +29,18 @@ This file is the durable implementation checklist for the auth, permissions, peo
 
 ## Notifications And Messages
 
-- [ ] Design and build a persistent notification system after auth/RLS hardening.
+- [x] Build a local/demo persistent notification system separate from toasts.
   - [x] Record the notification system design in this durable checklist.
-  - [ ] Add a topbar bell, compact inbox popover, unread count, mark-all-read, and click-through notification links.
-  - [ ] Add local/demo seeded notifications without mixing them into Supabase live workspaces.
+  - [x] Add a topbar bell, compact inbox popover, unread count, mark-all-read, and click-through notification links.
+  - [x] Add local/demo seeded notifications without mixing them into Supabase live workspaces.
+  - [x] Add local notification hooks for tasks, files/folders, forms/approvals, invites/access, and finance actions.
+  - [x] Keep toasts separate from notifications; toasts are temporary UI feedback only.
+- [ ] Add secure Supabase notification persistence after auth/RLS hardening.
   - [ ] Add Supabase notification persistence only after RLS permission tests pass.
-  - [ ] Keep toasts separate from notifications; toasts are temporary UI feedback only.
-- [ ] Future notification records should be company-scoped and user-targeted.
-  - Minimum record fields: `id`, `company_id`, `recipient_profile_id`, `type`, `title`, `body`, `href`, `source_type`, `source_id`, `read_at`, `created_at`.
+  - [ ] Add RLS tests for user-only inbox read/update behavior.
+  - [ ] Add live notification producers once tenant security is enforced server-side.
+- [x] Local notification records are company-scoped and user-targeted.
+  - Current record fields: `id`, `company_id`, `recipient_profile_id`, `type`, `title`, `body`, `href`, `source_type`, `source_id`, `read_at`, `created_at`.
   - Event sources: task assignment, task status/priority changes, approvals, files/forms, invites/access, finance, subscription/billing, and future messages.
   - Security rule: users can only read/update their own notification rows; admins do not get broad access to private inbox rows unless explicitly redesigned.
 - [ ] Build Messages as a future company communication module.
