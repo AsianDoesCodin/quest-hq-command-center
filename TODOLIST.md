@@ -33,6 +33,18 @@ This file is the durable implementation checklist for the auth, permissions, peo
 - [x] Add a Clock Dashboard route for active timers, today totals, and team workload.
 - [x] Add clock-in/clock-out actions that persist locally in basic mode.
 
+## Calendar
+
+- [x] Build Calendar V1 as an integrated company schedule at `/company/:companyId/calendar`.
+  - [x] Add Calendar to the Operations sidebar and legacy redirects for `/calendar.html` and `/calendar`.
+  - [x] Add `calendar.view`, `calendar.manage`, and `calendar.view_team` permissions.
+  - [x] Derive calendar items from task due dates, finance invoice due dates, approvals, and active time context.
+  - [x] Add local/demo manual events with `quest-hq-calendar-event-cache-v1`.
+  - [x] Add Supabase-backed `calendar_events` table with tenant RLS for live manual events.
+  - [x] Add Company/Me scope, Month/Week/List views, search, type filter, agenda, and modal-first event detail/create/edit flows.
+  - [x] Keep derived events read-only in Calendar and link back to their source modules.
+  - [ ] Production-test Calendar permissions with real Supabase users after the next QA pass.
+
 ## Notifications And Messages
 
 - [x] Build a local/demo persistent notification system separate from toasts.

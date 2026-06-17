@@ -37,13 +37,14 @@ const MESSAGE_ACCESS_CACHE_KEY = 'quest-hq-message-access-cache-v1';
 const MESSAGE_CACHE_KEY = 'quest-hq-message-cache-v1';
 const MESSAGE_READ_CACHE_KEY = 'quest-hq-message-read-cache-v1';
 const MESSAGE_ATTACHMENT_CACHE_KEY = 'quest-hq-message-attachment-cache-v1';
+const CALENDAR_EVENT_CACHE_KEY = 'quest-hq-calendar-event-cache-v1';
 
 const ROLE_PERMISSIONS = {
   developer: ['*'],
   admin: ['*'],
   owner: ['*'],
-  manager: ['jobs.view', 'jobs.manage', 'tasks.view', 'tasks.manage', 'files.view', 'files.manage', 'forms.view', 'forms.manage', 'finance.view', 'team.view', 'clock.manage', 'approvals.manage', 'approvals.view', 'users.view', 'settings.view', 'billing.view', 'roles.view', 'messages.view', 'messages.send', 'messages.create_group', 'messages.manage_groups', 'messages.attach_files'],
-  member: ['jobs.view', 'tasks.view', 'tasks.manage', 'files.view', 'forms.view', 'time.track', 'approvals.view', 'users.view', 'messages.view', 'messages.send', 'messages.attach_files'],
+  manager: ['jobs.view', 'jobs.manage', 'tasks.view', 'tasks.manage', 'files.view', 'files.manage', 'forms.view', 'forms.manage', 'finance.view', 'team.view', 'clock.manage', 'approvals.manage', 'approvals.view', 'calendar.view', 'calendar.manage', 'calendar.view_team', 'users.view', 'settings.view', 'billing.view', 'roles.view', 'messages.view', 'messages.send', 'messages.create_group', 'messages.manage_groups', 'messages.attach_files'],
+  member: ['jobs.view', 'tasks.view', 'tasks.manage', 'files.view', 'forms.view', 'time.track', 'approvals.view', 'calendar.view', 'users.view', 'messages.view', 'messages.send', 'messages.attach_files'],
 };
 
 const PERMISSION_KEYS = [
@@ -70,6 +71,9 @@ const PERMISSION_KEYS = [
   ['clock.manage', 'Manage clock dashboard'],
   ['approvals.view', 'View approvals'],
   ['approvals.manage', 'Manage approvals'],
+  ['calendar.view', 'View calendar'],
+  ['calendar.manage', 'Create/edit calendar events'],
+  ['calendar.view_team', 'View team calendar'],
   ['messages.view', 'View messages'],
   ['messages.send', 'Send messages'],
   ['messages.create_group', 'Create group chats'],
@@ -102,6 +106,7 @@ const MODULE_REGISTRY = [
   { id: 'settings', group: 'Company', label: 'Settings', icon: 'ti-settings', symbol: 'q-symbol-settings', status: 'live', permission: 'settings.view' },
   { id: 'team-chart', group: 'Company', label: 'Team chart', icon: 'ti-hierarchy-3', symbol: 'q-symbol-team-chart', status: 'live', permission: 'team.view' },
   { id: 'time', group: 'Operations', label: 'My time', icon: 'ti-clock', symbol: 'q-symbol-time', status: 'live', permission: 'time.track' },
+  { id: 'calendar', group: 'Operations', label: 'Calendar', icon: 'ti-calendar', symbol: 'q-symbol-calendar', status: 'live', permission: 'calendar.view' },
   { id: 'approvals', group: 'Operations', label: 'Approvals', icon: 'ti-user-check', symbol: 'q-symbol-approvals', status: 'live', permission: 'approvals.view' },
   { id: 'team-workload', group: 'Operations', label: 'Team workload', icon: 'ti-users', symbol: 'q-symbol-team-workload', status: 'planned' },
   { id: 'clock', group: 'Operations', label: 'Clock dashboard', icon: 'ti-clock-hour-4', symbol: 'q-symbol-clock', status: 'live', permission: 'clock.manage' },
@@ -110,6 +115,7 @@ const MODULE_REGISTRY = [
 const LEGACY_ROUTE_SECTIONS = {
   '/admin.html': 'settings',
   '/automations.html': 'automations',
+  '/calendar.html': 'calendar',
   '/crm.html': 'crm',
   '/dashboards.html': 'analytics',
   '/files.html': 'files',
@@ -127,6 +133,8 @@ const JOB_TABS = ['pipeline', 'list', 'profile'];
 const TASK_STATUSES = ['todo', 'pending', 'hold', 'review', 'done'];
 const TASK_PRIORITIES = ['critical', 'urgent', 'high', 'medium', 'low'];
 const TASK_TYPES = ['lead', 'bid', 'admin', 'invoicing', 'ar', 'meeting', 'web_dev'];
+const CALENDAR_EVENT_TYPES = ['Company event', 'Job visit / inspection', 'Estimate appointment', 'Install / field work', 'Internal meeting', 'Personal reminder'];
+const CALENDAR_FILTER_TYPES = ['Task due', 'Invoice due', 'Approval', 'Time'].concat(CALENDAR_EVENT_TYPES);
 const FILE_CATEGORIES = ['All categories', 'Shared', 'Jobs', 'Forms', 'Photos', 'Permits', 'Contracts', 'Archive'];
 const DRIVE_FOLDERS = [
   ['jobs', 'Jobs', 'Job-linked folders and deliverables', 'ti-folders'],
@@ -898,6 +906,69 @@ const messageReadsFallback = [
   { conversation_id: 'msg-conv-lumen-product', company_id: 'lumen', profile_id: 'basic-quest-user', last_read_at: '' },
 ];
 
+const calendarEventsFallback = [
+  {
+    id: 'calendar-roofing-install',
+    company_id: 'roofing',
+    title: 'East ridge install window',
+    description: 'Crew visit for install prep and materials check.',
+    event_type: 'Install / field work',
+    starts_at: `${isoDate(1)}T14:00:00.000Z`,
+    ends_at: `${isoDate(1)}T17:00:00.000Z`,
+    all_day: false,
+    visibility: 'company',
+    linked_type: 'job',
+    linked_id: 'job-east-ridge',
+    assigned_profile_id: 'abraham',
+    created_by: 'basic-quest-user',
+  },
+  {
+    id: 'calendar-roofing-estimate',
+    company_id: 'roofing',
+    title: 'Garage roof estimate',
+    description: 'Client walkthrough and estimate appointment.',
+    event_type: 'Estimate appointment',
+    starts_at: `${isoDate(3)}T16:00:00.000Z`,
+    ends_at: `${isoDate(3)}T17:00:00.000Z`,
+    all_day: false,
+    visibility: 'company',
+    linked_type: '',
+    linked_id: '',
+    assigned_profile_id: 'shan',
+    created_by: 'basic-quest-user',
+  },
+  {
+    id: 'calendar-drafting-review',
+    company_id: 'drafting',
+    title: 'Plan review block',
+    description: 'Drafting team review for active plan updates.',
+    event_type: 'Internal meeting',
+    starts_at: `${isoDate(2)}T15:00:00.000Z`,
+    ends_at: `${isoDate(2)}T15:45:00.000Z`,
+    all_day: false,
+    visibility: 'company',
+    linked_type: '',
+    linked_id: '',
+    assigned_profile_id: '',
+    created_by: 'basic-quest-user',
+  },
+  {
+    id: 'calendar-lumen-product',
+    company_id: 'lumen',
+    title: 'Quest HQ product review',
+    description: 'Review workspace permissions, messages, and calendar flow.',
+    event_type: 'Company event',
+    starts_at: `${isoDate(4)}T18:00:00.000Z`,
+    ends_at: `${isoDate(4)}T19:00:00.000Z`,
+    all_day: false,
+    visibility: 'company',
+    linked_type: '',
+    linked_id: '',
+    assigned_profile_id: 'basic-quest-user',
+    created_by: 'basic-quest-user',
+  },
+];
+
 const state = {
   route: null,
   session: readJson(SESSION_KEY, null),
@@ -920,6 +991,7 @@ const state = {
   messages: readSeededList(MESSAGE_CACHE_KEY, messagesFallback).map(normalizeMessage),
   messageReads: readSeededList(MESSAGE_READ_CACHE_KEY, messageReadsFallback).map(normalizeMessageRead),
   messageAttachments: readSeededList(MESSAGE_ATTACHMENT_CACHE_KEY, messageAttachmentsFallback).map(normalizeMessageAttachment),
+  calendarEvents: readSeededList(CALENDAR_EVENT_CACHE_KEY, calendarEventsFallback).map(normalizeCalendarEvent),
   timeEntries: readJson(TIME_ENTRY_CACHE_KEY, []),
   activeTimer: readJson(ACTIVE_TIMER_KEY, null),
   teamMembers: readSeededList(TEAM_CACHE_KEY, teamMembersFallback).map(normalizeTeamMember),
@@ -944,6 +1016,7 @@ const state = {
   selectedFinanceInvoiceId: '',
   selectedFinanceExpenseId: '',
   selectedFinanceVendorId: '',
+  selectedCalendarEventId: '',
   expandedFormIds: new Set(),
   formStartTemplateId: '',
   formStartTab: 'blank',
@@ -959,6 +1032,11 @@ const state = {
   selectedConversationId: '',
   messageRealtimeChannel: null,
   messageRealtimeKey: '',
+  calendarScope: 'company',
+  calendarView: 'week',
+  calendarQuery: '',
+  calendarTypeFilter: 'all',
+  calendarCursorDate: isoDate(0),
   taskStatusFilter: 'all',
   taskPriorityFilter: 'all',
   fileCategoryFilter: 'All categories',
@@ -1192,6 +1270,7 @@ async function loadSupabaseData() {
     messagesResult,
     messageAttachmentsResult,
     messageReadsResult,
+    calendarEventsResult,
   ] = await Promise.all([
     client.from('companies').select('*').order('name', { ascending: true }),
     client.from('jobs').select('*').order('updated_at', { ascending: false }),
@@ -1214,6 +1293,7 @@ async function loadSupabaseData() {
     client.from('messages').select('*').order('created_at', { ascending: true }).limit(500),
     client.from('message_attachments').select('*').order('created_at', { ascending: true }).limit(500),
     client.from('message_reads').select('*'),
+    client.from('calendar_events').select('*').order('starts_at', { ascending: true }),
   ]);
 
   let liveTables = 0;
@@ -1265,6 +1345,7 @@ async function loadSupabaseData() {
   if (!messagesResult.error) state.messages = (messagesResult.data || []).map(normalizeMessage);
   if (!messageAttachmentsResult.error) state.messageAttachments = (messageAttachmentsResult.data || []).map(normalizeMessageAttachment);
   if (!messageReadsResult.error) state.messageReads = (messageReadsResult.data || []).map(normalizeMessageRead);
+  if (!calendarEventsResult.error) state.calendarEvents = (calendarEventsResult.data || []).map(normalizeCalendarEvent);
 
   state.sync = liveTables ? { label: 'Quest Supabase live', mode: 'live' } : { label: 'Local fallback', mode: 'local' };
 }
@@ -1294,6 +1375,7 @@ function resetLiveWorkspaceData() {
   state.messages = [];
   state.messageReads = [];
   state.messageAttachments = [];
+  state.calendarEvents = [];
   state.timeEntries = [];
   state.activeTimer = null;
   state.teamMembers = [];
@@ -1329,6 +1411,7 @@ function resetDemoWorkspaceData() {
   state.messages = readSeededList(MESSAGE_CACHE_KEY, messagesFallback).map(normalizeMessage);
   state.messageReads = readSeededList(MESSAGE_READ_CACHE_KEY, messageReadsFallback).map(normalizeMessageRead);
   state.messageAttachments = readSeededList(MESSAGE_ATTACHMENT_CACHE_KEY, messageAttachmentsFallback).map(normalizeMessageAttachment);
+  state.calendarEvents = readSeededList(CALENDAR_EVENT_CACHE_KEY, calendarEventsFallback).map(normalizeCalendarEvent);
   state.timeEntries = readJson(TIME_ENTRY_CACHE_KEY, []);
   state.activeTimer = readJson(ACTIVE_TIMER_KEY, null);
   state.teamMembers = readSeededList(TEAM_CACHE_KEY, teamMembersFallback).map(normalizeTeamMember);
@@ -1460,6 +1543,10 @@ function renderSvgSprite() {
       <symbol id="q-symbol-time" viewBox="0 0 24 24">
         <circle cx="12" cy="12" r="8" />
         <path d="M12 7.5V12l3 2" />
+      </symbol>
+      <symbol id="q-symbol-calendar" viewBox="0 0 24 24">
+        <path d="M5 5.5h14v14H5v-14Z" />
+        <path d="M8 3.5v4M16 3.5v4M5 9.5h14M8.5 13h2M13.5 13h2M8.5 16h2" />
       </symbol>
       <symbol id="q-symbol-approvals" viewBox="0 0 24 24">
         <path d="M5 12.5 9.2 17 19 7" />
@@ -1683,6 +1770,7 @@ function moduleBadgeCount(moduleId, companyId = activeCompanyId()) {
     const unread = companyMessageUnreadCount(companyId);
     return unread || companyMessageConversations(companyId).length;
   }
+  if (moduleId === 'calendar') return calendarUpcomingItems(companyId).length;
   if (moduleId === 'time') return timeSummary(companyId).focus.length;
   if (moduleId === 'approvals') return approvalItems(companyId).length;
   if (moduleId === 'clock') return activeTimerForCompany(companyId) ? 'On' : '';
@@ -1720,7 +1808,7 @@ function renderWorkspace(route) {
   if (route.section === 'finance') return renderFinancePage(route, companyId);
   if (route.section === 'messages') return renderMessagesPage(route, companyId);
   if (route.section === 'team-chart') return renderTeamChartPage(companyId);
-  if (route.section === 'time' || route.section === 'approvals' || route.section === 'clock') return renderOperationsPage(route, companyId);
+  if (route.section === 'time' || route.section === 'calendar' || route.section === 'approvals' || route.section === 'clock') return renderOperationsPage(route, companyId);
   return renderPlannedPage(route.section);
 }
 
@@ -3828,6 +3916,7 @@ function renderFinanceVendorFormModal(companyId, vendor = null) {
 
 function renderOperationsPage(route, companyId) {
   if (route.section === 'clock') return renderClockDashboardPage(companyId);
+  if (route.section === 'calendar') return renderCalendarPage(route, companyId);
   if (route.section === 'approvals') return renderApprovalsPage(companyId);
   return renderTimePage(companyId);
 }
@@ -3836,9 +3925,145 @@ function renderOperationsTabs(companyId, active) {
   return `
     ${compactTabs('Operations sections', [
       [companyPath('time', {}, companyId), 'My time', active === 'time'],
+      [companyPath('calendar', {}, companyId), 'Calendar', active === 'calendar'],
       [companyPath('approvals', {}, companyId), 'Approvals', active === 'approvals'],
       [companyPath('clock', {}, companyId), 'Clock dashboard', active === 'clock'],
     ])}
+  `;
+}
+
+function renderCalendarPage(route, companyId) {
+  const items = filteredCalendarItems(companyId);
+  const allItems = calendarItems(companyId);
+  const todayItems = items.filter((item) => item.dateKey === isoDate(0));
+  const mineItems = allItems.filter((item) => item.mine);
+  const sourceCount = allItems.filter((item) => item.source !== 'manual').length;
+  const canCreate = can('calendar.manage', companyId);
+  return `
+    <section class="tool-page operations-page calendar-page">
+      ${workspaceHeader('Calendar', 'Company schedule built from tasks, approvals, finance due dates, time context, and manual events.', `
+        <button class="btn btn-primary" type="button" data-action="open-calendar-event-form"><i class="ti ti-calendar-plus"></i>New event</button>
+      `)}
+      ${renderOperationsTabs(companyId, 'calendar')}
+      <section class="metric-grid operations-metrics calendar-metrics">
+        ${metricCard('Today', todayItems.length)}
+        ${metricCard('This week', calendarItemsThisWeek(items).length)}
+        ${metricCard('Mine', mineItems.length)}
+        ${metricCard('From modules', sourceCount)}
+      </section>
+      <section class="workspace-toolbar calendar-toolbar">
+        <div class="segmented" role="group" aria-label="Calendar scope">
+          <button class="${state.calendarScope === 'company' ? 'active' : ''}" type="button" data-action="set-calendar-scope" data-scope="company"><i class="ti ti-building"></i>Company</button>
+          <button class="${state.calendarScope === 'me' ? 'active' : ''}" type="button" data-action="set-calendar-scope" data-scope="me"><i class="ti ti-user"></i>Me</button>
+        </div>
+        <div class="segmented" role="group" aria-label="Calendar view">
+          ${['month', 'week', 'list'].map((view) => `<button class="${state.calendarView === view ? 'active' : ''}" type="button" data-action="set-calendar-view" data-view="${h(view)}">${h(titleCase(view))}</button>`).join('')}
+        </div>
+        <label class="wide-control">
+          <span>Search</span>
+          <input data-calendar-search value="${h(state.calendarQuery)}" placeholder="Find events, jobs, tasks, or people" />
+        </label>
+        <label>
+          <span>Type</span>
+          <select data-calendar-type-filter>
+            <option value="all">All types</option>
+            ${CALENDAR_FILTER_TYPES.map((type) => `<option value="${h(type)}" ${state.calendarTypeFilter === type ? 'selected' : ''}>${h(type)}</option>`).join('')}
+          </select>
+        </label>
+      </section>
+      <section class="calendar-nav">
+        <div>
+          <button class="btn" type="button" data-action="calendar-prev"><i class="ti ti-chevron-left"></i></button>
+          <button class="btn" type="button" data-action="calendar-today">Today</button>
+          <button class="btn" type="button" data-action="calendar-next"><i class="ti ti-chevron-right"></i></button>
+        </div>
+        <strong>${h(calendarRangeLabel())}</strong>
+      </section>
+      <section class="calendar-shell">
+        <article class="panel calendar-main">
+          ${state.calendarView === 'month' ? renderCalendarMonth(companyId, items) : ''}
+          ${state.calendarView === 'week' ? renderCalendarWeek(companyId, items) : ''}
+          ${state.calendarView === 'list' ? renderCalendarList(companyId, items) : ''}
+        </article>
+        <aside class="panel calendar-agenda">
+          <div class="section-head"><div><h2>Agenda</h2><p>Next events that match this view.</p></div></div>
+          <div class="calendar-agenda-list">
+            ${items.slice(0, 9).map(renderCalendarAgendaItem).join('') || emptyState('No calendar items match this view.')}
+          </div>
+        </aside>
+      </section>
+      ${!canCreate ? `<p class="small-note">Your role can view the calendar. Manual company events require calendar manage permission.</p>` : ''}
+    </section>
+  `;
+}
+
+function renderCalendarMonth(companyId, items) {
+  const days = calendarMonthDays(state.calendarCursorDate);
+  const currentMonth = new Date(`${state.calendarCursorDate}T00:00:00`).getMonth();
+  return `
+    <div class="calendar-grid calendar-month-grid">
+      ${['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day) => `<div class="calendar-weekday">${day}</div>`).join('')}
+      ${days.map((day) => {
+        const dayItems = calendarItemsForDate(items, day.key);
+        return `
+          <div class="calendar-day ${day.month === currentMonth ? '' : 'muted'} ${day.key === isoDate(0) ? 'today' : ''}">
+            <div class="calendar-day-head"><b>${day.label}</b><span>${dayItems.length || ''}</span></div>
+            ${dayItems.slice(0, 3).map(renderCalendarPill).join('')}
+            ${dayItems.length > 3 ? `<small class="calendar-more">+${dayItems.length - 3} more</small>` : ''}
+          </div>
+        `;
+      }).join('')}
+    </div>
+  `;
+}
+
+function renderCalendarWeek(companyId, items) {
+  const days = calendarWeekDays(state.calendarCursorDate);
+  return `
+    <div class="calendar-grid calendar-week-grid">
+      ${days.map((day) => {
+        const dayItems = calendarItemsForDate(items, day.key);
+        return `
+          <div class="calendar-day ${day.key === isoDate(0) ? 'today' : ''}">
+            <div class="calendar-day-head"><b>${h(day.name)}</b><span>${h(day.shortDate)}</span></div>
+            ${dayItems.map(renderCalendarPill).join('') || '<small class="calendar-empty-day">Open</small>'}
+          </div>
+        `;
+      }).join('')}
+    </div>
+  `;
+}
+
+function renderCalendarList(companyId, items) {
+  const groups = groupByDate(items);
+  const entries = Object.entries(groups).slice(0, 18);
+  return `
+    <div class="calendar-list">
+      ${entries.map(([dateKey, dateItems]) => `
+        <section class="calendar-list-day">
+          <h3>${h(formatDate(dateKey))}</h3>
+          ${dateItems.map(renderCalendarAgendaItem).join('')}
+        </section>
+      `).join('') || emptyState('No scheduled work or events.')}
+    </div>
+  `;
+}
+
+function renderCalendarPill(item) {
+  return `
+    <button class="calendar-pill ${h(calendarTypeClass(item.type))}" type="button" data-action="open-calendar-event" data-event-id="${h(item.id)}">
+      <span>${h(calendarTimeLabel(item))}</span>
+      <strong>${h(item.title)}</strong>
+    </button>
+  `;
+}
+
+function renderCalendarAgendaItem(item) {
+  return `
+    <button class="calendar-agenda-item" type="button" data-action="open-calendar-event" data-event-id="${h(item.id)}">
+      <i class="ti ${h(calendarTypeIcon(item.type))}"></i>
+      <span><strong>${h(item.title)}</strong><small>${h(`${formatDate(item.dateKey)} · ${calendarTimeLabel(item)} · ${item.type}`)}</small></span>
+    </button>
   `;
 }
 
@@ -4016,7 +4241,7 @@ function renderLogin() {
           ${renderSupabaseAuthForm(returnUrl)}
         ` : ''}
         ${renderDemoModeLauncher(returnUrl)}
-        ${CONFIG.localLoginEnabled && authEnabled ? `
+${CONFIG.localLoginEnabled && authEnabled ? `
           <details class="demo-login-details">
             <summary>Legacy demo credentials</summary>
             ${renderLocalLoginForm(returnUrl)}
@@ -4157,6 +4382,9 @@ function renderActiveModal(route, session) {
   if (state.modal === 'message-access') return renderMessageAccessModal(activeCompanyId(), state.selectedConversationId);
   if (state.modal === 'message-details') return renderMessageDetailsModal(activeCompanyId(), state.selectedConversationId);
   if (state.modal === 'message-search') return renderMessageSearchModal(activeCompanyId());
+  if (state.modal === 'calendar-event-detail') return renderCalendarEventDetailModal(activeCompanyId());
+  if (state.modal === 'calendar-event-new') return renderCalendarEventFormModal(activeCompanyId(), null);
+  if (state.modal === 'calendar-event-edit') return renderCalendarEventFormModal(activeCompanyId(), manualCalendarEventById(state.selectedCalendarEventId));
   if (route.name === 'company' && route.section === 'crm' && route.params.get('account')) {
     return renderCrmAccountModal(route.companyId, route.params.get('account'));
   }
@@ -4241,6 +4469,53 @@ function renderTaskRouteModal(route, companyId) {
     return renderDrawerShell('Task detail', task.title, renderTaskDetail(companyId, task));
   }
   return '';
+}
+
+function renderCalendarEventDetailModal(companyId) {
+  const item = calendarEventByKey(state.selectedCalendarEventId, companyId);
+  if (!item) return '';
+  const manual = item.source === 'manual' ? manualCalendarEventById(item.sourceId) : null;
+  const actions = [
+    item.href ? `<a class="btn btn-primary" href="${appHref(item.href)}" data-router><i class="ti ti-arrow-right"></i>Open source</a>` : '',
+    manual && item.editable ? `<button class="btn" type="button" data-action="edit-calendar-event" data-event-id="${h(manual.id)}"><i class="ti ti-pencil"></i>Edit</button>` : '',
+    manual && item.editable ? `<button class="btn danger" type="button" data-action="delete-calendar-event" data-event-id="${h(manual.id)}"><i class="ti ti-trash"></i>Delete</button>` : '',
+  ].filter(Boolean).join('');
+  return renderModalShell('Calendar', item.title, `
+    <div class="calendar-detail">
+      ${contractRows([
+        ['Type', item.type],
+        ['When', item.allDay ? formatDate(item.dateKey) : `${formatDateTime(item.startsAt)}${item.endsAt && item.endsAt !== item.startsAt ? ` - ${formatDateTime(item.endsAt)}` : ''}`],
+        ['Assigned', item.owner || 'Unassigned'],
+        ['Source', item.source === 'manual' ? 'Manual event' : titleCase(item.source)],
+        ['Linked', item.linkLabel || 'None'],
+      ])}
+      ${item.description ? `<p>${h(item.description)}</p>` : ''}
+      <div class="modal-actions">${actions || '<span class="small-note">This derived item opens from its source module.</span>'}</div>
+    </div>
+  `, 'calendar-modal');
+}
+
+function renderCalendarEventFormModal(companyId, event) {
+  const next = event || blankCalendarEvent(companyId);
+  const jobValue = next.linked_type === 'job' ? next.linked_id : '';
+  return renderModalShell('Calendar', event ? 'Edit event' : 'New event', `
+    <form class="calendar-form" data-calendar-event-form>
+      <input type="hidden" name="id" value="${h(event?.id || '')}" />
+      ${field('Title', 'title', event ? next.title : '', true)}
+      ${selectField('Type', 'event_type', next.event_type, CALENDAR_EVENT_TYPES.map((type) => [type, type]))}
+      ${field('Starts', 'starts_at', dateTimeLocalValue(next.starts_at), true, 'datetime-local')}
+      ${field('Ends', 'ends_at', dateTimeLocalValue(next.ends_at || next.starts_at), true, 'datetime-local')}
+      <label class="check-row"><input type="checkbox" name="all_day" ${next.all_day ? 'checked' : ''} /> All day</label>
+      ${selectField('Visibility', 'visibility', next.visibility, [['company', 'Company'], ['private', 'Private / assigned']])}
+      ${selectField('Assigned to', 'assigned_profile_id', next.assigned_profile_id, calendarAssigneeOptions(companyId))}
+      ${selectField('Linked job', 'linked_job_id', jobValue, [['', 'No linked job']].concat(companyJobs(companyId).map((job) => [job.id, job.name])))}
+      <label class="span-2">Description<textarea name="description" rows="4">${h(next.description)}</textarea></label>
+      <div class="form-actions span-2">
+        <button class="btn btn-primary" type="submit">Save event</button>
+        <button class="btn" type="button" data-action="close-modal">Cancel</button>
+      </div>
+    </form>
+  `, 'calendar-form-modal');
 }
 
 function renderFileDetailModal(companyId) {
@@ -4571,6 +4846,71 @@ function handleAction(event, node) {
   if (action === 'reset-message-demo') {
     event.preventDefault();
     resetMessageDemo();
+    return;
+  }
+  if (action === 'set-calendar-scope') {
+    event.preventDefault();
+    state.calendarScope = node.dataset.scope === 'me' ? 'me' : 'company';
+    render();
+    return;
+  }
+  if (action === 'set-calendar-view') {
+    event.preventDefault();
+    state.calendarView = ['month', 'week', 'list'].includes(node.dataset.view) ? node.dataset.view : 'week';
+    render();
+    return;
+  }
+  if (action === 'calendar-prev') {
+    event.preventDefault();
+    moveCalendarCursor(-1);
+    render();
+    return;
+  }
+  if (action === 'calendar-next') {
+    event.preventDefault();
+    moveCalendarCursor(1);
+    render();
+    return;
+  }
+  if (action === 'calendar-today') {
+    event.preventDefault();
+    state.calendarCursorDate = isoDate(0);
+    render();
+    return;
+  }
+  if (action === 'open-calendar-event') {
+    event.preventDefault();
+    state.selectedCalendarEventId = node.dataset.eventId || '';
+    state.modal = 'calendar-event-detail';
+    render();
+    return;
+  }
+  if (action === 'open-calendar-event-form') {
+    event.preventDefault();
+    if (!can('calendar.manage', activeCompanyId())) {
+      showToast('Your role can view the calendar but cannot create company events.', 'local', 'Calendar');
+      return;
+    }
+    state.selectedCalendarEventId = '';
+    state.modal = 'calendar-event-new';
+    render();
+    return;
+  }
+  if (action === 'edit-calendar-event') {
+    event.preventDefault();
+    const target = manualCalendarEventById(node.dataset.eventId);
+    if (!target || !canEditCalendarEvent(target)) {
+      showToast('This event cannot be edited from Calendar.', 'local', 'Calendar');
+      return;
+    }
+    state.selectedCalendarEventId = target.id;
+    state.modal = 'calendar-event-edit';
+    render();
+    return;
+  }
+  if (action === 'delete-calendar-event') {
+    event.preventDefault();
+    deleteCalendarEvent(node.dataset.eventId);
     return;
   }
   if (action === 'copy-invite-link') {
@@ -5051,6 +5391,12 @@ function onDocumentSubmit(event) {
   if (event.target.matches('[data-message-form]')) {
     event.preventDefault();
     sendMessage(event.target);
+    return;
+  }
+
+  if (event.target.matches('[data-calendar-event-form]')) {
+    event.preventDefault();
+    saveCalendarEvent(event.target);
     return;
   }
 
@@ -5664,6 +6010,81 @@ async function sendMessage(form) {
   render();
 }
 
+async function saveCalendarEvent(form) {
+  const companyId = activeCompanyId();
+  const fields = Object.fromEntries(new FormData(form).entries());
+  const existing = fields.id ? manualCalendarEventById(String(fields.id)) : null;
+  if (!existing && !can('calendar.manage', companyId)) {
+    showToast('Your role cannot create or edit calendar events.', 'local', 'Calendar');
+    return;
+  }
+  if (existing && !canEditCalendarEvent(existing)) {
+    showToast('This event cannot be edited from Calendar.', 'local', 'Calendar');
+    return;
+  }
+  const linkedJobId = String(fields.linked_job_id || '').trim();
+  const now = new Date().toISOString();
+  let eventRecord = normalizeCalendarEvent({
+    ...(existing || {}),
+    id: existing?.id || crypto.randomUUID(),
+    company_id: companyId,
+    title: String(fields.title || '').trim() || 'Calendar event',
+    description: String(fields.description || '').trim(),
+    event_type: CALENDAR_EVENT_TYPES.includes(fields.event_type) ? String(fields.event_type) : 'Company event',
+    starts_at: localDateTimeToIso(fields.starts_at),
+    ends_at: localDateTimeToIso(fields.ends_at || fields.starts_at),
+    all_day: fields.all_day === 'on',
+    visibility: fields.visibility === 'private' ? 'private' : 'company',
+    linked_type: linkedJobId ? 'job' : '',
+    linked_id: linkedJobId,
+    assigned_profile_id: String(fields.assigned_profile_id || ''),
+    created_by: existing?.created_by || activeSession().profile.id,
+    created_at: existing?.created_at || now,
+    updated_at: now,
+  });
+  const client = createSupabaseClient();
+  if (state.session?.auth === 'supabase' && client) {
+    const payload = calendarEventPayload(eventRecord);
+    if (existing) delete payload.id;
+    const result = existing
+      ? await client.from('calendar_events').update({ ...payload, updated_at: now }).eq('id', existing.id).select().single()
+      : await client.from('calendar_events').insert(payload).select().single();
+    if (result.error) {
+      showToast(result.error.message || 'Calendar event save failed.', 'local', 'Calendar');
+      return;
+    }
+    eventRecord = normalizeCalendarEvent(result.data);
+  }
+  state.calendarEvents = [eventRecord].concat(state.calendarEvents.filter((item) => item.id !== eventRecord.id));
+  persistCalendarEvents();
+  notifyLocalEvent('calendar.event', existing ? 'Calendar event updated' : 'Calendar event created', `${actorName()} ${existing ? 'updated' : 'created'} ${eventRecord.title}.`, companyPath('calendar', {}, companyId), 'calendar_event', eventRecord.id, companyId);
+  state.selectedCalendarEventId = `manual:${eventRecord.id}`;
+  state.modal = 'calendar-event-detail';
+  render();
+}
+
+async function deleteCalendarEvent(eventId) {
+  const eventRecord = manualCalendarEventById(eventId);
+  if (!eventRecord || !canEditCalendarEvent(eventRecord)) {
+    showToast('This event cannot be deleted from Calendar.', 'local', 'Calendar');
+    return;
+  }
+  const client = createSupabaseClient();
+  if (state.session?.auth === 'supabase' && client) {
+    const result = await client.from('calendar_events').delete().eq('id', eventRecord.id);
+    if (result.error) {
+      showToast(result.error.message || 'Calendar event delete failed.', 'local', 'Calendar');
+      return;
+    }
+  }
+  state.calendarEvents = state.calendarEvents.filter((item) => item.id !== eventRecord.id);
+  persistCalendarEvents();
+  notifyLocalEvent('calendar.event', 'Calendar event deleted', `${actorName()} deleted ${eventRecord.title}.`, companyPath('calendar', {}, eventRecord.company_id), 'calendar_event', eventRecord.id, eventRecord.company_id);
+  state.selectedCalendarEventId = '';
+  state.modal = '';
+  render();
+}
+
 async function createMessageRecord(conversation, body, files) {
   const now = new Date().toISOString();
   const message = normalizeMessage({
@@ -5842,6 +6263,11 @@ function onDocumentInput(event) {
     updateWorkspaceOnly();
     return;
   }
+  if (event.target.matches('[data-calendar-search]')) {
+    state.calendarQuery = event.target.value;
+    updateWorkspaceOnly();
+    return;
+  }
   if (event.target.matches('[data-message-access-filter]')) {
     filterMessagePeopleList(event.target);
     return;
@@ -5883,6 +6309,11 @@ function onDocumentChange(event) {
   }
   if (event.target.matches('[data-task-priority-filter]')) {
     state.taskPriorityFilter = event.target.value || 'all';
+    render();
+    return;
+  }
+  if (event.target.matches('[data-calendar-type-filter]')) {
+    state.calendarTypeFilter = event.target.value || 'all';
     render();
     return;
   }
@@ -6357,6 +6788,7 @@ function normalizeLegacyLocation() {
   if (path === '/crm') target = companyPath('crm', copyParams(params, ['account']), companyId);
   if (path === '/finance') target = companyPath('finance', copyParams(params, ['invoice', 'expense', 'vendor', 'report']), companyId);
   if (path === '/messages') target = companyPath('messages', copyParams(params, ['conversation']), companyId);
+  if (path === '/calendar') target = companyPath('calendar', {}, companyId);
   if (path === '/admin') target = companyPath('settings', {}, companyId);
   if (path === '/time') target = companyPath('time', {}, companyId);
   if (path === '/team') target = companyPath('team-chart', {}, companyId);
@@ -6504,6 +6936,7 @@ function resetScopedUiState() {
   state.selectedFinanceInvoiceId = '';
   state.selectedFinanceExpenseId = '';
   state.selectedFinanceVendorId = '';
+  state.selectedCalendarEventId = '';
   state.query = '';
   state.fileQuery = '';
   state.formQuery = '';
@@ -6513,6 +6946,9 @@ function resetScopedUiState() {
   state.crmOwnerFilter = 'all';
   state.taskStatusFilter = 'all';
   state.taskPriorityFilter = 'all';
+  state.calendarQuery = '';
+  state.calendarTypeFilter = 'all';
+  state.calendarScope = 'company';
   state.fileCategoryFilter = 'All categories';
   state.formTypeFilter = 'all';
   state.formsTab = 'library';
@@ -6621,6 +7057,316 @@ function canAccessConversation(conversation) {
   if (rows.some((row) => row.target_type === 'profile' && profileKeys.has(row.target_id))) return true;
   const roleIds = [roleIdForName(conversation.company_id, roleForCompany(conversation.company_id)), ...state.roleAssignments.filter((item) => item.company_id === conversation.company_id && item.profile_id === profile.id).map((item) => item.role_id)];
   return rows.some((row) => row.target_type === 'role' && roleIds.includes(row.target_id));
+}
+
+function calendarItems(companyId = activeCompanyId()) {
+  const manual = state.calendarEvents
+    .filter((event) => event.company_id === companyId && canAccessCalendarEvent(event))
+    .map(calendarManualItem);
+  const tasks = companyTasks(companyId)
+    .filter((task) => task.due && task.status !== 'done')
+    .filter((task) => can('calendar.view_team', companyId) || taskAssignedToMe(task.assignee_id) || task.creator_id === activeSession().profile.member_id)
+    .map(calendarTaskItem);
+  const finance = can('finance.view', companyId)
+    ? companyFinanceInvoices(companyId)
+      .filter((invoice) => invoice.due_date && invoiceBalance(invoice.id) > 0)
+      .map(calendarInvoiceItem)
+    : [];
+  const approvals = approvalItems(companyId)
+    .filter((item) => item.type !== 'Access request' || can('users.manage', companyId))
+    .map((item) => calendarApprovalItem(item, companyId));
+  const timer = activeTimerForCompany(companyId);
+  const time = timer && (can('calendar.view_team', companyId) || calendarPersonMatchesMe(timer.user_id)) ? [calendarTimerItem(timer)] : [];
+  return manual.concat(tasks, finance, approvals, time).sort((a, b) => Date.parse(a.startsAt || 0) - Date.parse(b.startsAt || 0));
+}
+
+function filteredCalendarItems(companyId = activeCompanyId()) {
+  const query = state.calendarQuery.trim().toLowerCase();
+  return calendarItems(companyId)
+    .filter((item) => state.calendarScope === 'company' || item.mine)
+    .filter((item) => state.calendarTypeFilter === 'all' || item.type === state.calendarTypeFilter)
+    .filter((item) => {
+      if (!query) return true;
+      return [item.title, item.description, item.type, item.owner, item.linkLabel]
+        .some((value) => String(value || '').toLowerCase().includes(query));
+    })
+    .filter((item) => state.calendarView === 'list' || calendarItemInVisibleRange(item));
+}
+
+function calendarUpcomingItems(companyId = activeCompanyId()) {
+  const now = Date.now();
+  return calendarItems(companyId)
+    .filter((item) => Date.parse(item.endsAt || item.startsAt || 0) >= now)
+    .slice(0, 9);
+}
+
+function calendarManualItem(event) {
+  const job = event.linked_type === 'job' ? jobById(event.linked_id) : null;
+  return {
+    id: `manual:${event.id}`,
+    source: 'manual',
+    sourceId: event.id,
+    companyId: event.company_id,
+    title: event.title,
+    description: event.description,
+    type: event.event_type,
+    startsAt: event.starts_at,
+    endsAt: event.ends_at || event.starts_at,
+    allDay: event.all_day,
+    dateKey: calendarDateKey(event.starts_at),
+    owner: calendarPersonName(event.assigned_profile_id || event.created_by),
+    mine: calendarPersonMatchesMe(event.assigned_profile_id) || event.created_by === activeSession().profile.id,
+    href: calendarLinkedHref(event),
+    linkLabel: job?.name || '',
+    editable: canEditCalendarEvent(event),
+  };
+}
+
+function calendarTaskItem(task) {
+  const startsAt = task.due_time ? `${task.due}T${task.due_time}:00` : `${task.due}T12:00:00`;
+  return {
+    id: `task:${task.id}`,
+    source: 'task',
+    sourceId: task.id,
+    companyId: task.company_id,
+    title: task.title,
+    description: task.description || taskTypeLabel(task.type),
+    type: 'Task due',
+    startsAt,
+    endsAt: startsAt,
+    allDay: !task.due_time,
+    dateKey: task.due,
+    owner: memberName(task.assignee_id),
+    mine: taskAssignedToMe(task.assignee_id),
+    href: companyPath('tasks', { ...(task.project_id ? { job_id: task.project_id } : {}), task_id: task.id }, task.company_id),
+    linkLabel: jobById(task.project_id)?.name || 'Company task',
+    editable: false,
+  };
+}
+
+function calendarInvoiceItem(invoice) {
+  return {
+    id: `invoice:${invoice.id}`,
+    source: 'invoice',
+    sourceId: invoice.id,
+    companyId: invoice.company_id,
+    title: `${invoice.invoice_number} due`,
+    description: `${money(invoiceBalance(invoice.id))} outstanding for ${invoice.client_name || 'client'}.`,
+    type: 'Invoice due',
+    startsAt: `${invoice.due_date}T12:00:00`,
+    endsAt: `${invoice.due_date}T12:00:00`,
+    allDay: true,
+    dateKey: invoice.due_date,
+    owner: invoice.client_name || 'Finance',
+    mine: can('finance.view', invoice.company_id),
+    href: companyPath('finance', { invoice: invoice.id }, invoice.company_id),
+    linkLabel: invoice.client_name || 'Finance',
+    editable: false,
+  };
+}
+
+function calendarApprovalItem(item, companyId = activeCompanyId()) {
+  const dateKey = String(item.updatedAt || isoDate(0)).slice(0, 10);
+  return {
+    id: `approval:${item.id}`,
+    source: 'approval',
+    sourceId: item.id,
+    companyId,
+    title: item.title,
+    description: item.meta,
+    type: 'Approval',
+    startsAt: `${dateKey}T12:00:00`,
+    endsAt: `${dateKey}T12:00:00`,
+    allDay: true,
+    dateKey,
+    owner: item.owner,
+    mine: true,
+    href: item.href,
+    linkLabel: item.status,
+    editable: false,
+  };
+}
+
+function calendarTimerItem(timer) {
+  const dateKey = calendarDateKey(timer.started_at);
+  return {
+    id: `timer:${timer.id}`,
+    source: 'timer',
+    sourceId: timer.id,
+    companyId: timer.company_id,
+    title: timer.task_title || 'Active timer',
+    description: 'Current clock session.',
+    type: 'Time',
+    startsAt: timer.started_at,
+    endsAt: new Date().toISOString(),
+    allDay: false,
+    dateKey,
+    owner: memberName(timer.user_id),
+    mine: calendarPersonMatchesMe(timer.user_id),
+    href: companyPath('time', {}, timer.company_id),
+    linkLabel: 'My time',
+    editable: false,
+  };
+}
+
+function canAccessCalendarEvent(event) {
+  if (!event || !can('calendar.view', event.company_id)) return false;
+  if (event.visibility !== 'private') return true;
+  return can('calendar.view_team', event.company_id) || canEditCalendarEvent(event) || calendarPersonMatchesMe(event.assigned_profile_id);
+}
+
+function canEditCalendarEvent(event) {
+  if (!event) return false;
+  return can('calendar.manage', event.company_id) || event.created_by === activeSession().profile.id;
+}
+
+function calendarLinkedHref(event) {
+  if (event.linked_type === 'job' && event.linked_id && can('jobs.view', event.company_id)) return companyPath('jobs', { tab: 'profile', job_id: event.linked_id }, event.company_id);
+  if (event.linked_type === 'task' && event.linked_id && can('tasks.view', event.company_id)) return companyPath('tasks', { task_id: event.linked_id }, event.company_id);
+  if (event.linked_type === 'form' && event.linked_id && can('forms.view', event.company_id)) return companyPath('forms', { form_id: event.linked_id }, event.company_id);
+  if (event.linked_type === 'invoice' && event.linked_id && can('finance.view', event.company_id)) return companyPath('finance', { invoice: event.linked_id }, event.company_id);
+  return '';
+}
+
+function calendarEventByKey(key, companyId = activeCompanyId()) {
+  return calendarItems(companyId).find((item) => item.id === key) || null;
+}
+
+function manualCalendarEventById(id) {
+  return state.calendarEvents.find((event) => event.id === id) || null;
+}
+
+function taskAssignedToMe(assigneeId) {
+  return String(assigneeId || '') === String(activeSession().profile.member_id || activeSession().profile.id || '');
+}
+
+function calendarPersonMatchesMe(value) {
+  const profile = activeSession().profile;
+  return [profile.id, profile.member_id, profile.email].filter(Boolean).map(String).includes(String(value || ''));
+}
+
+function calendarPersonName(value) {
+  if (!value) return 'Unassigned';
+  return profileById(value)?.full_name || memberName(value) || String(value);
+}
+
+function calendarDateKey(value) {
+  if (!value) return isoDate(0);
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return String(value).slice(0, 10);
+  return date.toISOString().slice(0, 10);
+}
+
+function calendarItemsForDate(items, dateKey) {
+  return items.filter((item) => item.dateKey === dateKey).sort((a, b) => Date.parse(a.startsAt || 0) - Date.parse(b.startsAt || 0));
+}
+
+function calendarItemsThisWeek(items) {
+  const start = startOfWeekDate(new Date());
+  const end = new Date(start);
+  end.setDate(start.getDate() + 7);
+  return items.filter((item) => {
+    const time = Date.parse(item.startsAt || item.dateKey || 0);
+    return time >= start.getTime() && time < end.getTime();
+  });
+}
+
+function calendarItemInVisibleRange(item) {
+  const date = new Date(`${item.dateKey}T00:00:00`);
+  if (state.calendarView === 'month') {
+    const cursor = new Date(`${state.calendarCursorDate}T00:00:00`);
+    return date.getFullYear() === cursor.getFullYear() && date.getMonth() === cursor.getMonth();
+  }
+  const start = startOfWeekDate(new Date(`${state.calendarCursorDate}T00:00:00`));
+  const end = new Date(start);
+  end.setDate(start.getDate() + 7);
+  return date >= start && date < end;
+}
+
+function calendarMonthDays(value) {
+  const cursor = new Date(`${value}T00:00:00`);
+  const first = new Date(cursor.getFullYear(), cursor.getMonth(), 1);
+  const start = new Date(first);
+  start.setDate(first.getDate() - first.getDay());
+  return Array.from({ length: 42 }, (_, index) => {
+    const date = new Date(start);
+    date.setDate(start.getDate() + index);
+    return { key: localDateKey(date), label: String(date.getDate()), month: date.getMonth() };
+  });
+}
+
+function calendarWeekDays(value) {
+  const start = startOfWeekDate(new Date(`${value}T00:00:00`));
+  return Array.from({ length: 7 }, (_, index) => {
+    const date = new Date(start);
+    date.setDate(start.getDate() + index);
+    return {
+      key: localDateKey(date),
+      name: new Intl.DateTimeFormat('en-US', { weekday: 'short' }).format(date),
+      shortDate: new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric' }).format(date),
+    };
+  });
+}
+
+function calendarRangeLabel() {
+  const cursor = new Date(`${state.calendarCursorDate}T00:00:00`);
+  if (state.calendarView === 'month') return new Intl.DateTimeFormat('en-US', { month: 'long', year: 'numeric' }).format(cursor);
+  if (state.calendarView === 'week') {
+    const days = calendarWeekDays(state.calendarCursorDate);
+    return `${formatDate(days[0].key)} - ${formatDate(days[6].key)}`;
+  }
+  return 'Upcoming';
+}
+
+function startOfWeekDate(date) {
+  const next = new Date(date);
+  next.setHours(0, 0, 0, 0);
+  next.setDate(next.getDate() - next.getDay());
+  return next;
+}
+
+function localDateKey(date) {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const d = String(date.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
+
+function moveCalendarCursor(direction) {
+  const date = new Date(`${state.calendarCursorDate}T00:00:00`);
+  if (state.calendarView === 'month') date.setMonth(date.getMonth() + direction);
+  else date.setDate(date.getDate() + direction * 7);
+  state.calendarCursorDate = localDateKey(date);
+}
+
+function groupByDate(items) {
+  return items.reduce((groups, item) => {
+    groups[item.dateKey] = groups[item.dateKey] || [];
+    groups[item.dateKey].push(item);
+    return groups;
+  }, {});
+}
+
+function calendarTimeLabel(item) {
+  if (item.allDay) return 'All day';
+  const start = new Date(item.startsAt);
+  if (Number.isNaN(start.getTime())) return 'Timed';
+  return new Intl.DateTimeFormat('en-US', { hour: 'numeric', minute: '2-digit' }).format(start);
+}
+
+function calendarTypeClass(type) {
+  return `calendar-type-${slugify(type || 'event')}`;
+}
+
+function calendarTypeIcon(type) {
+  if (type === 'Task due') return 'ti-list-check';
+  if (type === 'Invoice due') return 'ti-file-dollar';
+  if (type === 'Approval') return 'ti-user-check';
+  if (type === 'Time') return 'ti-clock';
+  if (type.includes('Install')) return 'ti-hammer';
+  if (type.includes('Estimate')) return 'ti-calendar-dollar';
+  if (type.includes('Personal')) return 'ti-user';
+  return 'ti-calendar-event';
 }
 
 function companyFiles(companyId = activeCompanyId()) {
@@ -7679,6 +8425,30 @@ function normalizeMessageRead(input) {
   };
 }
 
+function normalizeCalendarEvent(input) {
+  const startsAt = input.starts_at || new Date().toISOString();
+  const eventType = CALENDAR_EVENT_TYPES.includes(input.event_type) ? input.event_type : 'Company event';
+  const visibility = ['company', 'private'].includes(input.visibility) ? input.visibility : 'company';
+  const linkedType = ['', 'job', 'task', 'form', 'invoice'].includes(input.linked_type) ? input.linked_type : '';
+  return {
+    id: String(input.id || `calendar-${crypto.randomUUID()}`),
+    company_id: canonicalCompanyId(input.company_id || defaultCompanyId()),
+    title: String(input.title || 'Calendar event').trim() || 'Calendar event',
+    description: String(input.description || '').trim(),
+    event_type: eventType,
+    starts_at: startsAt,
+    ends_at: input.ends_at || startsAt,
+    all_day: input.all_day === true || input.all_day === 'true' || input.all_day === 'on',
+    visibility,
+    linked_type: linkedType,
+    linked_id: String(input.linked_id || ''),
+    assigned_profile_id: String(input.assigned_profile_id || ''),
+    created_by: String(input.created_by || ''),
+    created_at: input.created_at || new Date().toISOString(),
+    updated_at: input.updated_at || input.created_at || new Date().toISOString(),
+  };
+}
+
 function messageConversationPayload(conversation) {
   return {
     id: conversation.id,
@@ -7722,6 +8492,24 @@ function messageAttachmentPayload(attachment) {
     file_name: attachment.file_name,
     mime_type: attachment.mime_type,
     size_bytes: attachment.size_bytes,
+  };
+}
+
+function calendarEventPayload(event) {
+  return {
+    id: isUuid(event.id) ? event.id : undefined,
+    company_id: event.company_id,
+    title: event.title,
+    description: event.description,
+    event_type: event.event_type,
+    starts_at: event.starts_at,
+    ends_at: event.ends_at || event.starts_at,
+    all_day: event.all_day,
+    visibility: event.visibility,
+    linked_type: event.linked_type || '',
+    linked_id: event.linked_id || '',
+    assigned_profile_id: event.assigned_profile_id || '',
+    created_by: isUuid(event.created_by) ? event.created_by : activeSession().profile.id,
   };
 }
 
@@ -7813,6 +8601,28 @@ function blankFinanceVendor(companyId = activeCompanyId()) {
     name: '',
     category: 'Materials',
     status: 'Active',
+  });
+}
+
+function blankCalendarEvent(companyId = activeCompanyId()) {
+  const start = new Date();
+  start.setHours(start.getHours() + 1, 0, 0, 0);
+  const end = new Date(start);
+  end.setHours(start.getHours() + 1);
+  return normalizeCalendarEvent({
+    id: '',
+    company_id: companyId,
+    title: '',
+    description: '',
+    event_type: 'Company event',
+    starts_at: start.toISOString(),
+    ends_at: end.toISOString(),
+    all_day: false,
+    visibility: 'company',
+    linked_type: '',
+    linked_id: '',
+    assigned_profile_id: activeSession().profile.member_id || activeSession().profile.id,
+    created_by: activeSession().profile.id,
   });
 }
 
@@ -8061,6 +8871,30 @@ function renderAvatar(profile, className) {
   return `<span class="${h(className)}">${h(initials)}</span>`;
 }
 
+function calendarAssigneeOptions(companyId = activeCompanyId()) {
+  const rows = companyAccessUsers(companyId)
+    .filter((user) => user.status === 'active')
+    .map((user) => [user.profile_id || user.member_id, user.name || user.email || user.member_id]);
+  return [['', 'Unassigned']].concat(rows);
+}
+
+function dateTimeLocalValue(value) {
+  const date = new Date(value || Date.now());
+  if (Number.isNaN(date.getTime())) return '';
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const d = String(date.getDate()).padStart(2, '0');
+  const hh = String(date.getHours()).padStart(2, '0');
+  const mm = String(date.getMinutes()).padStart(2, '0');
+  return `${y}-${m}-${d}T${hh}:${mm}`;
+}
+
+function localDateTimeToIso(value) {
+  const date = new Date(value || Date.now());
+  if (Number.isNaN(date.getTime())) return new Date().toISOString();
+  return date.toISOString();
+}
+
 function emptyState(text) {
   return `<div class="empty-state">${svgIcon('q-empty', 'empty-symbol')}<span>${h(text)}</span></div>`;
 }
@@ -8096,6 +8930,7 @@ function persistAll() {
   writeJson(MESSAGE_CACHE_KEY, state.messages);
   writeJson(MESSAGE_READ_CACHE_KEY, state.messageReads);
   writeJson(MESSAGE_ATTACHMENT_CACHE_KEY, state.messageAttachments);
+  writeJson(CALENDAR_EVENT_CACHE_KEY, state.calendarEvents);
 }
 
 function persistTimeState() {
@@ -8107,6 +8942,11 @@ function persistTimeState() {
 function persistNotifications() {
   if (state.session?.auth === 'supabase') return;
   writeJson(NOTIFICATION_CACHE_KEY, state.notifications);
+}
+
+function persistCalendarEvents() {
+  if (state.session?.auth === 'supabase') return;
+  writeJson(CALENDAR_EVENT_CACHE_KEY, state.calendarEvents);
 }
 
 function persistMessages() {
