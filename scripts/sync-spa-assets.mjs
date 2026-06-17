@@ -15,6 +15,7 @@ const legacyFiles = [
   'jobs.html',
   'knowledge.html',
   'login.html',
+  'messages.html',
   'task-management.html',
   'templates.html',
   'tickets.html',
@@ -69,14 +70,15 @@ function legacyRedirect(file) {
         var map = {
           'admin.html': workspace('settings'),
           'automations.html': workspace('settings'),
-          'crm.html': workspace('users'),
+          'crm.html': workspace('crm'),
           'dashboards.html': workspace('analytics'),
           'files.html': workspace('files'),
-          'finance.html': workspace('analytics'),
+          'finance.html': workspace('finance'),
           'forms.html': workspace('forms'),
           'jobs.html': workspace('jobs'),
           'knowledge.html': workspace('files'),
           'login.html': '/login',
+          'messages.html': workspace('messages'),
           'templates.html': workspace('forms'),
           'tickets.html': workspace('tasks')
         };

@@ -4588,9 +4588,412 @@ button.side-item {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
+.messages-page {
+  max-width: 1360px;
+}
+
+.messages-shell {
+  display: grid;
+  grid-template-columns: minmax(270px, 340px) minmax(0, 1fr);
+  gap: 14px;
+  min-height: min(680px, calc(100vh - 190px));
+}
+
+.messages-list-panel,
+.messages-thread-panel {
+  min-width: 0;
+  padding: 0;
+  overflow: hidden;
+}
+
+.messages-tools {
+  display: grid;
+  gap: 10px;
+  border-bottom: 1px solid var(--border);
+  padding: 14px;
+}
+
+.messages-tools label,
+.message-modal-form label,
+.message-composer label {
+  display: grid;
+  gap: 6px;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 950;
+  text-transform: uppercase;
+}
+
+.message-filter {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  border: 0;
+  margin: 0;
+}
+
+.message-filter button {
+  min-height: 30px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: #fbf7ee;
+  color: var(--muted);
+  padding: 0 10px;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.message-filter button.active {
+  border-color: var(--amber);
+  background: #fff4d8;
+  color: var(--ink);
+}
+
+.conversation-list {
+  display: grid;
+  max-height: calc(100vh - 330px);
+  overflow: auto;
+}
+
+.conversation-row {
+  position: relative;
+  display: grid;
+  grid-template-columns: 38px minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+  min-height: 74px;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+  padding: 11px 14px;
+}
+
+.conversation-row:hover,
+.conversation-row.active {
+  background: #fff8e7;
+  box-shadow: inset 3px 0 var(--amber);
+}
+
+.conversation-mark {
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--symbol-paper);
+  color: var(--symbol-rail);
+}
+
+.conversation-mark .symbol-icon {
+  width: 21px;
+  height: 21px;
+}
+
+.conversation-row strong,
+.conversation-row small,
+.conversation-row em {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.conversation-row small,
+.conversation-row em {
+  color: var(--muted);
+  font-size: 12px;
+  font-style: normal;
+  font-weight: 800;
+}
+
+.conversation-row b {
+  position: absolute;
+  right: 12px;
+  bottom: 9px;
+  display: grid;
+  place-items: center;
+  min-width: 20px;
+  height: 20px;
+  border-radius: 999px;
+  background: var(--orange);
+  color: #fff;
+  padding: 0 6px;
+  font-size: 11px;
+  font-weight: 950;
+}
+
+.thread-head {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: center;
+  border-bottom: 1px solid var(--border);
+  padding: 14px;
+}
+
+.thread-title {
+  display: grid;
+  grid-template-columns: 42px minmax(0, 1fr);
+  gap: 10px;
+  align-items: center;
+  min-width: 0;
+}
+
+.thread-title > span {
+  display: grid;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  border-radius: 8px;
+  background: #242019;
+  color: var(--amber);
+}
+
+.thread-title h2,
+.thread-title p {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.thread-title h2 {
+  margin: 0 0 3px;
+  font-size: 19px;
+}
+
+.thread-title p {
+  margin: 0;
+  font-size: 12px;
+}
+
+.thread-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.mobile-thread-back {
+  display: none;
+}
+
+.message-stream {
+  display: grid;
+  align-content: start;
+  gap: 12px;
+  min-height: 430px;
+  max-height: calc(100vh - 360px);
+  overflow: auto;
+  background: #fbf7ee;
+  padding: 16px;
+}
+
+.message-bubble {
+  display: grid;
+  grid-template-columns: 38px minmax(0, 1fr);
+  gap: 10px;
+  align-items: start;
+  max-width: 78%;
+}
+
+.message-bubble.own {
+  justify-self: end;
+  grid-template-columns: minmax(0, 1fr) 38px;
+}
+
+.message-bubble.own .message-avatar {
+  grid-column: 2;
+  grid-row: 1;
+}
+
+.message-bubble.own .message-card {
+  grid-column: 1;
+  grid-row: 1;
+  background: #fff4d8;
+}
+
+.message-avatar {
+  width: 38px;
+  height: 38px;
+}
+
+.message-card {
+  min-width: 0;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  padding: 10px 12px;
+}
+
+.message-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 5px;
+}
+
+.message-meta strong,
+.message-meta span {
+  min-width: 0;
+}
+
+.message-meta span {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 850;
+}
+
+.message-meta button {
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  margin-left: auto;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--muted);
+}
+
+.message-card p {
+  margin: 0;
+  color: var(--ink);
+  font-size: 14px;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
+.message-card p strong {
+  color: #9a3412;
+}
+
+.message-attachments {
+  display: grid;
+  gap: 8px;
+  margin-top: 9px;
+}
+
+.message-attachment {
+  display: grid;
+  grid-template-columns: 42px minmax(0, 1fr);
+  gap: 9px;
+  align-items: center;
+  min-height: 54px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: #fbf7ee;
+  color: var(--ink);
+  padding: 6px 8px;
+  text-align: left;
+}
+
+.message-attachment img,
+.message-attachment .symbol-icon {
+  width: 42px;
+  height: 42px;
+  border-radius: 7px;
+  object-fit: cover;
+}
+
+.message-attachment .symbol-icon {
+  padding: 8px;
+  background: var(--symbol-paper);
+  color: var(--symbol-rail);
+}
+
+.message-attachment strong,
+.message-attachment small {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.message-attachment small {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.message-composer {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 42px auto;
+  gap: 9px;
+  align-items: center;
+  border-top: 1px solid var(--border);
+  background: var(--surface);
+  padding: 12px 14px;
+}
+
+.message-composer input[name="attachments"] {
+  display: none;
+}
+
+.message-attach-button {
+  width: 42px;
+  height: 42px;
+}
+
+.messages-empty-panel {
+  display: grid;
+  place-items: center;
+  align-content: center;
+  gap: 10px;
+  min-height: 520px;
+  padding: 30px;
+  text-align: center;
+}
+
+.messages-empty-panel .symbol-icon {
+  width: 62px;
+  height: 62px;
+  color: var(--symbol-rail);
+}
+
+.messages-empty-panel p {
+  max-width: 430px;
+}
+
+.message-modal {
+  width: min(720px, calc(100vw - 40px));
+}
+
+.message-modal-form {
+  display: grid;
+  gap: 12px;
+}
+
+.message-target-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.message-target-grid .check-row {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: #fbf7ee;
+  padding: 9px 10px;
+  text-transform: none;
+}
+
+.message-scenario {
+  position: fixed;
+  right: 20px;
+  bottom: 82px;
+  z-index: 35;
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
 @media (max-width: 980px) {
   .modal-action-grid,
   .compact-settings-grid,
+  .message-target-grid,
   .forms-start-actions,
   .new-form-template-grid,
   .new-form-builder-grid,
@@ -4615,6 +5018,34 @@ button.side-item {
 
   .drawer-panel {
     width: min(520px, 100vw);
+  }
+
+  .messages-shell {
+    grid-template-columns: 1fr;
+  }
+
+  .messages-thread-panel {
+    display: none;
+  }
+
+  .messages-page.thread-open .messages-list-panel {
+    display: none;
+  }
+
+  .messages-page.thread-open .messages-thread-panel {
+    display: block;
+  }
+
+  .mobile-thread-back {
+    display: inline-flex;
+  }
+
+  .thread-head {
+    grid-template-columns: 1fr;
+  }
+
+  .thread-actions {
+    justify-content: flex-start;
   }
 }
 
@@ -4728,5 +5159,24 @@ button.side-item {
 
   .form-start-tabs button {
     justify-content: center;
+  }
+
+  .message-bubble {
+    max-width: 100%;
+  }
+
+  .message-composer {
+    grid-template-columns: minmax(0, 1fr) 42px;
+  }
+
+  .message-composer .btn-primary {
+    grid-column: 1 / -1;
+    width: 100%;
+  }
+
+  .message-scenario {
+    right: 10px;
+    bottom: 74px;
+    max-width: calc(100vw - 20px);
   }
 }

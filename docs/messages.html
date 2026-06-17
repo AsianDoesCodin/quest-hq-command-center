@@ -6,7 +6,7 @@
     <title>Opening Quest HQ</title>
     <script>
       (function () {
-        var file = "tickets.html";
+        var file = "messages.html";
         var params = new URLSearchParams(window.location.search);
         var company = params.get('company_id') || params.get('company') || localStorage.getItem('quest-hq-active-company') || 'roofing';
         var route = '/company/' + encodeURIComponent(company) + '/jobs';

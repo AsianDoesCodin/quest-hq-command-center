@@ -43,12 +43,17 @@ This file is the durable implementation checklist for the auth, permissions, peo
   - Current record fields: `id`, `company_id`, `recipient_profile_id`, `type`, `title`, `body`, `href`, `source_type`, `source_id`, `read_at`, `created_at`.
   - Event sources: task assignment, task status/priority changes, approvals, files/forms, invites/access, finance, subscription/billing, and future messages.
   - Security rule: users can only read/update their own notification rows; admins do not get broad access to private inbox rows unless explicitly redesigned.
-- [ ] Build Messages as a future company communication module.
-  - [x] Add Messages as a disabled planned sidebar module.
-  - [ ] Admins/Owners can create company group chats.
-  - [ ] Group chats can target roles, individual users, or all company members.
-  - [ ] Messages must be company-scoped and permission-gated with future `messages.view` and `messages.manage` permissions.
-  - [ ] Do not add chat storage, live routes, or realtime behavior until the module is explicitly implemented.
+- [x] Build Messages as a company communication module.
+  - [x] Promote Messages from planned to live at `/company/:companyId/messages`.
+  - [x] Add Supabase-backed message tables for conversations, access targets, messages, attachments, and read state.
+  - [x] Add RLS for company-scoped conversation access, sender permissions, direct-message privacy, and private attachment rows.
+  - [x] Add private `quest-message-attachments` Storage bucket and signed/private attachment flow.
+  - [x] Admins/Owners can create company group chats.
+  - [x] Group chats can target roles, individual users, or all company members.
+  - [x] Direct messages are included in V1.
+  - [x] Add local Demo Mode seeded chats and floating demo scenario controls.
+  - [ ] Add production Supabase seed/admin UI polish after live user testing.
+  - [ ] Add richer mention parsing and message reactions later.
 
 ## Persistence And Sync
 

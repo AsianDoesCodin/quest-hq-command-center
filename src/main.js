@@ -32,13 +32,18 @@ const COMPANY_KEY = 'quest-hq-active-company';
 const TASK_VIEW_KEY = 'quest-hq-task-view';
 const DRIVE_VIEW_KEY = 'quest-hq-drive-view';
 const NOTIFICATION_CACHE_KEY = 'quest-hq-notification-cache-v1';
+const MESSAGE_CONVERSATION_CACHE_KEY = 'quest-hq-message-conversation-cache-v1';
+const MESSAGE_ACCESS_CACHE_KEY = 'quest-hq-message-access-cache-v1';
+const MESSAGE_CACHE_KEY = 'quest-hq-message-cache-v1';
+const MESSAGE_READ_CACHE_KEY = 'quest-hq-message-read-cache-v1';
+const MESSAGE_ATTACHMENT_CACHE_KEY = 'quest-hq-message-attachment-cache-v1';
 
 const ROLE_PERMISSIONS = {
   developer: ['*'],
   admin: ['*'],
   owner: ['*'],
-  manager: ['jobs.view', 'jobs.manage', 'tasks.view', 'tasks.manage', 'files.view', 'files.manage', 'forms.view', 'forms.manage', 'finance.view', 'team.view', 'clock.manage', 'approvals.manage', 'approvals.view', 'users.view', 'settings.view', 'billing.view', 'roles.view'],
-  member: ['jobs.view', 'tasks.view', 'tasks.manage', 'files.view', 'forms.view', 'time.track', 'approvals.view', 'users.view'],
+  manager: ['jobs.view', 'jobs.manage', 'tasks.view', 'tasks.manage', 'files.view', 'files.manage', 'forms.view', 'forms.manage', 'finance.view', 'team.view', 'clock.manage', 'approvals.manage', 'approvals.view', 'users.view', 'settings.view', 'billing.view', 'roles.view', 'messages.view', 'messages.send', 'messages.create_group', 'messages.manage_groups', 'messages.attach_files'],
+  member: ['jobs.view', 'tasks.view', 'tasks.manage', 'files.view', 'forms.view', 'time.track', 'approvals.view', 'users.view', 'messages.view', 'messages.send', 'messages.attach_files'],
 };
 
 const PERMISSION_KEYS = [
@@ -65,8 +70,14 @@ const PERMISSION_KEYS = [
   ['clock.manage', 'Manage clock dashboard'],
   ['approvals.view', 'View approvals'],
   ['approvals.manage', 'Manage approvals'],
-  ['messages.view', 'View messages (planned)'],
-  ['messages.manage', 'Manage group chats (planned)'],
+  ['messages.view', 'View messages'],
+  ['messages.send', 'Send messages'],
+  ['messages.create_group', 'Create group chats'],
+  ['messages.manage_groups', 'Manage group chats'],
+  ['messages.attach_files', 'Attach files/images'],
+  ['messages.delete_own', 'Delete own messages'],
+  ['messages.delete_any', 'Delete any messages'],
+  ['messages.manage', 'Manage messages (compatibility)'],
 ];
 
 const MODULE_REGISTRY = [
@@ -82,7 +93,7 @@ const MODULE_REGISTRY = [
   { id: 'automations', group: 'Workspace', label: 'Automations', icon: 'ti-automation', symbol: 'q-symbol-automations', status: 'planned' },
   { id: 'templates', group: 'Workspace', label: 'Templates', icon: 'ti-template', symbol: 'q-symbol-templates', status: 'planned' },
   { id: 'users', group: 'Company', label: 'Users', icon: 'ti-users', symbol: 'q-symbol-users', status: 'live', permission: 'users.view' },
-  { id: 'messages', group: 'Company', label: 'Messages', icon: 'ti-messages', symbol: 'q-symbol-messages', status: 'planned' },
+  { id: 'messages', group: 'Company', label: 'Messages', icon: 'ti-messages', symbol: 'q-symbol-messages', status: 'live', permission: 'messages.view' },
   { id: 'settings', group: 'Company', label: 'Settings', icon: 'ti-settings', symbol: 'q-symbol-settings', status: 'live', permission: 'settings.view' },
   { id: 'team-chart', group: 'Company', label: 'Team chart', icon: 'ti-hierarchy-3', symbol: 'q-symbol-team-chart', status: 'live', permission: 'team.view' },
   { id: 'time', group: 'Operations', label: 'My time', icon: 'ti-clock', symbol: 'q-symbol-time', status: 'live', permission: 'time.track' },
@@ -101,6 +112,7 @@ const LEGACY_ROUTE_SECTIONS = {
   '/forms.html': 'forms',
   '/jobs.html': 'jobs',
   '/knowledge.html': 'knowledge',
+  '/messages.html': 'messages',
   '/templates.html': 'templates',
   '/tickets.html': 'tickets',
 };
@@ -127,6 +139,7 @@ const EXPENSE_STATUSES = ['Pending', 'Approved', 'Paid', 'Rejected'];
 const VENDOR_STATUSES = ['Active', 'On hold', 'Inactive'];
 const PAYMENT_METHODS = ['ACH', 'Check', 'Card', 'Cash', 'Wire', 'Other'];
 const EXPENSE_CATEGORIES = ['Materials', 'Labor', 'Subcontractor', 'Permit', 'Equipment', 'Marketing', 'Software', 'Travel', 'Other'];
+const MESSAGE_TYPES = ['company', 'role', 'custom', 'direct'];
 const QUESTION_TYPES = [
   ['short', 'Short answer'],
   ['paragraph', 'Paragraph'],
@@ -724,6 +737,162 @@ const notificationsFallback = [
   },
 ];
 
+const messageConversationsFallback = [
+  {
+    id: 'msg-conv-roofing-all',
+    company_id: 'roofing',
+    title: 'Roofing dispatch',
+    type: 'company',
+    created_by: 'basic-quest-user',
+    last_message_at: new Date(Date.now() - 16 * 60000).toISOString(),
+    created_at: new Date(Date.now() - 86400000).toISOString(),
+    updated_at: new Date(Date.now() - 16 * 60000).toISOString(),
+  },
+  {
+    id: 'msg-conv-roofing-crew',
+    company_id: 'roofing',
+    title: 'Roofing crew',
+    type: 'role',
+    created_by: 'basic-quest-user',
+    last_message_at: new Date(Date.now() - 52 * 60000).toISOString(),
+    created_at: new Date(Date.now() - 172800000).toISOString(),
+    updated_at: new Date(Date.now() - 52 * 60000).toISOString(),
+  },
+  {
+    id: 'msg-conv-roofing-direct-shan',
+    company_id: 'roofing',
+    title: 'Shan Kumar',
+    type: 'direct',
+    created_by: 'basic-quest-user',
+    last_message_at: new Date(Date.now() - 8 * 60000).toISOString(),
+    created_at: new Date(Date.now() - 3600000).toISOString(),
+    updated_at: new Date(Date.now() - 8 * 60000).toISOString(),
+  },
+  {
+    id: 'msg-conv-drafting-all',
+    company_id: 'drafting',
+    title: 'Drafting review',
+    type: 'company',
+    created_by: 'basic-quest-user',
+    last_message_at: new Date(Date.now() - 74 * 60000).toISOString(),
+    created_at: new Date(Date.now() - 259200000).toISOString(),
+    updated_at: new Date(Date.now() - 74 * 60000).toISOString(),
+  },
+  {
+    id: 'msg-conv-lumen-product',
+    company_id: 'lumen',
+    title: 'Lumen launch room',
+    type: 'custom',
+    created_by: 'basic-quest-user',
+    last_message_at: new Date(Date.now() - 38 * 60000).toISOString(),
+    created_at: new Date(Date.now() - 21600000).toISOString(),
+    updated_at: new Date(Date.now() - 38 * 60000).toISOString(),
+  },
+];
+
+const messageAccessFallback = [
+  { id: 'msg-access-roofing-all', conversation_id: 'msg-conv-roofing-all', company_id: 'roofing', target_type: 'all_company', target_id: 'all' },
+  { id: 'msg-access-roofing-crew-role', conversation_id: 'msg-conv-roofing-crew', company_id: 'roofing', target_type: 'role', target_id: 'staff-roofing' },
+  { id: 'msg-access-roofing-direct-basic', conversation_id: 'msg-conv-roofing-direct-shan', company_id: 'roofing', target_type: 'profile', target_id: 'basic-quest-user' },
+  { id: 'msg-access-roofing-direct-shan', conversation_id: 'msg-conv-roofing-direct-shan', company_id: 'roofing', target_type: 'profile', target_id: 'shan' },
+  { id: 'msg-access-drafting-all', conversation_id: 'msg-conv-drafting-all', company_id: 'drafting', target_type: 'all_company', target_id: 'all' },
+  { id: 'msg-access-lumen-basic', conversation_id: 'msg-conv-lumen-product', company_id: 'lumen', target_type: 'profile', target_id: 'basic-quest-user' },
+  { id: 'msg-access-lumen-role', conversation_id: 'msg-conv-lumen-product', company_id: 'lumen', target_type: 'role', target_id: 'admin-lumen' },
+];
+
+const messagesFallback = [
+  {
+    id: 'msg-roofing-all-1',
+    conversation_id: 'msg-conv-roofing-all',
+    company_id: 'roofing',
+    sender_profile_id: 'abraham',
+    body: 'Morning check: Mesa HOA estimate needs photos before noon.',
+    message_type: 'text',
+    deleted_at: '',
+    created_at: new Date(Date.now() - 48 * 60000).toISOString(),
+    updated_at: new Date(Date.now() - 48 * 60000).toISOString(),
+  },
+  {
+    id: 'msg-roofing-all-2',
+    conversation_id: 'msg-conv-roofing-all',
+    company_id: 'roofing',
+    sender_profile_id: 'basic-quest-user',
+    body: 'Got it. I am linking the job files now.',
+    message_type: 'text',
+    deleted_at: '',
+    created_at: new Date(Date.now() - 16 * 60000).toISOString(),
+    updated_at: new Date(Date.now() - 16 * 60000).toISOString(),
+  },
+  {
+    id: 'msg-roofing-crew-1',
+    conversation_id: 'msg-conv-roofing-crew',
+    company_id: 'roofing',
+    sender_profile_id: 'shan',
+    body: '@Joshua bring the permit packet when you head to Arroyo.',
+    message_type: 'text',
+    deleted_at: '',
+    created_at: new Date(Date.now() - 52 * 60000).toISOString(),
+    updated_at: new Date(Date.now() - 52 * 60000).toISOString(),
+  },
+  {
+    id: 'msg-roofing-direct-1',
+    conversation_id: 'msg-conv-roofing-direct-shan',
+    company_id: 'roofing',
+    sender_profile_id: 'shan',
+    body: 'Can you confirm the roof access photo uploaded correctly?',
+    message_type: 'text',
+    deleted_at: '',
+    created_at: new Date(Date.now() - 8 * 60000).toISOString(),
+    updated_at: new Date(Date.now() - 8 * 60000).toISOString(),
+  },
+  {
+    id: 'msg-drafting-all-1',
+    conversation_id: 'msg-conv-drafting-all',
+    company_id: 'drafting',
+    sender_profile_id: 'abraham',
+    body: 'Horizon package QA is ready. Please keep notes in this thread.',
+    message_type: 'text',
+    deleted_at: '',
+    created_at: new Date(Date.now() - 74 * 60000).toISOString(),
+    updated_at: new Date(Date.now() - 74 * 60000).toISOString(),
+  },
+  {
+    id: 'msg-lumen-product-1',
+    conversation_id: 'msg-conv-lumen-product',
+    company_id: 'lumen',
+    sender_profile_id: 'basic-quest-user',
+    body: 'Finance and CRM are live enough for internal walkthrough. Next focus is polish and permissions.',
+    message_type: 'text',
+    deleted_at: '',
+    created_at: new Date(Date.now() - 38 * 60000).toISOString(),
+    updated_at: new Date(Date.now() - 38 * 60000).toISOString(),
+  },
+];
+
+const messageAttachmentsFallback = [
+  {
+    id: 'msg-attachment-roofing-photo',
+    conversation_id: 'msg-conv-roofing-crew',
+    message_id: 'msg-roofing-crew-1',
+    company_id: 'roofing',
+    bucket_id: 'quest-message-attachments',
+    object_path: '',
+    file_name: 'roof-access-photo.jpg',
+    mime_type: 'image/jpeg',
+    size_bytes: 184000,
+    preview_url: '',
+    created_at: new Date(Date.now() - 52 * 60000).toISOString(),
+  },
+];
+
+const messageReadsFallback = [
+  { conversation_id: 'msg-conv-roofing-all', company_id: 'roofing', profile_id: 'basic-quest-user', last_read_at: new Date(Date.now() - 10 * 60000).toISOString() },
+  { conversation_id: 'msg-conv-roofing-crew', company_id: 'roofing', profile_id: 'basic-quest-user', last_read_at: '' },
+  { conversation_id: 'msg-conv-roofing-direct-shan', company_id: 'roofing', profile_id: 'basic-quest-user', last_read_at: '' },
+  { conversation_id: 'msg-conv-drafting-all', company_id: 'drafting', profile_id: 'basic-quest-user', last_read_at: '' },
+  { conversation_id: 'msg-conv-lumen-product', company_id: 'lumen', profile_id: 'basic-quest-user', last_read_at: '' },
+];
+
 const state = {
   route: null,
   session: readJson(SESSION_KEY, null),
@@ -741,6 +910,11 @@ const state = {
   financeExpenses: readSeededList(FINANCE_EXPENSE_CACHE_KEY, financeExpensesFallback).map(normalizeFinanceExpense),
   financeVendors: readSeededList(FINANCE_VENDOR_CACHE_KEY, financeVendorsFallback).map(normalizeFinanceVendor),
   notifications: readSeededList(NOTIFICATION_CACHE_KEY, notificationsFallback).map(normalizeNotification),
+  messageConversations: readSeededList(MESSAGE_CONVERSATION_CACHE_KEY, messageConversationsFallback).map(normalizeMessageConversation),
+  messageAccess: readSeededList(MESSAGE_ACCESS_CACHE_KEY, messageAccessFallback).map(normalizeMessageAccess),
+  messages: readSeededList(MESSAGE_CACHE_KEY, messagesFallback).map(normalizeMessage),
+  messageReads: readSeededList(MESSAGE_READ_CACHE_KEY, messageReadsFallback).map(normalizeMessageRead),
+  messageAttachments: readSeededList(MESSAGE_ATTACHMENT_CACHE_KEY, messageAttachmentsFallback).map(normalizeMessageAttachment),
   timeEntries: readJson(TIME_ENTRY_CACHE_KEY, []),
   activeTimer: readJson(ACTIVE_TIMER_KEY, null),
   teamMembers: readSeededList(TEAM_CACHE_KEY, teamMembersFallback).map(normalizeTeamMember),
@@ -775,6 +949,11 @@ const state = {
   stageFilter: 'all',
   crmStageFilter: 'all',
   crmOwnerFilter: 'all',
+  messageQuery: '',
+  messageFilter: 'all',
+  selectedConversationId: '',
+  messageRealtimeChannel: null,
+  messageRealtimeKey: '',
   taskStatusFilter: 'all',
   taskPriorityFilter: 'all',
   fileCategoryFilter: 'All categories',
@@ -1003,6 +1182,11 @@ async function loadSupabaseData() {
     invitesResult,
     joinRequestsResult,
     auditEventsResult,
+    messageConversationsResult,
+    messageAccessResult,
+    messagesResult,
+    messageAttachmentsResult,
+    messageReadsResult,
   ] = await Promise.all([
     client.from('companies').select('*').order('name', { ascending: true }),
     client.from('jobs').select('*').order('updated_at', { ascending: false }),
@@ -1020,6 +1204,11 @@ async function loadSupabaseData() {
     client.from('company_invites').select('*').order('created_at', { ascending: false }),
     client.from('company_join_requests').select('*').order('created_at', { ascending: false }),
     client.from('audit_events').select('*').order('created_at', { ascending: false }).limit(100),
+    client.from('message_conversations').select('*').order('last_message_at', { ascending: false }),
+    client.from('message_conversation_access').select('*'),
+    client.from('messages').select('*').order('created_at', { ascending: true }).limit(500),
+    client.from('message_attachments').select('*').order('created_at', { ascending: true }).limit(500),
+    client.from('message_reads').select('*'),
   ]);
 
   let liveTables = 0;
@@ -1066,6 +1255,11 @@ async function loadSupabaseData() {
   if (!invitesResult.error) state.companyInvites = (invitesResult.data || []).map(normalizeCompanyInvite);
   if (!joinRequestsResult.error) state.joinRequests = (joinRequestsResult.data || []).map(normalizeJoinRequest);
   if (!auditEventsResult.error) state.auditEvents = auditEventsResult.data || [];
+  if (!messageConversationsResult.error) state.messageConversations = (messageConversationsResult.data || []).map(normalizeMessageConversation);
+  if (!messageAccessResult.error) state.messageAccess = (messageAccessResult.data || []).map(normalizeMessageAccess);
+  if (!messagesResult.error) state.messages = (messagesResult.data || []).map(normalizeMessage);
+  if (!messageAttachmentsResult.error) state.messageAttachments = (messageAttachmentsResult.data || []).map(normalizeMessageAttachment);
+  if (!messageReadsResult.error) state.messageReads = (messageReadsResult.data || []).map(normalizeMessageRead);
 
   state.sync = liveTables ? { label: 'Quest Supabase live', mode: 'live' } : { label: 'Local fallback', mode: 'local' };
 }
@@ -1090,6 +1284,11 @@ function resetLiveWorkspaceData() {
   state.financeExpenses = [];
   state.financeVendors = [];
   state.notifications = [];
+  state.messageConversations = [];
+  state.messageAccess = [];
+  state.messages = [];
+  state.messageReads = [];
+  state.messageAttachments = [];
   state.timeEntries = [];
   state.activeTimer = null;
   state.teamMembers = [];
@@ -1120,6 +1319,11 @@ function resetDemoWorkspaceData() {
   state.financeExpenses = readSeededList(FINANCE_EXPENSE_CACHE_KEY, financeExpensesFallback).map(normalizeFinanceExpense);
   state.financeVendors = readSeededList(FINANCE_VENDOR_CACHE_KEY, financeVendorsFallback).map(normalizeFinanceVendor);
   state.notifications = readSeededList(NOTIFICATION_CACHE_KEY, notificationsFallback).map(normalizeNotification);
+  state.messageConversations = readSeededList(MESSAGE_CONVERSATION_CACHE_KEY, messageConversationsFallback).map(normalizeMessageConversation);
+  state.messageAccess = readSeededList(MESSAGE_ACCESS_CACHE_KEY, messageAccessFallback).map(normalizeMessageAccess);
+  state.messages = readSeededList(MESSAGE_CACHE_KEY, messagesFallback).map(normalizeMessage);
+  state.messageReads = readSeededList(MESSAGE_READ_CACHE_KEY, messageReadsFallback).map(normalizeMessageRead);
+  state.messageAttachments = readSeededList(MESSAGE_ATTACHMENT_CACHE_KEY, messageAttachmentsFallback).map(normalizeMessageAttachment);
   state.timeEntries = readJson(TIME_ENTRY_CACHE_KEY, []);
   state.activeTimer = readJson(ACTIVE_TIMER_KEY, null);
   state.teamMembers = readSeededList(TEAM_CACHE_KEY, teamMembersFallback).map(normalizeTeamMember);
@@ -1214,6 +1418,29 @@ function renderSvgSprite() {
       <symbol id="q-symbol-messages" viewBox="0 0 24 24">
         <path d="M4.5 6.5h15v9.5h-8l-4.5 3v-3H4.5v-9.5Z" />
         <path d="M8 10h8M8 13h5" />
+      </symbol>
+      <symbol id="q-symbol-company-chat" viewBox="0 0 24 24">
+        <path d="M4 18V7l8-4 8 4v11" />
+        <path d="M8 18v-6h8v6" />
+        <path d="M6.5 21h11M8 8h.1M12 7h.1M16 8h.1" />
+      </symbol>
+      <symbol id="q-symbol-role-chat" viewBox="0 0 24 24">
+        <circle cx="8" cy="8" r="3" />
+        <circle cx="16" cy="9" r="2.5" />
+        <path d="M3.8 18c.8-3 2.2-4.5 4.2-4.5s3.4 1.5 4.2 4.5M13 14.5c2.8.1 4.5 1.6 5.2 4.5" />
+      </symbol>
+      <symbol id="q-symbol-direct-chat" viewBox="0 0 24 24">
+        <circle cx="12" cy="8" r="3.5" />
+        <path d="M5.5 20c1-4 3.1-6 6.5-6s5.5 2 6.5 6" />
+      </symbol>
+      <symbol id="q-message-file" viewBox="0 0 24 24">
+        <path d="M7 3.5h7l3 3V20H7V3.5Z" />
+        <path d="M14 3.5V7h3M9.5 12h5M9.5 15h4" />
+      </symbol>
+      <symbol id="q-message-image" viewBox="0 0 24 24">
+        <path d="M4.5 6h15v12h-15V6Z" />
+        <circle cx="9" cy="10" r="1.4" />
+        <path d="m6.8 16 3.6-3.5 2.3 2.1 2.1-2.7 2.8 4.1" />
       </symbol>
       <symbol id="q-symbol-settings" viewBox="0 0 24 24">
         <circle cx="12" cy="12" r="3" />
@@ -1447,6 +1674,10 @@ function moduleBadgeCount(moduleId, companyId = activeCompanyId()) {
   if (moduleId === 'crm') return crmAccounts(companyId).length;
   if (moduleId === 'finance') return companyFinanceInvoices(companyId).length;
   if (moduleId === 'users') return companyMembers(companyId).length;
+  if (moduleId === 'messages') {
+    const unread = companyMessageUnreadCount(companyId);
+    return unread || companyMessageConversations(companyId).length;
+  }
   if (moduleId === 'time') return timeSummary(companyId).focus.length;
   if (moduleId === 'approvals') return approvalItems(companyId).length;
   if (moduleId === 'clock') return activeTimerForCompany(companyId) ? 'On' : '';
@@ -1479,6 +1710,7 @@ function renderWorkspace(route) {
   if (route.section === 'analytics') return renderAnalyticsPage(route, companyId);
   if (route.section === 'crm') return renderCrmPage(route, companyId);
   if (route.section === 'finance') return renderFinancePage(route, companyId);
+  if (route.section === 'messages') return renderMessagesPage(route, companyId);
   if (route.section === 'team-chart') return renderTeamChartPage(companyId);
   if (route.section === 'time' || route.section === 'approvals' || route.section === 'clock') return renderOperationsPage(route, companyId);
   return renderPlannedPage(route.section);
@@ -2979,6 +3211,242 @@ function renderCrmAccountModal(companyId, accountKey) {
   `, 'crm-modal');
 }
 
+function renderMessagesPage(route, companyId) {
+  const conversations = companyMessageConversations(companyId);
+  const selected = selectedConversation(companyId);
+  if (selected && state.selectedConversationId !== selected.id) state.selectedConversationId = selected.id;
+  const mobileThread = Boolean(selected && route.params.get('conversation'));
+  subscribeToMessageRealtime(companyId, selected?.id || '');
+  if (selected) markConversationRead(selected.id, false);
+  return `
+    <section class="tool-page messages-page ${mobileThread ? 'thread-open' : ''}">
+      ${workspaceHeader('Messages', 'Company chats, role rooms, direct messages, and file sharing.', `
+        <button class="btn btn-primary" type="button" data-action="new-message-group"><i class="ti ti-message-plus"></i>New group</button>
+        <button class="btn" type="button" data-action="new-direct-message"><i class="ti ti-user-plus"></i>Direct message</button>
+      `)}
+      <section class="messages-shell">
+        <aside class="messages-list-panel panel">
+          <div class="messages-tools">
+            <label>
+              <span>Search</span>
+              <input data-message-search value="${h(state.messageQuery)}" placeholder="Find chats or messages" />
+            </label>
+            <div class="segmented message-filter" role="group" aria-label="Message filters">
+              ${['all', 'unread', 'company', 'role', 'custom', 'direct'].map((filter) => `
+                <button type="button" data-action="set-message-filter" data-filter="${h(filter)}" class="${state.messageFilter === filter ? 'active' : ''}">${h(filter === 'all' ? 'All' : titleCase(filter))}</button>
+              `).join('')}
+            </div>
+          </div>
+          <div class="conversation-list">
+            ${conversations.map((conversation) => renderConversationRow(conversation, companyId, selected?.id === conversation.id)).join('') || emptyState('No conversations match this view.')}
+          </div>
+        </aside>
+        <main class="messages-thread-panel panel">
+          ${selected ? renderMessageThread(companyId, selected) : renderNoConversationState(companyId)}
+        </main>
+      </section>
+      ${state.session?.auth === 'local-basic' ? renderMessageScenarioButton(companyId) : ''}
+    </section>
+  `;
+}
+
+function renderConversationRow(conversation, companyId, active) {
+  const last = conversationMessages(conversation.id).at(-1);
+  const unread = conversationUnreadCount(conversation.id);
+  return `
+    <a class="conversation-row ${active ? 'active' : ''}" href="${appHref(companyPath('messages', { conversation: conversation.id }, companyId))}" data-router>
+      <span class="conversation-mark">${svgIcon(messageTypeSymbol(conversation.type))}</span>
+      <span>
+        <strong>${h(conversation.title)}</strong>
+        <small>${h(last?.body || accessSummary(conversation) || 'No messages yet')}</small>
+      </span>
+      <em>${last ? timeAgo(last.created_at) : ''}</em>
+      ${unread ? `<b>${unread}</b>` : ''}
+    </a>
+  `;
+}
+
+function renderMessageThread(companyId, conversation) {
+  const messages = conversationMessages(conversation.id);
+  const canSendMessage = can('messages.send', companyId);
+  return `
+    <div class="thread-head">
+      <a class="btn mobile-thread-back" href="${appHref(companyPath('messages', {}, companyId))}" data-router><i class="ti ti-arrow-left"></i>Chats</a>
+      <div class="thread-title">
+        <span>${svgIcon(messageTypeSymbol(conversation.type))}</span>
+        <div>
+          <h2>${h(conversation.title)}</h2>
+          <p>${h(accessSummary(conversation))}</p>
+        </div>
+      </div>
+      <div class="thread-actions">
+        <button class="btn" type="button" data-action="message-search-results"><i class="ti ti-search"></i>Search</button>
+        <button class="btn" type="button" data-action="message-details" data-conversation-id="${h(conversation.id)}"><i class="ti ti-info-circle"></i>Details</button>
+        <button class="btn" type="button" data-action="manage-message-chat" data-conversation-id="${h(conversation.id)}" ${can('messages.manage_groups', companyId) || can('messages.manage', companyId) ? '' : 'disabled'}><i class="ti ti-users"></i>Access</button>
+      </div>
+    </div>
+    <div class="message-stream">
+      ${messages.map((message) => renderMessageBubble(message)).join('') || emptyState('No messages yet. Start the thread with a short update.')}
+    </div>
+    ${canSendMessage ? renderMessageComposer(conversation) : emptyState('Your role can view this chat but cannot send messages.')}
+  `;
+}
+
+function renderMessageBubble(message) {
+  const own = message.sender_profile_id === activeSession().profile.id;
+  const sender = messageSenderProfile(message.sender_profile_id);
+  const attachments = messageAttachments(message.id);
+  return `
+    <article class="message-bubble ${own ? 'own' : ''}">
+      ${renderAvatar(sender, 'avatar message-avatar')}
+      <div class="message-card">
+        <div class="message-meta">
+          <strong>${h(sender.full_name || sender.email || profileName(message.sender_profile_id))}</strong>
+          <span>${timeAgo(message.created_at)}</span>
+          ${(own && can('messages.delete_own', message.company_id)) || can('messages.delete_any', message.company_id) ? `<button type="button" data-action="delete-message" data-message-id="${h(message.id)}"><i class="ti ti-trash"></i></button>` : ''}
+        </div>
+        ${message.body ? `<p>${linkifyMentions(message.body)}</p>` : ''}
+        ${attachments.length ? `<div class="message-attachments">${attachments.map(renderMessageAttachment).join('')}</div>` : ''}
+      </div>
+    </article>
+  `;
+}
+
+function renderMessageAttachment(attachment) {
+  const isImage = attachment.mime_type.startsWith('image/');
+  return `
+    <button class="message-attachment" type="button" data-action="open-message-attachment" data-attachment-id="${h(attachment.id)}">
+      ${attachment.preview_url && isImage ? `<img src="${h(attachment.preview_url)}" alt="" />` : svgIcon(isImage ? 'q-message-image' : 'q-message-file')}
+      <span><strong>${h(attachment.file_name)}</strong><small>${h(fileSize(attachment.size_bytes))}</small></span>
+    </button>
+  `;
+}
+
+function renderMessageComposer(conversation) {
+  return `
+    <form class="message-composer" data-message-form data-conversation-id="${h(conversation.id)}">
+      <input name="body" placeholder="Message ${h(conversation.title)}" autocomplete="off" />
+      <label class="icon-button message-attach-button" title="Attach file">
+        <i class="ti ti-paperclip"></i>
+        <input name="attachments" type="file" multiple ${can('messages.attach_files', conversation.company_id) ? '' : 'disabled'} />
+      </label>
+      <button class="btn btn-primary" type="submit"><i class="ti ti-send"></i>Send</button>
+    </form>
+  `;
+}
+
+function renderNoConversationState(companyId) {
+  return `
+    <div class="messages-empty-panel">
+      ${svgIcon('q-symbol-messages')}
+      <h2>No chat selected</h2>
+      <p>Create a group chat, direct message a teammate, or pick a conversation from the list.</p>
+      <div class="head-actions">
+        <button class="btn btn-primary" type="button" data-action="new-message-group"><i class="ti ti-message-plus"></i>New group</button>
+        <button class="btn" type="button" data-action="new-direct-message"><i class="ti ti-user-plus"></i>Direct message</button>
+      </div>
+    </div>
+  `;
+}
+
+function renderMessageScenarioButton(companyId) {
+  return `
+    <div class="message-scenario">
+      <button class="btn btn-primary" type="button" data-action="run-message-scenario"><i class="ti ti-sparkles"></i>Demo scenario</button>
+      <button class="btn" type="button" data-action="reset-message-demo"><i class="ti ti-refresh"></i>Reset</button>
+    </div>
+  `;
+}
+
+function renderMessageGroupModal(companyId) {
+  return renderModalShell('Messages', 'New group chat', `
+    <form class="message-modal-form" data-message-group-form>
+      ${field('Chat name', 'title', '', true)}
+      ${selectField('Type', 'type', 'custom', [['company', 'Company-wide'], ['role', 'Role-based'], ['custom', 'Custom group']])}
+      <div class="message-target-grid">
+        ${companyRoles(companyId).map((role) => `<label class="check-row"><input type="checkbox" name="role_ids" value="${h(role.id)}" /> ${h(role.name)}</label>`).join('')}
+      </div>
+      <div class="message-target-grid">
+        ${companyAccessUsers(companyId).map((user) => `<label class="check-row"><input type="checkbox" name="profile_ids" value="${h(user.profile_id || user.member_id)}" /> ${h(user.name)}</label>`).join('')}
+      </div>
+      <div class="form-actions">
+        <button class="btn btn-primary" type="submit">Create group</button>
+        <button class="btn" type="button" data-action="close-modal">Cancel</button>
+      </div>
+    </form>
+  `, 'message-modal');
+}
+
+function renderDirectMessageModal(companyId) {
+  const users = companyAccessUsers(companyId).filter((user) => (user.profile_id || user.member_id) !== activeSession().profile.id);
+  return renderModalShell('Messages', 'New direct message', `
+    <form class="message-modal-form" data-direct-message-form>
+      ${selectField('Person', 'profile_id', users[0]?.profile_id || users[0]?.member_id || '', users.map((user) => [user.profile_id || user.member_id, user.name]))}
+      <label><span>First message</span><textarea name="body" rows="3" placeholder="Start with a short note"></textarea></label>
+      <div class="form-actions">
+        <button class="btn btn-primary" type="submit">Start chat</button>
+        <button class="btn" type="button" data-action="close-modal">Cancel</button>
+      </div>
+    </form>
+  `, 'message-modal');
+}
+
+function renderMessageAccessModal(companyId, conversationId) {
+  const conversation = state.messageConversations.find((item) => item.id === conversationId);
+  if (!conversation) return renderModalShell('Messages', 'Chat access', emptyState('Conversation not found.'));
+  const rows = conversationAccessRows(conversation.id);
+  return renderModalShell('Messages', 'Chat access', `
+    <form class="message-modal-form" data-message-access-form data-conversation-id="${h(conversation.id)}">
+      ${field('Chat name', 'title', conversation.title, true)}
+      ${selectField('Type', 'type', conversation.type, [['company', 'Company-wide'], ['role', 'Role-based'], ['custom', 'Custom group'], ['direct', 'Direct message']])}
+      <div class="message-target-grid">
+        ${companyRoles(companyId).map((role) => `<label class="check-row"><input type="checkbox" name="role_ids" value="${h(role.id)}" ${rows.some((row) => row.target_type === 'role' && row.target_id === role.id) ? 'checked' : ''} /> ${h(role.name)}</label>`).join('')}
+      </div>
+      <div class="message-target-grid">
+        ${companyAccessUsers(companyId).map((user) => {
+          const id = user.profile_id || user.member_id;
+          return `<label class="check-row"><input type="checkbox" name="profile_ids" value="${h(id)}" ${rows.some((row) => row.target_type === 'profile' && row.target_id === id) ? 'checked' : ''} /> ${h(user.name)}</label>`;
+        }).join('')}
+      </div>
+      <div class="form-actions">
+        <button class="btn btn-primary" type="submit">Save access</button>
+        <button class="btn" type="button" data-action="close-modal">Cancel</button>
+      </div>
+    </form>
+  `, 'message-modal');
+}
+
+function renderMessageDetailsModal(companyId, conversationId) {
+  const conversation = state.messageConversations.find((item) => item.id === conversationId);
+  if (!conversation) return renderModalShell('Messages', 'Chat details', emptyState('Conversation not found.'));
+  return renderModalShell('Messages', conversation.title, `
+    ${contractRows([
+      ['Type', titleCase(conversation.type)],
+      ['Access', accessSummary(conversation)],
+      ['Messages', String(conversationMessages(conversation.id).length)],
+      ['Attachments', String(conversationAttachments(conversation.id).length)],
+      ['Last message', formatDate(conversation.last_message_at)],
+    ])}
+  `, 'message-modal');
+}
+
+function renderMessageSearchModal(companyId) {
+  const query = state.messageQuery.trim().toLowerCase();
+  const rows = companyMessageConversations(companyId).flatMap((conversation) => conversationMessages(conversation.id)
+    .filter((message) => !query || message.body.toLowerCase().includes(query))
+    .map((message) => ({ conversation, message })));
+  return renderModalShell('Messages', 'Search results', `
+    <div class="queue-list">
+      ${rows.slice(0, 30).map(({ conversation, message }) => `
+        <a class="queue-row" href="${appHref(companyPath('messages', { conversation: conversation.id }, companyId))}" data-router>
+          <span><strong>${h(conversation.title)}</strong><small>${h(message.body || 'Attachment')}</small></span>
+          <em>${timeAgo(message.created_at)}</em>
+        </a>
+      `).join('') || emptyState('No matching messages. Type in the Messages search box first.')}
+    </div>
+  `, 'message-modal');
+}
+
 function renderFinancePage(route, companyId) {
   const summary = financeSummary(companyId);
   const invoices = companyFinanceInvoices(companyId);
@@ -3573,6 +4041,11 @@ function renderActiveModal(route, session) {
   if (state.modal === 'finance-vendor-edit') return renderFinanceVendorFormModal(activeCompanyId(), financeVendorById(state.selectedFinanceVendorId));
   if (state.modal === 'role-new') return renderRoleFormModal(activeCompanyId());
   if (state.modal === 'invite-new') return renderInviteFormModal(activeCompanyId());
+  if (state.modal === 'message-group-new') return renderMessageGroupModal(activeCompanyId());
+  if (state.modal === 'message-direct-new') return renderDirectMessageModal(activeCompanyId());
+  if (state.modal === 'message-access') return renderMessageAccessModal(activeCompanyId(), state.selectedConversationId);
+  if (state.modal === 'message-details') return renderMessageDetailsModal(activeCompanyId(), state.selectedConversationId);
+  if (state.modal === 'message-search') return renderMessageSearchModal(activeCompanyId());
   if (route.name === 'company' && route.section === 'crm' && route.params.get('account')) {
     return renderCrmAccountModal(route.companyId, route.params.get('account'));
   }
@@ -3929,6 +4402,64 @@ function handleAction(event, node) {
     event.preventDefault();
     state.modal = 'invite-new';
     render();
+    return;
+  }
+  if (action === 'new-message-group') {
+    event.preventDefault();
+    state.modal = 'message-group-new';
+    render();
+    return;
+  }
+  if (action === 'new-direct-message') {
+    event.preventDefault();
+    state.modal = 'message-direct-new';
+    render();
+    return;
+  }
+  if (action === 'manage-message-chat') {
+    event.preventDefault();
+    state.selectedConversationId = node.dataset.conversationId || state.selectedConversationId;
+    state.modal = 'message-access';
+    render();
+    return;
+  }
+  if (action === 'message-details') {
+    event.preventDefault();
+    state.selectedConversationId = node.dataset.conversationId || state.selectedConversationId;
+    state.modal = 'message-details';
+    render();
+    return;
+  }
+  if (action === 'message-search-results') {
+    event.preventDefault();
+    state.modal = 'message-search';
+    render();
+    return;
+  }
+  if (action === 'set-message-filter') {
+    event.preventDefault();
+    state.messageFilter = ['all', 'unread', ...MESSAGE_TYPES].includes(node.dataset.filter) ? node.dataset.filter : 'all';
+    render();
+    return;
+  }
+  if (action === 'delete-message') {
+    event.preventDefault();
+    deleteMessage(node.dataset.messageId);
+    return;
+  }
+  if (action === 'open-message-attachment') {
+    event.preventDefault();
+    openMessageAttachment(node.dataset.attachmentId);
+    return;
+  }
+  if (action === 'run-message-scenario') {
+    event.preventDefault();
+    runMessageScenario(activeCompanyId());
+    return;
+  }
+  if (action === 'reset-message-demo') {
+    event.preventDefault();
+    resetMessageDemo();
     return;
   }
   if (action === 'copy-invite-link') {
@@ -4385,6 +4916,30 @@ function onDocumentSubmit(event) {
   if (event.target.matches('[data-invite-form]')) {
     event.preventDefault();
     saveInvite(event.target);
+    return;
+  }
+
+  if (event.target.matches('[data-message-group-form]')) {
+    event.preventDefault();
+    saveMessageGroup(event.target);
+    return;
+  }
+
+  if (event.target.matches('[data-direct-message-form]')) {
+    event.preventDefault();
+    saveDirectMessage(event.target);
+    return;
+  }
+
+  if (event.target.matches('[data-message-access-form]')) {
+    event.preventDefault();
+    saveMessageAccess(event.target);
+    return;
+  }
+
+  if (event.target.matches('[data-message-form]')) {
+    event.preventDefault();
+    sendMessage(event.target);
     return;
   }
 
@@ -4882,6 +5437,269 @@ async function updateJoinRequest(requestId, status) {
   render();
 }
 
+async function saveMessageGroup(form) {
+  const companyId = activeCompanyId();
+  if (!can('messages.create_group', companyId)) {
+    showToast('Your role cannot create group chats.', 'local', 'Messages');
+    return;
+  }
+  const data = new FormData(form);
+  const type = ['company', 'role', 'custom'].includes(data.get('type')) ? String(data.get('type')) : 'custom';
+  const conversation = normalizeMessageConversation({
+    id: crypto.randomUUID(),
+    company_id: companyId,
+    title: String(data.get('title') || '').trim() || 'New group chat',
+    type,
+    created_by: activeSession().profile.id,
+    last_message_at: new Date().toISOString(),
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  });
+  const accessRows = messageAccessFromForm(data, conversation, type);
+  if (!accessRows.some((row) => row.target_type === 'profile' && row.target_id === activeSession().profile.id) && type !== 'company') {
+    accessRows.push(normalizeMessageAccess({ id: `msg-access-${crypto.randomUUID()}`, company_id: companyId, conversation_id: conversation.id, target_type: 'profile', target_id: activeSession().profile.id }));
+  }
+  const saved = await persistConversation(conversation, accessRows);
+  if (!saved) return;
+  state.selectedConversationId = conversation.id;
+  state.modal = '';
+  notifyLocalEvent('message.group', 'Group chat created', `${actorName()} created ${conversation.title}.`, companyPath('messages', { conversation: conversation.id }, companyId), 'message_conversation', conversation.id, companyId);
+  navigate(companyPath('messages', { conversation: conversation.id }, companyId), { replace: true });
+}
+
+async function saveDirectMessage(form) {
+  const companyId = activeCompanyId();
+  const data = new FormData(form);
+  const targetId = String(data.get('profile_id') || '').trim();
+  if (!targetId) {
+    showToast('Choose a person first.', 'local', 'Messages');
+    return;
+  }
+  const conversation = normalizeMessageConversation({
+    id: crypto.randomUUID(),
+    company_id: companyId,
+    title: profileName(targetId),
+    type: 'direct',
+    created_by: activeSession().profile.id,
+    last_message_at: new Date().toISOString(),
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  });
+  const accessRows = [
+    normalizeMessageAccess({ id: `msg-access-${crypto.randomUUID()}`, company_id: companyId, conversation_id: conversation.id, target_type: 'profile', target_id: activeSession().profile.id }),
+    normalizeMessageAccess({ id: `msg-access-${crypto.randomUUID()}`, company_id: companyId, conversation_id: conversation.id, target_type: 'profile', target_id: targetId }),
+  ];
+  const saved = await persistConversation(conversation, accessRows);
+  if (!saved) return;
+  state.selectedConversationId = conversation.id;
+  state.modal = '';
+  const body = String(data.get('body') || '').trim();
+  if (body) await createMessageRecord(conversation, body, []);
+  notifyLocalEvent('message.direct', 'Direct message started', `${actorName()} started a direct message with ${conversation.title}.`, companyPath('messages', { conversation: conversation.id }, companyId), 'message_conversation', conversation.id, companyId);
+  navigate(companyPath('messages', { conversation: conversation.id }, companyId), { replace: true });
+}
+
+async function saveMessageAccess(form) {
+  const companyId = activeCompanyId();
+  if (!can('messages.manage_groups', companyId) && !can('messages.manage', companyId)) {
+    showToast('Your role cannot manage chat access.', 'local', 'Messages');
+    return;
+  }
+  const conversation = state.messageConversations.find((item) => item.id === form.dataset.conversationId);
+  if (!conversation) return;
+  const data = new FormData(form);
+  const next = normalizeMessageConversation({
+    ...conversation,
+    title: String(data.get('title') || '').trim() || conversation.title,
+    type: MESSAGE_TYPES.includes(data.get('type')) ? String(data.get('type')) : conversation.type,
+    updated_at: new Date().toISOString(),
+  });
+  const accessRows = messageAccessFromForm(data, next, next.type);
+  if (next.type !== 'company' && !accessRows.some((row) => row.target_type === 'profile' && row.target_id === activeSession().profile.id)) {
+    accessRows.push(normalizeMessageAccess({ id: `msg-access-${crypto.randomUUID()}`, company_id: companyId, conversation_id: next.id, target_type: 'profile', target_id: activeSession().profile.id }));
+  }
+  const saved = await persistConversation(next, accessRows, true);
+  if (!saved) return;
+  state.modal = '';
+  showToast('Chat access saved.', state.session?.auth === 'supabase' ? 'live' : 'local', 'Messages');
+  render();
+}
+
+async function sendMessage(form) {
+  const conversation = state.messageConversations.find((item) => item.id === form.dataset.conversationId);
+  if (!conversation) return;
+  if (!can('messages.send', conversation.company_id)) {
+    showToast('Your role cannot send messages.', 'local', 'Messages');
+    return;
+  }
+  const data = new FormData(form);
+  const body = String(data.get('body') || '').trim();
+  const files = Array.from(form.elements.attachments?.files || []);
+  if (!body && !files.length) {
+    showToast('Type a message or attach a file.', 'local', 'Messages');
+    return;
+  }
+  if (files.length && !can('messages.attach_files', conversation.company_id)) {
+    showToast('Your role cannot attach files.', 'local', 'Messages');
+    return;
+  }
+  await createMessageRecord(conversation, body, files);
+  form.reset();
+  render();
+}
+
+async function createMessageRecord(conversation, body, files) {
+  const now = new Date().toISOString();
+  const message = normalizeMessage({
+    id: crypto.randomUUID(),
+    conversation_id: conversation.id,
+    company_id: conversation.company_id,
+    sender_profile_id: activeSession().profile.id,
+    body,
+    message_type: files.length ? 'attachment' : 'text',
+    created_at: now,
+    updated_at: now,
+  });
+  const client = createSupabaseClient();
+  let savedMessage = message;
+  if (state.session?.auth === 'supabase' && client) {
+    const result = await client.from('messages').insert(messagePayload(message)).select().single();
+    if (result.error) {
+      showToast(result.error.message || 'Message send failed.', 'local', 'Messages');
+      return null;
+    }
+    savedMessage = normalizeMessage(result.data);
+  }
+  state.messages = state.messages.concat(savedMessage);
+  const attachments = await saveMessageAttachments(savedMessage, files);
+  const updatedConversation = { ...conversation, last_message_at: savedMessage.created_at, updated_at: savedMessage.created_at };
+  state.messageConversations = state.messageConversations.map((item) => (item.id === conversation.id ? updatedConversation : item));
+  if (state.session?.auth === 'supabase' && client) {
+    await client.from('message_conversations').update({ last_message_at: savedMessage.created_at, updated_at: savedMessage.created_at }).eq('id', conversation.id);
+  }
+  markConversationRead(conversation.id, false);
+  notifyMessageEvents(updatedConversation, savedMessage, attachments);
+  persistMessages();
+  return savedMessage;
+}
+
+async function saveMessageAttachments(message, files) {
+  const client = createSupabaseClient();
+  const saved = [];
+  for (const file of files) {
+    const id = crypto.randomUUID();
+    const objectPath = `${message.company_id}/${message.conversation_id}/${id}-${slugify(file.name || 'attachment')}`;
+    let previewUrl = '';
+    let objectSaved = '';
+    if (state.session?.auth === 'supabase' && client) {
+      const upload = await client.storage
+        .from('quest-message-attachments')
+        .upload(objectPath, file, { cacheControl: '3600', upsert: false, contentType: file.type || 'application/octet-stream' });
+      if (upload.error) {
+        showToast(upload.error.message || 'Attachment upload failed.', 'local', 'Messages');
+        continue;
+      }
+      objectSaved = objectPath;
+    } else if (file.type?.startsWith('image/') && file.size <= 220000) {
+      previewUrl = await fileToDataUrl(file);
+    }
+    const attachment = normalizeMessageAttachment({
+      id,
+      conversation_id: message.conversation_id,
+      message_id: message.id,
+      company_id: message.company_id,
+      bucket_id: 'quest-message-attachments',
+      object_path: objectSaved,
+      file_name: file.name || 'attachment',
+      mime_type: file.type || 'application/octet-stream',
+      size_bytes: file.size || 0,
+      preview_url: previewUrl,
+      created_at: new Date().toISOString(),
+    });
+    if (state.session?.auth === 'supabase' && client) {
+      const result = await client.from('message_attachments').insert(messageAttachmentPayload(attachment)).select().single();
+      if (result.error) {
+        showToast(result.error.message || 'Attachment record failed.', 'local', 'Messages');
+        if (objectSaved) await client.storage.from('quest-message-attachments').remove([objectSaved]);
+        continue;
+      }
+      saved.push(normalizeMessageAttachment(result.data));
+    } else {
+      saved.push(attachment);
+    }
+  }
+  state.messageAttachments = state.messageAttachments.concat(saved);
+  return saved;
+}
+
+async function persistConversation(conversation, accessRows, update = false) {
+  const client = createSupabaseClient();
+  if (state.session?.auth === 'supabase' && client) {
+    const conversationResult = update
+      ? await client.from('message_conversations').update(messageConversationPayload(conversation)).eq('id', conversation.id).select().single()
+      : await client.from('message_conversations').insert(messageConversationPayload(conversation)).select().single();
+    if (conversationResult.error) {
+      showToast(conversationResult.error.message || 'Conversation save failed.', 'local', 'Messages');
+      return false;
+    }
+    await client.from('message_conversation_access').delete().eq('conversation_id', conversation.id);
+    if (accessRows.length) {
+      const accessResult = await client.from('message_conversation_access').insert(accessRows.map(messageAccessPayload));
+      if (accessResult.error) {
+        showToast(accessResult.error.message || 'Conversation access save failed.', 'local', 'Messages');
+        return false;
+      }
+    }
+    conversation = normalizeMessageConversation(conversationResult.data);
+    state.sync = { label: 'Quest Supabase live', mode: 'live' };
+  }
+  state.messageConversations = [conversation].concat(state.messageConversations.filter((item) => item.id !== conversation.id));
+  state.messageAccess = accessRows.concat(state.messageAccess.filter((item) => item.conversation_id !== conversation.id));
+  markConversationRead(conversation.id, false);
+  persistMessages();
+  return true;
+}
+
+async function deleteMessage(messageId) {
+  const message = state.messages.find((item) => item.id === messageId);
+  if (!message) return;
+  const own = message.sender_profile_id === activeSession().profile.id;
+  if (!((own && can('messages.delete_own', message.company_id)) || can('messages.delete_any', message.company_id))) {
+    showToast('Your role cannot delete this message.', 'local', 'Messages');
+    return;
+  }
+  const deletedAt = new Date().toISOString();
+  const client = createSupabaseClient();
+  if (state.session?.auth === 'supabase' && client) {
+    const result = await client.from('messages').update({ deleted_at: deletedAt, updated_at: deletedAt }).eq('id', message.id);
+    if (result.error) {
+      showToast(result.error.message || 'Message delete failed.', 'local', 'Messages');
+      return;
+    }
+  }
+  state.messages = state.messages.map((item) => (item.id === message.id ? { ...item, deleted_at: deletedAt, updated_at: deletedAt } : item));
+  persistMessages();
+  render();
+}
+
+async function openMessageAttachment(attachmentId) {
+  const attachment = state.messageAttachments.find((item) => item.id === attachmentId);
+  if (!attachment) return;
+  if (attachment.preview_url) {
+    window.open(attachment.preview_url, '_blank', 'noopener,noreferrer');
+    return;
+  }
+  const client = createSupabaseClient();
+  if (state.session?.auth === 'supabase' && client && attachment.object_path) {
+    const result = await client.storage.from(attachment.bucket_id || 'quest-message-attachments').createSignedUrl(attachment.object_path, 900, { download: attachment.file_name });
+    if (!result.error && result.data?.signedUrl) {
+      window.open(result.data.signedUrl, '_blank', 'noopener,noreferrer');
+      return;
+    }
+  }
+  showToast('This demo attachment is metadata-only.', 'local', 'Messages');
+}
+
 function onDocumentInput(event) {
   if (event.target.matches('[data-global-search]')) {
     state.query = event.target.value;
@@ -4900,6 +5718,11 @@ function onDocumentInput(event) {
   }
   if (event.target.matches('[data-crm-search]')) {
     state.crmQuery = event.target.value;
+    updateWorkspaceOnly();
+    return;
+  }
+  if (event.target.matches('[data-message-search]')) {
+    state.messageQuery = event.target.value;
     updateWorkspaceOnly();
     return;
   }
@@ -5413,6 +6236,7 @@ function normalizeLegacyLocation() {
   if (path === '/analytics') target = companyPath('analytics', copyParams(params, ['job_id']), companyId);
   if (path === '/crm') target = companyPath('crm', copyParams(params, ['account']), companyId);
   if (path === '/finance') target = companyPath('finance', copyParams(params, ['invoice', 'expense', 'vendor', 'report']), companyId);
+  if (path === '/messages') target = companyPath('messages', copyParams(params, ['conversation']), companyId);
   if (path === '/admin') target = companyPath('settings', {}, companyId);
   if (path === '/time') target = companyPath('time', {}, companyId);
   if (path === '/team') target = companyPath('team-chart', {}, companyId);
@@ -5613,6 +6437,69 @@ function companyNotifications(companyId = activeCompanyId()) {
   return state.notifications
     .filter((item) => item.company_id === companyId && item.recipient_profile_id === profileId)
     .sort((a, b) => Date.parse(b.created_at || 0) - Date.parse(a.created_at || 0));
+}
+
+function companyMessageConversations(companyId = activeCompanyId()) {
+  const query = state.messageQuery.trim().toLowerCase();
+  const filter = state.messageFilter || 'all';
+  return state.messageConversations
+    .filter((conversation) => conversation.company_id === companyId && canAccessConversation(conversation))
+    .filter((conversation) => filter === 'all' || conversation.type === filter || (filter === 'unread' && conversationUnreadCount(conversation.id) > 0))
+    .filter((conversation) => {
+      if (!query) return true;
+      const messageMatch = conversationMessages(conversation.id).some((message) => message.body.toLowerCase().includes(query));
+      return conversation.title.toLowerCase().includes(query) || messageMatch;
+    })
+    .sort((a, b) => Date.parse(b.last_message_at || b.updated_at || b.created_at || 0) - Date.parse(a.last_message_at || a.updated_at || a.created_at || 0));
+}
+
+function companyMessageUnreadCount(companyId = activeCompanyId()) {
+  return companyMessageConversations(companyId).reduce((sum, conversation) => sum + conversationUnreadCount(conversation.id), 0);
+}
+
+function selectedConversation(companyId = activeCompanyId()) {
+  const visible = companyMessageConversations(companyId);
+  const routeId = state.route?.params?.get('conversation') || '';
+  const candidate = routeId || state.selectedConversationId;
+  return visible.find((conversation) => conversation.id === candidate) || visible[0] || null;
+}
+
+function conversationMessages(conversationId) {
+  return state.messages
+    .filter((message) => message.conversation_id === conversationId && !message.deleted_at)
+    .sort((a, b) => Date.parse(a.created_at || 0) - Date.parse(b.created_at || 0));
+}
+
+function conversationAttachments(conversationId) {
+  return state.messageAttachments.filter((attachment) => attachment.conversation_id === conversationId);
+}
+
+function messageAttachments(messageId) {
+  return state.messageAttachments.filter((attachment) => attachment.message_id === messageId);
+}
+
+function conversationAccessRows(conversationId) {
+  return state.messageAccess.filter((access) => access.conversation_id === conversationId);
+}
+
+function conversationRead(conversationId, profileId = activeSession().profile.id) {
+  return state.messageReads.find((read) => read.conversation_id === conversationId && read.profile_id === profileId) || null;
+}
+
+function conversationUnreadCount(conversationId, profileId = activeSession().profile.id) {
+  const readAt = Date.parse(conversationRead(conversationId, profileId)?.last_read_at || 0);
+  return conversationMessages(conversationId).filter((message) => message.sender_profile_id !== profileId && Date.parse(message.created_at || 0) > readAt).length;
+}
+
+function canAccessConversation(conversation) {
+  if (!conversation || !can('messages.view', conversation.company_id)) return false;
+  const profile = activeSession().profile;
+  const rows = conversationAccessRows(conversation.id);
+  if (conversation.type === 'company' || rows.some((row) => row.target_type === 'all_company')) return true;
+  const profileKeys = new Set([profile.id, profile.member_id, profile.email].filter(Boolean).map(String));
+  if (rows.some((row) => row.target_type === 'profile' && profileKeys.has(row.target_id))) return true;
+  const roleIds = [roleIdForName(conversation.company_id, roleForCompany(conversation.company_id)), ...state.roleAssignments.filter((item) => item.company_id === conversation.company_id && item.profile_id === profile.id).map((item) => item.role_id)];
+  return rows.some((row) => row.target_type === 'role' && roleIds.includes(row.target_id));
 }
 
 function companyFiles(companyId = activeCompanyId()) {
@@ -6551,6 +7438,125 @@ function normalizeJoinRequest(input) {
   };
 }
 
+function normalizeMessageConversation(input) {
+  return {
+    id: String(input.id || ''),
+    company_id: canonicalCompanyId(input.company_id || ''),
+    title: String(input.title || 'Messages').trim() || 'Messages',
+    type: MESSAGE_TYPES.includes(input.type) ? input.type : 'custom',
+    created_by: String(input.created_by || ''),
+    last_message_at: input.last_message_at || input.updated_at || input.created_at || '',
+    created_at: input.created_at || new Date().toISOString(),
+    updated_at: input.updated_at || input.created_at || new Date().toISOString(),
+  };
+}
+
+function normalizeMessageAccess(input) {
+  return {
+    id: String(input.id || ''),
+    conversation_id: String(input.conversation_id || ''),
+    company_id: canonicalCompanyId(input.company_id || ''),
+    target_type: ['all_company', 'role', 'profile'].includes(input.target_type) ? input.target_type : 'profile',
+    target_id: String(input.target_id || ''),
+    created_at: input.created_at || '',
+  };
+}
+
+function normalizeMessage(input) {
+  return {
+    id: String(input.id || ''),
+    conversation_id: String(input.conversation_id || ''),
+    company_id: canonicalCompanyId(input.company_id || ''),
+    sender_profile_id: String(input.sender_profile_id || input.created_by || ''),
+    body: String(input.body || ''),
+    message_type: String(input.message_type || 'text'),
+    deleted_at: input.deleted_at || '',
+    created_at: input.created_at || new Date().toISOString(),
+    updated_at: input.updated_at || input.created_at || new Date().toISOString(),
+  };
+}
+
+function normalizeMessageAttachment(input) {
+  return {
+    id: String(input.id || ''),
+    conversation_id: String(input.conversation_id || ''),
+    message_id: String(input.message_id || ''),
+    company_id: canonicalCompanyId(input.company_id || ''),
+    bucket_id: String(input.bucket_id || 'quest-message-attachments'),
+    object_path: String(input.object_path || ''),
+    file_name: String(input.file_name || 'attachment'),
+    mime_type: String(input.mime_type || 'application/octet-stream'),
+    size_bytes: number(input.size_bytes),
+    preview_url: String(input.preview_url || ''),
+    created_at: input.created_at || new Date().toISOString(),
+  };
+}
+
+function normalizeMessageRead(input) {
+  return {
+    conversation_id: String(input.conversation_id || ''),
+    company_id: canonicalCompanyId(input.company_id || ''),
+    profile_id: String(input.profile_id || ''),
+    last_read_at: input.last_read_at || '',
+    updated_at: input.updated_at || input.last_read_at || '',
+  };
+}
+
+function messageConversationPayload(conversation) {
+  return {
+    id: conversation.id,
+    company_id: conversation.company_id,
+    title: conversation.title,
+    type: conversation.type,
+    created_by: conversation.created_by || activeSession().profile.id,
+    last_message_at: conversation.last_message_at || null,
+  };
+}
+
+function messageAccessPayload(access) {
+  return {
+    conversation_id: access.conversation_id,
+    company_id: access.company_id,
+    target_type: access.target_type,
+    target_id: access.target_id,
+  };
+}
+
+function messagePayload(message) {
+  return {
+    id: message.id,
+    conversation_id: message.conversation_id,
+    company_id: message.company_id,
+    sender_profile_id: message.sender_profile_id,
+    body: message.body,
+    message_type: message.message_type,
+    deleted_at: message.deleted_at || null,
+  };
+}
+
+function messageAttachmentPayload(attachment) {
+  return {
+    id: attachment.id,
+    conversation_id: attachment.conversation_id,
+    message_id: attachment.message_id,
+    company_id: attachment.company_id,
+    bucket_id: attachment.bucket_id,
+    object_path: attachment.object_path,
+    file_name: attachment.file_name,
+    mime_type: attachment.mime_type,
+    size_bytes: attachment.size_bytes,
+  };
+}
+
+function messageReadPayload(read) {
+  return {
+    conversation_id: read.conversation_id,
+    company_id: read.company_id,
+    profile_id: read.profile_id,
+    last_read_at: read.last_read_at || new Date().toISOString(),
+  };
+}
+
 function blankJob(companyId = activeCompanyId()) {
   return normalizeJob({
     id: '',
@@ -6908,6 +7914,11 @@ function persistAll() {
   writeJson(TEAM_CACHE_KEY, state.teamMembers);
   writeJson(MEMBERSHIP_CACHE_KEY, state.memberships);
   writeJson(NOTIFICATION_CACHE_KEY, state.notifications);
+  writeJson(MESSAGE_CONVERSATION_CACHE_KEY, state.messageConversations);
+  writeJson(MESSAGE_ACCESS_CACHE_KEY, state.messageAccess);
+  writeJson(MESSAGE_CACHE_KEY, state.messages);
+  writeJson(MESSAGE_READ_CACHE_KEY, state.messageReads);
+  writeJson(MESSAGE_ATTACHMENT_CACHE_KEY, state.messageAttachments);
 }
 
 function persistTimeState() {
@@ -6919,6 +7930,205 @@ function persistTimeState() {
 function persistNotifications() {
   if (state.session?.auth === 'supabase') return;
   writeJson(NOTIFICATION_CACHE_KEY, state.notifications);
+}
+
+function persistMessages() {
+  if (state.session?.auth === 'supabase') return;
+  writeJson(MESSAGE_CONVERSATION_CACHE_KEY, state.messageConversations);
+  writeJson(MESSAGE_ACCESS_CACHE_KEY, state.messageAccess);
+  writeJson(MESSAGE_CACHE_KEY, state.messages);
+  writeJson(MESSAGE_READ_CACHE_KEY, state.messageReads);
+  writeJson(MESSAGE_ATTACHMENT_CACHE_KEY, state.messageAttachments);
+}
+
+function messageAccessFromForm(data, conversation, type) {
+  if (type === 'company') {
+    return [normalizeMessageAccess({ id: `msg-access-${crypto.randomUUID()}`, company_id: conversation.company_id, conversation_id: conversation.id, target_type: 'all_company', target_id: 'all' })];
+  }
+  const rows = [];
+  data.getAll('role_ids').forEach((roleId) => {
+    if (roleId) rows.push(normalizeMessageAccess({ id: `msg-access-${crypto.randomUUID()}`, company_id: conversation.company_id, conversation_id: conversation.id, target_type: 'role', target_id: roleId }));
+  });
+  data.getAll('profile_ids').forEach((profileId) => {
+    if (profileId) rows.push(normalizeMessageAccess({ id: `msg-access-${crypto.randomUUID()}`, company_id: conversation.company_id, conversation_id: conversation.id, target_type: 'profile', target_id: profileId }));
+  });
+  return rows.length ? rows : [normalizeMessageAccess({ id: `msg-access-${crypto.randomUUID()}`, company_id: conversation.company_id, conversation_id: conversation.id, target_type: 'profile', target_id: activeSession().profile.id })];
+}
+
+function markConversationRead(conversationId, sync = true) {
+  if (!conversationId) return;
+  const conversation = state.messageConversations.find((item) => item.id === conversationId);
+  if (!conversation) return;
+  const now = new Date().toISOString();
+  const profileId = activeSession().profile.id;
+  const read = normalizeMessageRead({ conversation_id: conversationId, company_id: conversation.company_id, profile_id: profileId, last_read_at: now });
+  state.messageReads = [read].concat(state.messageReads.filter((item) => item.conversation_id !== conversationId || item.profile_id !== profileId));
+  persistMessages();
+  if (sync && state.session?.auth === 'supabase') {
+    const client = createSupabaseClient();
+    if (client) client.from('message_reads').upsert(messageReadPayload(read), { onConflict: 'conversation_id,profile_id' });
+  }
+}
+
+function notifyMessageEvents(conversation, message, attachments = []) {
+  if (!canStoreLocalNotifications() || message.sender_profile_id !== activeSession().profile.id) return;
+  const href = companyPath('messages', { conversation: conversation.id }, conversation.company_id);
+  const mentioned = mentionedProfileIds(message.body);
+  if (conversation.type === 'direct') {
+    notifyLocalEvent('message.direct', 'New direct message', `${actorName()} sent a direct message in ${conversation.title}.`, href, 'message', message.id, conversation.company_id);
+  }
+  mentioned.forEach((profileId) => {
+    createNotification({
+      company_id: conversation.company_id,
+      recipient_profile_id: profileId,
+      type: 'message.mention',
+      title: 'Mentioned in chat',
+      body: `${actorName()} mentioned you in ${conversation.title}.`,
+      href,
+      source_type: 'message',
+      source_id: message.id,
+    });
+  });
+  if (attachments.length) {
+    notifyLocalEvent('message.attachment', 'Attachment shared', `${actorName()} shared ${attachments.length} attachment${attachments.length === 1 ? '' : 's'} in ${conversation.title}.`, href, 'message', message.id, conversation.company_id);
+  }
+}
+
+function mentionedProfileIds(body = '') {
+  const lower = String(body || '').toLowerCase();
+  if (!lower.includes('@')) return [];
+  return companyAccessUsers(activeCompanyId())
+    .filter((user) => lower.includes(`@${String(user.name || '').split(/\s+/)[0].toLowerCase()}`) || lower.includes(`@${String(user.name || '').toLowerCase()}`))
+    .map((user) => user.profile_id || user.member_id)
+    .filter(Boolean);
+}
+
+function messageSenderProfile(profileId) {
+  const profile = profileById(profileId);
+  if (profile) return profile;
+  const member = state.teamMembers.find((item) => item.id === profileId);
+  return {
+    id: profileId,
+    full_name: member?.full_name || member?.name || profileId || 'Quest user',
+    email: member?.email || '',
+    avatar_url: member?.avatar_url || '',
+  };
+}
+
+function messageTypeSymbol(type) {
+  return {
+    company: 'q-symbol-company-chat',
+    role: 'q-symbol-role-chat',
+    custom: 'q-symbol-messages',
+    direct: 'q-symbol-direct-chat',
+  }[type] || 'q-symbol-messages';
+}
+
+function accessSummary(conversation) {
+  const rows = conversationAccessRows(conversation.id);
+  if (conversation.type === 'company' || rows.some((row) => row.target_type === 'all_company')) return 'Everyone in this company';
+  const roles = rows.filter((row) => row.target_type === 'role').map((row) => roleById(conversation.company_id, row.target_id)?.name || 'Role');
+  const profiles = rows.filter((row) => row.target_type === 'profile').map((row) => profileName(row.target_id));
+  return roles.concat(profiles).slice(0, 5).join(', ') || 'Private chat';
+}
+
+function linkifyMentions(body) {
+  return h(body).replace(/(^|\s)@([\w.-]+)/g, '$1<strong>@$2</strong>');
+}
+
+function fileSize(bytes) {
+  const value = Number(bytes || 0);
+  if (value >= 1024 * 1024) return `${(value / 1024 / 1024).toFixed(1)} MB`;
+  if (value >= 1024) return `${Math.round(value / 1024)} KB`;
+  return `${value} B`;
+}
+
+function fileToDataUrl(file) {
+  return new Promise((resolve) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result || ''));
+    reader.onerror = () => resolve('');
+    reader.readAsDataURL(file);
+  });
+}
+
+function subscribeToMessageRealtime(companyId, conversationId) {
+  const client = createSupabaseClient();
+  if (state.session?.auth !== 'supabase' || !client?.channel || !conversationId) return;
+  const key = `${companyId}:${conversationId}`;
+  if (state.messageRealtimeKey === key) return;
+  if (state.messageRealtimeChannel) client.removeChannel(state.messageRealtimeChannel);
+  state.messageRealtimeKey = key;
+  state.messageRealtimeChannel = client
+    .channel(`quest-messages-${conversationId}`)
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'messages', filter: `conversation_id=eq.${conversationId}` }, () => {
+      state.dataLoaded = false;
+      render();
+    })
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'message_attachments', filter: `conversation_id=eq.${conversationId}` }, () => {
+      state.dataLoaded = false;
+      render();
+    })
+    .subscribe();
+}
+
+function runMessageScenario(companyId) {
+  const scenarios = [
+    () => saveScenarioConversation(companyId, 'Crew weather delay', 'role', 'Manager posted a weather delay update.', true),
+    () => saveScenarioConversation(companyId, 'Permit questions', 'custom', 'A permit packet PDF was shared.', false, true),
+    () => saveScenarioConversation(companyId, 'Shan Kumar', 'direct', 'Can you jump on this when you are back?', true),
+    () => saveScenarioMessage(companyId, '@Joshua you were mentioned in the launch room.'),
+  ];
+  const index = Math.floor(Math.random() * scenarios.length);
+  scenarios[index]();
+}
+
+function saveScenarioConversation(companyId, title, type, body, unread = false, attachment = false) {
+  const now = new Date().toISOString();
+  const conversation = normalizeMessageConversation({ id: `msg-conv-${crypto.randomUUID()}`, company_id: companyId, title, type, created_by: 'basic-quest-user', last_message_at: now, created_at: now, updated_at: now });
+  const accessRows = type === 'direct'
+    ? [
+        normalizeMessageAccess({ id: `msg-access-${crypto.randomUUID()}`, company_id: companyId, conversation_id: conversation.id, target_type: 'profile', target_id: 'basic-quest-user' }),
+        normalizeMessageAccess({ id: `msg-access-${crypto.randomUUID()}`, company_id: companyId, conversation_id: conversation.id, target_type: 'profile', target_id: 'shan' }),
+      ]
+    : messageAccessFromForm(new FormData(), conversation, type === 'role' ? 'role' : 'company');
+  state.messageConversations.unshift(conversation);
+  state.messageAccess = accessRows.concat(state.messageAccess);
+  const message = normalizeMessage({ id: `msg-${crypto.randomUUID()}`, conversation_id: conversation.id, company_id: companyId, sender_profile_id: unread ? 'shan' : 'basic-quest-user', body, created_at: now, updated_at: now, message_type: attachment ? 'attachment' : 'text' });
+  state.messages.push(message);
+  if (attachment) {
+    state.messageAttachments.push(normalizeMessageAttachment({ id: `msg-attachment-${crypto.randomUUID()}`, conversation_id: conversation.id, message_id: message.id, company_id: companyId, file_name: 'permit-packet.pdf', mime_type: 'application/pdf', size_bytes: 420000, created_at: now }));
+  }
+  if (!unread) markConversationRead(conversation.id, false);
+  state.selectedConversationId = conversation.id;
+  persistMessages();
+  showToast('Demo message scenario added.', 'local', 'Messages');
+  navigate(companyPath('messages', { conversation: conversation.id }, companyId), { replace: true });
+}
+
+function saveScenarioMessage(companyId, body) {
+  const conversation = selectedConversation(companyId) || companyMessageConversations(companyId)[0];
+  if (!conversation) return saveScenarioConversation(companyId, 'Demo chat', 'company', body, true);
+  const now = new Date().toISOString();
+  const message = normalizeMessage({ id: `msg-${crypto.randomUUID()}`, conversation_id: conversation.id, company_id: companyId, sender_profile_id: 'shan', body, created_at: now, updated_at: now });
+  state.messages.push(message);
+  state.messageConversations = state.messageConversations.map((item) => (item.id === conversation.id ? { ...item, last_message_at: now, updated_at: now } : item));
+  notifyMessageEvents(conversation, message, []);
+  persistMessages();
+  showToast('Demo mention added.', 'local', 'Messages');
+  render();
+}
+
+function resetMessageDemo() {
+  state.messageConversations = messageConversationsFallback.map(normalizeMessageConversation);
+  state.messageAccess = messageAccessFallback.map(normalizeMessageAccess);
+  state.messages = messagesFallback.map(normalizeMessage);
+  state.messageReads = messageReadsFallback.map(normalizeMessageRead);
+  state.messageAttachments = messageAttachmentsFallback.map(normalizeMessageAttachment);
+  state.selectedConversationId = '';
+  persistMessages();
+  showToast('Demo messages reset.', 'local', 'Messages');
+  render();
 }
 
 function canStoreLocalNotifications() {
