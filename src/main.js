@@ -3359,16 +3359,13 @@ function renderMessageScenarioButton(companyId) {
 }
 
 function renderMessageGroupModal(companyId) {
+  const users = companyAccessUsers(companyId);
   return renderModalShell('Messages', 'New group chat', `
     <form class="message-modal-form" data-message-group-form>
       ${field('Chat name', 'title', '', true)}
       ${selectField('Type', 'type', 'custom', [['company', 'Company-wide'], ['role', 'Role-based'], ['custom', 'Custom group']])}
-      <div class="message-target-grid">
-        ${companyRoles(companyId).map((role) => `<label class="check-row"><input type="checkbox" name="role_ids" value="${h(role.id)}" /> ${h(role.name)}</label>`).join('')}
-      </div>
-      <div class="message-target-grid">
-        ${companyAccessUsers(companyId).map((user) => `<label class="check-row"><input type="checkbox" name="profile_ids" value="${h(user.profile_id || user.member_id)}" /> ${h(user.name)}</label>`).join('')}
-      </div>
+      ${renderMessageRolePicker(companyId, [])}
+      ${renderMessagePeoplePicker(users, [])}
       <div class="form-actions">
         <button class="btn btn-primary" type="submit">Create group</button>
         <button class="btn" type="button" data-action="close-modal">Cancel</button>
@@ -3395,25 +3392,79 @@ function renderMessageAccessModal(companyId, conversationId) {
   const conversation = state.messageConversations.find((item) => item.id === conversationId);
   if (!conversation) return renderModalShell('Messages', 'Chat access', emptyState('Conversation not found.'));
   const rows = conversationAccessRows(conversation.id);
+  const selectedRoles = rows.filter((row) => row.target_type === 'role').map((row) => row.target_id);
+  const selectedProfiles = rows.filter((row) => row.target_type === 'profile').map((row) => row.target_id);
   return renderModalShell('Messages', 'Chat access', `
     <form class="message-modal-form" data-message-access-form data-conversation-id="${h(conversation.id)}">
       ${field('Chat name', 'title', conversation.title, true)}
       ${selectField('Type', 'type', conversation.type, [['company', 'Company-wide'], ['role', 'Role-based'], ['custom', 'Custom group'], ['direct', 'Direct message']])}
-      <div class="message-target-grid">
-        ${companyRoles(companyId).map((role) => `<label class="check-row"><input type="checkbox" name="role_ids" value="${h(role.id)}" ${rows.some((row) => row.target_type === 'role' && row.target_id === role.id) ? 'checked' : ''} /> ${h(role.name)}</label>`).join('')}
-      </div>
-      <div class="message-target-grid">
-        ${companyAccessUsers(companyId).map((user) => {
-          const id = user.profile_id || user.member_id;
-          return `<label class="check-row"><input type="checkbox" name="profile_ids" value="${h(id)}" ${rows.some((row) => row.target_type === 'profile' && row.target_id === id) ? 'checked' : ''} /> ${h(user.name)}</label>`;
-        }).join('')}
-      </div>
+      ${renderMessageRolePicker(companyId, selectedRoles)}
+      ${renderMessagePeoplePicker(companyAccessUsers(companyId), selectedProfiles)}
       <div class="form-actions">
         <button class="btn btn-primary" type="submit">Save access</button>
         <button class="btn" type="button" data-action="close-modal">Cancel</button>
       </div>
     </form>
   `, 'message-modal');
+}
+
+function renderMessageRolePicker(companyId, selectedRoleIds = []) {
+  const selected = new Set(selectedRoleIds);
+  return `
+    <section class="message-access-section">
+      <div class="message-picker-head">
+        <strong>Roles</strong>
+        <small>Good for large crews. Access updates when role assignments change.</small>
+      </div>
+      <div class="message-role-grid">
+        ${companyRoles(companyId).map((role) => `
+          <label class="message-role-option" style="--role-color:${h(role.color)}">
+            <input type="checkbox" name="role_ids" value="${h(role.id)}" ${selected.has(role.id) ? 'checked' : ''} />
+            <span></span>
+            <strong>${h(role.name)}</strong>
+          </label>
+        `).join('')}
+      </div>
+    </section>
+  `;
+}
+
+function renderMessagePeoplePicker(users, selectedProfileIds = []) {
+  const selected = new Set(selectedProfileIds);
+  const sorted = users.slice().sort((a, b) => accessUserName(a).localeCompare(accessUserName(b)));
+  return `
+    <section class="message-access-section">
+      <div class="message-picker-head">
+        <strong>People</strong>
+        <small>${sorted.length} member${sorted.length === 1 ? '' : 's'} available. Search instead of scrolling huge teams.</small>
+      </div>
+      <label class="message-member-search">
+        <span>Find person</span>
+        <input data-message-access-filter placeholder="Search name, email, or role" />
+      </label>
+      <div class="message-picker-count" data-message-filter-count>${sorted.length} member${sorted.length === 1 ? '' : 's'}</div>
+      <div class="message-selected-strip">
+        ${sorted.filter((user) => selected.has(user.profile_id || user.member_id)).slice(0, 8).map((user) => `
+          <span>${renderAvatar(accessUserProfile(user), 'avatar tiny-avatar')} ${h(accessUserName(user))}</span>
+        `).join('') || '<small>No individual people selected.</small>'}
+      </div>
+      <div class="message-people-list">
+        ${sorted.map((user) => {
+          const id = user.profile_id || user.member_id;
+          return `
+            <label class="message-person-row" data-message-person-row data-filter-text="${h([accessUserName(user), user.email, user.role_label, user.role].join(' ').toLowerCase())}">
+              <input type="checkbox" name="profile_ids" value="${h(id)}" ${selected.has(id) ? 'checked' : ''} />
+              ${renderAvatar(accessUserProfile(user), 'avatar message-person-avatar')}
+              <span>
+                <strong>${h(accessUserName(user))}</strong>
+                <small>${h(accessUserMeta(user))}</small>
+              </span>
+            </label>
+          `;
+        }).join('') || emptyState('No people available in this company yet.')}
+      </div>
+    </section>
+  `;
 }
 
 function renderMessageDetailsModal(companyId, conversationId) {
@@ -5726,6 +5777,10 @@ function onDocumentInput(event) {
     updateWorkspaceOnly();
     return;
   }
+  if (event.target.matches('[data-message-access-filter]')) {
+    filterMessagePeopleList(event.target);
+    return;
+  }
   if (event.target.matches('[data-form-field]')) {
     updateFormField(event.target);
     return;
@@ -8013,6 +8068,44 @@ function messageSenderProfile(profileId) {
     email: member?.email || '',
     avatar_url: member?.avatar_url || '',
   };
+}
+
+function accessUserName(user) {
+  const name = String(user?.name || '').trim();
+  if (name && !isOpaqueUserId(name)) return name;
+  const email = String(user?.email || '').trim();
+  if (email) return email.split('@')[0] || email;
+  return 'Workspace user';
+}
+
+function accessUserMeta(user) {
+  const parts = compactUnique([user?.email, user?.role_label || titleCase(user?.role || ''), titleCase(user?.status || '')]);
+  return parts.join(' / ') || 'Company member';
+}
+
+function accessUserProfile(user) {
+  return {
+    id: user?.profile_id || user?.member_id || '',
+    full_name: accessUserName(user),
+    email: user?.email || '',
+    avatar_url: user?.avatar_url || '',
+  };
+}
+
+function filterMessagePeopleList(input) {
+  const query = String(input.value || '').trim().toLowerCase();
+  const modal = input.closest('.message-modal-form');
+  const rows = Array.from(modal?.querySelectorAll('[data-message-person-row]') || []);
+  let visible = 0;
+  rows.forEach((row) => {
+    const checked = row.querySelector('input[type="checkbox"]')?.checked;
+    const match = !query || String(row.dataset.filterText || '').includes(query);
+    const show = checked || match;
+    row.hidden = !show;
+    if (show) visible += 1;
+  });
+  const count = modal?.querySelector('[data-message-filter-count]');
+  if (count) count.textContent = query ? `${visible} match${visible === 1 ? '' : 'es'}` : `${rows.length} member${rows.length === 1 ? '' : 's'}`;
 }
 
 function messageTypeSymbol(type) {
