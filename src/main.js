@@ -10056,14 +10056,7 @@ function folderIdFromCategory(category) {
 }
 
 function folderIconAsset(folder, label = 'Folder') {
-  const id = String(folder?.id || folder?.name || '').toLowerCase();
-  const name = String(folder?.name || '').toLowerCase();
-  let asset = 'default_folder.svg';
-  if (id === 'photos' || name.includes('photo') || name.includes('image')) asset = 'folder_type_images.svg';
-  else if (id === 'shared' || name.includes('shared')) asset = 'folder_type_shared.svg';
-  else if (['forms', 'permits', 'contracts'].includes(id) || name.includes('form') || name.includes('permit') || name.includes('contract')) asset = 'folder_type_docs.svg';
-  else if (id === 'jobs' || id.startsWith('job:') || name.includes('job')) asset = 'folder_type_src.svg';
-  return iconAsset(asset, label || 'Folder');
+  return iconAsset('default_folder.svg', label || 'Folder');
 }
 
 function fileIconAsset(file, label = 'File') {
