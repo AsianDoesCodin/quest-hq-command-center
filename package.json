@@ -7,7 +7,8 @@
     "dev": "vite --host 127.0.0.1",
     "build": "vite build && node scripts/sync-spa-assets.mjs dist",
     "build:pages": "node scripts/build-pages.mjs",
-    "preview": "vite preview --host 127.0.0.1"
+    "preview": "vite preview --host 127.0.0.1",
+    "smoke:prod": "node scripts/production-smoke.mjs"
   },
   "dependencies": {},
   "devDependencies": {

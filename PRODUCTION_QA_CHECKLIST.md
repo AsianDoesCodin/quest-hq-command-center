@@ -24,6 +24,14 @@ Check each enabled module for `roofing`, `drafting`, and `lumen`:
 - `/company/:companyId/settings`
 - `/company/:companyId/time`
 - `/company/:companyId/approvals`
+- `/company/:companyId/calendar`
+- `/company/:companyId/messages`
+- `/company/:companyId/clock`
+- `/company/:companyId/team-chart`
+
+Automated first pass:
+
+- `npm run smoke:prod`
 
 ## Legacy Redirects
 
@@ -42,6 +50,36 @@ Check each enabled module for `roofing`, `drafting`, and `lumen`:
 - CRM: customer modal opens from the table, closes back to CRM, and links to Jobs/Tasks/Files.
 - Finance: invoice, payment, expense, vendor, and report modals open and close cleanly.
 
+## Tenant Security QA
+
+Run these with at least two real Supabase users after pending migrations are applied:
+
+- Create Company A Owner and Company B Owner.
+- Company A user cannot open Company B routes by direct URL.
+- Company A user cannot read Company B jobs, files, forms, CRM, finance, messages, users, settings, or calendar records.
+- Disabled or left users cannot open workspace routes by direct URL.
+- Pending users see the blocking/request screen and cannot load workspace data.
+- Last active Owner cannot be disabled, removed, or allowed to leave until another Owner exists.
+- Worker invited to Company A can accept that company only.
+- Same email invited by Company B joins as the same person account with a separate membership, not a duplicate account.
+
+## Sensitive Files And Finance QA
+
+Run after the secure finance/files migrations are applied:
+
+- User with `files.view` can see allowed file metadata.
+- User without `files.view` cannot see Files sidebar, Files route content, or file metadata by URL.
+- User with `files.manage` can upload/delete files.
+- User without `files.manage` cannot upload/delete files even if they trigger hidden actions.
+- Private storage object URLs are not public.
+- Signed download URLs are issued only for users with file access.
+- User with `finance.view` can see finance records and reports.
+- User without `finance.view` cannot see Finance sidebar, Finance route content, or finance records by URL.
+- User with `finance.view` but not `finance.manage` cannot create/edit invoices, payments, expenses, or vendors.
+- User with `finance.manage` can create invoice, record payment, add expense, and add vendor.
+- Company A user cannot query Company B finance tables directly through Supabase.
+- Finance-denied users do not receive finance inbox notifications.
+
 ## Mobile
 
 - Check at phone width.
@@ -55,5 +93,6 @@ Check each enabled module for `roofing`, `drafting`, and `lumen`:
 - `node --check src/main.js`
 - `npm run build`
 - `npm run build:pages`
+- `npm run smoke:prod`
 - `git diff --check`
 - Commit, push, and deploy with `npx vercel --prod --yes`.
