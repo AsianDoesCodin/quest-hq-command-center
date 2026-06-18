@@ -22,6 +22,10 @@ The active app is `Lumen Command Center`, deployed as **Quest HQ Operations Comm
 - Do not run a local dev server unless Joshua explicitly allows it.
 - Deployment flow is GitHub push plus Vercel deploy.
 - Supabase Auth is now the default app path. Local demo login only works when `VITE_LOCAL_LOGIN_ENABLED=true`.
+- Public onboarding is split into **Business account** and **Worker account** lanes:
+  - Business owners can create a company workspace, but new workspaces start as `pending_review` until Quest approval/billing activation.
+  - Workers cannot freely create workplace access; they join through an Owner/Admin invite code now, with email invite delivery planned later.
+  - One person account can belong to multiple companies through separate memberships and invites.
 - Previous temporary login remains a demo fallback only:
   - username: `lumen123`
   - password: `lumen123`

@@ -29,6 +29,7 @@ const FINANCE_VENDOR_CACHE_KEY = 'quest-hq-finance-vendor-cache-v1';
 const TIME_ENTRY_CACHE_KEY = 'quest-hq-time-entry-cache-v1';
 const ACTIVE_TIMER_KEY = 'quest-hq-active-timer-v1';
 const COMPANY_KEY = 'quest-hq-active-company';
+const PENDING_WORKSPACE_REVIEW_KEY = 'quest-hq-pending-workspace-review-v1';
 const TASK_VIEW_KEY = 'quest-hq-task-view';
 const DRIVE_VIEW_KEY = 'quest-hq-drive-view';
 const NOTIFICATION_CACHE_KEY = 'quest-hq-notification-cache-v1';
@@ -1189,13 +1190,32 @@ function renderNoCompanyAccess() {
         <div>
           <div class="eyebrow">Tenant security</div>
           <h1>No active company access</h1>
-          <p>Your account exists, but you are not an active member of a company workspace yet. Create your own workspace or request access from an existing company.</p>
+          <p>Your account exists, but you are not an active member of a company workspace yet. Business owners can create a workspace. Workers need an invite code from their company admin.</p>
         </div>
-        <form data-company-create-form>
-          <label>Company workspace<input name="company_name" placeholder="Example Roofing LLC" required /></label>
-          <button class="btn btn-primary full" type="submit">Create company workspace</button>
-          <div class="form-message">You will become the Owner for this workspace.</div>
-        </form>
+        <section class="login-lanes no-access-lanes">
+          <article class="login-lane-card">
+            <div>
+              <strong>Business owner</strong>
+              <span>Create a company workspace for Quest approval.</span>
+            </div>
+            <form data-company-create-form>
+              <label>Company workspace<input name="company_name" placeholder="Example Roofing LLC" required /></label>
+              <button class="btn btn-primary full" type="submit">Create business workspace</button>
+              <div class="form-message">You become Owner, then Quest approves access before live modules open.</div>
+            </form>
+          </article>
+          <article class="login-lane-card">
+            <div>
+              <strong>Invited worker</strong>
+              <span>Join only with a code from your Owner/Admin.</span>
+            </div>
+            <form data-existing-invite-code-form>
+              <label>Invite code<input name="invite_code" autocomplete="one-time-code" required placeholder="Paste invite code" /></label>
+              <button class="btn full" type="submit">Join workspace</button>
+              <div class="form-message">Worker registration is blocked without an invite.</div>
+            </form>
+          </article>
+        </section>
         <button class="btn full" type="button" data-action="sign-out">Sign out</button>
       </section>
     </main>
@@ -1798,7 +1818,7 @@ function renderWorkspace(route) {
   }
   const moduleMeta = MODULE_REGISTRY.find((module) => module.id === route.section);
   if (moduleMeta?.status !== 'planned') {
-    if (!subscriptionAllowsCompany(companyId) && !['settings', 'users'].includes(route.section)) return renderSubscriptionBlockedPage(companyId);
+    if (!subscriptionAllowsCompany(companyId) && route.section !== 'settings') return renderSubscriptionBlockedPage(companyId);
     if (moduleMeta?.permission && !can(moduleMeta.permission, companyId)) return renderPermissionBlockedPage(companyId, moduleMeta.permission);
   }
   if (route.section === 'jobs') return renderJobsPage(route, companyId);
@@ -1817,15 +1837,18 @@ function renderWorkspace(route) {
 }
 
 function renderSubscriptionBlockedPage(companyId) {
+  const pendingReview = subscriptionNeedsReview(companyId);
   return `
-    ${workspaceHeader('Subscription required', 'This company workspace needs an active or trialing subscription before paid modules can open.', `
-      <a class="btn btn-primary" href="${appHref(companyPath('settings', { tab: 'billing' }, companyId))}" data-router><i class="ti ti-credit-card"></i>Billing</a>
+    ${workspaceHeader(pendingReview ? 'Workspace awaiting approval' : 'Subscription required', pendingReview ? 'Your company workspace is created. Quest needs to approve billing/access before live company data opens.' : 'This company workspace needs an active subscription before paid modules can open.', `
+      <button class="btn" type="button" data-action="open-profile"><i class="ti ti-user-circle"></i>Profile</button>
+      <a class="btn btn-primary" href="${appHref(companyPath('settings', { tab: 'billing' }, companyId))}" data-router><i class="ti ti-credit-card"></i>${pendingReview ? 'Review status' : 'Billing'}</a>
     `)}
     <section class="panel">
       ${contractRows([
         ['Company', companyName(companyId)],
         ['Subscription', subscriptionLabel(companyId)],
-        ['Allowed area', 'Billing and settings remain available to owners/admins'],
+        ['Allowed area', 'Settings, profile, and sign out remain available'],
+        ['Next step', pendingReview ? 'Quest approval / billing activation' : 'Restore billing access'],
       ])}
     </section>
   `;
@@ -2815,21 +2838,23 @@ function renderSettingsPage(route, companyId) {
 
 function renderBillingSettings(companyId) {
   const subscription = companySubscription(companyId);
+  const pendingReview = subscriptionNeedsReview(companyId);
   return `
     <article class="panel">
       <div class="section-head">
-        <div><h2>Subscription</h2><p>$300/month company workspace billing gate.</p></div>
-        <button class="btn btn-primary" type="button" data-action="start-checkout"><i class="ti ti-credit-card"></i>Start subscription</button>
+        <div><h2>${pendingReview ? 'Workspace awaiting approval' : 'Subscription'}</h2><p>${pendingReview ? 'Quest needs to approve billing/access before live company data opens.' : '$300/month company workspace billing gate.'}</p></div>
+        <button class="btn btn-primary" type="button" data-action="start-checkout" ${pendingReview ? 'disabled' : ''}><i class="ti ti-credit-card"></i>${pendingReview ? 'Billing pending' : 'Start subscription'}</button>
       </div>
       ${contractRows([
         ['Plan', '$300/month company workspace'],
         ['Status', subscriptionLabel(companyId)],
         ['Stripe customer', subscription?.stripe_customer_id || 'Not connected'],
+        ['Approval', pendingReview ? 'Waiting for Quest review' : 'Ready'],
         ['Renewal / trial', subscription?.current_period_end || subscription?.trial_ends_at ? formatDate(subscription.current_period_end || subscription.trial_ends_at) : 'Pending'],
       ])}
     </article>
     <article class="panel">
-      <div class="section-head"><div><h2>Billing gate</h2><p>Paid modules remain available only for trialing, active, past_due, or grace status.</p></div></div>
+      <div class="section-head"><div><h2>Billing gate</h2><p>Paid modules open only after approval or an active billing state.</p></div></div>
       ${contractRows([
         ['Workspace access', subscriptionAllowsCompany(companyId) ? 'Allowed' : 'Suspended'],
         ['Finance/files privacy', CONFIG.questAuthEnabled ? 'Requires Auth + RLS' : 'Demo only'],
@@ -2922,12 +2947,12 @@ function renderRoleFormModal(companyId) {
 function renderInviteFormModal(companyId) {
   const roles = companyRoles(companyId).filter((role) => role.name.toLowerCase() !== 'owner');
   const options = [['', 'Member']].concat(roles.map((role) => [role.id, role.name]));
-  return renderModalShell('Users', 'Invite user', `
+  return renderModalShell('Users', 'Create invite code', `
     <form class="role-form" data-invite-form>
       <input type="hidden" name="company_id" value="${h(companyId)}" />
       ${field('Email', 'email', '', true, 'email')}
       ${selectField('Role', 'role_id', defaultInviteRoleId(companyId), options)}
-      <div class="form-message span-2">Quest creates an invite code you can copy. Email delivery comes after the Resend/SMTP setup.</div>
+      <div class="form-message span-2">Quest creates an invite code you can copy now. Email invite delivery will use this same record after SMTP/Resend is configured.</div>
       <div class="form-actions span-2">
         <button class="btn btn-primary" type="submit">Create invite code</button>
         <button class="btn" type="button" data-action="close-modal">Cancel</button>
@@ -4222,6 +4247,9 @@ function renderLogin() {
   const returnUrl = safeReturnUrl(state.route.params.get('return_url') || appHref(companyPath('jobs', {}, defaultCompanyId())));
   const authEnabled = CONFIG.questAuthEnabled;
   const inviteToken = String(state.route.params.get('invite') || '').trim();
+  const requestedMode = normalizeAuthMode(state.route.params.get('mode'), inviteToken);
+  if (requestedMode && state.authMode !== requestedMode) state.authMode = requestedMode;
+  if (inviteToken && !['signin', 'register'].includes(state.authMode)) state.authMode = 'register';
   app.innerHTML = `
     <main class="login-shell">
       <section class="login-panel">
@@ -4231,17 +4259,12 @@ function renderLogin() {
         </div>
         <div>
           <div class="eyebrow">${authEnabled ? 'Tenant access' : 'Local access'}</div>
-          <h1>Sign in to Quest HQ</h1>
-          <p>${authEnabled ? 'Each company workspace is isolated by Supabase Auth, memberships, subscription state, and role permissions.' : 'Supabase auth is switched off while the company workspace foundation is stabilized.'}</p>
+          <h1>${inviteToken ? 'Join your company workspace' : 'Choose your Quest HQ access'}</h1>
+          <p>${authEnabled ? 'Business owners create company workspaces. Workers join only after their company admin creates an invite.' : 'Supabase auth is switched off while the company workspace foundation is stabilized.'}</p>
         </div>
-        ${inviteToken ? `<div class="invite-banner"><strong>Workspace invite</strong><span>Sign in or create an account with the invited email to join the company.</span></div>` : ''}
+        ${inviteToken ? `<div class="invite-banner"><strong>Workspace invite</strong><span>Create an account with the invited email, or sign in if that email already has a Quest HQ account.</span></div>` : ''}
         ${authEnabled ? `
-          <div class="auth-mode-tabs">
-            <button class="${state.authMode === 'signin' ? 'active' : ''}" type="button" data-action="set-auth-mode" data-auth-mode="signin">Sign in</button>
-            <button class="${state.authMode === 'register' ? 'active' : ''}" type="button" data-action="set-auth-mode" data-auth-mode="register">${inviteToken ? 'Create account' : 'Create workspace'}</button>
-            <button class="${state.authMode === 'invite' ? 'active' : ''}" type="button" data-action="set-auth-mode" data-auth-mode="invite">Invite code</button>
-            <button class="${state.authMode === 'request' ? 'active' : ''}" type="button" data-action="set-auth-mode" data-auth-mode="request">Request access</button>
-          </div>
+          ${renderAuthLanePicker(inviteToken)}
           ${renderSupabaseAuthForm(returnUrl)}
         ` : ''}
         ${renderDemoModeLauncher(returnUrl)}
@@ -4253,6 +4276,43 @@ ${CONFIG.localLoginEnabled && authEnabled ? `
         ` : ''}
       </section>
     </main>
+  `;
+}
+
+function normalizeAuthMode(value, inviteToken = '') {
+  const mode = String(value || '').toLowerCase().trim();
+  if (inviteToken && !mode) return 'register';
+  if (['signin', 'register', 'invite', 'request'].includes(mode)) return mode;
+  if (mode === 'business') return 'register';
+  if (mode === 'worker') return inviteToken ? 'register' : 'invite';
+  return '';
+}
+
+function renderAuthLanePicker(inviteToken = '') {
+  const active = state.authMode;
+  return `
+    <section class="login-lanes">
+      <article class="login-lane-card ${active === 'register' && !inviteToken ? 'active' : ''}">
+        <div>
+          <strong>Business account</strong>
+          <span>For Owners/Admins who manage a company workspace.</span>
+        </div>
+        <div class="lane-actions">
+          <button class="btn" type="button" data-action="set-auth-mode" data-auth-mode="signin">Business login</button>
+          <button class="btn ${active === 'register' && !inviteToken ? 'btn-primary' : ''}" type="button" data-action="set-auth-mode" data-auth-mode="register">Create workspace</button>
+        </div>
+      </article>
+      <article class="login-lane-card ${inviteToken || active === 'invite' || active === 'request' ? 'active' : ''}">
+        <div>
+          <strong>Worker account</strong>
+          <span>Workers join only after their admin creates an invite.</span>
+        </div>
+        <div class="lane-actions">
+          <button class="btn" type="button" data-action="set-auth-mode" data-auth-mode="signin">Worker login</button>
+          <button class="btn ${active === 'invite' || (active === 'register' && inviteToken) ? 'btn-primary' : ''}" type="button" data-action="set-auth-mode" data-auth-mode="${inviteToken ? 'register' : 'invite'}">${inviteToken ? 'Create invited account' : 'Join with invite code'}</button>
+        </div>
+      </article>
+    </section>
   `;
 }
 
@@ -4273,20 +4333,29 @@ function renderSupabaseAuthForm(returnUrl) {
   if (state.authMode === 'register') {
     return `
       <form data-auth-register-form>
-        <label>${inviteToken ? 'Name / username' : 'Full name'}<input name="full_name" autocomplete="name" required /></label>
+        <div class="auth-form-title">
+          <strong>${inviteToken ? 'Create invited worker account' : 'Create business workspace'}</strong>
+          <span>${inviteToken ? 'The account email must match the invite.' : 'Quest will review this workspace before live company modules open.'}</span>
+        </div>
+        <label>${inviteToken ? 'Display name / username' : 'Full name'}<input name="full_name" autocomplete="name" required /></label>
         <label>Email<input name="email" type="email" autocomplete="email" required /></label>
         <label>Password<input name="password" type="password" autocomplete="new-password" minlength="8" required /></label>
         ${inviteToken ? '' : '<label>Company workspace<input name="company_name" placeholder="Example Roofing LLC" required /></label>'}
         <input type="hidden" name="invite_token" value="${h(inviteToken)}" />
         <input type="hidden" name="return_url" value="${h(returnUrl)}" />
         <button class="btn btn-primary full" type="submit">${inviteToken ? 'Create account and join' : 'Create secure workspace'}</button>
-        ${authStatusMessage(inviteToken ? 'The invite email must match this account email.' : 'Owner role, trial subscription, and workspace isolation are created automatically.')}
+        ${authStatusMessage(inviteToken ? 'Workers cannot create access without a valid invite code.' : 'You become Owner, then Quest approves billing/access before the workspace opens.')}
+        ${inviteToken ? '<button class="btn full" type="button" data-action="set-auth-mode" data-auth-mode="signin">I already have an account</button>' : ''}
       </form>
     `;
   }
   if (state.authMode === 'invite') {
     return `
       <form data-auth-invite-code-form>
+        <div class="auth-form-title">
+          <strong>Join a company workspace</strong>
+          <span>Ask your company admin for an invite code. Worker registration is blocked without one.</span>
+        </div>
         <label>Invite code<input name="invite_code" autocomplete="one-time-code" required placeholder="Paste the code from your admin" /></label>
         <input type="hidden" name="return_url" value="${h(returnUrl)}" />
         <button class="btn btn-primary full" type="submit">Continue with invite code</button>
@@ -4297,6 +4366,10 @@ function renderSupabaseAuthForm(returnUrl) {
   if (state.authMode === 'request') {
     return `
       <form data-auth-request-form>
+        <div class="auth-form-title">
+          <strong>Request access</strong>
+          <span>This is for existing accounts only. New workers should use an admin invite.</span>
+        </div>
         <label>Email<input name="email" type="email" autocomplete="email" required /></label>
         <label>Password<input name="password" type="password" autocomplete="current-password" minlength="8" required /></label>
         <label>Company ID<input name="company_id" placeholder="company-workspace-id" required /></label>
@@ -4309,12 +4382,17 @@ function renderSupabaseAuthForm(returnUrl) {
   }
   return `
     <form data-auth-sign-in-form>
+      <div class="auth-form-title">
+        <strong>${inviteToken ? 'Sign in and accept invite' : 'Sign in'}</strong>
+        <span>${inviteToken ? 'Use the existing account for the invited email.' : 'Use the account connected to your company workspace.'}</span>
+      </div>
       <label>Email<input name="email" type="email" autocomplete="email" required /></label>
       <label>Password<input name="password" type="password" autocomplete="current-password" required /></label>
       <input type="hidden" name="invite_token" value="${h(inviteToken)}" />
       <input type="hidden" name="return_url" value="${h(returnUrl)}" />
-      <button class="btn btn-primary full" type="submit">Sign in</button>
-      ${authStatusMessage('Use the company workspace account your Owner/Admin invited.')}
+      <button class="btn btn-primary full" type="submit">${inviteToken ? 'Sign in and join' : 'Sign in'}</button>
+      ${authStatusMessage(inviteToken ? 'If you do not have an account yet, create an invited worker account.' : 'Business owners and workers use the same sign in after access is created.')}
+      ${inviteToken ? '<button class="btn full" type="button" data-action="set-auth-mode" data-auth-mode="register">Create invited account</button>' : ''}
     </form>
   `;
 }
@@ -5282,6 +5360,19 @@ function onDocumentSubmit(event) {
     return;
   }
 
+  if (event.target.matches('[data-existing-invite-code-form]')) {
+    event.preventDefault();
+    const form = Object.fromEntries(new FormData(event.target).entries());
+    const inviteCode = String(form.invite_code || '').trim();
+    if (!inviteCode) {
+      state.loginError = 'Invite code is required.';
+      render();
+      return;
+    }
+    acceptCompanyInvite(inviteCode);
+    return;
+  }
+
   if (event.target.matches('[data-auth-request-form]')) {
     event.preventDefault();
     requestCompanyAccess(event.target);
@@ -5596,7 +5687,11 @@ async function registerWorkspace(formNode) {
     options: { data: { full_name: fullName } },
   });
   if (signUp.error) {
-    state.loginError = signUp.error.message || 'Unable to create account.';
+    const duplicateAccount = /already|registered|exists/i.test(signUp.error.message || '');
+    state.loginError = duplicateAccount && inviteToken
+      ? 'That email already has a Quest HQ account. Sign in with the invited email to accept this invite.'
+      : signUp.error.message || 'Unable to create account.';
+    if (duplicateAccount && inviteToken) state.authMode = 'signin';
     state.authMessage = '';
     render();
     return;
@@ -5626,6 +5721,7 @@ async function registerWorkspace(formNode) {
     return;
   }
   state.activeCompanyId = canonicalCompanyId(workspace.data || defaultCompanyId());
+  markWorkspacePendingReview(state.activeCompanyId);
   localStorage.setItem(COMPANY_KEY, state.activeCompanyId);
   state.dataLoaded = false;
   state.authMessage = '';
@@ -5648,6 +5744,7 @@ async function createWorkspaceForCurrentUser(formNode) {
     return;
   }
   state.activeCompanyId = canonicalCompanyId(workspace.data || defaultCompanyId());
+  markWorkspacePendingReview(state.activeCompanyId);
   localStorage.setItem(COMPANY_KEY, state.activeCompanyId);
   state.dataLoaded = false;
   navigate(companyPath('settings', { tab: 'billing' }, state.activeCompanyId), { replace: true });
@@ -8060,6 +8157,7 @@ function companySubscription(companyId = activeCompanyId()) {
 
 function subscriptionAllowsCompany(companyId = activeCompanyId()) {
   if (state.session?.auth !== 'supabase') return true;
+  if (subscriptionNeedsReview(companyId)) return false;
   const subscription = companySubscription(companyId);
   if (!subscription) return true;
   if (['trialing', 'active', 'past_due', 'grace'].includes(subscription.status)) return true;
@@ -8067,9 +8165,28 @@ function subscriptionAllowsCompany(companyId = activeCompanyId()) {
   return false;
 }
 
+function subscriptionNeedsReview(companyId = activeCompanyId()) {
+  const subscription = companySubscription(companyId);
+  if (subscription?.status === 'pending_review') return true;
+  if (['active', 'past_due', 'grace'].includes(subscription?.status)) return false;
+  return pendingReviewCompanyIds().includes(canonicalCompanyId(companyId));
+}
+
+function pendingReviewCompanyIds() {
+  return readJson(PENDING_WORKSPACE_REVIEW_KEY, []).map(canonicalCompanyId).filter(Boolean);
+}
+
+function markWorkspacePendingReview(companyId) {
+  const id = canonicalCompanyId(companyId);
+  if (!id) return;
+  const next = Array.from(new Set(pendingReviewCompanyIds().concat(id)));
+  writeJson(PENDING_WORKSPACE_REVIEW_KEY, next);
+}
+
 function subscriptionLabel(companyId = activeCompanyId()) {
   const subscription = companySubscription(companyId);
-  if (!subscription) return state.session?.auth === 'supabase' ? 'Trial pending' : 'Demo mode';
+  if (!subscription) return state.session?.auth === 'supabase' ? 'Approval pending' : 'Demo mode';
+  if (subscription.status === 'pending_review') return 'Awaiting Quest approval';
   if (subscription.status === 'trialing') return `Trial - ${formatDate(subscription.trial_ends_at)}`;
   if (subscription.status === 'active') return 'Active subscription';
   if (subscription.status === 'past_due') return 'Past due grace';
@@ -8357,7 +8474,7 @@ function normalizeMembership(input) {
 function normalizeSubscription(input) {
   return {
     company_id: canonicalCompanyId(input.company_id || ''),
-    status: String(input.status || 'trialing'),
+    status: String(input.status || 'pending_review'),
     plan_code: String(input.plan_code || 'quest_company_300'),
     amount_cents: number(input.amount_cents || 30000),
     currency: String(input.currency || 'usd'),

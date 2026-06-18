@@ -2268,7 +2268,7 @@ textarea:focus {
 .login-panel {
   display: grid;
   gap: 18px;
-  width: min(430px, 100%);
+  width: min(720px, 100%);
   border: 1px solid var(--border);
   border-top: 5px solid var(--amber);
   border-radius: 8px;
@@ -2294,6 +2294,57 @@ textarea:focus {
 
 .login-panel h1 { margin-bottom: 6px; }
 .login-panel form { display: grid; gap: 14px; }
+
+.login-lanes {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.login-lane-card {
+  display: grid;
+  gap: 12px;
+  align-content: start;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: #fffaf0;
+  padding: 14px;
+}
+
+.login-lane-card.active {
+  border-color: var(--amber);
+  box-shadow: inset 0 3px 0 var(--amber);
+}
+
+.login-lane-card strong,
+.login-lane-card span,
+.auth-form-title strong,
+.auth-form-title span {
+  display: block;
+}
+
+.login-lane-card span,
+.auth-form-title span {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 1.35;
+  margin-top: 3px;
+}
+
+.lane-actions {
+  display: grid;
+  gap: 8px;
+}
+
+.auth-form-title {
+  border-top: 1px solid var(--border);
+  padding-top: 14px;
+}
+
+.no-access-lanes {
+  grid-template-columns: 1fr;
+}
 
 .auth-mode-tabs {
   display: grid;
@@ -4175,6 +4226,7 @@ textarea:focus {
   .company-switch select { min-width: 0; }
   .side-items { grid-template-columns: 1fr; }
   .login-panel { padding: 22px; }
+  .login-lanes { grid-template-columns: 1fr; }
   .modal-overlay { padding: 10px; }
   .modal-panel { width: calc(100vw - 20px); }
 }

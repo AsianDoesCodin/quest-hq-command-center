@@ -21,6 +21,10 @@ This file is the durable implementation checklist for the auth, permissions, peo
   - [x] Add guarded Supabase RPCs for member access updates, join request review, invite revoke, leaving a company, and promoting another Owner.
   - [x] Add compact access audit history and role access preview in Settings.
   - [x] Stop Supabase direct company URLs from silently switching to another company when access is denied.
+  - [x] Split onboarding into Business account and Worker invite lanes.
+  - [x] Make worker registration invite-only from the UI.
+  - [x] Add `pending_review` workspace access state for new business workspaces until Quest approval/billing is ready.
+  - [x] Show a workspace approval gate before live modules open.
   - [ ] Add transactional invite email delivery after Resend/SMTP is configured.
   - [ ] Verify user role changes against Supabase RLS on production.
   - [ ] Add a full account deletion/privacy flow separate from company access removal.
