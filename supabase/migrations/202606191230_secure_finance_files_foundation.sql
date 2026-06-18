@@ -17,7 +17,7 @@ create table if not exists public.finance_vendors (
 create table if not exists public.finance_invoices (
   id text primary key,
   company_id text not null references public.companies(id) on delete cascade,
-  job_id text references public.jobs(id) on delete set null,
+  job_id uuid references public.jobs(id) on delete set null,
   client_name text not null default '',
   invoice_number text not null,
   status text not null default 'Draft',
@@ -52,7 +52,7 @@ create table if not exists public.finance_payments (
 create table if not exists public.finance_expenses (
   id text primary key,
   company_id text not null references public.companies(id) on delete cascade,
-  job_id text references public.jobs(id) on delete set null,
+  job_id uuid references public.jobs(id) on delete set null,
   vendor_id text references public.finance_vendors(id) on delete set null,
   category text not null default 'Other',
   amount numeric(12,2) not null default 0,

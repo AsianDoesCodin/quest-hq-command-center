@@ -2353,6 +2353,7 @@ function renderFilesPage(route, companyId) {
   state.driveFolder = folder;
   const job = route.jobId ? jobById(route.jobId) : null;
   const files = filteredDriveFiles(companyId, folder, job?.id || '');
+  const canManageFiles = can('files.manage', companyId);
   return `
     <section class="tool-page drive-page">
       <section class="drive-app panel">
@@ -2369,8 +2370,10 @@ function renderFilesPage(route, companyId) {
             <input data-file-search value="${h(state.fileQuery)}" placeholder="Search drive" />
           </label>
           <div class="drive-actions">
-            <button class="btn" type="button" data-action="open-folder-form"><i class="ti ti-folder-plus"></i>New folder</button>
-            <button class="btn" type="button" data-action="open-file-upload"><i class="ti ti-upload"></i>Upload</button>
+            ${canManageFiles ? `
+              <button class="btn" type="button" data-action="open-folder-form"><i class="ti ti-folder-plus"></i>New folder</button>
+              <button class="btn" type="button" data-action="open-file-upload"><i class="ti ti-upload"></i>Upload</button>
+            ` : ''}
             <button class="btn icon-only" type="button" data-action="refresh-data" title="Refresh" aria-label="Refresh"><i class="ti ti-refresh"></i></button>
           </div>
         </header>
@@ -2483,6 +2486,7 @@ function renderFileTile(file) {
 }
 
 function renderFileDetails(file, companyId) {
+  const canManageFiles = can('files.manage', companyId);
   if (!file) {
     return `
       <div class="file-detail-preview"><span class="file-doc-icon large">${folderIconAsset({ id: 'home', name: companyName(companyId) }, 'Company drive')}</span></div>
@@ -2509,12 +2513,13 @@ function renderFileDetails(file, companyId) {
     </div>
     <div class="file-detail-actions">
       <button class="btn" type="button" data-action="download-file" data-file-id="${h(file.id)}"><i class="ti ti-download"></i>Download</button>
-      <button class="btn danger" type="button" data-action="delete-file" data-file-id="${h(file.id)}"><i class="ti ti-trash"></i>Delete</button>
+      ${canManageFiles ? `<button class="btn danger" type="button" data-action="delete-file" data-file-id="${h(file.id)}"><i class="ti ti-trash"></i>Delete</button>` : ''}
     </div>
   `;
 }
 
 function renderFileViewer(file, companyId) {
+  const canManageFiles = can('files.manage', companyId);
   return `
     <section class="file-viewer-layout">
       <div class="file-viewer-stage">
@@ -2537,7 +2542,7 @@ function renderFileViewer(file, companyId) {
         </div>
         <div class="file-detail-actions">
           <button class="btn" type="button" data-action="download-file" data-file-id="${h(file.id)}"><i class="ti ti-download"></i>Download</button>
-          <button class="btn danger" type="button" data-action="delete-file" data-file-id="${h(file.id)}"><i class="ti ti-trash"></i>Delete</button>
+          ${canManageFiles ? `<button class="btn danger" type="button" data-action="delete-file" data-file-id="${h(file.id)}"><i class="ti ti-trash"></i>Delete</button>` : ''}
         </div>
       </aside>
     </section>
@@ -5041,6 +5046,7 @@ function handleAction(event, node) {
   }
   if (action === 'open-role-form') {
     event.preventDefault();
+    if (!requirePermission('roles.manage', activeCompanyId(), 'Your role cannot manage roles.', 'Roles')) return;
     state.modal = 'role-new';
     render();
     return;
@@ -5065,24 +5071,28 @@ function handleAction(event, node) {
   }
   if (action === 'open-invite-form') {
     event.preventDefault();
+    if (!requirePermission('users.manage', activeCompanyId(), 'Your role cannot invite or manage users.', 'Users')) return;
     state.modal = 'invite-new';
     render();
     return;
   }
   if (action === 'new-message-group') {
     event.preventDefault();
+    if (!requirePermission('messages.create_group', activeCompanyId(), 'Your role cannot create group chats.', 'Messages')) return;
     state.modal = 'message-group-new';
     render();
     return;
   }
   if (action === 'new-direct-message') {
     event.preventDefault();
+    if (!requirePermission('messages.send', activeCompanyId(), 'Your role cannot start direct messages.', 'Messages')) return;
     state.modal = 'message-direct-new';
     render();
     return;
   }
   if (action === 'manage-message-chat') {
     event.preventDefault();
+    if (!requirePermission('messages.manage_groups', activeCompanyId(), 'Your role cannot manage chat access.', 'Messages')) return;
     state.selectedConversationId = node.dataset.conversationId || state.selectedConversationId;
     state.modal = 'message-access';
     render();
@@ -5194,26 +5204,31 @@ function handleAction(event, node) {
   }
   if (action === 'copy-invite-link') {
     event.preventDefault();
+    if (!requirePermission('users.manage', activeCompanyId(), 'Your role cannot view invite links.', 'Users')) return;
     copyInviteLink(node.dataset.inviteId);
     return;
   }
   if (action === 'copy-invite-code') {
     event.preventDefault();
+    if (!requirePermission('users.manage', activeCompanyId(), 'Your role cannot view invite codes.', 'Users')) return;
     copyInviteCode(node.dataset.inviteId);
     return;
   }
   if (action === 'revoke-invite') {
     event.preventDefault();
+    if (!requirePermission('users.manage', activeCompanyId(), 'Your role cannot revoke invites.', 'Users')) return;
     revokeInvite(node.dataset.inviteId);
     return;
   }
   if (action === 'approve-join-request') {
     event.preventDefault();
+    if (!requirePermission('users.manage', activeCompanyId(), 'Your role cannot approve access requests.', 'Users')) return;
     updateJoinRequest(node.dataset.requestId, 'approved');
     return;
   }
   if (action === 'reject-join-request') {
     event.preventDefault();
+    if (!requirePermission('users.manage', activeCompanyId(), 'Your role cannot reject access requests.', 'Users')) return;
     updateJoinRequest(node.dataset.requestId, 'rejected');
     return;
   }
@@ -5229,18 +5244,21 @@ function handleAction(event, node) {
   }
   if (action === 'open-file-upload') {
     event.preventDefault();
+    if (!requirePermission('files.manage', activeCompanyId(), 'Your role can view files but cannot upload.', 'Files')) return;
     state.modal = 'file-upload';
     render();
     return;
   }
   if (action === 'open-folder-form') {
     event.preventDefault();
+    if (!requirePermission('files.manage', activeCompanyId(), 'Your role can view files but cannot create folders.', 'Files')) return;
     state.modal = 'folder-new';
     render();
     return;
   }
   if (action === 'open-job-form') {
     event.preventDefault();
+    if (!requirePermission('jobs.manage', activeCompanyId(), 'Your role can view jobs but cannot create or edit them.', 'Jobs')) return;
     const jobId = node.dataset.jobId || '';
     if (jobId) state.selectedJobId = jobId;
     state.modal = node.dataset.mode === 'edit' ? 'job-edit' : 'job-new';
@@ -5249,6 +5267,7 @@ function handleAction(event, node) {
   }
   if (action === 'open-forms-tools') {
     event.preventDefault();
+    if (!requirePermission('forms.manage', activeCompanyId(), 'Your role can view forms but cannot create or edit them.', 'Forms')) return;
     state.modal = 'forms-tools';
     render();
     return;
@@ -5325,6 +5344,7 @@ function handleAction(event, node) {
   }
   if (action === 'delete-file') {
     event.preventDefault();
+    if (!requirePermission('files.manage', activeCompanyId(), 'Your role cannot delete files.', 'Files')) return;
     deleteFile(node.dataset.fileId);
     return;
   }
@@ -5342,6 +5362,7 @@ function handleAction(event, node) {
   }
   if (action === 'new-form') {
     event.preventDefault();
+    if (!requirePermission('forms.manage', activeCompanyId(), 'Your role can view forms but cannot create them.', 'Forms')) return;
     state.formStartTemplateId = node.dataset.templateId || '';
     state.formStartTab = node.dataset.startTab === 'templates' || state.formStartTemplateId ? 'templates' : 'blank';
     if (state.formStartTab === 'templates' && !state.formStartTemplateId) state.formStartTemplateId = formTemplates()[0]?.id || '';
@@ -5364,6 +5385,7 @@ function handleAction(event, node) {
   }
   if (action === 'edit-form') {
     event.preventDefault();
+    if (!requirePermission('forms.manage', activeCompanyId(), 'Your role cannot edit forms.', 'Forms')) return;
     selectForm(node.dataset.formId, false);
     state.formsTab = 'builder';
     state.formEditorTab = 'questions';
@@ -5373,27 +5395,32 @@ function handleAction(event, node) {
   }
   if (action === 'save-form') {
     event.preventDefault();
+    if (!requirePermission('forms.manage', activeCompanyId(), 'Your role cannot edit forms.', 'Forms')) return;
     saveFormsState('Form saved locally');
     render();
     return;
   }
   if (action === 'publish-form') {
     event.preventDefault();
+    if (!requirePermission('forms.manage', activeCompanyId(), 'Your role cannot publish forms.', 'Forms')) return;
     setFormStatus(node.dataset.formId, 'Published');
     return;
   }
   if (action === 'archive-form') {
     event.preventDefault();
+    if (!requirePermission('forms.manage', activeCompanyId(), 'Your role cannot archive forms.', 'Forms')) return;
     setFormStatus(node.dataset.formId, 'Archived');
     return;
   }
   if (action === 'duplicate-form') {
     event.preventDefault();
+    if (!requirePermission('forms.manage', activeCompanyId(), 'Your role cannot duplicate forms.', 'Forms')) return;
     duplicateForm(node.dataset.formId);
     return;
   }
   if (action === 'delete-form') {
     event.preventDefault();
+    if (!requirePermission('forms.manage', activeCompanyId(), 'Your role cannot delete forms.', 'Forms')) return;
     deleteForm(node.dataset.formId);
     return;
   }
@@ -5466,41 +5493,49 @@ function handleAction(event, node) {
   }
   if (action === 'add-question') {
     event.preventDefault();
+    if (!requirePermission('forms.manage', activeCompanyId(), 'Your role cannot edit forms.', 'Forms')) return;
     addQuestion(node.dataset.questionType || 'multiple');
     return;
   }
   if (action === 'duplicate-question') {
     event.preventDefault();
+    if (!requirePermission('forms.manage', activeCompanyId(), 'Your role cannot edit forms.', 'Forms')) return;
     duplicateQuestion(node.dataset.questionId);
     return;
   }
   if (action === 'delete-question') {
     event.preventDefault();
+    if (!requirePermission('forms.manage', activeCompanyId(), 'Your role cannot edit forms.', 'Forms')) return;
     deleteQuestion(node.dataset.questionId);
     return;
   }
   if (action === 'move-question') {
     event.preventDefault();
+    if (!requirePermission('forms.manage', activeCompanyId(), 'Your role cannot edit forms.', 'Forms')) return;
     moveQuestion(node.dataset.questionId, Number(node.dataset.direction || 0));
     return;
   }
   if (action === 'add-question-option') {
     event.preventDefault();
+    if (!requirePermission('forms.manage', activeCompanyId(), 'Your role cannot edit forms.', 'Forms')) return;
     addQuestionOption(node.dataset.questionId);
     return;
   }
   if (action === 'remove-question-option') {
     event.preventDefault();
+    if (!requirePermission('forms.manage', activeCompanyId(), 'Your role cannot edit forms.', 'Forms')) return;
     removeQuestionOption(node.dataset.questionId, Number(node.dataset.optionIndex || -1));
     return;
   }
   if (action === 'delete-job') {
     event.preventDefault();
+    if (!requirePermission('jobs.manage', activeCompanyId(), 'Your role cannot delete jobs.', 'Jobs')) return;
     deleteJob(node.dataset.jobId);
     return;
   }
   if (action === 'delete-task') {
     event.preventDefault();
+    if (!requirePermission('tasks.manage', activeCompanyId(), 'Your role cannot delete tasks.', 'Tasks')) return;
     deleteTask(node.dataset.taskId);
   }
 }
@@ -6121,6 +6156,7 @@ function applyWorkspaceReviewStatus(companyId, status) {
 
 async function saveRole(formNode) {
   const companyId = activeCompanyId();
+  if (!requirePermission('roles.manage', companyId, 'Your role cannot manage roles.', 'Roles')) return;
   const data = new FormData(formNode);
   const role = normalizeRole({
     id: crypto.randomUUID(),
@@ -6158,6 +6194,7 @@ async function saveRole(formNode) {
 async function saveInvite(formNode) {
   const data = new FormData(formNode);
   const companyId = canonicalCompanyId(data.get('company_id') || activeCompanyId());
+  if (!requirePermission('users.manage', companyId, 'Your role cannot invite users.', 'Users')) return;
   const email = String(data.get('email') || '').trim().toLowerCase();
   const roleId = String(data.get('role_id') || '').trim();
   if (!email) {
@@ -6237,6 +6274,7 @@ async function acceptCompanyInvite(token, fallbackReturnUrl = '') {
 
 async function copyInviteLink(inviteId) {
   const invite = state.companyInvites.find((item) => item.id === inviteId);
+  if (invite && !requirePermission('users.manage', invite.company_id, 'Your role cannot view invite links.', 'Users')) return;
   if (!invite?.token) {
     state.sync = { label: 'Invite link is unavailable', mode: 'local' };
     render();
@@ -6253,6 +6291,7 @@ async function copyInviteLink(inviteId) {
 
 async function copyInviteCode(inviteId) {
   const invite = state.companyInvites.find((item) => item.id === inviteId);
+  if (invite && !requirePermission('users.manage', invite.company_id, 'Your role cannot view invite codes.', 'Users')) return;
   if (!invite?.token) {
     state.sync = { label: 'Invite code is unavailable', mode: 'local' };
     render();
@@ -6270,6 +6309,7 @@ async function copyInviteCode(inviteId) {
 async function revokeInvite(inviteId) {
   const invite = state.companyInvites.find((item) => item.id === inviteId);
   if (!invite) return;
+  if (!requirePermission('users.manage', invite.company_id, 'Your role cannot revoke invites.', 'Users')) return;
   const client = createSupabaseClient();
   if (state.session?.auth === 'supabase' && client) {
     const result = await client.rpc('revoke_company_invite', { target_invite_id: invite.id });
@@ -6292,6 +6332,7 @@ async function revokeInvite(inviteId) {
 async function saveUserAccess(formNode) {
   const data = new FormData(formNode);
   const companyId = canonicalCompanyId(data.get('company_id') || activeCompanyId());
+  if (!requirePermission('users.manage', companyId, 'Your role cannot manage user access.', 'Users')) return;
   const profileId = String(data.get('profile_id') || '').trim();
   const roleId = String(data.get('role_id') || '').trim();
   const status = ['active', 'pending', 'disabled', 'left'].includes(String(data.get('membership_status'))) ? String(data.get('membership_status')) : 'active';
@@ -6354,6 +6395,7 @@ async function saveUserAccess(formNode) {
 async function updateJoinRequest(requestId, status) {
   const request = state.joinRequests.find((item) => item.id === requestId);
   if (!request || !['approved', 'rejected'].includes(status)) return;
+  if (!requirePermission('users.manage', request.company_id, 'Your role cannot manage access requests.', 'Users')) return;
   const client = createSupabaseClient();
   const nextRequest = normalizeJoinRequest({ ...request, status });
   const membership = normalizeMembership({
@@ -6420,6 +6462,7 @@ async function saveMessageGroup(form) {
 
 async function saveDirectMessage(form) {
   const companyId = activeCompanyId();
+  if (!requirePermission('messages.send', companyId, 'Your role cannot start direct messages.', 'Messages')) return;
   const data = new FormData(form);
   const targetId = String(data.get('profile_id') || '').trim();
   if (!targetId) {
@@ -6855,6 +6898,7 @@ async function saveJob(form) {
   const payload = normalizeJob(Object.fromEntries(new FormData(form).entries()));
   payload.id = payload.id || crypto.randomUUID();
   payload.company_id = payload.company_id || activeCompanyId();
+  if (!requirePermission('jobs.manage', payload.company_id, 'Your role can view jobs but cannot create or edit them.', 'Jobs')) return;
   payload.estimate_total = Number(payload.estimate_total || 0);
   payload.invoice_total = Number(payload.invoice_total || 0);
   payload.updated_at = new Date().toISOString();
@@ -6884,6 +6928,7 @@ async function saveJob(form) {
 async function deleteJob(id) {
   if (!id) return;
   const companyId = activeCompanyId();
+  if (!requirePermission('jobs.manage', companyId, 'Your role cannot delete jobs.', 'Jobs')) return;
   const client = createSupabaseClient();
   if (client) await client.from('jobs').delete().eq('id', id);
   state.jobs = state.jobs.filter((job) => job.id !== id);
@@ -6895,6 +6940,7 @@ async function deleteJob(id) {
 
 async function saveTask(form) {
   const companyId = activeCompanyId();
+  if (!requirePermission('tasks.manage', companyId, 'Your role can view tasks but cannot create or edit them.', 'Tasks')) return;
   const formData = Object.fromEntries(new FormData(form).entries());
   const payload = normalizeTask({
     ...formData,
@@ -6937,6 +6983,7 @@ async function saveTask(form) {
 async function deleteTask(id) {
   if (!id) return;
   const companyId = activeCompanyId();
+  if (!requirePermission('tasks.manage', companyId, 'Your role cannot delete tasks.', 'Tasks')) return;
   const client = createSupabaseClient();
   if (client) await client.from('tasks').delete().eq('id', id);
   state.tasks = state.tasks.filter((task) => task.id !== id);
@@ -6948,6 +6995,7 @@ async function deleteTask(id) {
 
 async function saveFileRecord(form) {
   const companyId = activeCompanyId();
+  if (!requirePermission('files.manage', companyId, 'Your role can view files but cannot upload.', 'Files')) return;
   const formData = new FormData(form);
   const fields = Object.fromEntries(formData.entries());
   const selectedFiles = Array.from(form.elements.files?.files || []);
@@ -7019,6 +7067,8 @@ async function saveFileRecord(form) {
 
 function createDriveFolder(form) {
   const fields = Object.fromEntries(new FormData(form).entries());
+  const companyId = canonicalCompanyId(fields.company_id || activeCompanyId());
+  if (!requirePermission('files.manage', companyId, 'Your role can view files but cannot create folders.', 'Files')) return;
   const name = String(fields.name || '').trim();
   if (!name) {
     state.sync = { label: 'Folder name is required', mode: 'local' };
@@ -7027,7 +7077,7 @@ function createDriveFolder(form) {
   }
   const folder = normalizeDriveFolder({
     id: `folder-${crypto.randomUUID()}`,
-    company_id: activeCompanyId(),
+    company_id: companyId,
     name,
     parent_key: fields.parent_key || 'home',
     created_by_label: activeSession().profile.full_name || 'Quest HQ',
@@ -7223,6 +7273,7 @@ function vendorPayload(vendor) {
 
 async function downloadFile(id) {
   const file = state.files.find((item) => item.id === id);
+  if (file && !requirePermission('files.view', file.company_id, 'Your role cannot view this file.', 'Files')) return;
   if (!file?.object_path) {
     state.sync = { label: 'No stored object for this file', mode: 'local' };
     render();
@@ -7242,6 +7293,7 @@ async function downloadFile(id) {
 async function deleteFile(id) {
   const file = state.files.find((item) => item.id === id);
   if (!file) return;
+  if (!requirePermission('files.manage', file.company_id, 'Your role cannot delete files.', 'Files')) return;
   const client = createSupabaseClient();
   if (client) {
     if (file.object_path) await client.storage.from(file.bucket_id || 'quest-job-files').remove([file.object_path]);
@@ -8298,6 +8350,7 @@ function totalTimeForCompany(companyId = activeCompanyId(), sinceMs = 0) {
 }
 
 function startClock(companyId = activeCompanyId(), taskId = '') {
+  if (!requirePermission('time.track', companyId, 'Your role cannot track time in this workspace.', 'Time')) return;
   if (state.activeTimer) stopClock(false);
   const task = taskId ? taskById(taskId) : null;
   state.activeTimer = {
@@ -8466,6 +8519,12 @@ function can(permission, companyId = activeCompanyId()) {
   const role = String(membershipForProfile(companyId, profile.id)?.role || profile.role || 'member').toLowerCase();
   const permissions = ROLE_PERMISSIONS[role] || ROLE_PERMISSIONS.member;
   return permissions.includes('*') || variants.some((variant) => permissions.includes(variant));
+}
+
+function requirePermission(permission, companyId = activeCompanyId(), message = 'Your role cannot perform that action.', title = 'Access') {
+  if (can(permission, companyId)) return true;
+  showToast(message, 'local', title);
+  return false;
 }
 
 function allowedCompanyIds() {
@@ -10675,6 +10734,7 @@ function blankQuestion(type = 'short', label = 'Untitled question', options = []
 }
 
 function createForm(companyId, overrides = {}) {
+  if (!requirePermission('forms.manage', companyId, 'Your role cannot create forms.', 'Forms')) return null;
   const base = blankForm(companyId);
   const form = normalizeForm({
     ...base,
@@ -10699,6 +10759,7 @@ function createForm(companyId, overrides = {}) {
 }
 
 function createFormFromModal(formEl) {
+  if (!requirePermission('forms.manage', activeCompanyId(), 'Your role cannot create forms.', 'Forms')) return;
   const data = Object.fromEntries(new FormData(formEl).entries());
   const template = data.template_id ? formTemplates().find((item) => item.id === data.template_id) : null;
   const title = String(data.title || template?.title || 'Untitled form').trim() || 'Untitled form';
@@ -10741,6 +10802,7 @@ function saveFormsState(label = 'Forms saved locally') {
 function setFormStatus(id, status) {
   const form = formById(id || state.selectedFormId);
   if (!form) return;
+  if (!requirePermission('forms.manage', form.company_id, 'Your role cannot update forms.', 'Forms')) return;
   form.status = FORM_STATUSES.includes(status) ? status : 'Draft';
   state.selectedFormId = form.id;
   saveFormsState(`${form.status} locally`);
@@ -10750,6 +10812,7 @@ function setFormStatus(id, status) {
 function duplicateForm(id) {
   const form = formById(id || state.selectedFormId);
   if (!form) return;
+  if (!requirePermission('forms.manage', form.company_id, 'Your role cannot duplicate forms.', 'Forms')) return;
   const copy = normalizeForm({
     ...clone(form),
     id: `form-${crypto.randomUUID()}`,
@@ -10769,6 +10832,8 @@ function duplicateForm(id) {
 function deleteForm(id) {
   const formId = id || state.selectedFormId;
   if (!formId) return;
+  const form = formById(formId);
+  if (form && !requirePermission('forms.manage', form.company_id, 'Your role cannot delete forms.', 'Forms')) return;
   state.forms = state.forms.filter((form) => form.id !== formId);
   state.formResponses = state.formResponses.filter((response) => response.form_id !== formId);
   state.selectedFormId = companyForms(activeCompanyId())[0]?.id || '';
@@ -10798,6 +10863,7 @@ function exportForms(companyId) {
 function updateFormField(target) {
   const form = selectedFormMutable();
   if (!form) return;
+  if (!can('forms.manage', form.company_id)) return;
   const key = target.dataset.formField;
   if (!key) return;
   form[key] = target.type === 'checkbox' ? target.checked : target.value;
@@ -10810,6 +10876,7 @@ function updateQuestionField(target) {
   const card = target.closest('[data-question-id]');
   const question = form?.questions.find((item) => item.id === card?.dataset.questionId);
   if (!form || !question) return;
+  if (!can('forms.manage', form.company_id)) return;
   state.selectedQuestionId = question.id;
   if (target.matches('[data-question-option]')) {
     const index = Number(target.dataset.questionOption);
@@ -10835,6 +10902,7 @@ function updateQuestionField(target) {
 function addQuestion(type = 'multiple') {
   const form = selectedFormMutable();
   if (!form) return;
+  if (!requirePermission('forms.manage', form.company_id, 'Your role cannot edit forms.', 'Forms')) return;
   const question = blankQuestion(type, QUESTION_TYPES.find(([id]) => id === type)?.[1] || 'New question');
   form.questions.push(question);
   state.selectedQuestionId = question.id;
@@ -10846,6 +10914,7 @@ function duplicateQuestion(id) {
   const form = selectedFormMutable();
   const question = form?.questions.find((item) => item.id === id);
   if (!form || !question) return;
+  if (!requirePermission('forms.manage', form.company_id, 'Your role cannot edit forms.', 'Forms')) return;
   const index = form.questions.findIndex((item) => item.id === id);
   const copy = normalizeQuestion({ ...clone(question), id: `q-${crypto.randomUUID()}`, label: `${question.label} Copy` });
   form.questions.splice(index + 1, 0, copy);
@@ -10857,6 +10926,7 @@ function duplicateQuestion(id) {
 function deleteQuestion(id) {
   const form = selectedFormMutable();
   if (!form) return;
+  if (!requirePermission('forms.manage', form.company_id, 'Your role cannot edit forms.', 'Forms')) return;
   form.questions = form.questions.filter((question) => question.id !== id);
   state.selectedQuestionId = form.questions[0]?.id || '';
   saveFormsState('Question deleted');
@@ -10866,6 +10936,7 @@ function deleteQuestion(id) {
 function moveQuestion(id, direction) {
   const form = selectedFormMutable();
   if (!form || !direction) return;
+  if (!requirePermission('forms.manage', form.company_id, 'Your role cannot edit forms.', 'Forms')) return;
   const index = form.questions.findIndex((question) => question.id === id);
   const next = index + direction;
   if (index < 0 || next < 0 || next >= form.questions.length) return;
@@ -10880,6 +10951,7 @@ function addQuestionOption(id) {
   const form = selectedFormMutable();
   const question = form?.questions.find((item) => item.id === id);
   if (!question) return;
+  if (!requirePermission('forms.manage', form.company_id, 'Your role cannot edit forms.', 'Forms')) return;
   question.options = question.options || [];
   question.options.push(`Option ${question.options.length + 1}`);
   saveFormsState('Option added');
@@ -10890,6 +10962,7 @@ function removeQuestionOption(id, index) {
   const form = selectedFormMutable();
   const question = form?.questions.find((item) => item.id === id);
   if (!question || index < 0) return;
+  if (!requirePermission('forms.manage', form.company_id, 'Your role cannot edit forms.', 'Forms')) return;
   question.options.splice(index, 1);
   if (!question.options.length) question.options.push('Option 1');
   saveFormsState('Option removed');
