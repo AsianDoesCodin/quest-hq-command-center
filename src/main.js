@@ -4919,9 +4919,23 @@ function handleAction(event, node) {
   }
   if (action === 'set-auth-mode') {
     event.preventDefault();
-    state.authMode = ['signin', 'register', 'invite', 'request'].includes(node.dataset.authMode) ? node.dataset.authMode : 'signin';
+    const nextMode = ['signin', 'register', 'invite', 'request'].includes(node.dataset.authMode) ? node.dataset.authMode : 'signin';
+    state.authMode = nextMode;
     state.loginError = '';
     state.authMessage = '';
+    if (state.route?.name === 'home' || state.route?.name === 'login') {
+      const params = new URLSearchParams(state.route.params);
+      if (state.route.name === 'home') {
+        params.set('auth', nextMode);
+        params.delete('mode');
+      } else {
+        params.set('mode', nextMode);
+        params.delete('auth');
+      }
+      const search = params.toString();
+      navigate(`${state.route.path}${search ? `?${search}` : ''}`, { replace: true });
+      return;
+    }
     render();
     return;
   }
