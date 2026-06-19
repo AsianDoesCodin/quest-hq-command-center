@@ -8440,7 +8440,7 @@ body {
 .quest-app {
   grid-template-columns: 236px minmax(0, 1fr);
   background: linear-gradient(180deg, #f5f6f7 0%, #eceff2 100%);
-  padding: 12px;
+  padding: 0;
   transition: grid-template-columns .18s ease;
 }
 
@@ -8453,16 +8453,16 @@ body {
   border: 1px solid var(--border);
   border-left: 0;
   border-bottom: 0;
-  border-radius: 0 12px 0 0;
+  border-radius: 0;
   background: rgba(255, 255, 255, .96);
   box-shadow: none;
 }
 
 .deck {
-  min-height: calc(100vh - 24px);
+  min-height: 100vh;
   border: 1px solid rgba(7, 9, 13, .92);
   border-right: 0;
-  border-radius: 12px 0 0 12px;
+  border-radius: 0;
   background:
     linear-gradient(180deg, rgba(255, 255, 255, .045), rgba(255, 255, 255, 0) 34%),
     linear-gradient(180deg, #0c0d10 0%, #08090b 100%);
@@ -8654,7 +8654,7 @@ button.side-item.planned b {
   border: 1px solid var(--border);
   border-left: 0;
   border-top: 0;
-  border-radius: 0 0 12px 0;
+  border-radius: 0;
   background: #fff;
   box-shadow: none;
   padding: 22px 28px 30px;
@@ -8946,7 +8946,7 @@ button.side-item.planned b {
 
 @media (max-width: 640px) {
   .quest-app {
-    padding: 8px;
+    padding: 0;
   }
 
   .topbar {
