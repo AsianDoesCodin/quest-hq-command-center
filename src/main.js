@@ -1722,6 +1722,7 @@ function shellTemplate(route, workspace) {
           </div>
         </div>
       </header>
+      ${renderMobileStatusRail(companyId)}
       ${renderRolePreviewBanner(companyId)}
       <div class="app-body">
         <aside class="deck" aria-label="Quest navigation">
@@ -1731,9 +1732,58 @@ function shellTemplate(route, workspace) {
           ${workspace}
         </main>
       </div>
+      ${renderMobileTabbar(route, companyId)}
     </div>
     ${renderActiveModal(route, session)}
     ${renderToast()}
+  `;
+}
+
+function renderMobileStatusRail(companyId) {
+  const activeUsers = companyAccessUsers(companyId).filter((user) => user.status === 'active').length;
+  const overdueTasks = companyTasks(companyId).filter((task) => task.status !== 'done' && task.due && new Date(task.due) < startOfToday()).length;
+  const health = subscriptionAllowsCompany(companyId) ? 'Good' : 'Pending';
+  return `
+    <div class="mobile-status-rail" aria-label="Workspace status">
+      <a href="${appHref(companyPath('settings', { tab: 'billing' }, companyId))}" data-router>
+        ${svgIcon('q-symbol-approvals')}<span>${h(subscriptionLabel(companyId))}</span>
+      </a>
+      <a href="${appHref(companyPath('users', {}, companyId))}" data-router>
+        ${svgIcon('q-symbol-users')}<span>${h(String(activeUsers))} active</span>
+      </a>
+      <a href="${appHref(companyPath('tasks', {}, companyId))}" data-router>
+        ${svgIcon('q-symbol-tasks')}<span>${h(String(overdueTasks))} overdue</span>
+      </a>
+      <a href="${appHref(companyPath('settings', {}, companyId))}" data-router>
+        ${svgIcon('q-symbol-settings')}<span>Health: ${h(health)}</span>
+      </a>
+    </div>
+  `;
+}
+
+function renderMobileTabbar(route, companyId) {
+  const unreadMessages = can('messages.view', companyId) ? companyMessageUnreadCount(companyId) : 0;
+  const files = can('files.view', companyId) ? companyFiles(companyId).length : '';
+  const workBadge = companyJobs(companyId).length + companyTasks(companyId).filter((task) => task.status !== 'done').length;
+  return `
+    <nav class="mobile-tabbar" aria-label="Mobile workspace navigation">
+      ${mobileTabItem(route, companyPath('home', {}, companyId), 'ti-home', 'Home', '', ['home'])}
+      ${mobileTabItem(route, companyPath('jobs', {}, companyId), 'ti-layout-grid', 'Work', workBadge, ['jobs', 'tasks', 'calendar', 'crm', 'finance', 'forms', 'users', 'time', 'approvals', 'clock', 'team-chart'])}
+      ${mobileTabItem(route, companyPath('messages', {}, companyId), 'ti-message-circle', 'Messages', unreadMessages, ['messages'])}
+      ${mobileTabItem(route, companyPath('files', {}, companyId), 'ti-folder', 'Files', files, ['files'])}
+      ${mobileTabItem(route, companyPath('settings', {}, companyId), 'ti-dots', 'More', '', ['settings', 'analytics'])}
+    </nav>
+  `;
+}
+
+function mobileTabItem(route, path, icon, label, count, sections) {
+  const active = route.name === 'company' && sections.includes(route.section);
+  return `
+    <a class="${active ? 'active' : ''}" href="${appHref(path)}" data-router>
+      <i class="ti ${h(icon)}"></i>
+      ${count ? `<b>${h(String(Math.min(Number(count) || 0, 99)))}</b>` : ''}
+      <span>${h(label)}</span>
+    </a>
   `;
 }
 
