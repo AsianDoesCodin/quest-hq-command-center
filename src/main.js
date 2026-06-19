@@ -1,5 +1,5 @@
 import './styles.css';
-import cockpitArtUrl from './assets/quest-secure-workspace-cockpit.png';
+import cockpitArtUrl from './assets/quest-secure-workspace-cockpit-tight.png';
 
 const CONFIG = {
   buildId: 'Quest HQ Company Workspace v1',
