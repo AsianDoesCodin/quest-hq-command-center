@@ -1980,7 +1980,7 @@ function renderCompanyHomePage(companyId) {
     <section class="home-cockpit">
       <div class="home-hero">
         <div>
-          <h1>Good ${h(dayPart())}, ${h(firstName(activeSession().profile.full_name) || 'Quest Admin')}</h1>
+          <h1>Good ${h(dayPart())}, <span>${h(firstName(activeSession().profile.full_name) || 'Quest Admin')}</span></h1>
           <p>Here is what is happening across your workspace.</p>
         </div>
         <div class="home-hero-actions">
@@ -2012,6 +2012,33 @@ function renderCompanyHomePage(companyId) {
           </div>
           <div class="home-activity-list">
             ${recentActivity.map(renderHomeActivity).join('') || emptyState('No recent activity yet.')}
+          </div>
+        </article>
+        <article class="panel home-message-panel">
+          <div class="section-head">
+            <div><h2>Unread messages</h2><p>Team conversations needing attention.</p></div>
+            <a href="${appHref(companyPath('messages', {}, companyId))}" data-router>View all <i class="ti ti-arrow-right"></i></a>
+          </div>
+          <div class="home-message-list">
+            ${homeUnreadMessages(companyId).map(renderHomeMessage).join('') || emptyState('No unread messages.')}
+          </div>
+        </article>
+        <article class="panel home-next-panel">
+          <div class="section-head">
+            <div><h2>Next tasks</h2><p>Your cleanest path through today.</p></div>
+            <a href="${appHref(companyPath('tasks', {}, companyId))}" data-router>View all <i class="ti ti-arrow-right"></i></a>
+          </div>
+          <div class="home-next-list">
+            ${homeNextTasks(companyId).map(renderHomeNextTask).join('') || emptyState('No open tasks.')}
+          </div>
+        </article>
+        <article class="panel home-team-panel">
+          <div class="section-head">
+            <div><h2>Team access</h2><p>Active people in this workspace.</p></div>
+            <a href="${appHref(companyPath('users', {}, companyId))}" data-router>View all <i class="ti ti-arrow-right"></i></a>
+          </div>
+          <div class="home-team-list">
+            ${activeUsers.slice(0, 4).map(renderHomeTeamUser).join('') || emptyState('No active users yet.')}
           </div>
         </article>
         <article class="panel home-health-panel">
@@ -2110,6 +2137,62 @@ function renderHomeActivity(item) {
       <span><strong>${h(item.title)}</strong><small>${h(item.meta)}</small></span>
       ${renderAvatar(item.avatar || {}, 'avatar small')}
       <em>${h(timeAgo(item.time))}</em>
+    </a>
+  `;
+}
+
+function homeUnreadMessages(companyId) {
+  if (!can('messages.view', companyId)) return [];
+  return companyMessageConversations(companyId)
+    .filter((conversation) => conversationUnreadCount(conversation.id) > 0)
+    .slice(0, 4)
+    .map((conversation) => {
+      const latest = conversationMessages(conversation.id).slice(-1)[0];
+      return {
+        id: conversation.id,
+        title: latest?.body || conversation.title,
+        meta: `${conversation.title} - ${timeAgo(latest?.created_at || conversation.updated_at || conversation.created_at)}`,
+        href: companyPath('messages', { conversation: conversation.id }, companyId),
+        count: conversationUnreadCount(conversation.id),
+        avatar: { full_name: latest ? memberName(latest.sender_profile_id) : conversation.title },
+      };
+    });
+}
+
+function renderHomeMessage(item) {
+  return `
+    <a class="home-message-row" href="${appHref(item.href)}" data-router>
+      ${renderAvatar(item.avatar || {}, 'avatar small')}
+      <span><strong>${h(item.title)}</strong><small>${h(item.meta)}</small></span>
+      <b>${h(item.count)}</b>
+    </a>
+  `;
+}
+
+function homeNextTasks(companyId) {
+  return companyTasks(companyId)
+    .filter((task) => task.status !== 'done')
+    .sort(taskSortForOperations)
+    .slice(0, 4);
+}
+
+function renderHomeNextTask(task) {
+  return `
+    <a class="home-next-row" href="${appHref(companyPath('tasks', { ...(task.project_id ? { job_id: task.project_id } : {}), task_id: task.id }, task.company_id))}" data-router>
+      <i class="ti ti-circle"></i>
+      <span><strong>${h(task.title)}</strong><small>${h(jobById(task.project_id)?.name || taskTypeLabel(task.type))}</small></span>
+      ${taskPriorityPill(task.priority)}
+      <em>${h(task.due ? formatDate(task.due) : 'Open')}</em>
+    </a>
+  `;
+}
+
+function renderHomeTeamUser(user) {
+  return `
+    <a class="home-team-row" href="${appHref(companyPath('users', {}, activeCompanyId()))}" data-router>
+      ${renderAvatar({ full_name: user.name, email: user.email, avatar_url: user.avatar_url }, 'avatar small')}
+      <span><strong>${h(user.name)}</strong><small>${h(user.email || user.role_label)}</small></span>
+      <b>${h(user.role_label)}</b>
     </a>
   `;
 }
@@ -4533,15 +4616,15 @@ function renderLandingPage(forceAuthModal = false) {
         <div class="landing-hero-bg" aria-hidden="true"></div>
         <div class="landing-hero-copy">
           <div class="landing-pill"><i class="ti ti-shield-lock"></i>Secure. Controlled. Built for business.</div>
-          <h1>Your company workspace, locked down and ready to run.</h1>
-          <p>Quest HQ brings every part of your business together in one secure, role-based workspace. Invite your team, control access, and move faster with confidence.</p>
+          <h1>Run your entire company workspace from one secure command center</h1>
+          <p>Quest HQ brings your teams, projects, files, messages, finance, and customer follow-ups into one place with invite-only access and clear role controls.</p>
           <div class="landing-hero-actions">
             <button class="btn btn-primary" type="button" data-action="open-auth-modal" data-auth-mode="register">Start business workspace<i class="ti ti-arrow-right"></i></button>
             <button class="btn landing-ghost-btn" type="button" data-action="open-auth-modal" data-auth-mode="invite"><i class="ti ti-users-plus"></i>Join by invite</button>
           </div>
-          <div class="landing-security-line"><i class="ti ti-circle-check"></i>No credit card required. Approval required before live access is activated.</div>
+          <div class="landing-security-line"><i class="ti ti-circle-check"></i>Invite-only workspaces <i class="ti ti-circle-check"></i>Role-based access <i class="ti ti-circle-check"></i>Audit every action</div>
         </div>
-        <div class="landing-console image-mode" aria-label="Quest HQ workspace command center preview">
+        <div class="landing-console" aria-label="Quest HQ workspace command center preview">
           <img class="landing-console-art" src="${h(cockpitArtUrl)}" alt="Generated Quest HQ secure workspace cockpit preview showing company access, tasks, messages, finance, files, users, reports, and audit controls." />
           <aside class="landing-console-rail" aria-hidden="true">
             <span class="console-mark">Q</span>
@@ -4629,7 +4712,7 @@ function renderLandingPage(forceAuthModal = false) {
         <article class="landing-trust-card">
           <div>
             <div class="eyebrow">Trusted & secure</div>
-            <p>Built on company boundaries so your data, team, and business stay protected.</p>
+            <p>Every workspace is isolated. You stay in control of who can see what.</p>
           </div>
           <div class="landing-trust-grid">
             ${[
@@ -4678,7 +4761,7 @@ function renderLandingPage(forceAuthModal = false) {
             <span><strong>${h(title)}</strong><small>${h(body)}</small></span>
           </article>
         `).join('')}
-        <blockquote>"Quest HQ gives us one secure workspace for everything. Our data, our team, our rules."</blockquote>
+        <blockquote>"Quest HQ lets our team work from one clean place without giving everyone access to everything."</blockquote>
       </section>
       ${showAuthModal ? renderAuthModal(returnUrl, inviteToken, authEnabled) : ''}
       ${renderToast()}
