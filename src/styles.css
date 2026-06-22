@@ -10280,9 +10280,11 @@ body {
   grid-column: 1;
   grid-row: 1 / -1;
   height: 100vh;
+  height: 100dvh;
   min-height: 100vh;
-  display: grid;
-  grid-template-rows: auto auto minmax(0, 1fr) auto;
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
   gap: 14px;
   border: 0;
   border-right: 1px solid var(--border);
@@ -10291,7 +10293,9 @@ body {
   box-shadow: none;
   padding: 16px 12px;
   color: var(--ink);
-  overflow: hidden;
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-gutter: stable;
 }
 
 .deck-brand {
@@ -10385,9 +10389,9 @@ body {
   display: grid;
   align-content: start;
   gap: 15px;
-  min-height: 0;
-  overflow: auto;
-  padding: 2px 2px 12px 0;
+  min-height: auto;
+  overflow: visible;
+  padding: 2px 2px 0 0;
 }
 
 .side-label {
@@ -10496,6 +10500,7 @@ button.side-item.planned b {
 .deck-footer {
   display: grid;
   gap: 8px;
+  margin-top: auto;
   padding-top: 10px;
   border-top: 1px solid var(--border);
 }
