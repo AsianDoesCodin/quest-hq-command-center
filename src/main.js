@@ -4848,7 +4848,7 @@ function renderLandingPage(forceAuthModal = false) {
               ['ti-settings', 'Settings'],
               ['ti-clipboard-check', 'Audit'],
             ].map(([icon, label, active, badge]) => `
-              <span class="${active ? 'active' : ''}"><i class="ti ${h(icon)}"></i>${h(label)}${badge ? `<b>${h(badge)}</b>` : ''}</span>
+              <span class="${active ? 'active' : ''}"><i class="ti ${h(icon)}"></i><em>${h(label)}</em>${badge ? `<b>${h(badge)}</b>` : ''}</span>
             `).join('')}
           </aside>
           <div class="landing-console-main">

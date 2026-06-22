@@ -10500,7 +10500,7 @@ button.side-item.planned b {
 .deck-footer {
   display: grid;
   gap: 8px;
-  margin-top: auto;
+  margin-top: 0;
   padding-top: 10px;
   border-top: 1px solid var(--border);
 }
@@ -11119,8 +11119,31 @@ textarea:focus {
   box-shadow: var(--soft-shadow);
 }
 
+.landing-console {
+  grid-template-columns: 152px minmax(0, 1fr);
+}
+
 .landing-console-rail {
   background: #111827;
+}
+
+.landing-console-rail span:not(.console-mark) {
+  grid-template-columns: 18px minmax(0, 1fr) max-content;
+  column-gap: 8px;
+}
+
+.landing-console-rail span:not(.console-mark) em {
+  min-width: 0;
+  overflow: hidden;
+  font-style: normal;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.landing-console-rail span:not(.console-mark) b {
+  justify-self: end;
+  min-width: 18px;
+  white-space: nowrap;
 }
 
 .landing-console-stats article,

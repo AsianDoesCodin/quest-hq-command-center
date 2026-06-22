@@ -2203,7 +2203,7 @@
           <aside class="landing-console-rail" aria-hidden="true">
             <span class="console-mark">Q</span>
             ${[["ti-home","Home",!0],["ti-list-check","Tasks"],["ti-calendar","Calendar"],["ti-users","CRM"],["ti-lock-dollar","Finance"],["ti-folder","Files"],["ti-forms","Forms"],["ti-message-circle","Messages",!1,"3"],["ti-user-cog","Users"],["ti-report-analytics","Reports"],["ti-settings","Settings"],["ti-clipboard-check","Audit"]].map(([c,f,g,S])=>`
-              <span class="${g?"active":""}"><i class="ti ${r(c)}"></i>${r(f)}${S?`<b>${r(S)}</b>`:""}</span>
+              <span class="${g?"active":""}"><i class="ti ${r(c)}"></i><em>${r(f)}</em>${S?`<b>${r(S)}</b>`:""}</span>
             `).join("")}
           </aside>
           <div class="landing-console-main">
