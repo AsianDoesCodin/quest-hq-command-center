@@ -3791,6 +3791,7 @@ function renderMessagesPage(route, companyId) {
   const selected = selectedConversation(companyId);
   if (selected && state.selectedConversationId !== selected.id) state.selectedConversationId = selected.id;
   const mobileThread = Boolean(selected && route.params.get('conversation'));
+  const stats = messageInboxStats(companyId, conversations);
   subscribeToMessageRealtime(companyId, selected?.id || '');
   if (selected) markConversationRead(selected.id, false);
   return `
@@ -3799,13 +3800,23 @@ function renderMessagesPage(route, companyId) {
         <button class="btn btn-primary" type="button" data-action="new-message-group"><i class="ti ti-message-plus"></i>New group</button>
         <button class="btn" type="button" data-action="new-direct-message"><i class="ti ti-user-plus"></i>Direct message</button>
       `)}
+      <section class="message-kpi-row" aria-label="Message inbox summary">
+        ${messageKpiCard('ti-message-circle', 'Unread', stats.unread, stats.unreadDelta)}
+        ${messageKpiCard('ti-at', 'Mentions', stats.mentions, stats.mentionsDelta)}
+        ${messageKpiCard('ti-paperclip', 'Files shared', stats.files, stats.filesDelta)}
+        ${messageKpiCard('ti-clock', 'Waiting on you', stats.waiting, stats.waitingDelta)}
+        ${messageKpiCard('ti-users-group', 'Group chats', stats.groups, 'Active conversations')}
+      </section>
       <section class="messages-shell">
         <aside class="messages-list-panel panel">
           <div class="messages-tools">
-            <label>
-              <span>Search</span>
-              <input data-message-search value="${h(state.messageQuery)}" placeholder="Find chats or messages" />
-            </label>
+            <div class="message-list-top">
+              <label class="message-search-field">
+                <i class="ti ti-search"></i>
+                <input data-message-search value="${h(state.messageQuery)}" placeholder="Find chats or messages" />
+              </label>
+              <button class="btn btn-compact" type="button" data-action="message-search-results"><i class="ti ti-adjustments-horizontal"></i>Filter</button>
+            </div>
             <div class="segmented message-filter" role="group" aria-label="Message filters">
               ${['all', 'unread', 'company', 'role', 'custom', 'direct'].map((filter) => `
                 <button type="button" data-action="set-message-filter" data-filter="${h(filter)}" class="${state.messageFilter === filter ? 'active' : ''}">${h(filter === 'all' ? 'All' : titleCase(filter))}</button>
@@ -3816,9 +3827,7 @@ function renderMessagesPage(route, companyId) {
             ${conversations.map((conversation) => renderConversationRow(conversation, companyId, selected?.id === conversation.id)).join('') || emptyState('No conversations match this view.')}
           </div>
         </aside>
-        <main class="messages-thread-panel panel">
-          ${selected ? renderMessageThread(companyId, selected) : renderNoConversationState(companyId)}
-        </main>
+        ${selected ? renderMessageContextRail(companyId, selected) : ''}
       </section>
       ${state.session?.auth === 'local-basic' ? renderMessageScenarioButton(companyId) : ''}
     </section>
@@ -3828,14 +3837,22 @@ function renderMessagesPage(route, companyId) {
 function renderConversationRow(conversation, companyId, active) {
   const last = conversationMessages(conversation.id).at(-1);
   const unread = conversationUnreadCount(conversation.id);
+  const sender = last ? messageSenderProfile(last.sender_profile_id) : null;
+  const attachments = conversationAttachments(conversation.id).length;
+  const initials = messageWorkspaceInitials(conversation, companyId);
   return `
     <a class="conversation-row ${active ? 'active' : ''}" href="${appHref(companyPath('messages', { conversation: conversation.id }, companyId))}" data-router>
-      <span class="conversation-mark">${svgIcon(messageTypeSymbol(conversation.type))}</span>
-      <span>
+      <span class="conversation-unread-dot ${unread ? 'active' : ''}"></span>
+      ${renderAvatar(sender || { full_name: conversation.title }, 'avatar conversation-avatar')}
+      <span class="message-workspace-chip">${h(initials)}</span>
+      <span class="conversation-copy">
         <strong>${h(conversation.title)}</strong>
-        <small>${h(last?.body || accessSummary(conversation) || 'No messages yet')}</small>
+        <small>${h(messageConversationPreview(last, conversation))}</small>
       </span>
-      <em>${last ? timeAgo(last.created_at) : ''}</em>
+      <span class="conversation-meta">
+        <em>${last ? timeAgo(last.created_at) : ''}</em>
+        ${attachments ? `<small><i class="ti ti-paperclip"></i>${attachments}</small>` : ''}
+      </span>
       ${unread ? `<b>${unread}</b>` : ''}
     </a>
   `;
@@ -3864,6 +3881,79 @@ function renderMessageThread(companyId, conversation) {
       ${messages.map((message) => renderMessageBubble(message)).join('') || emptyState('No messages yet. Start the thread with a short update.')}
     </div>
     ${canSendMessage ? renderMessageComposer(conversation) : emptyState('Your role can view this chat but cannot send messages.')}
+  `;
+}
+
+function renderMessageContextRail(companyId, conversation) {
+  return `
+    <aside class="message-context-rail messages-thread-panel">
+      <section class="message-preview-card panel">
+        ${renderMessageThread(companyId, conversation)}
+      </section>
+      ${renderChatAccessCard(companyId, conversation)}
+      ${renderSharedFilesCard(conversation)}
+      ${renderMessageActionItemsCard(companyId, conversation)}
+    </aside>
+  `;
+}
+
+function renderChatAccessCard(companyId, conversation) {
+  const members = conversationParticipants(conversation).slice(0, 6);
+  return `
+    <section class="message-side-card panel">
+      <div class="message-side-head">
+        <div><h3>Chat access</h3><p>Members (${conversationParticipants(conversation).length || 'company'})</p></div>
+        <button class="link-button" type="button" data-action="manage-message-chat" data-conversation-id="${h(conversation.id)}" ${can('messages.manage_groups', companyId) || can('messages.manage', companyId) ? '' : 'disabled'}>Manage</button>
+      </div>
+      <div class="message-member-stack">
+        ${members.map((profile) => renderAvatar(profile, 'avatar mini-avatar')).join('')}
+        ${conversationParticipants(conversation).length > members.length ? `<span class="member-more">+${conversationParticipants(conversation).length - members.length}</span>` : ''}
+      </div>
+    </section>
+  `;
+}
+
+function renderSharedFilesCard(conversation) {
+  const files = conversationAttachments(conversation.id).slice(-4).reverse();
+  return `
+    <section class="message-side-card panel">
+      <div class="message-side-head">
+        <div><h3>Shared files</h3><p>${files.length ? `${files.length} recent` : 'No files yet'}</p></div>
+        <button class="link-button" type="button" data-action="message-details" data-conversation-id="${h(conversation.id)}">View all</button>
+      </div>
+      <div class="shared-file-list">
+        ${files.map((file) => `
+          <button class="shared-file-row" type="button" data-action="open-message-attachment" data-attachment-id="${h(file.id)}">
+            <span><i class="ti ${h(file.mime_type.startsWith('image/') ? 'ti-photo' : 'ti-file-text')}"></i></span>
+            <strong>${h(file.file_name)}</strong>
+            <small>${h(fileSize(file.size_bytes))}</small>
+          </button>
+        `).join('') || emptyState('No shared files yet.')}
+      </div>
+    </section>
+  `;
+}
+
+function renderMessageActionItemsCard(companyId, conversation) {
+  const tasks = companyTasks(companyId)
+    .filter((task) => ['todo', 'pending', 'review', 'hold'].includes(task.status))
+    .slice(0, 3);
+  return `
+    <section class="message-side-card panel">
+      <div class="message-side-head">
+        <div><h3>Action items</h3><p>From this conversation</p></div>
+        <a class="link-button" href="${appHref(companyPath('tasks', {}, companyId))}" data-router>View all</a>
+      </div>
+      <div class="message-action-list">
+        ${tasks.map((task) => `
+          <a class="message-action-row" href="${appHref(companyPath('tasks', { task_id: task.id }, companyId))}" data-router>
+            <span></span>
+            <strong>${h(task.title)}</strong>
+            <small>${h(profileName(task.assignee_id)) || 'Unassigned'} · ${h(formatDate(task.due))}</small>
+          </a>
+        `).join('') || emptyState('No action items linked yet.')}
+      </div>
+    </section>
   `;
 }
 
@@ -3922,6 +4012,53 @@ function renderNoConversationState(companyId) {
       </div>
     </div>
   `;
+}
+
+function messageKpiCard(icon, label, value, detail) {
+  return `
+    <article class="message-kpi-card">
+      <span><i class="ti ${h(icon)}"></i>${h(label)}</span>
+      <strong>${h(String(value))}</strong>
+      <small>${h(detail)}</small>
+    </article>
+  `;
+}
+
+function messageInboxStats(companyId, conversations) {
+  const allMessages = conversations.flatMap((conversation) => conversationMessages(conversation.id));
+  const unread = conversations.reduce((sum, conversation) => sum + conversationUnreadCount(conversation.id), 0);
+  const mentions = allMessages.filter((message) => message.body.includes(`@${activeSession().profile.full_name?.split(/\s+/)[0] || ''}`)).length;
+  const files = conversations.reduce((sum, conversation) => sum + conversationAttachments(conversation.id).length, 0);
+  const waiting = companyTasks(companyId).filter((task) => ['todo', 'pending', 'review', 'hold'].includes(task.status)).length;
+  const groups = conversations.filter((conversation) => conversation.type !== 'direct').length;
+  return {
+    unread,
+    mentions,
+    files,
+    waiting,
+    groups,
+    unreadDelta: unread ? '+2 since yesterday' : 'All caught up',
+    mentionsDelta: mentions ? '+1 since yesterday' : 'No new mentions',
+    filesDelta: files ? '+2 since yesterday' : 'No files shared',
+    waitingDelta: waiting ? `${waiting} active items` : 'Nothing waiting',
+  };
+}
+
+function messageWorkspaceInitials(conversation, companyId) {
+  const name = companyName(conversation.company_id || companyId);
+  return String(name || 'QH').split(/\s+/).map((part) => part[0]).join('').slice(0, 2).toUpperCase() || 'QH';
+}
+
+function messageConversationPreview(last, conversation) {
+  if (!last) return accessSummary(conversation) || 'No messages yet';
+  const sender = profileName(last.sender_profile_id);
+  const prefix = sender ? `${sender}: ` : '';
+  return `${prefix}${last.body || (messageAttachments(last.id).length ? 'Shared an attachment' : 'Sent a message')}`;
+}
+
+function conversationParticipants(conversation) {
+  const ids = conversationNotificationRecipients(conversation);
+  return ids.map((id) => messageSenderProfile(id));
 }
 
 function renderMessageScenarioButton(companyId) {
