@@ -10417,13 +10417,49 @@ body {
 }
 
 .side-label {
-  display: block;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  border: 0;
+  background: transparent;
   color: #798496;
   font-size: 10px;
   font-weight: 900;
   letter-spacing: .11em;
   text-transform: uppercase;
-  padding: 0 9px 6px;
+  text-align: left;
+  padding: 4px 9px;
+  margin-bottom: 2px;
+  border-radius: 7px;
+  cursor: pointer;
+  transition: color .15s ease, background .15s ease;
+}
+
+.side-label:hover {
+  color: var(--ink);
+  background: #f1f3f7;
+}
+
+.side-label-chevron {
+  font-size: 14px;
+  line-height: 1;
+  color: #9aa3b2;
+  transition: transform .18s ease;
+}
+
+.side-group.collapsed .side-label-chevron {
+  transform: rotate(-90deg);
+}
+
+.side-group.collapsed .side-items {
+  display: none;
+}
+
+/* In icon-only mode the group labels are hidden, so never hide the icons. */
+.sidebar-collapsed .side-group.collapsed .side-items {
+  display: grid;
 }
 
 .side-items {

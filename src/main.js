@@ -34,6 +34,7 @@ const PENDING_WORKSPACE_REVIEW_KEY = 'quest-hq-pending-workspace-review-v1';
 const TASK_VIEW_KEY = 'quest-hq-task-view';
 const DRIVE_VIEW_KEY = 'quest-hq-drive-view';
 const SIDEBAR_COLLAPSED_KEY = 'quest-hq-sidebar-collapsed';
+const NAV_GROUP_COLLAPSED_KEY = 'quest-hq-nav-groups-collapsed';
 const NOTIFICATION_CACHE_KEY = 'quest-hq-notification-cache-v1';
 const MESSAGE_CONVERSATION_CACHE_KEY = 'quest-hq-message-conversation-cache-v1';
 const MESSAGE_ACCESS_CACHE_KEY = 'quest-hq-message-access-cache-v1';
@@ -1024,6 +1025,7 @@ const state = {
   companies: mergeCompanies(companiesFallback.map(normalizeCompany)),
   activeCompanyId: localStorage.getItem(COMPANY_KEY) || '',
   sidebarCollapsed: localStorage.getItem(SIDEBAR_COLLAPSED_KEY) === 'true',
+  collapsedNavGroups: new Set(readJson(NAV_GROUP_COLLAPSED_KEY, [])),
   selectedJobId: '',
   selectedTaskId: '',
   selectedFileId: '',
@@ -1885,9 +1887,13 @@ function renderDeck(route) {
 
 function navGroup(label, items) {
   if (!items.length) return '';
+  const collapsed = state.collapsedNavGroups.has(label);
   return `
-    <section class="side-group">
-      <div class="side-label">${h(label)}</div>
+    <section class="side-group ${collapsed ? 'collapsed' : ''}">
+      <button class="side-label" type="button" data-action="toggle-nav-group" data-group="${h(label)}" aria-expanded="${collapsed ? 'false' : 'true'}" title="${collapsed ? 'Expand' : 'Collapse'} ${h(label)}">
+        <span>${h(label)}</span>
+        <i class="ti ti-chevron-down side-label-chevron" aria-hidden="true"></i>
+      </button>
       <div class="side-items">${items.join('')}</div>
     </section>
   `;
@@ -5543,6 +5549,17 @@ function handleAction(event, node) {
     state.sidebarCollapsed = !state.sidebarCollapsed;
     localStorage.setItem(SIDEBAR_COLLAPSED_KEY, String(state.sidebarCollapsed));
     render();
+    return;
+  }
+  if (action === 'toggle-nav-group') {
+    event.preventDefault();
+    const group = node.dataset.group;
+    if (group) {
+      if (state.collapsedNavGroups.has(group)) state.collapsedNavGroups.delete(group);
+      else state.collapsedNavGroups.add(group);
+      writeJson(NAV_GROUP_COLLAPSED_KEY, [...state.collapsedNavGroups]);
+      render();
+    }
     return;
   }
   if (action === 'mark-all-notifications-read') {
