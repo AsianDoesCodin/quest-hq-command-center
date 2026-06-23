@@ -17,8 +17,13 @@ const SESSION_KEY = 'quest-hq-local-session';
 const PROFILE_KEY = 'quest-hq-local-profile';
 const JOB_CACHE_KEY = 'quest-hq-job-cache-v2';
 const CONTACT_CACHE_KEY = 'quest-hq-contact-cache-v1';
+const ACCOUNT_CACHE_KEY = 'quest-hq-account-cache-v1';
+const DEAL_CACHE_KEY = 'quest-hq-deal-cache-v1';
+const ACTIVITY_CACHE_KEY = 'quest-hq-activity-cache-v1';
 const JOB_STAGES_KEY = 'quest-hq-job-stages-v1';
 const CONTACT_STAGES_KEY = 'quest-hq-contact-stages-v1';
+const DEAL_STAGES_KEY = 'quest-hq-deal-stages-v1';
+const DEAL_BOARD_VIEW_KEY = 'quest-hq-deal-board-view';
 const TASK_CACHE_KEY = 'quest-hq-task-cache-v1';
 const FILE_CACHE_KEY = 'quest-hq-file-cache-v1';
 const DRIVE_FOLDER_CACHE_KEY = 'quest-hq-drive-folder-cache-v1';
@@ -106,8 +111,9 @@ const MODULE_REGISTRY = [
   { id: 'files', group: 'Workspace', label: 'Files', icon: 'ti-folder', symbol: 'q-symbol-files', status: 'live', permission: 'files.view' },
   { id: 'forms', group: 'Workspace', label: 'Forms', icon: 'ti-clipboard-list', symbol: 'q-symbol-forms', status: 'live', permission: 'forms.view' },
   { id: 'analytics', group: 'Workspace', label: 'Analytics', icon: 'ti-chart-bar', symbol: 'q-symbol-analytics', status: 'live', permission: 'jobs.view' },
-  { id: 'crm', group: 'Workspace', label: 'CRM', icon: 'ti-users-group', symbol: 'q-symbol-crm', status: 'live', permission: 'crm.view' },
+  { id: 'crm', group: 'Workspace', label: 'Accounts', icon: 'ti-building-community', symbol: 'q-symbol-crm', status: 'live', permission: 'crm.view' },
   { id: 'contacts', group: 'Workspace', label: 'Contacts', icon: 'ti-address-book', symbol: 'q-symbol-crm', status: 'live', permission: 'crm.view' },
+  { id: 'deals', group: 'Workspace', label: 'Deals', icon: 'ti-businessplan', symbol: 'q-symbol-jobs', status: 'live', permission: 'crm.view' },
   { id: 'tickets', group: 'Workspace', label: 'Tickets', icon: 'ti-ticket', symbol: 'q-symbol-tickets', status: 'planned' },
   { id: 'finance', group: 'Workspace', label: 'Finance', icon: 'ti-receipt-dollar', symbol: 'q-symbol-finance', status: 'live', permission: 'finance.view' },
   { id: 'knowledge', group: 'Workspace', label: 'Knowledge Base', icon: 'ti-books', symbol: 'q-symbol-knowledge', status: 'planned' },
@@ -125,8 +131,9 @@ const MODULE_REGISTRY = [
 ];
 
 const NAV_GROUPS = [
-  { label: 'Command', ids: ['home', 'contacts', 'messages', 'calendar'] },
-  { label: 'Work', ids: ['jobs', 'tasks', 'files', 'forms', 'crm'] },
+  { label: 'Command', ids: ['home', 'messages', 'calendar'] },
+  { label: 'Sales', ids: ['crm', 'contacts', 'deals'] },
+  { label: 'Work', ids: ['jobs', 'tasks', 'files', 'forms'] },
   { label: 'Money', ids: ['finance', 'analytics'] },
   { label: 'People', ids: ['users', 'team-chart', 'time', 'approvals', 'clock'] },
   { label: 'Control', ids: ['settings'] },
@@ -173,6 +180,15 @@ const DEFAULT_CONTACT_STAGES = [
   { name: 'Follow-up', color: '#C4C7CC' },
   { name: 'Lost', color: '#E24B4A' },
 ];
+const DEFAULT_DEAL_STAGES = [
+  { name: 'Prospect', color: '#9AA0A8' },
+  { name: 'Qualified', color: '#378ADD' },
+  { name: 'Proposal sent', color: '#3C7BD0' },
+  { name: 'Negotiation', color: '#C08A2B' },
+  { name: 'Verbal commit', color: '#7F77DD' },
+  { name: 'Won', color: '#639922' },
+  { name: 'Lost', color: '#E24B4A' },
+];
 const STAGE_COLOR_PALETTE = ['#9AA0A8', '#378ADD', '#BA7517', '#7F77DD', '#639922', '#E24B4A', '#3C7BD0', '#C08A2B', '#5AB0A6', '#C4C7CC'];
 // Maps the previous fixed job stage names onto the new default job stages so
 // existing job records still land in a real lane after the rework.
@@ -198,15 +214,19 @@ function loadStageList(key, defaults) {
 
 let JOB_STAGES = loadStageList(JOB_STAGES_KEY, DEFAULT_JOB_STAGES);
 let CONTACT_STAGES = loadStageList(CONTACT_STAGES_KEY, DEFAULT_CONTACT_STAGES);
+let DEAL_STAGES = loadStageList(DEAL_STAGES_KEY, DEFAULT_DEAL_STAGES);
 
 function jobStages() { return JOB_STAGES; }
 function contactStages() { return CONTACT_STAGES; }
+function dealStages() { return DEAL_STAGES; }
 function jobStageNames() { return JOB_STAGES.map((stage) => stage.name); }
 function contactStageNames() { return CONTACT_STAGES.map((stage) => stage.name); }
+function dealStageNames() { return DEAL_STAGES.map((stage) => stage.name); }
 function jobStageColor(name) { return (JOB_STAGES.find((stage) => stage.name === name) || {}).color || '#9AA0A8'; }
 function contactStageColor(name) { return (CONTACT_STAGES.find((stage) => stage.name === name) || {}).color || '#9AA0A8'; }
-function pipelineStages(kind) { return kind === 'contacts' ? CONTACT_STAGES : JOB_STAGES; }
-function pipelineStageColor(kind, name) { return kind === 'contacts' ? contactStageColor(name) : jobStageColor(name); }
+function dealStageColor(name) { return (DEAL_STAGES.find((stage) => stage.name === name) || {}).color || '#9AA0A8'; }
+function pipelineStages(kind) { return kind === 'contacts' ? CONTACT_STAGES : kind === 'deals' ? DEAL_STAGES : JOB_STAGES; }
+function pipelineStageColor(kind, name) { return kind === 'contacts' ? contactStageColor(name) : kind === 'deals' ? dealStageColor(name) : jobStageColor(name); }
 
 function resolveJobStage(value) {
   const names = jobStageNames();
@@ -221,10 +241,19 @@ function resolveContactStage(value) {
   if (names.includes(raw)) return raw;
   return names[0] || 'Prospects';
 }
+function resolveDealStage(value) {
+  const names = dealStageNames();
+  const raw = String(value || '').trim();
+  if (names.includes(raw)) return raw;
+  return names[0] || 'Prospect';
+}
 
 function persistJobStages() { JOB_STAGES = JOB_STAGES.filter((stage) => stage.name); writeJson(JOB_STAGES_KEY, JOB_STAGES); }
 function persistContactStages() { CONTACT_STAGES = CONTACT_STAGES.filter((stage) => stage.name); writeJson(CONTACT_STAGES_KEY, CONTACT_STAGES); }
+function persistDealStages() { DEAL_STAGES = DEAL_STAGES.filter((stage) => stage.name); writeJson(DEAL_STAGES_KEY, DEAL_STAGES); }
 
+const ACCOUNT_TYPES = ['Customer', 'Prospect', 'Partner', 'Vendor'];
+const ACTIVITY_TYPES = ['note', 'call', 'email', 'meeting', 'task', 'stage_change', 'system'];
 const JOB_TABS = ['pipeline', 'list', 'profile'];
 const TASK_STATUSES = ['todo', 'pending', 'hold', 'review', 'done'];
 const TASK_PRIORITIES = ['critical', 'urgent', 'high', 'medium', 'low'];
@@ -338,7 +367,25 @@ const contactsFallback = [
   { id: 'contact-7', company_id: 'roofing', name: 'Keith Salas', phone: '717-991-7029', email: '', location: '15948 E Sycamore', stage: 'Negotiating', value: 28900, owner_name: 'Andre Lee' },
   { id: 'contact-8', company_id: 'roofing', name: 'Brad Lundstrom', phone: '602-577-9523', email: 'lundstromdesign@gmail.com', location: '3200 W Wander Ln', stage: 'Contract out', value: 53200, owner_name: 'Abraham Flores' },
   { id: 'contact-9', company_id: 'roofing', name: 'Rosa Cruz-Blanch', phone: '787-549-0942', email: 'rcruz@natlbtr.com', location: 'W Encanto Blvd', stage: 'Won', value: 61000, owner_name: 'Maya Rosales' },
-  { id: 'contact-10', company_id: 'drafting', name: 'Horizon HVAC', phone: '480-555-0199', email: 'plans@horizonhvac.com', location: 'Chandler, AZ', stage: 'Estimate sent', value: 4200, owner_name: 'Noah Park' },
+  { id: 'contact-10', company_id: 'drafting', name: 'Horizon HVAC', phone: '480-555-0199', email: 'plans@horizonhvac.com', location: 'Chandler, AZ', stage: 'Estimate sent', value: 4200, owner_name: 'Noah Park', account_id: 'account-3', title: 'Facilities lead' },
+];
+
+const accountsFallback = [
+  { id: 'account-1', company_id: 'roofing', name: 'Cruz-Blanch Residence', type: 'Customer', industry: 'Residential', phone: '787-549-0942', email: 'rcruz@natlbtr.com', address: 'W Encanto Blvd, Phoenix AZ', owner_name: 'Maya Rosales', status: 'Active' },
+  { id: 'account-2', company_id: 'roofing', name: 'Mesa Storage Partners', type: 'Customer', industry: 'Commercial', phone: '480-555-0140', email: 'ops@mesastorage.com', address: 'Mesa, AZ', owner_name: 'Andre Lee', status: 'Active' },
+  { id: 'account-3', company_id: 'drafting', name: 'Horizon HVAC', type: 'Partner', industry: 'HVAC', phone: '480-555-0199', email: 'plans@horizonhvac.com', address: 'Chandler, AZ', owner_name: 'Noah Park', status: 'Active' },
+];
+
+const dealsFallback = [
+  { id: 'deal-1', company_id: 'roofing', account_id: 'account-1', primary_contact_id: 'contact-9', name: 'Encanto re-roof', stage: 'Verbal commit', status: 'open', value: 61000, probability: 80, owner_name: 'Maya Rosales', source: 'Referral' },
+  { id: 'deal-2', company_id: 'roofing', account_id: 'account-2', primary_contact_id: '', name: 'Mesa membrane repair', stage: 'Proposal sent', status: 'open', value: 18400, probability: 50, owner_name: 'Andre Lee', source: 'Website' },
+  { id: 'deal-3', company_id: 'roofing', account_id: 'account-1', primary_contact_id: 'contact-7', name: 'Sycamore tear-off', stage: 'Negotiation', status: 'open', value: 28900, probability: 60, owner_name: 'Andre Lee', source: 'Door knock' },
+  { id: 'deal-4', company_id: 'drafting', account_id: 'account-3', primary_contact_id: 'contact-10', name: 'Permit drawing package', stage: 'Qualified', status: 'open', value: 4200, probability: 40, owner_name: 'Noah Park', source: 'Partner' },
+];
+
+const activitiesFallback = [
+  { id: 'activity-1', company_id: 'roofing', type: 'call', subject: 'Intro call with Rosa', body: 'Discussed scope and timeline for the re-roof.', related_type: 'deal', related_id: 'deal-1', account_id: 'account-1', owner_name: 'Maya Rosales', completed_at: new Date(Date.now() - 86400000).toISOString() },
+  { id: 'activity-2', company_id: 'roofing', type: 'note', subject: 'Proposal sent', body: 'Emailed membrane repair proposal, awaiting board review.', related_type: 'deal', related_id: 'deal-2', account_id: 'account-2', owner_name: 'Andre Lee', completed_at: new Date(Date.now() - 172800000).toISOString() },
 ];
 
 const teamMembersFallback = [
@@ -1087,6 +1134,9 @@ const state = {
   authMode: 'signin',
   jobs: readSeededList(JOB_CACHE_KEY, jobsFallback).map(normalizeJob),
   contacts: readSeededList(CONTACT_CACHE_KEY, contactsFallback).map(normalizeContact),
+  accounts: readSeededList(ACCOUNT_CACHE_KEY, accountsFallback).map(normalizeAccount),
+  deals: readSeededList(DEAL_CACHE_KEY, dealsFallback).map(normalizeDeal),
+  activities: readSeededList(ACTIVITY_CACHE_KEY, activitiesFallback).map(normalizeActivity),
   pipelineStages: [],
   tasks: readSeededList(TASK_CACHE_KEY, tasksFallback).map(normalizeTask),
   files: readSeededList(FILE_CACHE_KEY, filesFallback).map(normalizeFile),
@@ -1123,12 +1173,23 @@ const state = {
   activeCompanyId: localStorage.getItem(COMPANY_KEY) || '',
   sidebarCollapsed: localStorage.getItem(SIDEBAR_COLLAPSED_KEY) === 'true',
   collapsedNavGroups: new Set(readJson(NAV_GROUP_COLLAPSED_KEY, [])),
-  expandedNav: new Set(readJson(NAV_EXPANDED_KEY, ['contacts', 'jobs'])),
+  expandedNav: new Set(readJson(NAV_EXPANDED_KEY, ['contacts', 'jobs', 'deals'])),
   jobBoardView: localStorage.getItem(JOB_BOARD_VIEW_KEY) || 'board',
   contactBoardView: localStorage.getItem(CONTACT_BOARD_VIEW_KEY) || 'table',
+  dealBoardView: localStorage.getItem(DEAL_BOARD_VIEW_KEY) || 'board',
   contactStageFilter: 'all',
   contactQuery: '',
   selectedContactId: '',
+  stageFilterDeals: 'all',
+  dealQuery: '',
+  selectedDealId: '',
+  accountQuery: '',
+  accountTypeFilter: 'all',
+  selectedAccountId: '',
+  accountTab: 'overview',
+  dealPrefill: null,
+  activityPrefill: null,
+  contactPrefill: null,
   selectedJobId: '',
   selectedTaskId: '',
   selectedFileId: '',
@@ -1424,6 +1485,9 @@ async function loadSupabaseData() {
     financeVendorsResult,
     contactsResult,
     pipelineStagesResult,
+    accountsResult,
+    dealsResult,
+    activitiesResult,
   ] = await Promise.all([
     client.from('companies').select('*').order('name', { ascending: true }),
     client.from('jobs').select('*').order('updated_at', { ascending: false }),
@@ -1454,6 +1518,9 @@ async function loadSupabaseData() {
     client.from('finance_vendors').select('*').order('name', { ascending: true }),
     client.from('contacts').select('*').order('updated_at', { ascending: false }),
     client.from('pipeline_stages').select('*').order('position', { ascending: true }),
+    client.from('accounts').select('*').order('name', { ascending: true }),
+    client.from('deals').select('*').order('updated_at', { ascending: false }),
+    client.from('activities').select('*').order('created_at', { ascending: false }).limit(500),
   ]);
 
   let liveTables = 0;
@@ -1521,6 +1588,17 @@ async function loadSupabaseData() {
   if (!pipelineStagesResult.error) {
     state.pipelineStages = pipelineStagesResult.data || [];
     applyPipelineStagesForCompany(activeCompanyId());
+  }
+  if (!accountsResult.error) {
+    state.accounts = (accountsResult.data || []).map(normalizeAccount);
+    liveTables += 1;
+  }
+  if (!dealsResult.error) {
+    state.deals = (dealsResult.data || []).map(normalizeDeal);
+    liveTables += 1;
+  }
+  if (!activitiesResult.error) {
+    state.activities = (activitiesResult.data || []).map(normalizeActivity);
   }
 
   if (isQuestDeveloper()) {
@@ -1981,7 +2059,7 @@ function renderDeck(route) {
           .filter((module) => module && canViewModule(module, companyId))
           .map((module) => {
             if (module.status === 'planned') return plannedNavItem(module.symbol, module.label);
-            if (module.id === 'jobs' || module.id === 'contacts') return navItemPipeline(route, module, companyId);
+            if (module.id === 'jobs' || module.id === 'contacts' || module.id === 'deals') return navItemPipeline(route, module, companyId);
             return navItem(route, companyPath(module.id, {}, companyId), module.symbol, module.label, moduleBadgeCount(module.id, companyId));
           });
         return navGroup(group.label, items);
@@ -2028,7 +2106,7 @@ function navItem(route, path, symbol, label, count = '') {
 }
 
 function pipelineStageCounts(kind, companyId = activeCompanyId()) {
-  const rows = kind === 'contacts' ? companyContacts(companyId) : companyJobs(companyId);
+  const rows = kind === 'contacts' ? companyContacts(companyId) : kind === 'deals' ? companyDeals(companyId) : companyJobs(companyId);
   const counts = {};
   rows.forEach((row) => { counts[row.stage] = (counts[row.stage] || 0) + 1; });
   return counts;
@@ -2041,7 +2119,7 @@ function navItemPipeline(route, module, companyId) {
   const expanded = state.expandedNav.has(kind);
   const count = moduleBadgeCount(kind, companyId);
   const onSection = route.name === 'company' && route.section === kind;
-  const filter = kind === 'contacts' ? state.contactStageFilter : state.stageFilter;
+  const filter = kind === 'contacts' ? state.contactStageFilter : kind === 'deals' ? state.stageFilterDeals : state.stageFilter;
   const stages = pipelineStages(kind);
   const counts = pipelineStageCounts(kind, companyId);
   return `
@@ -2098,8 +2176,9 @@ function moduleBadgeCount(moduleId, companyId = activeCompanyId()) {
   if (moduleId === 'tasks') return companyTasks(companyId).length;
   if (moduleId === 'files') return companyFiles(companyId).length;
   if (moduleId === 'forms') return companyForms(companyId).length;
-  if (moduleId === 'crm') return crmAccounts(companyId).length;
+  if (moduleId === 'crm') return companyAccounts(companyId).length;
   if (moduleId === 'contacts') return companyContacts(companyId).length;
+  if (moduleId === 'deals') return companyDeals(companyId).filter((deal) => deal.status === 'open').length;
   if (moduleId === 'finance') return companyFinanceInvoices(companyId).length;
   if (moduleId === 'users') return companyAccessUsers(companyId).filter((user) => user.status === 'active').length;
   if (moduleId === 'messages') {
@@ -2143,6 +2222,7 @@ function renderWorkspace(route) {
   if (route.section === 'analytics') return renderAnalyticsPage(route, companyId);
   if (route.section === 'crm') return renderCrmPage(route, companyId);
   if (route.section === 'contacts') return renderContactsPage(route, companyId);
+  if (route.section === 'deals') return renderDealsPage(route, companyId);
   if (route.section === 'finance') return renderFinancePage(route, companyId);
   if (route.section === 'messages') return renderMessagesPage(route, companyId);
   if (route.section === 'team-chart') return renderTeamChartPage(companyId);
@@ -2560,9 +2640,9 @@ function stageTagPipe(kind, name) {
 function pipelineToolbar(kind, companyId) {
   const stages = pipelineStages(kind);
   const counts = pipelineStageCounts(kind, companyId);
-  const total = kind === 'contacts' ? companyContacts(companyId).length : companyJobs(companyId).length;
-  const filter = kind === 'contacts' ? state.contactStageFilter : state.stageFilter;
-  const view = kind === 'contacts' ? state.contactBoardView : state.jobBoardView;
+  const total = kind === 'contacts' ? companyContacts(companyId).length : kind === 'deals' ? companyDeals(companyId).length : companyJobs(companyId).length;
+  const filter = kind === 'contacts' ? state.contactStageFilter : kind === 'deals' ? state.stageFilterDeals : state.stageFilter;
+  const view = kind === 'contacts' ? state.contactBoardView : kind === 'deals' ? state.dealBoardView : state.jobBoardView;
   return `
     <section class="pipe-toolbar">
       <div class="pipe-chips" role="group" aria-label="Filter by stage">
@@ -2662,6 +2742,8 @@ function renderContactEditor(companyId, contact) {
       </div>
       ${field('Name', 'name', edit.name, true)}
       ${selectField('Company', 'company_id', companyId, allowedCompanies().map((company) => [company.id, companyLabel(company)]))}
+      ${selectField('Account', 'account_id', edit.account_id, [['', '— None —']].concat(companyAccounts(companyId).map((account) => [account.id, account.name])))}
+      ${field('Title', 'title', edit.title)}
       ${field('Phone', 'phone', edit.phone)}
       ${field('Email', 'email', edit.email, false, 'email')}
       ${field('Location', 'location', edit.location, false, 'text', 'span-2')}
@@ -2679,7 +2761,8 @@ function renderContactEditor(companyId, contact) {
 }
 
 function blankContact(companyId = activeCompanyId()) {
-  return normalizeContact({ id: '', company_id: companyId, name: '', stage: contactStageNames()[0], value: 0 });
+  const pf = state.contactPrefill || {};
+  return normalizeContact({ id: '', company_id: companyId, name: '', stage: contactStageNames()[0], value: 0, account_id: pf.account_id || '' });
 }
 
 async function saveContact(form) {
@@ -2689,19 +2772,7 @@ async function saveContact(form) {
   payload.updated_at = new Date().toISOString();
   const client = createSupabaseClient();
   if (client) {
-    const record = {
-      id: payload.id,
-      company_id: payload.company_id,
-      name: payload.name,
-      phone: payload.phone,
-      email: payload.email,
-      location: payload.location,
-      stage: payload.stage,
-      value: payload.value,
-      owner_name: payload.owner_name,
-      notes: payload.notes,
-      updated_at: payload.updated_at,
-    };
+    const record = emptyToNull(supabaseRow(payload, CONTACT_COLS), ['account_id']);
     try {
       const result = await client.from('contacts').upsert(record).select().single();
       if (!result.error && result.data) {
@@ -2743,7 +2814,7 @@ async function deleteContact(id) {
 // ---- Stage manager (create / rename / recolor / delete) -------------------
 function renderStageManagerModal(kind) {
   const stages = pipelineStages(kind);
-  const title = kind === 'contacts' ? 'Contact pipeline stages' : 'Job pipeline stages';
+  const title = kind === 'contacts' ? 'Contact pipeline stages' : kind === 'deals' ? 'Deal pipeline stages' : 'Job pipeline stages';
   const body = `
     <form class="stage-manager" data-stage-form data-kind="${kind}">
       <p class="stage-manager-hint">Stages are your pipeline columns - the placeholder groups your team can shape. Rename or recolor any stage and your records keep their place; add new stages for any workflow.</p>
@@ -2792,30 +2863,38 @@ function captureStageFormInto(kind) {
   const { stages } = parseStageForm(form);
   if (!stages.length) return;
   if (kind === 'contacts') CONTACT_STAGES = stages;
+  else if (kind === 'deals') DEAL_STAGES = stages;
   else JOB_STAGES = stages;
+}
+
+function stageListForKind(kind) {
+  return kind === 'contacts' ? CONTACT_STAGES : kind === 'deals' ? DEAL_STAGES : JOB_STAGES;
+}
+function persistStagesForKind(kind) {
+  if (kind === 'contacts') persistContactStages();
+  else if (kind === 'deals') persistDealStages();
+  else persistJobStages();
 }
 
 function addPipelineStage(kind) {
   captureStageFormInto(kind);
-  const list = kind === 'contacts' ? CONTACT_STAGES : JOB_STAGES;
+  const list = stageListForKind(kind);
   const color = STAGE_COLOR_PALETTE[list.length % STAGE_COLOR_PALETTE.length];
   list.push({ name: `New stage ${list.length + 1}`, color });
-  if (kind === 'contacts') persistContactStages();
-  else persistJobStages();
+  persistStagesForKind(kind);
   syncPipelineStagesToSupabase(kind);
   render();
 }
 
 function deletePipelineStage(kind, index) {
   captureStageFormInto(kind);
-  const list = kind === 'contacts' ? CONTACT_STAGES : JOB_STAGES;
+  const list = stageListForKind(kind);
   if (list.length <= 1) {
     showToast('Keep at least one stage in the pipeline.', 'local', 'Stages');
     return;
   }
   if (Number.isInteger(index) && index >= 0 && index < list.length) list.splice(index, 1);
-  if (kind === 'contacts') persistContactStages();
-  else persistJobStages();
+  persistStagesForKind(kind);
   syncPipelineStagesToSupabase(kind);
   render();
 }
@@ -2835,6 +2914,11 @@ function applyPipelineStagesForCompany(companyId) {
   };
   JOB_STAGES = forKind('jobs', DEFAULT_JOB_STAGES);
   CONTACT_STAGES = forKind('contacts', DEFAULT_CONTACT_STAGES);
+  DEAL_STAGES = forKind('deals', DEFAULT_DEAL_STAGES);
+  // Clamp active stage filters to the current company's stage names.
+  if (state.stageFilter !== 'all' && !jobStageNames().includes(state.stageFilter)) state.stageFilter = 'all';
+  if (state.contactStageFilter !== 'all' && !contactStageNames().includes(state.contactStageFilter)) state.contactStageFilter = 'all';
+  if (state.stageFilterDeals !== 'all' && !dealStageNames().includes(state.stageFilterDeals)) state.stageFilterDeals = 'all';
 }
 
 // Replace the active company's stage set for a kind in Supabase (delete + insert).
@@ -2842,7 +2926,7 @@ async function syncPipelineStagesToSupabase(kind) {
   const client = createSupabaseClient();
   if (!client) return;
   const companyId = activeCompanyId();
-  const list = kind === 'contacts' ? CONTACT_STAGES : JOB_STAGES;
+  const list = stageListForKind(kind);
   const rows = list.map((stage, index) => ({ company_id: companyId, kind, name: stage.name, color: stage.color, position: index }));
   try {
     await client.from('pipeline_stages').delete().eq('company_id', companyId).eq('kind', kind);
@@ -2856,7 +2940,7 @@ async function syncPipelineStagesToSupabase(kind) {
 }
 
 function saveStageEdits(form) {
-  const kind = form.dataset.kind === 'contacts' ? 'contacts' : 'jobs';
+  const kind = ['contacts', 'deals'].includes(form.dataset.kind) ? form.dataset.kind : 'jobs';
   const { stages, renameMap } = parseStageForm(form);
   if (!stages.length) {
     showToast('Add at least one stage before saving.', 'local', 'Stages');
@@ -2873,6 +2957,15 @@ function saveStageEdits(form) {
     });
     persistContacts();
     if (state.contactStageFilter !== 'all' && !validNames.has(state.contactStageFilter)) state.contactStageFilter = 'all';
+  } else if (kind === 'deals') {
+    DEAL_STAGES = stages;
+    persistDealStages();
+    state.deals.forEach((deal) => {
+      if (renameMap[deal.stage]) deal.stage = renameMap[deal.stage];
+      if (!validNames.has(deal.stage)) deal.stage = fallback;
+    });
+    writeJson(DEAL_CACHE_KEY, state.deals);
+    if (state.stageFilterDeals !== 'all' && !validNames.has(state.stageFilterDeals)) state.stageFilterDeals = 'all';
   } else {
     JOB_STAGES = stages;
     persistJobStages();
@@ -2891,12 +2984,12 @@ function saveStageEdits(form) {
 }
 
 // Best-effort: carry stage renames onto the existing records in Supabase so
-// jobs/contacts keep their place after a stage is renamed.
+// jobs/contacts/deals keep their place after a stage is renamed.
 async function syncStageRenamesToSupabase(kind, renameMap) {
   const client = createSupabaseClient();
   if (!client || !renameMap || !Object.keys(renameMap).length) return;
   const companyId = activeCompanyId();
-  const table = kind === 'contacts' ? 'contacts' : 'jobs';
+  const table = kind === 'contacts' ? 'contacts' : kind === 'deals' ? 'deals' : 'jobs';
   for (const [oldName, newName] of Object.entries(renameMap)) {
     try {
       await client.from(table).update({ stage: newName }).eq('company_id', companyId).eq('stage', oldName);
@@ -4199,63 +4292,413 @@ function renderFormsResponses(companyId, form) {
   `;
 }
 
+// ===========================================================================
+// CRM: Accounts (real entity), Deals pipeline, Activities timeline
+// ===========================================================================
+function initials(name) {
+  return String(name || '?').trim().split(/\s+/).slice(0, 2).map((part) => part[0] || '').join('').toUpperCase() || '?';
+}
+
+function accountTypePill(type) {
+  const tone = { Customer: 'tone-green', Prospect: 'tone-blue', Partner: 'tone-purple', Vendor: 'tone-amber' }[type] || 'tone-gray';
+  return `<span class="crm-pill ${tone}">${h(type || 'Customer')}</span>`;
+}
+
+function dealStatusPill(status) {
+  const tone = { open: 'tone-blue', won: 'tone-green', lost: 'tone-red' }[status] || 'tone-gray';
+  const label = { open: 'Open', won: 'Won', lost: 'Lost' }[status] || status;
+  return `<span class="crm-pill ${tone}">${h(label)}</span>`;
+}
+
 function renderCrmPage(route, companyId) {
-  const accounts = filteredCrmAccounts(companyId);
-  const allAccounts = crmAccounts(companyId);
-  const openTasks = companyTasks(companyId).filter((task) => task.status !== 'done').length;
-  const activeValue = sum(companyJobs(companyId), 'estimate_total');
-  const owners = crmOwnerOptions(companyId);
+  const accountId = route.params.get('account_id');
+  if (accountId) {
+    const account = accountById(accountId);
+    if (account && account.company_id === companyId) return renderAccountDetail(companyId, account);
+  }
+  return renderAccountList(companyId);
+}
+
+function renderAccountList(companyId) {
+  const rows = filteredAccounts(companyId);
+  const all = companyAccounts(companyId);
+  const openDeals = companyDeals(companyId).filter((deal) => deal.status === 'open');
   return `
-    <section class="tool-page crm-page">
-      ${workspaceHeader('CRM', 'Customers, contacts, and follow-ups built from company jobs.', `
-        <button class="btn btn-primary" type="button" data-action="open-job-form" data-mode="new"><i class="ti ti-plus"></i>Add customer job</button>
-      `)}
-      <section class="metric-grid crm-metrics">
-        ${metricCard('Accounts', allAccounts.length)}
-        ${metricCard('Open jobs', companyJobs(companyId).filter((job) => job.stage !== 'Closed').length)}
-        ${metricCard('Open tasks', openTasks)}
-        ${metricCard('Pipeline value', money(activeValue))}
-      </section>
-      <section class="crm-toolbar panel">
-        <label>
-          <span>Search</span>
-          <input data-crm-search value="${h(state.crmQuery)}" placeholder="Find customer, contact, job, or address" />
-        </label>
-        <label>
-          <span>Stage</span>
-          <select data-crm-stage-filter>
-            ${['all'].concat(jobStageNames()).map((stage) => `<option value="${h(stage)}" ${state.crmStageFilter === stage ? 'selected' : ''}>${h(stage === 'all' ? 'All stages' : stage)}</option>`).join('')}
-          </select>
-        </label>
-        <label>
-          <span>Owner</span>
-          <select data-crm-owner-filter>
-            <option value="all" ${state.crmOwnerFilter === 'all' ? 'selected' : ''}>All owners</option>
-            ${owners.map((owner) => `<option value="${h(owner)}" ${state.crmOwnerFilter === owner ? 'selected' : ''}>${h(owner)}</option>`).join('')}
-          </select>
-        </label>
-      </section>
-      <section class="panel crm-list-panel">
-        <div class="section-head">
-          <div><h2>Customers</h2><p>${accounts.length} visible account${accounts.length === 1 ? '' : 's'} in ${h(companyName(companyId))}</p></div>
-        </div>
-        <div class="data-table crm-table">
-          <div class="table-head"><span>Account</span><span>Contact</span><span>Stage</span><span>Owner</span><span>Jobs</span><span>Value</span><span>Updated</span></div>
-          ${accounts.map((account) => `
-            <a class="table-row crm-account-row" href="${appHref(companyPath('crm', { account: account.key }, companyId))}" data-router>
-              <span><strong>${h(account.name)}</strong><small>${h(account.subtitle)}</small></span>
-              <span>${h(account.primaryContact)}</span>
-              <span>${h(account.stage)}</span>
-              <span>${h(account.owner)}</span>
-              <span>${h(account.jobs.length)}</span>
-              <span>${money(account.estimateTotal)}</span>
-              <span>${formatDate(account.updatedAt)}</span>
-            </a>
-          `).join('') || emptyState('No CRM accounts match this view. Add a customer job to start the list.')}
-        </div>
-      </section>
+    ${workspaceHeader('Accounts', 'Organizations and customers - the hub for contacts, deals, and jobs.', `
+      <button class="btn btn-primary" type="button" data-action="open-account-form" data-mode="new"><i class="ti ti-plus"></i>Add account</button>
+    `)}
+    <section class="metric-grid crm-metrics">
+      ${metricCard('Accounts', all.length)}
+      ${metricCard('Contacts', companyContacts(companyId).length)}
+      ${metricCard('Open deals', openDeals.length)}
+      ${metricCard('Open pipeline', money(sum(openDeals, 'value')))}
+    </section>
+    <section class="pipe-toolbar">
+      <label class="crm-search"><i class="ti ti-search"></i><input data-account-search value="${h(state.accountQuery)}" placeholder="Search accounts" /></label>
+      <div class="pipe-chips" role="group" aria-label="Filter by type">
+        <button class="pipe-chip ${state.accountTypeFilter === 'all' ? 'on' : ''}" type="button" data-action="account-type" data-type="all">All<b>${all.length}</b></button>
+        ${ACCOUNT_TYPES.map((type) => `<button class="pipe-chip ${state.accountTypeFilter === type ? 'on' : ''}" type="button" data-action="account-type" data-type="${h(type)}">${h(type)}<b>${all.filter((account) => account.type === type).length}</b></button>`).join('')}
+      </div>
+    </section>
+    <section class="panel">
+      <div class="section-head"><div><h2>Accounts</h2><p>${rows.length} visible</p></div></div>
+      <div class="data-table accounts-table">
+        <div class="table-head"><span>Account</span><span>Type</span><span>Owner</span><span>Contacts</span><span>Open deals</span><span>Pipeline</span></div>
+        ${rows.map((account) => {
+          const deals = dealsForAccount(account.id).filter((deal) => deal.status === 'open');
+          return `
+          <button class="table-row" type="button" data-action="open-account" data-account-id="${h(account.id)}">
+            <span class="cell-lead"><span class="account-avatar">${h(initials(account.name))}</span><span><strong>${h(account.name)}</strong><small>${h(account.industry || account.email || '—')}</small></span></span>
+            <span>${accountTypePill(account.type)}</span>
+            <span>${h(account.owner_name || 'Unassigned')}</span>
+            <span>${contactsForAccount(account.id).length}</span>
+            <span>${deals.length}</span>
+            <span class="cell-mono">${money(sum(deals, 'value'))}</span>
+          </button>`;
+        }).join('') || emptyState('No accounts yet. Add your first account to start the CRM.')}
+      </div>
     </section>
   `;
+}
+
+function renderAccountDetail(companyId, account) {
+  const tab = ['overview', 'contacts', 'deals', 'jobs', 'activity'].includes(state.accountTab) ? state.accountTab : 'overview';
+  const contacts = contactsForAccount(account.id);
+  const deals = dealsForAccount(account.id);
+  const jobs = jobsForAccount(account.id);
+  const openDeals = deals.filter((deal) => deal.status === 'open');
+  const tabs = [
+    ['overview', 'Overview', ''],
+    ['contacts', 'Contacts', contacts.length],
+    ['deals', 'Deals', deals.length],
+    ['jobs', 'Jobs', jobs.length],
+    ['activity', 'Activity', activitiesForAccount(account.id).length],
+  ];
+  return `
+    ${workspaceHeader(account.name, `${account.type}${account.industry ? ' - ' + account.industry : ''}`, `
+      <a class="btn" href="${appHref(companyPath('crm', {}, companyId))}" data-router><i class="ti ti-arrow-left"></i>Accounts</a>
+      <button class="btn" type="button" data-action="open-activity-form" data-related-type="account" data-related-id="${h(account.id)}" data-account-id="${h(account.id)}"><i class="ti ti-note"></i>Log activity</button>
+      <button class="btn" type="button" data-action="open-deal-form" data-mode="new" data-account-id="${h(account.id)}"><i class="ti ti-plus"></i>New deal</button>
+      <button class="btn" type="button" data-action="open-account-form" data-mode="edit" data-account-id="${h(account.id)}"><i class="ti ti-pencil"></i>Edit</button>
+    `)}
+    <section class="metric-grid crm-metrics">
+      ${metricCard('Open deals', openDeals.length)}
+      ${metricCard('Open pipeline', money(sum(openDeals, 'value')))}
+      ${metricCard('Won', money(sum(deals.filter((deal) => deal.status === 'won'), 'value')))}
+      ${metricCard('Jobs', jobs.length)}
+    </section>
+    <nav class="tabbar" aria-label="Account sections">
+      ${tabs.map(([id, label, count]) => `<button class="${id === tab ? 'active' : ''}" type="button" data-action="set-account-tab" data-tab="${id}">${h(label)}${count !== '' ? ` <b class="tab-count">${h(String(count))}</b>` : ''}</button>`).join('')}
+    </nav>
+    ${renderAccountTab(companyId, account, tab, { contacts, deals, jobs })}
+  `;
+}
+
+function renderAccountTab(companyId, account, tab, data) {
+  if (tab === 'contacts') {
+    return `<section class="panel">
+      <div class="section-head"><div><h2>Contacts</h2><p>People at ${h(account.name)}</p></div><button class="btn" type="button" data-action="open-contact-form" data-mode="new" data-account-id="${h(account.id)}"><i class="ti ti-plus"></i>Add contact</button></div>
+      <div class="data-table contacts-table">
+        <div class="table-head"><span>Name</span><span>Title</span><span>Phone</span><span>Email</span><span>Owner</span><span></span></div>
+        ${data.contacts.map((contact) => `
+          <button class="table-row" type="button" data-action="open-contact-form" data-mode="edit" data-contact-id="${h(contact.id)}">
+            <span class="cell-lead"><span class="account-avatar sm">${h(initials(contact.name))}</span><span><strong>${h(contact.name)}</strong></span></span>
+            <span>${h(contact.title || '—')}</span>
+            <span>${h(contact.phone || '—')}</span>
+            <span>${contact.email ? h(contact.email) : '<span class="muted-dash">—</span>'}</span>
+            <span>${h(contact.owner_name || 'Unassigned')}</span>
+            <span></span>
+          </button>`).join('') || emptyState('No contacts linked to this account yet.')}
+      </div>
+    </section>`;
+  }
+  if (tab === 'deals') {
+    return `<section class="panel">
+      <div class="section-head"><div><h2>Deals</h2><p>Opportunities for ${h(account.name)}</p></div><button class="btn" type="button" data-action="open-deal-form" data-mode="new" data-account-id="${h(account.id)}"><i class="ti ti-plus"></i>New deal</button></div>
+      <div class="data-table deals-table">
+        <div class="table-head"><span>Deal</span><span>Stage</span><span>Status</span><span>Value</span><span>Owner</span><span>Close</span></div>
+        ${data.deals.map((deal) => dealRow(deal)).join('') || emptyState('No deals for this account yet.')}
+      </div>
+    </section>`;
+  }
+  if (tab === 'jobs') {
+    return `<section class="panel">
+      <div class="section-head"><div><h2>Jobs</h2><p>Production work for ${h(account.name)}</p></div></div>
+      <div class="data-table jobs-table">
+        <div class="table-head"><span>Job</span><span>Type</span><span>Stage</span><span>Priority</span><span>Owner</span><span>Value</span></div>
+        ${data.jobs.map((job) => `
+          <a class="table-row" href="${appHref(companyPath('jobs', { tab: 'profile', job_id: job.id }, companyId))}" data-router>
+            <span class="cell-lead">${pipelineDot(jobStageColor(job.stage))}<span><strong>${h(job.name)}</strong><small>${h(job.site_address || 'No address')}</small></span></span>
+            <span>${h(job.job_type || '—')}</span>
+            <span>${stageTagPipe('jobs', job.stage)}</span>
+            <span>${priorityPill(job.priority)}</span>
+            <span>${h(job.owner_name || 'Unassigned')}</span>
+            <span>${money(job.estimate_total)}</span>
+          </a>`).join('') || emptyState('No jobs linked to this account yet. Win a deal to create one.')}
+      </div>
+    </section>`;
+  }
+  if (tab === 'activity') {
+    return `<section class="panel">
+      <div class="section-head"><div><h2>Activity</h2></div><button class="btn" type="button" data-action="open-activity-form" data-related-type="account" data-related-id="${h(account.id)}" data-account-id="${h(account.id)}"><i class="ti ti-plus"></i>Log activity</button></div>
+      ${renderActivityTimeline('account', account.id)}
+    </section>`;
+  }
+  // overview
+  return `
+    <section class="crm-detail-grid">
+      <article class="panel">
+        <div class="section-head"><div><h2>Details</h2></div></div>
+        ${contractRows([
+          ['Type', account.type],
+          ['Industry', account.industry || '—'],
+          ['Owner', account.owner_name || 'Unassigned'],
+          ['Phone', account.phone || '—'],
+          ['Email', account.email || '—'],
+          ['Website', account.website || '—'],
+          ['Address', account.address || '—'],
+          ['Status', account.status],
+        ])}
+        ${account.notes ? `<p class="crm-notes">${h(account.notes)}</p>` : ''}
+      </article>
+      <article class="panel">
+        <div class="section-head"><div><h2>Recent activity</h2></div><button class="btn" type="button" data-action="open-activity-form" data-related-type="account" data-related-id="${h(account.id)}" data-account-id="${h(account.id)}"><i class="ti ti-plus"></i>Log</button></div>
+        ${renderActivityTimeline('account', account.id, '', 6)}
+      </article>
+    </section>
+  `;
+}
+
+function blankAccount(companyId = activeCompanyId()) {
+  return normalizeAccount({ id: '', company_id: companyId, name: '', type: 'Customer' });
+}
+function renderAccountFormModal(companyId, account) {
+  return renderModalShell('Accounts', account ? 'Edit account' : 'New account', renderAccountEditor(companyId, account), 'wide-modal');
+}
+function renderAccountEditor(companyId, account) {
+  const edit = account || blankAccount(companyId);
+  return `
+    <form class="job-editor" data-account-form>
+      <input type="hidden" name="id" value="${h(edit.id || '')}" />
+      <div class="section-head span-2"><div><h2>${account ? 'Edit account' : 'New account'}</h2><p>Accounts group the contacts, deals, and jobs for one organization.</p></div></div>
+      ${field('Account name', 'name', edit.name, true)}
+      ${selectField('Company', 'company_id', companyId, allowedCompanies().map((company) => [company.id, companyLabel(company)]))}
+      ${selectField('Type', 'type', edit.type, ACCOUNT_TYPES.map((type) => [type, type]))}
+      ${field('Industry', 'industry', edit.industry)}
+      ${field('Owner', 'owner_name', edit.owner_name)}
+      ${field('Phone', 'phone', edit.phone)}
+      ${field('Email', 'email', edit.email, false, 'email')}
+      ${field('Website', 'website', edit.website)}
+      ${selectField('Status', 'status', edit.status, [['Active', 'Active'], ['Inactive', 'Inactive']])}
+      ${field('Address', 'address', edit.address, false, 'text', 'span-2')}
+      ${textareaField('Notes', 'notes', edit.notes, 'span-2')}
+      <div class="form-actions span-2">
+        <button class="btn btn-primary" type="submit">Save account</button>
+        ${account ? `<button class="btn danger" type="button" data-action="delete-account" data-account-id="${h(account.id)}">Delete</button>` : ''}
+        <button class="btn" type="button" data-action="close-modal">Cancel</button>
+      </div>
+    </form>`;
+}
+
+// ---- Deals (pipeline) -----------------------------------------------------
+function dealRow(deal) {
+  return `
+    <button class="table-row ${deal.id === state.selectedDealId ? 'active' : ''}" type="button" data-action="open-deal" data-deal-id="${h(deal.id)}">
+      <span class="cell-lead">${pipelineDot(dealStageColor(deal.stage))}<span><strong>${h(deal.name)}</strong><small>${h(accountName(deal.account_id) || 'No account')}</small></span></span>
+      <span>${stageTagPipe('deals', deal.stage)}</span>
+      <span>${dealStatusPill(deal.status)}</span>
+      <span class="cell-mono">${money(deal.value)}</span>
+      <span>${h(deal.owner_name || 'Unassigned')}</span>
+      <span>${deal.close_date ? formatDate(deal.close_date) : '<span class="muted-dash">—</span>'}</span>
+    </button>`;
+}
+
+function dealKpiRow(companyId) {
+  const deals = companyDeals(companyId);
+  const open = deals.filter((deal) => deal.status === 'open');
+  const weighted = open.reduce((total, deal) => total + (deal.value * (deal.probability || 0)) / 100, 0);
+  const won = deals.filter((deal) => deal.status === 'won');
+  return `
+    <section class="metric-grid crm-metrics">
+      ${metricCard('Open deals', open.length)}
+      ${metricCard('Open value', money(sum(open, 'value')))}
+      ${metricCard('Weighted', money(Math.round(weighted)))}
+      ${metricCard('Won value', money(sum(won, 'value')))}
+    </section>`;
+}
+
+function renderDealsPage(route, companyId) {
+  const dealId = route.params.get('deal_id');
+  if (dealId) {
+    const deal = dealById(dealId);
+    if (deal && deal.company_id === companyId) return renderDealDetail(companyId, deal);
+  }
+  const stageParam = route.params.get('stage');
+  if (stageParam) state.stageFilterDeals = dealStageNames().includes(stageParam) ? stageParam : 'all';
+  return `
+    ${workspaceHeader('Deals', 'Your sales pipeline - opportunities from prospect to won.', `
+      <button class="btn" type="button" data-action="open-stage-manager" data-module="deals"><i class="ti ti-adjustments-horizontal"></i>Manage stages</button>
+      <button class="btn btn-primary" type="button" data-action="open-deal-form" data-mode="new"><i class="ti ti-plus"></i>New deal</button>
+    `)}
+    ${dealKpiRow(companyId)}
+    <section class="pipe-toolbar deals-search-row">
+      <label class="crm-search"><i class="ti ti-search"></i><input data-deal-search value="${h(state.dealQuery)}" placeholder="Search deals" /></label>
+    </section>
+    ${pipelineToolbar('deals', companyId)}
+    ${state.dealBoardView === 'board' ? renderDealBoard(companyId) : renderDealTable(companyId)}
+  `;
+}
+
+function renderDealBoard(companyId) {
+  const rows = filteredDeals(companyId, true);
+  const filter = state.stageFilterDeals;
+  const lanes = filter === 'all' ? dealStages() : dealStages().filter((stage) => stage.name === filter);
+  return `
+    <section class="pipe-board">
+      ${lanes.map((stage) => {
+        const cards = rows.filter((deal) => deal.stage === stage.name);
+        return `
+          <article class="pipe-lane">
+            <header class="pipe-lane-head">${pipelineDot(stage.color)}<span>${h(stage.name)}</span><b>${cards.length}</b></header>
+            <div class="pipe-lane-sub">${money(sum(cards, 'value'))}</div>
+            <div class="pipe-lane-body">
+              ${cards.map((deal) => dealCard(deal)).join('') || '<div class="lane-empty">No deals</div>'}
+            </div>
+          </article>`;
+      }).join('')}
+    </section>`;
+}
+
+function dealCard(deal) {
+  return `
+    <button class="pipe-card ${deal.id === state.selectedDealId ? 'active' : ''}" type="button" data-action="open-deal" data-deal-id="${h(deal.id)}">
+      <strong>${h(deal.name)}</strong>
+      <span>${h(accountName(deal.account_id) || 'No account')}</span>
+      <em>${money(deal.value)}${deal.probability ? ` · ${deal.probability}%` : ''}</em>
+    </button>`;
+}
+
+function renderDealTable(companyId) {
+  const rows = filteredDeals(companyId);
+  return `
+    <section class="panel">
+      <div class="section-head"><div><h2>Deals</h2><p>${rows.length} visible</p></div></div>
+      <div class="data-table deals-table">
+        <div class="table-head"><span>Deal</span><span>Stage</span><span>Status</span><span>Value</span><span>Owner</span><span>Close</span></div>
+        ${rows.map((deal) => dealRow(deal)).join('') || emptyState('No deals match this view.')}
+      </div>
+    </section>`;
+}
+
+function renderDealDetail(companyId, deal) {
+  const account = accountById(deal.account_id);
+  const contact = contactById(deal.primary_contact_id);
+  const job = deal.job_id ? jobById(deal.job_id) : null;
+  return `
+    ${workspaceHeader(deal.name, `${money(deal.value)} - ${deal.stage}`, `
+      <a class="btn" href="${appHref(companyPath('deals', {}, companyId))}" data-router><i class="ti ti-arrow-left"></i>Deals</a>
+      <button class="btn" type="button" data-action="open-activity-form" data-related-type="deal" data-related-id="${h(deal.id)}" data-account-id="${h(deal.account_id)}"><i class="ti ti-note"></i>Log activity</button>
+      ${deal.status !== 'won' ? `<button class="btn btn-primary" type="button" data-action="convert-deal" data-deal-id="${h(deal.id)}"><i class="ti ti-briefcase"></i>Mark won + create job</button>` : ''}
+      <button class="btn" type="button" data-action="open-deal-form" data-mode="edit" data-deal-id="${h(deal.id)}"><i class="ti ti-pencil"></i>Edit</button>
+    `)}
+    <section class="crm-detail-grid">
+      <article class="panel">
+        <div class="section-head"><div><h2>Details</h2></div>${dealStatusPill(deal.status)}</div>
+        ${contractRows([
+          ['Account', account ? account.name : 'No account'],
+          ['Primary contact', contact ? contact.name : 'None'],
+          ['Stage', deal.stage],
+          ['Value', money(deal.value)],
+          ['Probability', `${deal.probability}%`],
+          ['Expected close', deal.close_date ? formatDate(deal.close_date) : '—'],
+          ['Owner', deal.owner_name || 'Unassigned'],
+          ['Source', deal.source || '—'],
+          ['Linked job', job ? job.name : '—'],
+        ])}
+        ${deal.notes ? `<p class="crm-notes">${h(deal.notes)}</p>` : ''}
+        <div class="button-grid">
+          ${account ? `<button class="btn" type="button" data-action="open-account" data-account-id="${h(account.id)}"><i class="ti ti-building-community"></i>Open account</button>` : ''}
+          ${job ? `<a class="btn" href="${appHref(companyPath('jobs', { tab: 'profile', job_id: job.id }, companyId))}" data-router><i class="ti ti-briefcase"></i>Open job</a>` : ''}
+        </div>
+      </article>
+      <article class="panel">
+        <div class="section-head"><div><h2>Activity</h2></div><button class="btn" type="button" data-action="open-activity-form" data-related-type="deal" data-related-id="${h(deal.id)}" data-account-id="${h(deal.account_id)}"><i class="ti ti-plus"></i>Log</button></div>
+        ${renderActivityTimeline('deal', deal.id, deal.account_id)}
+      </article>
+    </section>
+  `;
+}
+
+function blankDeal(companyId = activeCompanyId()) {
+  const pf = state.dealPrefill || {};
+  return normalizeDeal({ id: '', company_id: companyId, name: '', stage: pf.stage || dealStageNames()[0], account_id: pf.account_id || '', primary_contact_id: pf.primary_contact_id || '' });
+}
+function renderDealFormModal(companyId, deal) {
+  return renderModalShell('Deals', deal ? 'Edit deal' : 'New deal', renderDealEditor(companyId, deal), 'wide-modal');
+}
+function renderDealEditor(companyId, deal) {
+  const edit = deal || blankDeal(companyId);
+  const accounts = companyAccounts(companyId);
+  const contacts = companyContacts(companyId);
+  return `
+    <form class="job-editor" data-deal-form>
+      <input type="hidden" name="id" value="${h(edit.id || '')}" />
+      <div class="section-head span-2"><div><h2>${deal ? 'Edit deal' : 'New deal'}</h2><p>An opportunity moving through your sales pipeline.</p></div></div>
+      ${field('Deal name', 'name', edit.name, true)}
+      ${selectField('Company', 'company_id', companyId, allowedCompanies().map((company) => [company.id, companyLabel(company)]))}
+      ${selectField('Account', 'account_id', edit.account_id, [['', '— None —']].concat(accounts.map((account) => [account.id, account.name])))}
+      ${selectField('Primary contact', 'primary_contact_id', edit.primary_contact_id, [['', '— None —']].concat(contacts.map((contact) => [contact.id, contact.name])))}
+      ${selectField('Stage', 'stage', resolveDealStage(edit.stage), dealStageNames().map((stage) => [stage, stage]))}
+      ${selectField('Status', 'status', edit.status, [['open', 'Open'], ['won', 'Won'], ['lost', 'Lost']])}
+      ${field('Value', 'value', edit.value || 0, false, 'number')}
+      ${field('Probability %', 'probability', edit.probability || 0, false, 'number')}
+      ${field('Expected close', 'close_date', edit.close_date, false, 'date')}
+      ${field('Owner', 'owner_name', edit.owner_name)}
+      ${field('Source', 'source', edit.source)}
+      ${textareaField('Notes', 'notes', edit.notes, 'span-2')}
+      <div class="form-actions span-2">
+        <button class="btn btn-primary" type="submit">Save deal</button>
+        ${deal && deal.status !== 'won' ? `<button class="btn" type="button" data-action="convert-deal" data-deal-id="${h(deal.id)}"><i class="ti ti-briefcase"></i>Win + create job</button>` : ''}
+        ${deal ? `<button class="btn danger" type="button" data-action="delete-deal" data-deal-id="${h(deal.id)}">Delete</button>` : ''}
+        <button class="btn" type="button" data-action="close-modal">Cancel</button>
+      </div>
+    </form>`;
+}
+
+// ---- Activities (timeline) ------------------------------------------------
+function activityIcon(type) {
+  return { note: 'ti-note', call: 'ti-phone', email: 'ti-mail', meeting: 'ti-calendar-event', task: 'ti-checkbox', stage_change: 'ti-arrow-right-circle', system: 'ti-bolt' }[type] || 'ti-point';
+}
+function renderActivityTimeline(relatedType, relatedId, accountId = '', limit = 0) {
+  let items = relatedType === 'account' ? activitiesForAccount(relatedId) : activitiesFor(relatedType, relatedId);
+  if (limit) items = items.slice(0, limit);
+  if (!items.length) return emptyState('No activity yet. Log a note, call, or meeting.');
+  return `<ul class="activity-timeline">${items.map((activity) => `
+    <li class="activity-item">
+      <span class="activity-ico activity-${h(activity.type)}"><i class="ti ${activityIcon(activity.type)}"></i></span>
+      <div class="activity-main">
+        <div class="activity-top"><strong>${h(activity.subject || titleCase(activity.type))}</strong><span class="activity-meta">${activity.owner_name ? h(activity.owner_name) + ' · ' : ''}${h(timeAgo(activity.completed_at || activity.created_at))}</span></div>
+        ${activity.body ? `<p>${h(activity.body)}</p>` : ''}
+      </div>
+      <button class="activity-del" type="button" data-action="delete-activity" data-activity-id="${h(activity.id)}" aria-label="Delete activity"><i class="ti ti-x"></i></button>
+    </li>`).join('')}</ul>`;
+}
+function renderActivityFormModal(companyId) {
+  const pf = state.activityPrefill || {};
+  return renderModalShell('Activity', 'Log activity', `
+    <form class="job-editor" data-activity-form>
+      <input type="hidden" name="related_type" value="${h(pf.related_type || '')}" />
+      <input type="hidden" name="related_id" value="${h(pf.related_id || '')}" />
+      <input type="hidden" name="account_id" value="${h(pf.account_id || '')}" />
+      <div class="section-head span-2"><div><h2>Log activity</h2><p>Capture a note, call, email, or meeting.</p></div></div>
+      ${selectField('Type', 'type', pf.type || 'note', [['note', 'Note'], ['call', 'Call'], ['email', 'Email'], ['meeting', 'Meeting'], ['task', 'Task']])}
+      ${field('Subject', 'subject', '', false, 'text', 'span-2')}
+      ${textareaField('Details', 'body', '', 'span-2')}
+      <div class="form-actions span-2">
+        <button class="btn btn-primary" type="submit">Save activity</button>
+        <button class="btn" type="button" data-action="close-modal">Cancel</button>
+      </div>
+    </form>`, 'wide-modal');
 }
 
 function renderCrmAccountModal(companyId, accountKey) {
@@ -5721,8 +6164,14 @@ function renderActiveModal(route, session) {
   if (state.modal === 'job-edit') return renderJobFormModal(activeCompanyId(), selectedJob());
   if (state.modal === 'contact-new') return renderContactFormModal(activeCompanyId(), null);
   if (state.modal === 'contact-edit') return renderContactFormModal(activeCompanyId(), selectedContact());
+  if (state.modal === 'account-new') return renderAccountFormModal(activeCompanyId(), null);
+  if (state.modal === 'account-edit') return renderAccountFormModal(activeCompanyId(), selectedAccount());
+  if (state.modal === 'deal-new') return renderDealFormModal(activeCompanyId(), null);
+  if (state.modal === 'deal-edit') return renderDealFormModal(activeCompanyId(), selectedDeal());
+  if (state.modal === 'activity-new') return renderActivityFormModal(activeCompanyId());
   if (state.modal === 'stages-jobs') return renderStageManagerModal('jobs');
   if (state.modal === 'stages-contacts') return renderStageManagerModal('contacts');
+  if (state.modal === 'stages-deals') return renderStageManagerModal('deals');
   if (state.modal === 'finance-invoice-new') return renderFinanceInvoiceFormModal(activeCompanyId(), null);
   if (state.modal === 'finance-invoice-edit') return renderFinanceInvoiceFormModal(activeCompanyId(), financeInvoiceById(state.selectedFinanceInvoiceId));
   if (state.modal === 'finance-payment-new') return renderFinancePaymentFormModal(activeCompanyId(), state.selectedFinanceInvoiceId);
@@ -6409,6 +6858,7 @@ function handleAction(event, node) {
     event.preventDefault();
     const contactId = node.dataset.contactId || '';
     if (contactId) state.selectedContactId = contactId;
+    state.contactPrefill = { account_id: node.dataset.accountId || '' };
     state.modal = node.dataset.mode === 'edit' ? 'contact-edit' : 'contact-new';
     render();
     return;
@@ -6418,6 +6868,78 @@ function handleAction(event, node) {
     deleteContact(node.dataset.contactId);
     return;
   }
+  if (action === 'open-account-form') {
+    event.preventDefault();
+    if (node.dataset.accountId) state.selectedAccountId = node.dataset.accountId;
+    state.modal = node.dataset.mode === 'edit' ? 'account-edit' : 'account-new';
+    render();
+    return;
+  }
+  if (action === 'delete-account') {
+    event.preventDefault();
+    deleteAccount(node.dataset.accountId);
+    return;
+  }
+  if (action === 'open-account') {
+    event.preventDefault();
+    state.selectedAccountId = node.dataset.accountId || '';
+    state.accountTab = 'overview';
+    navigate(companyPath('crm', { account_id: node.dataset.accountId }, activeCompanyId()));
+    return;
+  }
+  if (action === 'set-account-tab') {
+    event.preventDefault();
+    state.accountTab = node.dataset.tab || 'overview';
+    render();
+    return;
+  }
+  if (action === 'account-type') {
+    event.preventDefault();
+    state.accountTypeFilter = node.dataset.type || 'all';
+    updateWorkspaceOnly();
+    return;
+  }
+  if (action === 'open-deal-form') {
+    event.preventDefault();
+    if (node.dataset.dealId) state.selectedDealId = node.dataset.dealId;
+    state.dealPrefill = { account_id: node.dataset.accountId || '', primary_contact_id: node.dataset.contactId || '', stage: node.dataset.stage || '' };
+    state.modal = node.dataset.mode === 'edit' ? 'deal-edit' : 'deal-new';
+    render();
+    return;
+  }
+  if (action === 'delete-deal') {
+    event.preventDefault();
+    deleteDeal(node.dataset.dealId);
+    return;
+  }
+  if (action === 'open-deal') {
+    event.preventDefault();
+    state.selectedDealId = node.dataset.dealId || '';
+    navigate(companyPath('deals', { deal_id: node.dataset.dealId }, activeCompanyId()));
+    return;
+  }
+  if (action === 'convert-deal') {
+    event.preventDefault();
+    convertDealToJob(node.dataset.dealId);
+    return;
+  }
+  if (action === 'open-activity-form') {
+    event.preventDefault();
+    state.activityPrefill = {
+      related_type: node.dataset.relatedType || '',
+      related_id: node.dataset.relatedId || '',
+      account_id: node.dataset.accountId || '',
+      type: node.dataset.type || 'note',
+    };
+    state.modal = 'activity-new';
+    render();
+    return;
+  }
+  if (action === 'delete-activity') {
+    event.preventDefault();
+    deleteActivity(node.dataset.activityId);
+    return;
+  }
   if (action === 'set-pipeline-view') {
     event.preventDefault();
     const module = node.dataset.module;
@@ -6425,6 +6947,9 @@ function handleAction(event, node) {
     if (module === 'contacts') {
       state.contactBoardView = view;
       localStorage.setItem(CONTACT_BOARD_VIEW_KEY, view);
+    } else if (module === 'deals') {
+      state.dealBoardView = view;
+      localStorage.setItem(DEAL_BOARD_VIEW_KEY, view);
     } else {
       state.jobBoardView = view;
       localStorage.setItem(JOB_BOARD_VIEW_KEY, view);
@@ -6434,19 +6959,19 @@ function handleAction(event, node) {
   }
   if (action === 'open-stage-manager') {
     event.preventDefault();
-    const module = node.dataset.module === 'contacts' ? 'contacts' : 'jobs';
+    const module = ['contacts', 'deals'].includes(node.dataset.module) ? node.dataset.module : 'jobs';
     state.modal = `stages-${module}`;
     render();
     return;
   }
   if (action === 'add-stage') {
     event.preventDefault();
-    addPipelineStage(node.dataset.module === 'contacts' ? 'contacts' : 'jobs');
+    addPipelineStage(['contacts', 'deals'].includes(node.dataset.module) ? node.dataset.module : 'jobs');
     return;
   }
   if (action === 'delete-stage') {
     event.preventDefault();
-    deletePipelineStage(node.dataset.module === 'contacts' ? 'contacts' : 'jobs', Number(node.dataset.index));
+    deletePipelineStage(['contacts', 'deals'].includes(node.dataset.module) ? node.dataset.module : 'jobs', Number(node.dataset.index));
     return;
   }
   if (action === 'open-forms-tools') {
@@ -6827,6 +7352,24 @@ function onDocumentSubmit(event) {
   if (event.target.matches('[data-contact-form]')) {
     event.preventDefault();
     saveContact(event.target);
+    return;
+  }
+
+  if (event.target.matches('[data-account-form]')) {
+    event.preventDefault();
+    saveAccount(event.target);
+    return;
+  }
+
+  if (event.target.matches('[data-deal-form]')) {
+    event.preventDefault();
+    saveDeal(event.target);
+    return;
+  }
+
+  if (event.target.matches('[data-activity-form]')) {
+    event.preventDefault();
+    saveActivityForm(event.target);
     return;
   }
 
@@ -7991,6 +8534,16 @@ function onDocumentInput(event) {
     updateWorkspaceOnly();
     return;
   }
+  if (event.target.matches('[data-account-search]')) {
+    state.accountQuery = event.target.value;
+    updateWorkspaceOnly();
+    return;
+  }
+  if (event.target.matches('[data-deal-search]')) {
+    state.dealQuery = event.target.value;
+    updateWorkspaceOnly();
+    return;
+  }
   if (event.target.matches('[data-message-search]')) {
     state.messageQuery = event.target.value;
     updateWorkspaceOnly();
@@ -8792,6 +9345,13 @@ function resetScopedUiState() {
   state.contactQuery = '';
   state.selectedContactId = '';
   state.contactStageFilter = 'all';
+  state.dealQuery = '';
+  state.selectedDealId = '';
+  state.stageFilterDeals = 'all';
+  state.accountQuery = '';
+  state.selectedAccountId = '';
+  state.accountTypeFilter = 'all';
+  state.accountTab = 'overview';
   state.stageFilter = 'all';
   state.crmStageFilter = 'all';
   state.crmOwnerFilter = 'all';
@@ -9428,13 +9988,295 @@ function upsertContact(contact) {
 }
 
 function setPipelineStage(kind, stage, forceNav) {
-  if (kind !== 'contacts' && kind !== 'jobs') return;
+  if (!['contacts', 'jobs', 'deals'].includes(kind)) return;
   if (kind === 'contacts') state.contactStageFilter = stage;
+  else if (kind === 'deals') state.stageFilterDeals = stage;
   else state.stageFilter = stage;
   const route = state.route;
   const onSection = route?.name === 'company' && route.section === kind;
   if (forceNav || !onSection) navigate(companyPath(kind, {}, activeCompanyId()));
   else render();
+}
+
+// ---- CRM getters + CRUD: accounts / deals / activities --------------------
+function companyAccounts(companyId = activeCompanyId()) {
+  return state.accounts.filter((account) => account.company_id === companyId);
+}
+function accountById(id) {
+  return id ? state.accounts.find((account) => account.id === id) || null : null;
+}
+function accountName(id) {
+  return accountById(id)?.name || '';
+}
+function selectedAccount() {
+  return accountById(state.selectedAccountId);
+}
+function filteredAccounts(companyId = activeCompanyId()) {
+  const q = state.accountQuery.trim().toLowerCase();
+  return companyAccounts(companyId).filter((account) => {
+    if (state.accountTypeFilter !== 'all' && account.type !== state.accountTypeFilter) return false;
+    if (!q) return true;
+    return [account.name, account.industry, account.email, account.phone, account.owner_name, account.address]
+      .some((value) => String(value || '').toLowerCase().includes(q));
+  });
+}
+
+function companyDeals(companyId = activeCompanyId()) {
+  return state.deals.filter((deal) => deal.company_id === companyId);
+}
+function dealById(id) {
+  return id ? state.deals.find((deal) => deal.id === id) || null : null;
+}
+function selectedDeal() {
+  return dealById(state.selectedDealId);
+}
+function filteredDeals(companyId = activeCompanyId(), ignoreStage = false) {
+  const q = state.dealQuery.trim().toLowerCase();
+  return companyDeals(companyId).filter((deal) => {
+    if (!ignoreStage && state.stageFilterDeals !== 'all' && deal.stage !== state.stageFilterDeals) return false;
+    if (!q) return true;
+    return [deal.name, deal.owner_name, deal.source, deal.stage, accountName(deal.account_id), contactById(deal.primary_contact_id)?.name]
+      .some((value) => String(value || '').toLowerCase().includes(q));
+  });
+}
+function dealsForAccount(accountId) {
+  return state.deals.filter((deal) => deal.account_id === accountId);
+}
+function contactsForAccount(accountId) {
+  return state.contacts.filter((contact) => contact.account_id === accountId);
+}
+function jobsForAccount(accountId) {
+  return state.jobs.filter((job) => job.account_id === accountId);
+}
+
+function companyActivities(companyId = activeCompanyId()) {
+  return state.activities.filter((activity) => activity.company_id === companyId);
+}
+function activitiesFor(relatedType, relatedId) {
+  if (!relatedId) return [];
+  return state.activities
+    .filter((activity) => activity.related_type === relatedType && activity.related_id === relatedId)
+    .sort((a, b) => Date.parse(b.created_at || 0) - Date.parse(a.created_at || 0));
+}
+function activitiesForAccount(accountId) {
+  if (!accountId) return [];
+  return state.activities
+    .filter((activity) => activity.account_id === accountId || (activity.related_type === 'account' && activity.related_id === accountId))
+    .sort((a, b) => Date.parse(b.created_at || 0) - Date.parse(a.created_at || 0));
+}
+
+function persistAccounts() { writeJson(ACCOUNT_CACHE_KEY, state.accounts); }
+function persistDeals() { writeJson(DEAL_CACHE_KEY, state.deals); }
+function persistActivities() { writeJson(ACTIVITY_CACHE_KEY, state.activities); }
+
+function upsertAccount(account) {
+  const index = state.accounts.findIndex((item) => item.id === account.id);
+  if (index >= 0) state.accounts[index] = account;
+  else state.accounts.push(account);
+  persistAccounts();
+}
+function upsertDeal(deal) {
+  const index = state.deals.findIndex((item) => item.id === deal.id);
+  if (index >= 0) state.deals[index] = deal;
+  else state.deals.push(deal);
+  persistDeals();
+}
+function upsertActivity(activity) {
+  const index = state.activities.findIndex((item) => item.id === activity.id);
+  if (index >= 0) state.activities[index] = activity;
+  else state.activities.unshift(activity);
+  persistActivities();
+}
+
+// Strip app-only/derived keys before sending a row to Supabase.
+function supabaseRow(payload, allowed) {
+  const row = {};
+  allowed.forEach((key) => { if (payload[key] !== undefined) row[key] = payload[key]; });
+  return row;
+}
+
+async function supabaseWrite(table, row, { onConflict = 'id' } = {}) {
+  const client = createSupabaseClient();
+  if (!client) return { ok: false, data: null, error: null };
+  try {
+    const result = await client.from(table).upsert(row, { onConflict }).select().single();
+    if (!result.error && result.data) return { ok: true, data: result.data, error: null };
+    if (result.error) console.warn(`${table} write rejected:`, result.error.message || result.error, result.error.details || '');
+    return { ok: false, data: null, error: result.error };
+  } catch (error) {
+    console.warn(`${table} save sync failed`, error);
+    return { ok: false, data: null, error };
+  }
+}
+
+async function supabaseDelete(table, id) {
+  const client = createSupabaseClient();
+  if (!client) return;
+  try {
+    await client.from(table).delete().eq('id', id);
+  } catch (error) {
+    console.warn(`${table} delete sync failed`, error);
+  }
+}
+
+const ACCOUNT_COLS = ['id', 'company_id', 'name', 'type', 'industry', 'website', 'phone', 'email', 'address', 'owner_name', 'status', 'notes', 'updated_at'];
+const DEAL_COLS = ['id', 'company_id', 'account_id', 'primary_contact_id', 'name', 'stage', 'status', 'value', 'probability', 'close_date', 'owner_name', 'source', 'job_id', 'notes', 'updated_at'];
+const ACTIVITY_COLS = ['id', 'company_id', 'type', 'subject', 'body', 'related_type', 'related_id', 'account_id', 'due_at', 'completed_at', 'owner_name', 'updated_at'];
+const CONTACT_COLS = ['id', 'company_id', 'name', 'phone', 'email', 'location', 'stage', 'value', 'owner_name', 'account_id', 'title', 'source', 'last_activity_at', 'notes', 'updated_at'];
+
+function emptyToNull(row, keys) {
+  keys.forEach((key) => { if (row[key] === '') row[key] = null; });
+  return row;
+}
+
+async function saveAccount(form) {
+  const payload = normalizeAccount(Object.fromEntries(new FormData(form).entries()));
+  payload.id = payload.id || `account-${crypto.randomUUID()}`;
+  payload.updated_at = new Date().toISOString();
+  const { ok, data } = await supabaseWrite('accounts', supabaseRow(payload, ACCOUNT_COLS));
+  upsertAccount(ok && data ? normalizeAccount(data) : payload);
+  state.selectedAccountId = payload.id;
+  state.modal = '';
+  showToast(`${payload.name} saved.`, ok ? 'live' : 'local', 'Accounts');
+  render();
+}
+
+async function deleteAccount(id) {
+  if (!id) return;
+  await supabaseDelete('accounts', id);
+  state.accounts = state.accounts.filter((account) => account.id !== id);
+  persistAccounts();
+  if (state.selectedAccountId === id) state.selectedAccountId = '';
+  state.modal = '';
+  navigate(companyPath('crm', {}, activeCompanyId()), { replace: true });
+}
+
+async function saveDeal(form) {
+  const payload = normalizeDeal(Object.fromEntries(new FormData(form).entries()));
+  payload.id = payload.id || `deal-${crypto.randomUUID()}`;
+  // Keep status in sync with terminal stage names so KPIs / badges stay correct.
+  if (/^won/i.test(payload.stage)) payload.status = 'won';
+  else if (/^lost/i.test(payload.stage)) payload.status = 'lost';
+  else if (payload.status !== 'open' && !/^won|^lost/i.test(payload.stage)) payload.status = 'open';
+  payload.updated_at = new Date().toISOString();
+  const previous = dealById(payload.id);
+  const row = emptyToNull(supabaseRow(payload, DEAL_COLS), ['account_id', 'primary_contact_id', 'close_date', 'job_id']);
+  const { ok, data } = await supabaseWrite('deals', row);
+  upsertDeal(ok && data ? normalizeDeal(data) : payload);
+  if (previous && previous.stage !== payload.stage) {
+    logActivity({ type: 'stage_change', subject: `Stage → ${payload.stage}`, related_type: 'deal', related_id: payload.id, account_id: payload.account_id });
+  }
+  state.selectedDealId = payload.id;
+  state.modal = '';
+  showToast(`${payload.name} saved.`, ok ? 'live' : 'local', 'Deals');
+  render();
+}
+
+async function deleteDeal(id) {
+  if (!id) return;
+  await supabaseDelete('deals', id);
+  state.deals = state.deals.filter((deal) => deal.id !== id);
+  persistDeals();
+  if (state.selectedDealId === id) state.selectedDealId = '';
+  state.modal = '';
+  navigate(companyPath('deals', {}, activeCompanyId()), { replace: true });
+}
+
+async function logActivity(input) {
+  // Resolve a real account_id: explicit, valid, or derived from the related record.
+  let accountId = accountById(input.account_id) ? input.account_id : '';
+  if (!accountId) {
+    if (input.related_type === 'account') accountId = input.related_id;
+    else if (input.related_type === 'deal') accountId = dealById(input.related_id)?.account_id || '';
+    else if (input.related_type === 'contact') accountId = contactById(input.related_id)?.account_id || '';
+  }
+  if (!accountById(accountId)) accountId = '';
+  const payload = normalizeActivity({
+    ...input,
+    id: input.id || `activity-${crypto.randomUUID()}`,
+    company_id: activeCompanyId(),
+    account_id: accountId,
+    owner_name: input.owner_name || activeSession().profile.full_name || '',
+    completed_at: input.completed_at || (input.type === 'note' || input.type === 'stage_change' ? new Date().toISOString() : input.completed_at),
+  });
+  payload.updated_at = new Date().toISOString();
+  const row = emptyToNull(supabaseRow(payload, ACTIVITY_COLS), ['account_id', 'due_at', 'completed_at']);
+  const { ok, data } = await supabaseWrite('activities', row);
+  upsertActivity(ok && data ? normalizeActivity(data) : payload);
+  // Stamp last_activity_at on a related contact.
+  if (input.related_type === 'contact') {
+    const contact = contactById(input.related_id);
+    if (contact) {
+      const updated = { ...contact, last_activity_at: payload.completed_at || payload.created_at, updated_at: new Date().toISOString() };
+      upsertContact(updated);
+      supabaseWrite('contacts', emptyToNull(supabaseRow(updated, CONTACT_COLS), ['account_id']));
+    }
+  }
+  return payload;
+}
+
+async function saveActivityForm(form) {
+  const formData = Object.fromEntries(new FormData(form).entries());
+  await logActivity({
+    type: formData.type,
+    subject: formData.subject,
+    body: formData.body,
+    related_type: formData.related_type,
+    related_id: formData.related_id,
+    account_id: formData.account_id,
+  });
+  state.modal = '';
+  showToast('Activity logged.', 'local', 'CRM');
+  render();
+}
+
+async function deleteActivity(id) {
+  if (!id) return;
+  await supabaseDelete('activities', id);
+  state.activities = state.activities.filter((activity) => activity.id !== id);
+  persistActivities();
+  render();
+}
+
+// Convert a won deal into a production Job (interconnect CRM -> Jobs).
+async function convertDealToJob(dealId) {
+  const deal = dealById(dealId);
+  if (!deal) return;
+  const companyId = deal.company_id;
+  if (!requirePermission('jobs.manage', companyId, 'Your role cannot create jobs.', 'Jobs')) return;
+  const account = accountById(deal.account_id);
+  const contact = contactById(deal.primary_contact_id);
+  const job = normalizeJob({
+    id: '',
+    company_id: companyId,
+    name: deal.name,
+    client_name: account?.name || '',
+    contact_name: contact?.name || '',
+    site_address: account?.address || '',
+    owner_name: deal.owner_name,
+    estimate_total: deal.value,
+    stage: jobStageNames()[0],
+    account_id: deal.account_id,
+    deal_id: deal.id,
+    scope: deal.notes,
+  });
+  job.id = crypto.randomUUID();
+  job.updated_at = new Date().toISOString();
+  const jobRow = supabaseRow(job, ['id', 'company_id', 'name', 'client_name', 'contact_name', 'site_address', 'job_type', 'stage', 'priority', 'owner_name', 'scope', 'notes', 'estimate_total', 'invoice_total', 'account_id', 'deal_id', 'updated_at']);
+  emptyToNull(jobRow, ['account_id', 'deal_id']);
+  const { ok, data } = await supabaseWrite('jobs', jobRow);
+  upsertJob(ok && data ? normalizeJob(data) : job);
+  // mark the deal won + link the job
+  const wonStage = dealStageNames().find((name) => /win|won/i.test(name)) || deal.stage;
+  const updatedDeal = normalizeDeal({ ...deal, status: 'won', stage: wonStage, job_id: job.id, updated_at: new Date().toISOString() });
+  const dealRes = await supabaseWrite('deals', emptyToNull(supabaseRow(updatedDeal, DEAL_COLS), ['account_id', 'primary_contact_id', 'close_date', 'job_id']));
+  upsertDeal(updatedDeal);
+  logActivity({ type: 'system', subject: 'Deal won → Job created', body: deal.name, related_type: 'deal', related_id: deal.id, account_id: deal.account_id });
+  state.selectedJobId = job.id;
+  state.modal = '';
+  const live = ok && dealRes.ok;
+  showToast('Deal won — job created.', live ? 'live' : 'local', 'Deals');
+  navigate(companyPath('jobs', { tab: 'profile', job_id: job.id }, companyId));
 }
 
 function crmAccounts(companyId = activeCompanyId()) {
@@ -10034,6 +10876,8 @@ function normalizeJob(input) {
     stage: resolveJobStage(input.stage),
     priority: ['Low', 'Medium', 'High', 'Urgent'].includes(input.priority) ? input.priority : 'Medium',
     owner_name: String(input.owner_name || '').trim(),
+    account_id: input.account_id ? String(input.account_id) : '',
+    deal_id: input.deal_id ? String(input.deal_id) : '',
     scope: String(input.scope || '').trim(),
     notes: String(input.notes || '').trim(),
     estimate_total: number(input.estimate_total),
@@ -10056,7 +10900,70 @@ function normalizeContact(input) {
     stage: resolveContactStage(input.stage),
     value: number(input.value),
     owner_name: String(input.owner_name || '').trim(),
+    account_id: input.account_id ? String(input.account_id) : '',
+    title: String(input.title || '').trim(),
+    source: String(input.source || '').trim(),
+    last_activity_at: input.last_activity_at || null,
     notes: String(input.notes || '').trim(),
+    created_at: input.created_at || new Date().toISOString(),
+    updated_at: input.updated_at || new Date().toISOString(),
+  };
+}
+
+function normalizeAccount(input) {
+  return {
+    id: String(input.id || ''),
+    company_id: canonicalCompanyId(input.company_id || defaultCompanyId()),
+    name: String(input.name || '').trim() || 'Untitled account',
+    type: ACCOUNT_TYPES.includes(input.type) ? input.type : 'Customer',
+    industry: String(input.industry || '').trim(),
+    website: String(input.website || '').trim(),
+    phone: String(input.phone || '').trim(),
+    email: String(input.email || '').trim(),
+    address: String(input.address || '').trim(),
+    owner_name: String(input.owner_name || '').trim(),
+    status: ['Active', 'Inactive'].includes(input.status) ? input.status : 'Active',
+    notes: String(input.notes || '').trim(),
+    created_at: input.created_at || new Date().toISOString(),
+    updated_at: input.updated_at || new Date().toISOString(),
+  };
+}
+
+function normalizeDeal(input) {
+  const status = ['open', 'won', 'lost'].includes(String(input.status || '').toLowerCase()) ? String(input.status).toLowerCase() : 'open';
+  return {
+    id: String(input.id || ''),
+    company_id: canonicalCompanyId(input.company_id || defaultCompanyId()),
+    account_id: input.account_id ? String(input.account_id) : '',
+    primary_contact_id: input.primary_contact_id ? String(input.primary_contact_id) : '',
+    name: String(input.name || '').trim() || 'Untitled deal',
+    stage: resolveDealStage(input.stage),
+    status,
+    value: number(input.value),
+    probability: Math.max(0, Math.min(100, Math.round(number(input.probability)))),
+    close_date: input.close_date ? String(input.close_date).slice(0, 10) : '',
+    owner_name: String(input.owner_name || '').trim(),
+    source: String(input.source || '').trim(),
+    job_id: input.job_id ? String(input.job_id) : '',
+    notes: String(input.notes || '').trim(),
+    created_at: input.created_at || new Date().toISOString(),
+    updated_at: input.updated_at || new Date().toISOString(),
+  };
+}
+
+function normalizeActivity(input) {
+  return {
+    id: String(input.id || ''),
+    company_id: canonicalCompanyId(input.company_id || defaultCompanyId()),
+    type: ACTIVITY_TYPES.includes(input.type) ? input.type : 'note',
+    subject: String(input.subject || '').trim(),
+    body: String(input.body || '').trim(),
+    related_type: ['account', 'contact', 'deal', 'job'].includes(input.related_type) ? input.related_type : '',
+    related_id: input.related_id ? String(input.related_id) : '',
+    account_id: input.account_id ? String(input.account_id) : '',
+    due_at: input.due_at || null,
+    completed_at: input.completed_at || null,
+    owner_name: String(input.owner_name || '').trim(),
     created_at: input.created_at || new Date().toISOString(),
     updated_at: input.updated_at || new Date().toISOString(),
   };
@@ -10945,6 +11852,9 @@ function persistAll() {
   if (state.session?.auth === 'supabase') return;
   writeJson(JOB_CACHE_KEY, state.jobs);
   writeJson(CONTACT_CACHE_KEY, state.contacts);
+  writeJson(ACCOUNT_CACHE_KEY, state.accounts);
+  writeJson(DEAL_CACHE_KEY, state.deals);
+  writeJson(ACTIVITY_CACHE_KEY, state.activities);
   writeJson(TASK_CACHE_KEY, state.tasks);
   writeJson(FILE_CACHE_KEY, state.files);
   writeJson(DRIVE_FOLDER_CACHE_KEY, state.driveFolders);
