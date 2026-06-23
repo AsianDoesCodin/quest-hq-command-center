@@ -191,6 +191,20 @@ const DEFAULT_DEAL_STAGES = [
 ];
 const STAGE_COLOR_PALETTE = ['#9AA0A8', '#378ADD', '#BA7517', '#7F77DD', '#639922', '#E24B4A', '#3C7BD0', '#C08A2B', '#5AB0A6', '#C4C7CC'];
 const TEMPERATURES = ['Hot', 'Warm', 'Cold'];
+const CONTACT_GUIDANCE = [
+  { match: /prospect/i, t: 'Work the prospect.', b: ['Where did this lead come from?', 'Best way to reach them — call, text, email?', 'Is there a real project here, or just looking?', 'Get them into a real conversation.'] },
+  { match: /lead/i, t: 'Qualify the lead.', b: ['Have you confirmed the decision maker(s)?', 'Is this an insurance claim or retail pay?', "What's the roof age, system, and visible damage?", "What's their timeline to start?"] },
+  { match: /nurtur|follow/i, t: 'Keep it warm.', b: ['When did you last touch base?', 'What are they waiting on to move forward?', "Set a follow-up cadence so they don't go cold.", 'Send value — photos, tips, financing options.'] },
+  { match: /underwrit/i, t: 'Scope it and price it.', b: ['Is the takeoff / measurements done?', 'If insurance — do you have the carrier scope?', 'Are material selections confirmed?', 'Is the margin target set on the estimate?'] },
+  { match: /estimate/i, t: 'Present the estimate.', b: ['Has the proposal been sent?', 'Did you walk them through Standard vs Recommended?', 'What objections came up?', 'Is the follow-up scheduled?'] },
+  { match: /negotiat/i, t: 'Close the deal.', b: ['Are all outstanding questions answered?', 'Are all decision makers on board?', 'Do you need a discount or incentive?', 'Ask for the signature.'] },
+  { match: /contract/i, t: 'Get it signed.', b: ['Is the contract out for signature?', 'Has the deposit been collected?', 'Is the start date set?', 'Hand off the details to production.'] },
+  { match: /won/i, t: 'Won — convert to a job.', b: ['Schedule the build and assign a crew.', 'Order materials from your vendors.', 'Confirm the scope with the customer.', 'Hit Convert to Job to move it to production.'] },
+  { match: /lost/i, t: 'Lost — capture why.', b: ['Log the reason this fell through.', 'Is there a future opportunity to nurture later?', 'Anything to learn for the next bid?'] },
+];
+function guidanceForStage(name) {
+  return CONTACT_GUIDANCE.find((g) => g.match.test(String(name || ''))) || { t: 'Move the deal forward.', b: ['Confirm the next step with the customer.', "Set a follow-up so it doesn't go cold."] };
+}
 // Maps the previous fixed job stage names onto the new default job stages so
 // existing job records still land in a real lane after the rework.
 const LEGACY_JOB_STAGE_MAP = {
@@ -2780,112 +2794,240 @@ function contactCard(contact) {
 }
 
 function renderContactRecord(companyId, contact) {
-  const account = contact.account_id ? accountById(contact.account_id) : null;
-  const initials = contact.name.split(/\s+/).map((w) => w[0]).filter(Boolean).slice(0, 2).join('').toUpperCase() || '?';
+  const stages = contactStages();
+  const ci = stages.findIndex((s) => s.name === contact.stage);
+  const g = guidanceForStage(contact.stage);
+  const tempColor = contact.temperature === 'Hot' ? '#C2410C' : contact.temperature === 'Warm' ? '#B07A12' : '#2E72B8';
+  const activeTab = state.contactActivityTab || 'Email';
   const tasks = tasksForContact(contact.id);
+  const feed = activitiesFor('contact', contact.id);
+
+  const ed = (key, opts = {}) => {
+    const display = (contact[key] === '' || contact[key] == null) ? '—' : contact[key];
+    const cls = ['sf-edit', opts.blue ? 'blue' : '', opts.mono ? 'mono' : ''].filter(Boolean).join(' ');
+    return `<span class="${cls}" data-contact-edit="${h(key)}" data-contact-id="${h(contact.id)}" title="Click to edit">${h(String(display))}</span>`;
+  };
+  const fieldRow = (label, content) => `<div class="sf-field"><div class="sf-field-label">${h(label)}<i class="ti ti-pencil sf-pencil"></i></div><div class="sf-field-value">${content}</div></div>`;
+
+  const headerActions = [['Follow', 'ti-plus'], ['New Task', 'ti-checkbox'], ['Log a Call', 'ti-phone'], ['New Estimate', 'ti-calculator'], ['Edit', 'ti-pencil']];
+  const quickTiles = [['Task', 'ti-checkbox'], ['Meeting', 'ti-calendar'], ['Estimate', 'ti-calculator'], ['Proposal', 'ti-file-text'], ['Note', 'ti-note'], ['Call Log', 'ti-phone']];
+  const activityTabs = [['Email', 'ti-mail'], ['New Task', 'ti-checkbox'], ['New Event', 'ti-calendar'], ['Log a Call', 'ti-phone']];
+
   return `
-    ${workspaceHeader(contact.name, `Contacts · ${contact.stage}`, `
-      <a class="btn" href="${appHref(companyPath('contacts', {}, companyId))}" data-router><i class="ti ti-arrow-left"></i>Contacts</a>
-      ${contact.phone ? `<a class="btn" href="tel:${h(contact.phone)}"><i class="ti ti-phone"></i>Call</a>` : ''}
-      ${contact.email ? `<a class="btn" href="mailto:${h(contact.email)}"><i class="ti ti-mail"></i>Email</a>` : ''}
-      <button class="btn" type="button" data-action="open-activity-form" data-related-type="contact" data-related-id="${h(contact.id)}" data-account-id="${h(contact.account_id || '')}"><i class="ti ti-note"></i>Log activity</button>
-      <button class="btn btn-primary" type="button" data-action="open-contact-form" data-mode="edit" data-contact-id="${h(contact.id)}"><i class="ti ti-pencil"></i>Edit</button>
-    `)}
-    <section class="contact-record">
-      <header class="contact-hero panel">
-        <span class="contact-avatar">${h(initials)}</span>
-        <div class="contact-hero-id">
-          <strong>${h(contact.name)}</strong>
-          <span>${h(contact.location || '—')}</span>
-        </div>
-        <div class="contact-hero-stats">
-          <div><label>Value</label><b class="money">${contact.value ? money(contact.value) : '—'}</b></div>
-          <div><label>Stage</label><b>${stageTagPipe('contacts', contact.stage)}</b></div>
-          <div><label>Owner</label><b>${h(contact.owner_name || 'Unassigned')}</b></div>
-        </div>
-      </header>
+    <div class="sf-record">
+      <div class="sf-object-tabs">
+        <a class="sf-object-tab" href="${appHref(companyPath('home', {}, companyId))}" data-router>Home</a>
+        <a class="sf-object-tab" href="${appHref(companyPath('contacts', {}, companyId))}" data-router>All Contacts <span class="sf-tab-kind">| Contacts</span></a>
+        <span class="sf-object-tab on">${h(contact.name)} <span class="sf-tab-kind">| Contact</span></span>
+      </div>
 
-      <article class="panel">
-        <div class="section-head"><div><h2>Pipeline</h2></div></div>
-        ${contactFunnel(contact)}
-      </article>
+      <div class="sf-record-head">
+        <span class="sf-record-icon"><i class="ti ti-user"></i></span>
+        <div><div class="sf-record-label">Contact</div><div class="sf-record-name">${h(contact.name)}</div></div>
+        <div class="sf-actions">
+          ${headerActions.map(([label, ico]) => label === 'Edit'
+            ? `<button class="sf-btn" type="button" data-action="open-contact-form" data-mode="edit" data-contact-id="${h(contact.id)}"><i class="ti ${ico}"></i>${label}</button>`
+            : `<button class="sf-btn" type="button" data-action="contact-quick" data-kind="${h(label)}" data-contact-id="${h(contact.id)}"><i class="ti ${ico}"></i>${label}</button>`).join('')}
+        </div>
+      </div>
 
-      <div class="contact-info-grid">
-        <article class="panel">
-          <div class="section-head"><div><h2>Contact</h2></div></div>
-          ${contractRows([
-            ['Phone', contact.phone || '—'],
-            ['Email', contact.email || '—'],
-            ['Location', contact.location || '—'],
-            ['Account', account ? account.name : '—'],
-          ])}
-        </article>
-        <article class="panel">
-          <div class="section-head"><div><h2>Qualification</h2></div></div>
-          ${contractRows([
-            ['Owner', contact.owner_name || 'Unassigned'],
-            ['Source', contact.source || '—'],
-          ])}
-          <div class="contact-temp">
-            <span class="field-eyebrow">Set temperature</span>
-            <div class="temp-pills">
-              ${TEMPERATURES.map((t) => `<button class="temp-pill temp-${t.toLowerCase()} ${contact.temperature === t ? 'on' : ''}" type="button" data-action="set-contact-temp" data-contact-id="${h(contact.id)}" data-temp="${t}">${t}</button>`).join('')}
+      <div class="sf-path-wrap">
+        <div class="sf-path-row">
+          <div class="sf-stage-track">
+            ${stages.map((s, i) => {
+              const cls = i < ci ? 'done' : i === ci ? 'current' : 'future';
+              return `<button class="sf-stage ${cls}" type="button" data-action="set-contact-stage" data-contact-id="${h(contact.id)}" data-stage="${h(s.name)}" title="Move to ${h(s.name)}">${i < ci ? '<i class="ti ti-check"></i>' : h(s.name)}</button>`;
+            }).join('')}
+          </div>
+          <button class="sf-mark-btn" type="button" data-action="contact-mark-next" data-contact-id="${h(contact.id)}">Mark as Current Stage</button>
+        </div>
+        <div class="sf-guidance">
+          <div class="sf-guidance-label">Guidance for Success</div>
+          <div class="sf-guidance-title">${h(g.t)}</div>
+          <div class="sf-guidance-lines">${g.b.map((x) => `<div>— ${h(x)}</div>`).join('')}</div>
+        </div>
+      </div>
+
+      <div class="sf-three-col">
+        <div class="sf-col">
+          <div class="sf-card"><div class="sf-card-head"><i class="ti ti-id-badge-2"></i>About</div><div class="sf-card-body">
+            ${fieldRow('Phone', ed('phone'))}
+            ${fieldRow('Email', ed('email', { blue: true }))}
+            ${fieldRow('Location', ed('location'))}
+            ${fieldRow('Job Type', `<span class="sf-pill">${h(contact.title || '—')}</span>`)}
+            ${fieldRow('Owner', ed('owner_name', { blue: true }))}
+            ${fieldRow('Source', ed('source'))}
+          </div></div>
+          <div class="sf-card"><div class="sf-card-head"><i class="ti ti-clipboard-data"></i>Status</div><div class="sf-card-body">
+            ${fieldRow('Stage', `<span>${h(contact.stage)}</span>`)}
+            ${fieldRow('Est. Value', `<span class="sf-money">$<span class="sf-edit mono" data-contact-edit="value" data-contact-id="${h(contact.id)}" title="Click to edit">${money(contact.value || 0)}</span></span>`)}
+            ${fieldRow('Temperature', `<span class="sf-edit" data-contact-edit="temperature" data-contact-id="${h(contact.id)}" style="color:${tempColor}" title="Click to edit">${h(contact.temperature)}</span>`)}
+            ${fieldRow('Pay Type', ed('pay_type'))}
+            ${fieldRow('Roof System', ed('roof_system'))}
+          </div></div>
+        </div>
+
+        <div class="sf-col">
+          <div class="sf-card">
+            <div class="sf-activity-tabs">${activityTabs.map(([label, ico]) => `<button class="sf-activity-tab ${activeTab === label ? 'active' : ''}" type="button" data-action="contact-activity-tab" data-tab="${h(label)}"><i class="ti ${ico}"></i>${label}</button>`).join('')}</div>
+            <form class="sf-note-box" data-contact-note-form autocomplete="off">
+              <input type="hidden" name="contact_id" value="${h(contact.id)}" />
+              <input name="body" placeholder="Write a note or @mention…" />
+              <span class="sf-note-tools"><i class="ti ti-paperclip"></i><i class="ti ti-at"></i></span>
+            </form>
+            <div class="sf-filters">Filters: Within 2 months · All activities · All types</div>
+            <div class="sf-feed">
+              ${feed.length ? feed.map((a) => sfFeedItem(a)).join('') : '<div class="sf-feed-empty">No activity yet. Log a note, call, or meeting.</div>'}
             </div>
           </div>
-        </article>
-        <article class="panel">
-          <div class="section-head"><div><h2>Project</h2></div></div>
-          ${contractRows([
-            ['Type', contact.title || '—'],
-            ['Est. value', contact.value ? money(contact.value) : '—'],
-          ])}
-          ${contact.notes ? `<p class="crm-notes">${h(contact.notes)}</p>` : ''}
-        </article>
-      </div>
+        </div>
 
-      <div class="contact-lower-grid">
-        <article class="panel">
-          <div class="section-head"><div><h2>Activity</h2></div><button class="btn" type="button" data-action="open-activity-form" data-related-type="contact" data-related-id="${h(contact.id)}" data-account-id="${h(contact.account_id || '')}"><i class="ti ti-plus"></i>Log</button></div>
-          ${renderActivityTimeline('contact', contact.id, contact.account_id)}
-        </article>
-        <article class="panel">
-          <div class="section-head"><div><h2>Open tasks</h2></div></div>
-          <ul class="contact-tasks">
-            ${tasks.map((task) => `
-              <li class="contact-task ${task.status === 'done' ? 'done' : ''}">
-                <button class="task-check ${task.status === 'done' ? 'on' : ''}" type="button" data-action="toggle-contact-task" data-task-id="${h(task.id)}" aria-label="Toggle task done">${task.status === 'done' ? '<i class="ti ti-check"></i>' : ''}</button>
-                <span class="task-title">${h(task.title)}</span>
-                ${task.due ? `<span class="task-due">${h(formatDate(task.due))}</span>` : ''}
-              </li>`).join('') || '<li class="contact-task-empty">No tasks yet.</li>'}
-          </ul>
-          <form class="contact-task-add" data-contact-task-form autocomplete="off">
-            <input type="hidden" name="contact_id" value="${h(contact.id)}" />
-            <i class="ti ti-plus"></i>
-            <input type="text" name="title" placeholder="Add a task…" aria-label="Add a task" />
-          </form>
-        </article>
+        <div class="sf-col">
+          <div class="sf-card"><div class="sf-card-head"><i class="ti ti-bolt"></i>Quick Create</div>
+            <div class="sf-quick-grid">${quickTiles.map(([label, ico]) => `<button class="sf-quick-tile" type="button" data-action="contact-quick" data-kind="${h(label)}" data-contact-id="${h(contact.id)}"><i class="ti ${ico}"></i><span>${label}</span></button>`).join('')}</div>
+            <button class="sf-convert-btn" type="button" data-action="contact-convert-job" data-contact-id="${h(contact.id)}"><i class="ti ti-arrow-right"></i>Convert to Job</button>
+          </div>
+          <div class="sf-card"><div class="sf-card-head"><i class="ti ti-checkbox"></i>Open Tasks<span class="sf-connect"><i class="ti ti-plug"></i>Connect</span></div>
+            <div class="sf-tasks">
+              ${tasks.map((t) => `<div class="sf-task-row ${t.status === 'done' ? 'done' : ''}"><button class="sf-check" type="button" data-action="toggle-contact-task" data-task-id="${h(t.id)}" aria-label="Toggle task">${t.status === 'done' ? '<i class="ti ti-check"></i>' : ''}</button><span class="sf-task-title">${h(t.title)}</span>${t.due ? `<span class="sf-due">${h(formatDate(t.due))}</span>` : ''}</div>`).join('') || '<div class="sf-task-empty">No tasks yet.</div>'}
+            </div>
+            <form class="sf-task-add" data-contact-task-form autocomplete="off"><input type="hidden" name="contact_id" value="${h(contact.id)}" /><i class="ti ti-plus"></i><input name="title" placeholder="Add a task…" /></form>
+          </div>
+        </div>
       </div>
-    </section>
+    </div>
   `;
 }
 
-function contactFunnel(contact) {
-  const stages = contactStages();
-  const ci = stages.findIndex((s) => s.name === contact.stage);
+function sfFeedItem(a) {
+  const owner = String(a.owner_name || 'Quest').trim();
+  const initials = owner.split(/\s+/).map((w) => w[0]).filter(Boolean).slice(0, 2).join('').toUpperCase() || 'Q';
+  const typeColors = { call: ['#0176D3', 'rgba(1,118,211,.12)'], email: ['#2E844A', 'rgba(46,132,74,.12)'], meeting: ['#7F77DD', 'rgba(127,119,221,.14)'], note: ['#706E6B', '#EEF0F3'], stage_change: ['#ED4E0D', 'rgba(237,78,13,.12)'], system: ['#706E6B', '#EEF0F3'] };
+  const [tc, tb] = typeColors[a.type] || typeColors.note;
+  const text = a.subject ? (a.subject + (a.body ? ' — ' + a.body : '')) : (a.body || titleCase(a.type || 'note'));
   return `
-    <div class="contact-funnel">
-      ${stages.map((stage, i) => {
-        const done = i < ci;
-        const cur = i === ci;
-        return `
-          <button class="funnel-step ${done ? 'done' : ''} ${cur ? 'current' : ''}" type="button" data-action="set-contact-stage" data-contact-id="${h(contact.id)}" data-stage="${h(stage.name)}" title="${h(stage.name)}">
-            <span class="funnel-line" style="${i <= ci ? `background:${h(stage.color)}` : ''}"></span>
-            <span class="funnel-dot" style="${(done || cur) ? `background:${h(stage.color)};border-color:${h(stage.color)}` : ''}"></span>
-            <span class="funnel-name">${h(stage.name)}</span>
-          </button>`;
-      }).join('')}
-    </div>
-  `;
+    <div class="sf-feed-item">
+      <span class="sf-feed-avatar" style="background:${tc}">${h(initials)}</span>
+      <div class="sf-feed-main">
+        <div class="sf-feed-top"><span class="sf-feed-name">${h(owner)}</span><span class="sf-feed-tag" style="color:${tc};background:${tb}">${h(String(a.type || 'note').replace('_', ' '))}</span><span class="sf-feed-time">${h(timeAgo(a.completed_at || a.created_at))}</span></div>
+        <div class="sf-feed-text">${h(text)}</div>
+      </div>
+    </div>`;
+}
+
+function patchContactField(contactId, key, raw) {
+  const contact = contactById(contactId);
+  if (!contact) return;
+  let value;
+  if (key === 'value') value = Number(String(raw).replace(/[^0-9.]/g, '')) || 0;
+  else if (key === 'temperature') value = resolveTemperature(raw);
+  else value = String(raw).trim();
+  if (contact[key] === value) { render(); return; }
+  persistContact({ ...contact, [key]: value });
+}
+
+function beginContactInlineEdit(span) {
+  const key = span.dataset.contactEdit;
+  const contactId = span.dataset.contactId;
+  const contact = contactById(contactId);
+  if (!contact) return;
+  const input = document.createElement('input');
+  input.className = 'sf-edit-input';
+  input.value = key === 'value' ? (contact.value || 0) : (contact[key] || '');
+  span.replaceWith(input);
+  input.focus();
+  input.select();
+  let done = false;
+  const commit = () => { if (done) return; done = true; patchContactField(contactId, key, input.value); };
+  input.addEventListener('blur', commit);
+  input.addEventListener('keydown', (ev) => {
+    if (ev.key === 'Enter') { ev.preventDefault(); commit(); }
+    if (ev.key === 'Escape') { done = true; render(); }
+  });
+}
+
+async function createContactTask(contactId, title) {
+  const companyId = activeCompanyId();
+  const clean = String(title || '').trim();
+  if (!clean) return;
+  const payload = normalizeTask({
+    id: `task-${crypto.randomUUID()}`,
+    company_id: companyId,
+    title: clean,
+    contact_id: contactId,
+    creator_id: activeSession().profile.member_id || companyMembers(companyId)[0]?.id || 'abraham',
+    status: 'todo',
+    due: isoDate(1),
+  });
+  upsertTask(payload);
+  render();
+  const client = createSupabaseClient();
+  if (client) {
+    try {
+      const result = await client.from('tasks').insert(taskPayload(payload)).select().single();
+      if (!result.error && result.data) { upsertTask(normalizeTask(result.data)); render(); }
+    } catch (error) { console.warn('Contact task sync failed', error); }
+  }
+}
+
+async function logContactActivity(contactId, type, subject, body = '') {
+  const contact = contactById(contactId);
+  if (!contact) return;
+  await logActivity({ type, subject, body, related_type: 'contact', related_id: contactId, account_id: contact.account_id });
+  render();
+}
+
+function contactQuickCreate(contactId, kind) {
+  if (kind === 'Task' || kind === 'New Task') return createContactTask(contactId, 'New task');
+  if (kind === 'Note') return logContactActivity(contactId, 'note', 'Note added');
+  if (kind === 'Call Log' || kind === 'Log a Call') return logContactActivity(contactId, 'call', 'Logged a call');
+  if (kind === 'Meeting' || kind === 'New Event') return logContactActivity(contactId, 'meeting', 'Meeting scheduled');
+  if (kind === 'Follow') return showToast('Following this contact.', 'local', 'Contacts');
+  return showToast(`${kind} isn't set up yet.`, 'local', 'Contacts');
+}
+
+async function postContactNote(form) {
+  const data = Object.fromEntries(new FormData(form).entries());
+  const text = String(data.body || '').trim();
+  const contactId = String(data.contact_id || '');
+  if (!text) return;
+  const tab = state.contactActivityTab || 'Email';
+  if (tab === 'New Task') return createContactTask(contactId, text);
+  const typeMap = { Email: 'email', 'Log a Call': 'call', 'New Event': 'meeting' };
+  await logContactActivity(contactId, typeMap[tab] || 'note', '', text);
+}
+
+async function convertContactToJob(contactId) {
+  const contact = contactById(contactId);
+  if (!contact) return;
+  const companyId = contact.company_id;
+  if (!requirePermission('jobs.manage', companyId, 'Your role cannot create jobs.', 'Jobs')) return;
+  const account = accountById(contact.account_id);
+  const job = normalizeJob({
+    id: '',
+    company_id: companyId,
+    name: `${contact.name}${contact.title ? ' — ' + contact.title : ''}`,
+    client_name: account?.name || contact.name,
+    contact_name: contact.name,
+    site_address: contact.location || account?.address || '',
+    owner_name: contact.owner_name,
+    estimate_total: contact.value,
+    stage: jobStageNames()[0],
+    account_id: contact.account_id,
+    scope: contact.notes,
+  });
+  job.id = crypto.randomUUID();
+  job.updated_at = new Date().toISOString();
+  const jobRow = supabaseRow(job, ['id', 'company_id', 'name', 'client_name', 'contact_name', 'site_address', 'job_type', 'stage', 'priority', 'owner_name', 'scope', 'notes', 'estimate_total', 'invoice_total', 'account_id', 'deal_id', 'updated_at']);
+  emptyToNull(jobRow, ['account_id', 'deal_id']);
+  const { ok, data } = await supabaseWrite('jobs', jobRow);
+  upsertJob(ok && data ? normalizeJob(data) : job);
+  const wonStage = contactStageNames().find((name) => /win|won/i.test(name)) || contact.stage;
+  await persistContact({ ...contact, stage: wonStage });
+  await logActivity({ type: 'system', subject: 'Contact won → Job created', body: contact.name, related_type: 'contact', related_id: contact.id, account_id: contact.account_id });
+  state.selectedJobId = job.id;
+  showToast('Contact won — job created.', ok ? 'live' : 'local', 'Contacts');
+  navigate(companyPath('jobs', { tab: 'profile', job_id: job.id }, companyId));
 }
 
 function tasksForContact(contactId) {
@@ -2926,31 +3068,9 @@ function setContactTemperature(contactId, temp) {
   persistContact({ ...contact, temperature: resolveTemperature(temp) });
 }
 
-async function addContactTask(form) {
-  const companyId = activeCompanyId();
+function addContactTask(form) {
   const data = Object.fromEntries(new FormData(form).entries());
-  const title = String(data.title || '').trim();
-  if (!title) return;
-  const payload = normalizeTask({
-    id: `task-${crypto.randomUUID()}`,
-    company_id: companyId,
-    title,
-    contact_id: String(data.contact_id || ''),
-    creator_id: activeSession().profile.member_id || companyMembers(companyId)[0]?.id || 'abraham',
-    status: 'todo',
-    due: isoDate(1),
-  });
-  upsertTask(payload);
-  render();
-  const client = createSupabaseClient();
-  if (client) {
-    try {
-      const result = await client.from('tasks').insert(taskPayload(payload)).select().single();
-      if (!result.error && result.data) { upsertTask(normalizeTask(result.data)); render(); }
-    } catch (error) {
-      console.warn('Contact task sync failed', error);
-    }
-  }
+  createContactTask(String(data.contact_id || ''), String(data.title || ''));
 }
 
 async function toggleContactTask(taskId) {
@@ -2987,6 +3107,9 @@ function renderContactEditor(companyId, contact) {
       ${selectField('Stage', 'stage', edit.stage || contactStageNames()[0], contactStageNames().map((stage) => [stage, stage]))}
       ${field('Owner', 'owner_name', edit.owner_name)}
       ${field('Estimated value', 'value', edit.value || 0, false, 'number')}
+      ${selectField('Temperature', 'temperature', edit.temperature || 'Warm', TEMPERATURES.map((t) => [t, t]))}
+      ${field('Pay type', 'pay_type', edit.pay_type)}
+      ${field('Roof system', 'roof_system', edit.roof_system)}
       ${textareaField('Notes', 'notes', edit.notes, 'span-2')}
       <div class="form-actions span-2">
         <button class="btn btn-primary" type="submit">Save contact</button>
@@ -6724,6 +6847,13 @@ function onDocumentClick(event) {
     return;
   }
 
+  const editSpan = event.target.closest('[data-contact-edit]');
+  if (editSpan) {
+    event.preventDefault();
+    beginContactInlineEdit(editSpan);
+    return;
+  }
+
   const link = event.target.closest('a[href][data-router]');
   if (!link) {
     if (closeAccountMenu || closeNotificationMenu) render();
@@ -7185,6 +7315,32 @@ function handleAction(event, node) {
     toggleContactTask(node.dataset.taskId);
     return;
   }
+  if (action === 'contact-quick') {
+    event.preventDefault();
+    contactQuickCreate(node.dataset.contactId, node.dataset.kind);
+    return;
+  }
+  if (action === 'contact-mark-next') {
+    event.preventDefault();
+    {
+      const contact = contactById(node.dataset.contactId);
+      const names = contactStageNames();
+      const idx = contact ? names.indexOf(contact.stage) : -1;
+      if (contact && idx >= 0 && idx < names.length - 1) setContactStage(contact.id, names[idx + 1]);
+    }
+    return;
+  }
+  if (action === 'contact-activity-tab') {
+    event.preventDefault();
+    state.contactActivityTab = node.dataset.tab;
+    render();
+    return;
+  }
+  if (action === 'contact-convert-job') {
+    event.preventDefault();
+    convertContactToJob(node.dataset.contactId);
+    return;
+  }
   if (action === 'convert-deal') {
     event.preventDefault();
     convertDealToJob(node.dataset.dealId);
@@ -7625,6 +7781,12 @@ function onDocumentSubmit(event) {
   if (event.target.matches('[data-contact-task-form]')) {
     event.preventDefault();
     addContactTask(event.target);
+    return;
+  }
+
+  if (event.target.matches('[data-contact-note-form]')) {
+    event.preventDefault();
+    postContactNote(event.target);
     return;
   }
 
@@ -10395,7 +10557,7 @@ async function supabaseDelete(table, id) {
 const ACCOUNT_COLS = ['id', 'company_id', 'name', 'type', 'industry', 'website', 'phone', 'email', 'address', 'owner_name', 'status', 'notes', 'updated_at'];
 const DEAL_COLS = ['id', 'company_id', 'account_id', 'primary_contact_id', 'name', 'stage', 'status', 'value', 'probability', 'close_date', 'owner_name', 'source', 'job_id', 'notes', 'updated_at'];
 const ACTIVITY_COLS = ['id', 'company_id', 'type', 'subject', 'body', 'related_type', 'related_id', 'account_id', 'due_at', 'completed_at', 'owner_name', 'updated_at'];
-const CONTACT_COLS = ['id', 'company_id', 'name', 'phone', 'email', 'location', 'stage', 'value', 'owner_name', 'account_id', 'title', 'source', 'temperature', 'last_activity_at', 'notes', 'updated_at'];
+const CONTACT_COLS = ['id', 'company_id', 'name', 'phone', 'email', 'location', 'stage', 'value', 'owner_name', 'account_id', 'title', 'source', 'temperature', 'pay_type', 'roof_system', 'last_activity_at', 'notes', 'updated_at'];
 
 function emptyToNull(row, keys) {
   keys.forEach((key) => { if (row[key] === '') row[key] = null; });
@@ -11177,6 +11339,8 @@ function normalizeContact(input) {
     title: String(input.title || '').trim(),
     source: String(input.source || '').trim(),
     temperature: resolveTemperature(input.temperature),
+    pay_type: String(input.pay_type || '').trim(),
+    roof_system: String(input.roof_system || '').trim(),
     last_activity_at: input.last_activity_at || null,
     notes: String(input.notes || '').trim(),
     created_at: input.created_at || new Date().toISOString(),
