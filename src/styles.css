@@ -12284,9 +12284,15 @@ button {
   font-size: 9.5px;
 }
 .side-items { gap: 2px; }
-.side-group { margin-bottom: 12px; }
-.side-label { margin-bottom: 3px; }
+/* Kill the double inter-group spacing (deck-scroll gap + side-group margin) */
+.deck-scroll { gap: 8px; }
+.deck { gap: 10px; }
+.side-group { margin-bottom: 0; }
+.side-label { margin-bottom: 1px; padding: 2px 9px; }
 .side-sub-link { min-height: 26px; font-size: 12px; }
 .side-sub-ct { font-size: 10px; }
-.side-pipe-toggle,
-.side-sub-dot { transform: none; }
+/* Tighter header + footer cards */
+.company-card { padding: 8px; }
+.company-card-symbol { width: 34px; height: 34px; }
+.deck-company-switch,
+.deck-user-card { min-height: 42px; }
