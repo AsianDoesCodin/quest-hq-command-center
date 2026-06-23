@@ -11984,3 +11984,162 @@ textarea:focus {
   .accounts-table .table-row span:nth-child(n+3),
   .deals-table .table-row span:nth-child(n+4) { display: none; }
 }
+
+/* ===========================================================================
+   POLISH LAYER — balanced-density "polished refine" pass (appended last,
+   wins the cascade). Reuses existing tokens; refines high-traffic components.
+   =========================================================================== */
+:root {
+  --r-sm: 8px;
+  --r-md: 10px;
+  --r-lg: 14px;
+  --pill: 999px;
+  --ring: 0 0 0 3px rgba(237, 78, 13, .15);
+  --shadow-card: 0 1px 2px rgba(16, 24, 40, .04), 0 1px 3px rgba(16, 24, 40, .05);
+  --shadow-pop: 0 12px 32px rgba(16, 24, 40, .12);
+  --sp-1: 6px; --sp-2: 10px; --sp-3: 14px; --sp-4: 18px; --sp-5: 24px;
+}
+
+/* Work surface rhythm */
+.work-surface { padding: 22px 26px 40px; }
+
+/* Page header */
+.workspace-head {
+  margin-bottom: 18px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--border);
+}
+.workspace-head h1 { font-size: 22px; font-weight: 850; letter-spacing: -.01em; }
+.workspace-head p { color: var(--muted); font-size: 13.5px; }
+.workspace-head .context-line { font-size: 11px; letter-spacing: .04em; }
+.head-actions { gap: 8px; }
+
+/* Cards / panels */
+.panel {
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  background: var(--surface);
+  box-shadow: var(--shadow-card);
+  padding: 18px;
+}
+.section-head { margin-bottom: 14px; }
+.section-head h2 { font-size: 15px; font-weight: 850; }
+.section-head p { color: var(--muted); font-size: 12.5px; }
+
+/* Metric cards */
+.metric-grid { gap: 12px; }
+.metric {
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  background: var(--surface);
+  box-shadow: var(--shadow-card);
+  padding: 14px 16px;
+}
+.metric span { color: var(--muted); font-size: 11.5px; font-weight: 800; letter-spacing: .03em; text-transform: uppercase; }
+.metric strong { font-size: 23px; font-weight: 880; letter-spacing: -.01em; }
+
+/* Buttons */
+.btn {
+  min-height: 38px;
+  border-radius: var(--r-sm);
+  border: 1px solid var(--border-strong);
+  font-weight: 750;
+  font-size: 13.5px;
+  transition: background .14s ease, border-color .14s ease, transform .04s ease;
+}
+.btn:active { transform: translateY(1px); }
+.btn:hover { background: var(--surface-2); border-color: #b9c2cf; }
+.btn.btn-primary {
+  border-color: transparent;
+  background: var(--orange);
+  color: #fff;
+  box-shadow: 0 1px 2px rgba(201, 59, 8, .25);
+}
+.btn.btn-primary:hover { background: #d8480b; }
+.btn.danger { border-color: #f0c9c7; color: #c4302c; background: #fff; }
+.btn.danger:hover { background: #fdecea; border-color: #e9b4b1; }
+
+/* Data tables — balanced density, flatter + cleaner */
+.data-table { gap: 0; border: 1px solid var(--border); border-radius: var(--r-lg); overflow: hidden; box-shadow: var(--shadow-card); background: var(--surface); }
+.data-table .table-head {
+  padding: 10px 16px;
+  background: var(--surface-2);
+  border-bottom: 1px solid var(--border);
+  color: var(--muted);
+  font-size: 10.5px;
+  font-weight: 850;
+  letter-spacing: .05em;
+}
+.data-table .table-row {
+  border: 0;
+  border-bottom: 1px solid var(--border);
+  border-radius: 0;
+  background: var(--surface);
+  min-height: 52px;
+  padding: 10px 16px;
+}
+.data-table .table-row:last-child { border-bottom: 0; }
+.data-table .table-row:hover { background: #fff7ed; }
+.data-table .table-row.active { background: #fff3e6; box-shadow: inset 3px 0 var(--orange); }
+.table-row strong { font-size: 13.5px; font-weight: 800; }
+.table-row small { color: var(--muted); font-size: 12px; }
+
+/* Tabs */
+.tabbar { border-bottom: 1px solid var(--border); gap: 2px; margin-bottom: 16px; }
+.tabbar a, .tabbar button { font-size: 13px; font-weight: 800; color: var(--muted); padding: 0 14px; min-height: 38px; }
+.tabbar a:hover, .tabbar button:hover { background: #fff7ed; color: var(--ink); }
+.tabbar a.active, .tabbar button.active { color: var(--ink); background: transparent; box-shadow: inset 0 -2px var(--orange); }
+
+/* Empty states */
+.empty-state {
+  display: grid;
+  place-items: center;
+  gap: 6px;
+  padding: 40px 24px;
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--r-lg);
+  background: var(--surface-2);
+  color: var(--muted);
+  font-size: 13.5px;
+  font-weight: 650;
+  text-align: center;
+}
+
+/* Sidebar clarity */
+.side-label { font-size: 10px; letter-spacing: .12em; color: #8a93a0; }
+.side-item { min-height: 38px; font-size: 13.5px; font-weight: 750; border-radius: var(--r-sm); }
+.side-item.active { background: #fff3e6; color: var(--ink); }
+.side-item.active::before { background: var(--orange); }
+.side-sub-link { font-size: 12px; }
+.side-pipe.expanded > .side-pipe-head .side-item { color: var(--ink); }
+
+/* Pipeline chips + board */
+.pipe-chip { min-height: 30px; border-radius: var(--pill); font-size: 12px; font-weight: 800; }
+.pipe-chip.on { background: #fff3e6; border-color: #f7b485; color: #c2480a; }
+.pipe-lane { border-radius: var(--r-lg); box-shadow: var(--shadow-card); }
+.pipe-lane-head { font-size: 12.5px; font-weight: 850; }
+.pipe-card { border-radius: var(--r-md); box-shadow: var(--shadow-card); }
+.pipe-card:hover { box-shadow: var(--shadow-pop); }
+.pipe-card strong { font-size: 13.5px; }
+
+/* Forms */
+.job-editor label > span { font-size: 11px; font-weight: 800; letter-spacing: .03em; text-transform: uppercase; color: var(--muted); }
+.job-editor input, .job-editor select, .job-editor textarea {
+  min-height: 40px; border: 1px solid var(--border-strong); border-radius: var(--r-sm);
+  font-size: 14px; padding: 8px 11px; background: var(--surface);
+}
+.job-editor input:focus, .job-editor select:focus, .job-editor textarea:focus {
+  outline: none; border-color: var(--orange); box-shadow: var(--ring);
+}
+
+/* Modals */
+.modal-panel { border-radius: var(--r-lg); box-shadow: var(--shadow-pop); }
+.modal-head { border-bottom: 1px solid var(--border); }
+.modal-head h2 { font-size: 17px; font-weight: 850; }
+
+/* CRM detail polish */
+.crm-detail-grid .panel { padding: 18px; }
+.contract-rows div { padding: 9px 0; border-bottom: 1px solid var(--border); }
+.contract-rows div:last-child { border-bottom: 0; }
+.contract-rows span { color: var(--muted); font-size: 12.5px; }
+.contract-rows strong { font-size: 13.5px; font-weight: 750; }
