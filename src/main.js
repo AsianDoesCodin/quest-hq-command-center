@@ -1239,6 +1239,7 @@ const state = {
   modal: '',
   accountMenuOpen: false,
   notificationMenuOpen: false,
+  mobileMenuOpen: false,
   rolePreview: null,
 };
 
@@ -1928,6 +1929,7 @@ function shellTemplate(route, workspace) {
         </main>
       </div>
       ${renderMobileTabbar(route, companyId)}
+      ${renderMobileMoreSheet(route, companyId)}
     </div>
     ${renderActiveModal(route, session)}
     ${renderToast()}
@@ -1966,8 +1968,51 @@ function renderMobileTabbar(route, companyId) {
       ${mobileTabItem(route, companyPath('jobs', {}, companyId), 'ti-layout-grid', 'Work', workBadge, ['jobs', 'tasks', 'calendar', 'crm', 'finance', 'forms', 'users', 'time', 'approvals', 'clock', 'team-chart'])}
       ${mobileTabItem(route, companyPath('messages', {}, companyId), 'ti-message-circle', 'Messages', unreadMessages, ['messages'])}
       ${mobileTabItem(route, companyPath('files', {}, companyId), 'ti-folder', 'Files', files, ['files'])}
-      ${mobileTabItem(route, companyPath('settings', {}, companyId), 'ti-dots', 'More', '', ['settings', 'analytics'])}
+      <button class="${state.mobileMenuOpen ? 'active' : ''}" type="button" data-action="toggle-mobile-menu" aria-haspopup="true" aria-expanded="${state.mobileMenuOpen ? 'true' : 'false'}" aria-label="More navigation">
+        <i class="ti ti-dots"></i>
+        <span>More</span>
+      </button>
     </nav>
+  `;
+}
+
+function renderMobileMoreSheet(route, companyId) {
+  const modulesById = new Map(MODULE_REGISTRY.map((module) => [module.id, module]));
+  const groups = NAV_GROUPS.map((group) => {
+    const items = group.ids
+      .map((id) => modulesById.get(id))
+      .filter((module) => module && module.status !== 'planned' && canViewModule(module, companyId))
+      .map((module) => {
+        const path = companyPath(module.id, {}, companyId);
+        const active = isActiveNav(route, path);
+        const count = moduleBadgeCount(module.id, companyId);
+        return `
+          <a class="more-sheet-item ${active ? 'active' : ''}" href="${appHref(path)}" data-router>
+            ${svgIcon(module.symbol)}
+            <span>${h(module.label)}</span>
+            ${count !== '' ? `<b>${h(String(count))}</b>` : ''}
+          </a>
+        `;
+      });
+    if (!items.length) return '';
+    return `
+      <div class="more-sheet-group">
+        <div class="more-sheet-label">${h(group.label)}</div>
+        <div class="more-sheet-items">${items.join('')}</div>
+      </div>
+    `;
+  }).join('');
+  return `
+    <div class="mobile-more ${state.mobileMenuOpen ? 'open' : ''}">
+      <button class="mobile-more-backdrop" type="button" data-action="toggle-mobile-menu" aria-label="Close menu"></button>
+      <div class="mobile-more-sheet" role="dialog" aria-modal="true" aria-label="More navigation">
+        <div class="mobile-more-head">
+          <strong>Menu</strong>
+          <button class="mobile-more-close" type="button" data-action="toggle-mobile-menu" aria-label="Close menu"><i class="ti ti-x"></i></button>
+        </div>
+        <div class="mobile-more-scroll">${groups}</div>
+      </div>
+    </div>
   `;
 }
 
@@ -6494,6 +6539,7 @@ function onDocumentClick(event) {
   }
   if (link.target || link.hasAttribute('download')) return;
   event.preventDefault();
+  state.mobileMenuOpen = false;
   navigate(link.getAttribute('href'));
 }
 
@@ -6523,6 +6569,14 @@ function handleAction(event, node) {
     event.preventDefault();
     state.notificationMenuOpen = !state.notificationMenuOpen;
     state.accountMenuOpen = false;
+    render();
+    return;
+  }
+  if (action === 'toggle-mobile-menu') {
+    event.preventDefault();
+    state.mobileMenuOpen = !state.mobileMenuOpen;
+    state.accountMenuOpen = false;
+    state.notificationMenuOpen = false;
     render();
     return;
   }
