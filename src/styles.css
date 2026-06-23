@@ -12265,3 +12265,28 @@ button {
 }
 /* "Warning" metric emphasis → orange accent (the "good" one stays green) */
 .home-metric-card.warning strong { color: var(--orange); }
+
+/* Compact sidebar density — tighter, lighter nav rows (less chunky) */
+.side-item {
+  min-height: 32px;
+  padding: 0 9px;
+  gap: 7px;
+  font-size: 13px;
+  font-weight: 600;
+  grid-template-columns: 22px minmax(0, 1fr) auto;
+}
+.side-item.active { font-weight: 680; }
+.side-item .symbol-icon { width: 17px; height: 17px; }
+.side-item b {
+  min-width: 17px;
+  height: 17px;
+  padding: 0 5px;
+  font-size: 9.5px;
+}
+.side-items { gap: 2px; }
+.side-group { margin-bottom: 12px; }
+.side-label { margin-bottom: 3px; }
+.side-sub-link { min-height: 26px; font-size: 12px; }
+.side-sub-ct { font-size: 10px; }
+.side-pipe-toggle,
+.side-sub-dot { transform: none; }
