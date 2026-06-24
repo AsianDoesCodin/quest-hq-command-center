@@ -5052,8 +5052,8 @@ function renderAccountDetail(companyId, account) {
   const openDeals = deals.filter((deal) => deal.status === 'open');
   const tabs = [
     ['overview', 'Overview', ''],
-    ['contacts', 'Contacts', contacts.length],
-    ['deals', 'Deals', deals.length],
+    ['contacts', 'Leads', contacts.length],
+    ['deals', 'Quotes', deals.length],
     ['jobs', 'Jobs', jobs.length],
     ['activity', 'Activity', activitiesForAccount(account.id).length],
   ];

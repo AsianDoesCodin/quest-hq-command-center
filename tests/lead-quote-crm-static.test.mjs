@@ -32,3 +32,10 @@ test('record detail routes read as leads and quotes instead of contacts and deal
   assert.match(source, /<div class="sf-record-label">Quote<\/div>/);
   assert.match(source, /Convert to Job/);
 });
+
+test('account record tabs use leads and quotes language', () => {
+  assert.doesNotMatch(source, /\['contacts', 'Contacts'/);
+  assert.doesNotMatch(source, /\['deals', 'Deals'/);
+  assert.match(source, /\['contacts', 'Leads', contacts\.length\]/);
+  assert.match(source, /\['deals', 'Quotes', deals\.length\]/);
+});
