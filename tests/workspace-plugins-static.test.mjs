@@ -10,20 +10,27 @@ const pluginMigrationName = migrationFiles.find((name) => {
   return /company_plugins/.test(sql) && /set_company_plugin/.test(sql);
 });
 const pluginMigration = pluginMigrationName ? readFileSync(new URL(`../supabase/migrations/${pluginMigrationName}`, import.meta.url), 'utf8') : '';
+const crm2MigrationName = migrationFiles.find((name) => {
+  const sql = readFileSync(new URL(`../supabase/migrations/${name}`, import.meta.url), 'utf8');
+  return /crm_2/.test(sql) && /underwriter/.test(sql) && /company_plugins_known_plugin_check/.test(sql);
+});
+const crm2Migration = crm2MigrationName ? readFileSync(new URL(`../supabase/migrations/${crm2MigrationName}`, import.meta.url), 'utf8') : '';
 
 test('plugin registry maps every non-core route to a workspace plugin', () => {
   assert.match(source, /const CORE_MODULE_IDS = new Set\(\['home', 'jobs', 'tasks', 'users', 'settings'\]\);/);
   assert.match(source, /const WORKSPACE_PLUGIN_REGISTRY = \[/);
   assert.match(source, /id: 'crm'[\s\S]*module_ids: \['crm', 'contacts', 'deals'\]/);
+  assert.match(source, /id: 'crm_2'[\s\S]*module_ids: \['underwriter'\]/);
   assert.match(source, /id: 'time_clock'[\s\S]*module_ids: \['time', 'clock'\]/);
   assert.match(source, /id: 'reporting'[\s\S]*module_ids: \['analytics', 'team-chart'\]/);
+  assert.match(source, /\{ id: 'underwriter'[\s\S]*label: 'Underwriter'[\s\S]*permission: 'underwriter\.view'/);
   assert.match(source, /function pluginForModule\(moduleId\)/);
   assert.match(source, /function isModuleInstalled\(moduleId, companyId = activeCompanyId\(\)\)/);
 });
 
 test('workspace presets install industry plugin bundles', () => {
   assert.match(source, /const WORKSPACE_PLUGIN_PRESETS = \{/);
-  assert.match(source, /roofing: \['crm', 'files', 'forms', 'finance', 'messages', 'calendar', 'approvals', 'reporting'\]/);
+  assert.match(source, /roofing: \['crm', 'crm_2', 'files', 'forms', 'finance', 'messages', 'calendar', 'approvals', 'reporting'\]/);
   assert.match(source, /construction: \['files', 'forms', 'finance', 'messages', 'calendar', 'time_clock', 'approvals', 'reporting'\]/);
   assert.match(source, /generic: \['crm', 'files', 'messages'\]/);
   assert.match(source, /name="preset_code"/);
@@ -33,6 +40,8 @@ test('workspace presets install industry plugin bundles', () => {
 test('navigation and routes are gated by installed plugins', () => {
   assert.match(source, /function renderPluginBlockedPage\(companyId, moduleMeta\)/);
   assert.match(source, /if \(!isModuleInstalled\(route\.section, companyId\)\) return renderPluginBlockedPage\(companyId, moduleMeta\);/);
+  assert.match(source, /if \(route\.section === 'underwriter'\) return renderUnderwriterPage\(route, companyId\);/);
+  assert.match(source, /function renderUnderwriterPage\(route, companyId\)/);
   assert.match(source, /if \(!isModuleInstalled\(module\.id, companyId\)\) return false;/);
   assert.match(source, /installedModulesForMobileWork\(companyId\)/);
   assert.match(source, /installedLiveModules\(companyId\)/);
@@ -60,6 +69,18 @@ test('plugin migration creates tenant plugin records, RPCs, grants, RLS, and Lum
   assert.match(pluginMigration, /create or replace function public\.create_company_workspace\(company_name text, preset_code text default 'generic'\)/);
   assert.match(pluginMigration, /insert into public\.company_plugins \(company_id, plugin_id, status, installed_by, installed_at, updated_at\)[\s\S]*select 'lumen'/);
   assert.match(pluginMigration, /app_private\.company_has_plugin/);
+});
+
+test('crm 2 plugin adds the underwriter workspace module and migration support', () => {
+  assert.ok(crm2MigrationName, 'Expected a migration that adds crm_2 / underwriter plugin support');
+  assert.match(source, /\['underwriter\.view', 'View underwriter'\]/);
+  assert.match(source, /\['underwriter\.manage', 'Manage underwriter'\]/);
+  assert.match(source, /if \(clean\.startsWith\('underwriter\.'\)\) return 'crm_2';/);
+  assert.match(source, /'underwriter'\]/);
+  assert.match(crm2Migration, /plugin_id in \('crm', 'crm_2', 'files', 'forms', 'finance', 'messages', 'calendar', 'time_clock', 'approvals', 'reporting'\)/);
+  assert.match(crm2Migration, /when 'roofing' then array\['crm', 'crm_2', 'files', 'forms', 'finance', 'messages', 'calendar', 'approvals', 'reporting'\]::text\[\]/);
+  assert.match(crm2Migration, /when permission like 'underwriter\.%' then 'crm_2'/);
+  assert.match(crm2Migration, /select 'lumen', 'crm_2', 'installed'/);
 });
 
 test('plugin migration file exists in migrations directory', () => {

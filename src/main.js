@@ -61,7 +61,7 @@ const ROLE_PERMISSIONS = {
   developer: ['*'],
   admin: ['*'],
   owner: ['*'],
-  manager: ['jobs.view', 'jobs.manage', 'tasks.view', 'tasks.manage', 'files.view', 'files.manage', 'forms.view', 'forms.manage', 'finance.view', 'team.view', 'clock.manage', 'approvals.manage', 'approvals.view', 'calendar.view', 'calendar.manage', 'calendar.view_team', 'users.view', 'settings.view', 'billing.view', 'roles.view', 'messages.view', 'messages.send', 'messages.create_group', 'messages.manage_groups', 'messages.attach_files'],
+  manager: ['jobs.view', 'jobs.manage', 'tasks.view', 'tasks.manage', 'files.view', 'files.manage', 'forms.view', 'forms.manage', 'crm.view', 'underwriter.view', 'underwriter.manage', 'finance.view', 'team.view', 'clock.manage', 'approvals.manage', 'approvals.view', 'calendar.view', 'calendar.manage', 'calendar.view_team', 'users.view', 'settings.view', 'billing.view', 'roles.view', 'messages.view', 'messages.send', 'messages.create_group', 'messages.manage_groups', 'messages.attach_files'],
   member: ['jobs.view', 'tasks.view', 'tasks.manage', 'files.view', 'forms.view', 'time.track', 'approvals.view', 'calendar.view', 'users.view', 'messages.view', 'messages.send', 'messages.attach_files'],
 };
 
@@ -75,6 +75,8 @@ const PERMISSION_KEYS = [
   ['forms.view', 'View forms'],
   ['forms.manage', 'Create/edit forms'],
   ['crm.view', 'View CRM'],
+  ['underwriter.view', 'View underwriter'],
+  ['underwriter.manage', 'Manage underwriter'],
   ['finance.view', 'View finance'],
   ['finance.manage', 'Create/edit finance'],
   ['users.view', 'View users'],
@@ -112,6 +114,7 @@ const PERMISSION_ALIASES = {
 const CORE_MODULE_IDS = new Set(['home', 'jobs', 'tasks', 'users', 'settings']);
 const WORKSPACE_PLUGIN_REGISTRY = [
   { id: 'crm', label: 'CRM', summary: 'Accounts, leads, quotes, and customer activity.', icon: 'ti-building-community', module_ids: ['crm', 'contacts', 'deals'], permissions: ['crm.view'] },
+  { id: 'crm_2', label: 'CRM 2', summary: 'Underwriter workspace for qualification, scope, pricing, and handoff readiness.', icon: 'ti-clipboard-search', module_ids: ['underwriter'], permissions: ['underwriter.view', 'underwriter.manage'] },
   { id: 'files', label: 'Files', summary: 'Shared files, job folders, and document storage.', icon: 'ti-folder', module_ids: ['files'], permissions: ['files.view', 'files.manage'] },
   { id: 'forms', label: 'Forms', summary: 'Internal forms, templates, and response capture.', icon: 'ti-clipboard-list', module_ids: ['forms'], permissions: ['forms.view', 'forms.manage'] },
   { id: 'finance', label: 'Finance', summary: 'Invoices, payments, expenses, vendors, and AR.', icon: 'ti-receipt-dollar', module_ids: ['finance'], permissions: ['finance.view', 'finance.manage'] },
@@ -127,7 +130,7 @@ const WORKSPACE_PLUGIN_REGISTRY = [
   { id: 'team_workload', label: 'Team workload', summary: 'Future workload planning board.', icon: 'ti-users', module_ids: ['team-workload'], permissions: [], comingSoon: true },
 ];
 const WORKSPACE_PLUGIN_PRESETS = {
-  roofing: ['crm', 'files', 'forms', 'finance', 'messages', 'calendar', 'approvals', 'reporting'],
+  roofing: ['crm', 'crm_2', 'files', 'forms', 'finance', 'messages', 'calendar', 'approvals', 'reporting'],
   construction: ['files', 'forms', 'finance', 'messages', 'calendar', 'time_clock', 'approvals', 'reporting'],
   generic: ['crm', 'files', 'messages'],
 };
@@ -147,6 +150,7 @@ const MODULE_REGISTRY = [
   { id: 'crm', group: 'Workspace', label: 'Accounts', icon: 'ti-building-community', symbol: 'q-symbol-crm', status: 'live', permission: 'crm.view' },
   { id: 'contacts', group: 'Leads · Top of Funnel', label: 'Leads', icon: 'ti-id-badge-2', symbol: 'q-symbol-crm', status: 'live', permission: 'crm.view' },
   { id: 'deals', group: 'Quotes · Bottom of Funnel', label: 'Quotes', icon: 'ti-briefcase', symbol: 'q-symbol-jobs', status: 'live', permission: 'crm.view' },
+  { id: 'underwriter', group: 'Workspace', label: 'Underwriter', icon: 'ti-clipboard-search', symbol: 'q-symbol-crm', status: 'live', permission: 'underwriter.view' },
   { id: 'tickets', group: 'Workspace', label: 'Tickets', icon: 'ti-ticket', symbol: 'q-symbol-tickets', status: 'planned' },
   { id: 'finance', group: 'Workspace', label: 'Finance', icon: 'ti-receipt-dollar', symbol: 'q-symbol-finance', status: 'live', permission: 'finance.view' },
   { id: 'knowledge', group: 'Workspace', label: 'Knowledge Base', icon: 'ti-books', symbol: 'q-symbol-knowledge', status: 'planned' },
@@ -164,7 +168,7 @@ const MODULE_REGISTRY = [
 ];
 
 const NAV_GROUPS = [
-  { label: 'Work', ids: ['home', 'tasks'] },
+  { label: 'Work', ids: ['home', 'tasks', 'underwriter'] },
   { label: 'Communication', ids: ['messages', 'calendar'] },
   { label: 'Leads · Top of Funnel', ids: ['contacts'] },
   { label: 'Quotes · Bottom of Funnel', ids: ['deals'] },
@@ -184,6 +188,7 @@ const LEGACY_ROUTE_SECTIONS = {
   '/files.html': 'files',
   '/finance.html': 'finance',
   '/forms.html': 'forms',
+  '/underwriter.html': 'underwriter',
   '/jobs.html': 'jobs',
   '/knowledge.html': 'knowledge',
   '/messages.html': 'messages',
@@ -2525,13 +2530,14 @@ function installedLiveModules(companyId) {
 }
 
 function installedModulesForMobileWork(companyId) {
-  return ['jobs', 'tasks', 'calendar', 'crm', 'contacts', 'deals', 'finance', 'forms', 'users', 'time', 'approvals', 'clock', 'team-chart']
+  return ['jobs', 'tasks', 'underwriter', 'calendar', 'crm', 'contacts', 'deals', 'finance', 'forms', 'users', 'time', 'approvals', 'clock', 'team-chart']
     .filter((moduleId) => isModuleInstalled(moduleId, companyId));
 }
 
 function permissionPluginId(permission) {
   const clean = String(permission || '');
   if (clean.startsWith('crm.')) return 'crm';
+  if (clean.startsWith('underwriter.')) return 'crm_2';
   if (clean.startsWith('files.')) return 'files';
   if (clean.startsWith('forms.')) return 'forms';
   if (clean.startsWith('finance.')) return 'finance';
@@ -2564,6 +2570,7 @@ function moduleBadgeCount(moduleId, companyId = activeCompanyId()) {
   if (moduleId === 'crm') return companyAccounts(companyId).length;
   if (moduleId === 'contacts') return companyContacts(companyId).length;
   if (moduleId === 'deals') return companyDeals(companyId).filter((deal) => deal.status === 'open').length;
+  if (moduleId === 'underwriter') return companyContacts(companyId).filter((contact) => underwriterStageForContact(contact).key === 'underwriting').length;
   if (moduleId === 'finance') return companyFinanceInvoices(companyId).length;
   if (moduleId === 'users') return companyAccessUsers(companyId).filter((user) => user.status === 'active').length;
   if (moduleId === 'messages') {
@@ -2609,6 +2616,7 @@ function renderWorkspace(route) {
   if (route.section === 'crm') return renderCrmPage(route, companyId);
   if (route.section === 'contacts') return renderContactsPage(route, companyId);
   if (route.section === 'deals') return renderDealsPage(route, companyId);
+  if (route.section === 'underwriter') return renderUnderwriterPage(route, companyId);
   if (route.section === 'finance') return renderFinancePage(route, companyId);
   if (route.section === 'messages') return renderMessagesPage(route, companyId);
   if (route.section === 'team-chart') return renderTeamChartPage(companyId);
@@ -3032,6 +3040,110 @@ function renderAnalyticsPage(route, companyId) {
       </section>
     </section>
   `;
+}
+
+const CRM2_UNDERWRITER_STAGES = [
+  { key: 'prospect', name: 'Prospect', color: '#9AA0A8' },
+  { key: 'lead', name: 'Lead', color: '#378ADD' },
+  { key: 'nurturing', name: 'Nurturing', color: '#2F9E8F' },
+  { key: 'underwriting', name: 'Underwriting', color: '#BA7517' },
+  { key: 'estimate', name: 'Estimate Sent', color: '#378ADD' },
+  { key: 'negotiating', name: 'Negotiating', color: '#BA7517' },
+  { key: 'won', name: 'Won', color: '#639922' },
+];
+
+const CRM2_UNDERWRITER_GUIDANCE = {
+  prospect: { title: 'Work the prospect.', lines: ['Confirm source and best contact method.', 'Decide if there is a real project.', 'Move them into a real conversation.'] },
+  lead: { title: 'Qualify the lead.', lines: ['Confirm the decision maker.', 'Capture roof age, visible damage, and timeline.', 'Separate retail pay from insurance work.'] },
+  nurturing: { title: 'Keep it warm.', lines: ['Set a follow-up cadence.', 'Send value before they go cold.', 'Capture the next decision needed.'] },
+  underwriting: { title: 'Scope it and price it.', lines: ['Confirm takeoff and measurements.', 'Attach the carrier scope when insurance is involved.', 'Confirm material selections and margin target.'] },
+  estimate: { title: 'Present the estimate.', lines: ['Confirm proposal delivery.', 'Walk through Standard versus Recommended.', 'Schedule the next follow-up.'] },
+  negotiating: { title: 'Close the deal.', lines: ['Resolve open questions.', 'Confirm all decision makers.', 'Move toward signature and deposit.'] },
+  won: { title: 'Won - convert to a job.', lines: ['Schedule production.', 'Order materials.', 'Confirm scope before handoff.'] },
+};
+
+function renderUnderwriterPage(route, companyId) {
+  const requestedStage = route.params.get('stage') || 'all';
+  const stageKeys = new Set(CRM2_UNDERWRITER_STAGES.map((stage) => stage.key));
+  const activeStage = stageKeys.has(requestedStage) ? requestedStage : 'all';
+  const leads = companyContacts(companyId)
+    .map((contact) => ({ ...contact, underwriter_stage: underwriterStageForContact(contact) }))
+    .sort((a, b) => CRM2_UNDERWRITER_STAGES.findIndex((stage) => stage.key === a.underwriter_stage.key) - CRM2_UNDERWRITER_STAGES.findIndex((stage) => stage.key === b.underwriter_stage.key));
+  const visible = activeStage === 'all' ? leads : leads.filter((lead) => lead.underwriter_stage.key === activeStage);
+  const underwriting = leads.filter((lead) => lead.underwriter_stage.key === 'underwriting');
+  const estimates = leads.filter((lead) => ['estimate', 'negotiating'].includes(lead.underwriter_stage.key));
+  const canManageUnderwriter = can('underwriter.manage', companyId);
+  const guide = activeStage === 'all' ? CRM2_UNDERWRITER_GUIDANCE.underwriting : CRM2_UNDERWRITER_GUIDANCE[activeStage];
+  return `
+    <section class="tool-page underwriter-page">
+      ${workspaceHeader('Underwriter', 'CRM 2 workspace for qualification, scope, pricing, and quote handoff readiness.', `
+        ${can('crm.view', companyId) ? `<a class="btn" href="${appHref(companyPath('contacts', {}, companyId))}" data-router><i class="ti ti-id-badge-2"></i>Open leads</a>` : ''}
+        ${canManageUnderwriter && can('crm.view', companyId) ? `<button class="btn btn-primary" type="button" data-action="open-contact-form" data-mode="new"><i class="ti ti-plus"></i>Add lead</button>` : ''}
+      `)}
+      <section class="metric-grid">
+        ${metricCard('Underwriting', underwriting.length)}
+        ${metricCard('Estimate queue', estimates.length)}
+        ${metricCard('Pipeline value', money(sum(visible, 'value')))}
+        ${metricCard('CRM 2 stage', activeStage === 'all' ? 'All' : underwriterStageByKey(activeStage).name)}
+      </section>
+      <section class="pipe-toolbar">
+        <div class="pipe-chips" role="group" aria-label="CRM 2 underwriter stage">
+          <a class="pipe-chip ${activeStage === 'all' ? 'on' : ''}" href="${appHref(companyPath('underwriter', {}, companyId))}" data-router>All<b>${h(String(leads.length))}</b></a>
+          ${CRM2_UNDERWRITER_STAGES.map((stage) => {
+            const count = leads.filter((lead) => lead.underwriter_stage.key === stage.key).length;
+            return `<a class="pipe-chip ${activeStage === stage.key ? 'on' : ''}" href="${appHref(companyPath('underwriter', { stage: stage.key }, companyId))}" data-router>${pipelineDot(stage.color)}${h(stage.name)}<b>${h(String(count))}</b></a>`;
+          }).join('')}
+        </div>
+      </section>
+      <section class="home-dashboard-grid">
+        <article class="panel home-activity-panel">
+          <div class="section-head"><div><h2>Underwriter queue</h2><p>${visible.length} lead${visible.length === 1 ? '' : 's'} in this CRM 2 view.</p></div></div>
+          <div class="data-table contacts-table">
+            <div class="table-head"><span>Lead</span><span>Stage</span><span>Owner</span><span>Pay type</span><span>Value</span></div>
+            ${visible.map(renderUnderwriterQueueRow).join('') || emptyState('No leads match this underwriter stage.')}
+          </div>
+        </article>
+        <article class="panel home-health-panel">
+          <div class="section-head"><div><h2>Guidance</h2><p>${h(activeStage === 'all' ? 'Default underwriting guidance.' : underwriterStageByKey(activeStage).name)}</p></div></div>
+          <div class="home-health-list">
+            <div class="good"><i class="ti ti-clipboard-search"></i><span>${h(guide.title)}</span></div>
+            ${guide.lines.map((line) => `<div><i class="ti ti-point"></i><span>${h(line)}</span></div>`).join('')}
+          </div>
+        </article>
+      </section>
+    </section>
+  `;
+}
+
+function renderUnderwriterQueueRow(lead) {
+  return `
+    <button class="table-row" type="button" data-action="open-contact" data-contact-id="${h(lead.id)}">
+      <span class="cell-lead">${pipelineDot(lead.underwriter_stage.color)}<span><strong>${h(lead.name)}</strong><small>${h(lead.location || lead.phone || lead.email || 'No details')}</small></span></span>
+      <span>${underwriterStageTag(lead.underwriter_stage)}</span>
+      <span>${h(lead.owner_name || 'Unassigned')}</span>
+      <span>${h(lead.pay_type || 'Retail')}</span>
+      <span>${lead.value ? money(lead.value) : '<span class="muted-dash">-</span>'}</span>
+    </button>
+  `;
+}
+
+function underwriterStageByKey(key) {
+  return CRM2_UNDERWRITER_STAGES.find((stage) => stage.key === key) || CRM2_UNDERWRITER_STAGES[1];
+}
+
+function underwriterStageTag(stage) {
+  return `<span class="stage-tag">${pipelineDot(stage.color)}${h(stage.name)}</span>`;
+}
+
+function underwriterStageForContact(contact) {
+  const stage = String(contact.stage || '').toLowerCase();
+  if (stage.includes('prospect')) return underwriterStageByKey('prospect');
+  if (stage.includes('nurtur')) return underwriterStageByKey('nurturing');
+  if (stage.includes('underwrit')) return underwriterStageByKey('underwriting');
+  if (stage.includes('estimate') || stage.includes('proposal')) return underwriterStageByKey('estimate');
+  if (stage.includes('negotiat')) return underwriterStageByKey('negotiating');
+  if (stage.includes('won')) return underwriterStageByKey('won');
+  return underwriterStageByKey('lead');
 }
 
 // ---- Pipeline (stages) shared building blocks -----------------------------
@@ -10884,6 +10996,7 @@ function normalizeLegacyLocation() {
   if (path === '/forms') target = companyPath('forms', copyParams(params, ['job_id']), companyId);
   if (path === '/analytics') target = companyPath('analytics', copyParams(params, ['job_id']), companyId);
   if (path === '/crm') target = companyPath('crm', copyParams(params, ['account']), companyId);
+  if (path === '/underwriter') target = companyPath('underwriter', copyParams(params, ['stage']), companyId);
   if (path === '/finance') target = companyPath('finance', copyParams(params, ['invoice', 'expense', 'vendor', 'report']), companyId);
   if (path === '/messages') target = companyPath('messages', copyParams(params, ['conversation']), companyId);
   if (path === '/calendar') target = companyPath('calendar', {}, companyId);
