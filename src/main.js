@@ -123,7 +123,7 @@ const MODULE_REGISTRY = [
   { id: 'automations', group: 'Workspace', label: 'Automations', icon: 'ti-automation', symbol: 'q-symbol-automations', status: 'planned' },
   { id: 'templates', group: 'Workspace', label: 'Templates', icon: 'ti-template', symbol: 'q-symbol-templates', status: 'planned' },
   { id: 'users', group: 'Company', label: 'Users', icon: 'ti-users', symbol: 'q-symbol-users', status: 'live', permission: 'users.view' },
-  { id: 'messages', group: 'Company', label: 'Inbox', icon: 'ti-inbox', symbol: 'q-symbol-messages', status: 'live', permission: 'messages.view' },
+  { id: 'messages', group: 'Communication', label: 'Messages', icon: 'ti-messages', symbol: 'q-symbol-messages', status: 'live', permission: 'messages.view' },
   { id: 'settings', group: 'Company', label: 'Settings', icon: 'ti-settings', symbol: 'q-symbol-settings', status: 'live', permission: 'settings.view' },
   { id: 'team-chart', group: 'Company', label: 'Team chart', icon: 'ti-hierarchy-3', symbol: 'q-symbol-team-chart', status: 'live', permission: 'team.view' },
   { id: 'time', group: 'Operations', label: 'My time', icon: 'ti-clock', symbol: 'q-symbol-time', status: 'live', permission: 'time.track' },
@@ -134,7 +134,8 @@ const MODULE_REGISTRY = [
 ];
 
 const NAV_GROUPS = [
-  { label: 'Work', ids: ['home', 'tasks', 'messages'] },
+  { label: 'Work', ids: ['home', 'tasks'] },
+  { label: 'Communication', ids: ['messages', 'calendar'] },
   { label: 'Leads · Top of Funnel', ids: ['contacts'] },
   { label: 'Quotes · Bottom of Funnel', ids: ['deals'] },
   { label: 'Production', ids: ['jobs'] },

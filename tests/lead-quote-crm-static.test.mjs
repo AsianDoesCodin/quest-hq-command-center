@@ -39,3 +39,9 @@ test('account record tabs use leads and quotes language', () => {
   assert.match(source, /\['contacts', 'Leads', contacts\.length\]/);
   assert.match(source, /\['deals', 'Quotes', deals\.length\]/);
 });
+
+test('messages remains a visible communication section', () => {
+  assert.match(source, /\{ id: 'messages', group: 'Communication', label: 'Messages'/);
+  assert.match(source, /\{ label: 'Communication', ids: \['messages', 'calendar'\] \}/);
+  assert.doesNotMatch(source, /\{ id: 'messages', group: 'Company', label: 'Inbox'/);
+});
