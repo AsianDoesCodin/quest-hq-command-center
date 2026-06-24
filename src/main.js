@@ -7087,16 +7087,27 @@ function renderProfileModal(profile) {
         </div>
         <form class="profile-form" data-profile-form>
           <div class="profile-preview">
-            ${renderAvatar(profile, 'avatar large')}
+            ${renderAvatar(profile, 'avatar large', { id: 'profile-avatar-preview' })}
             <div><strong>${h(profile.full_name)}</strong><span>${h(profile.email)}</span></div>
           </div>
           <label>Display name<input name="full_name" value="${h(profile.full_name)}" /></label>
           <input type="hidden" name="avatar_url" value="${h(profile.avatar_url || '')}" />
+          <input type="hidden" name="avatar_cropped_url" value="" data-profile-cropped-avatar />
           <label class="profile-upload-field">
             <span>Profile picture</span>
-            <input name="avatar_file" type="file" accept="image/png,image/jpeg,image/webp" />
+            <input name="avatar_file" type="file" accept="image/png,image/jpeg,image/webp" data-profile-avatar-file />
             <small>PNG, JPG, or WebP. Live accounts support up to 2 MB.</small>
           </label>
+          <section class="profile-cropper" data-profile-cropper hidden>
+            <div class="profile-crop-frame">
+              <canvas width="256" height="256" data-profile-crop-canvas aria-label="Profile picture crop preview"></canvas>
+            </div>
+            <div class="profile-crop-controls">
+              <label>Zoom<input type="range" min="1" max="3" step="0.01" value="1" data-profile-crop-zoom /></label>
+              <label>Horizontal<input type="range" min="-100" max="100" step="1" value="0" data-profile-crop-x /></label>
+              <label>Vertical<input type="range" min="-100" max="100" step="1" value="0" data-profile-crop-y /></label>
+            </div>
+          </section>
           <div class="form-actions">
             <button class="btn btn-primary" type="submit">Save profile</button>
             <button class="btn" type="button" data-action="close-modal">Cancel</button>
@@ -8632,8 +8643,14 @@ async function saveProfile(formNode) {
   const data = new FormData(formNode);
   const current = activeSession().profile;
   const file = formNode.elements.avatar_file?.files?.[0] || null;
+  const croppedUrl = String(data.get('avatar_cropped_url') || '').trim();
   let avatarUrl = String(data.get('avatar_url') || current.avatar_url || '').trim();
-  if (file && file.size) {
+  if (croppedUrl.startsWith('data:image/')) {
+    const croppedFile = dataUrlToFile(croppedUrl, `avatar-${Date.now()}.png`);
+    const uploadResult = await saveProfileAvatar(croppedFile);
+    if (!uploadResult.ok) return;
+    avatarUrl = uploadResult.url;
+  } else if (file && file.size) {
     const uploadResult = await saveProfileAvatar(file);
     if (!uploadResult.ok) return;
     avatarUrl = uploadResult.url;
@@ -8677,6 +8694,56 @@ async function saveProfile(formNode) {
   showToast('Profile saved.', state.session?.auth === 'supabase' ? 'live' : 'local', 'Profile');
 }
 
+async function prepareProfileAvatarCrop(formNode) {
+  if (!formNode) return;
+  const file = formNode.elements.avatar_file?.files?.[0] || null;
+  const hidden = formNode.querySelector('[data-profile-cropped-avatar]');
+  if (hidden) hidden.value = '';
+  if (!file) return;
+  const allowed = ['image/jpeg', 'image/png', 'image/webp'];
+  if (!allowed.includes(file.type)) throw new Error('Use a PNG, JPG, or WebP image for your profile picture.');
+  if (file.size > 2 * 1024 * 1024) throw new Error('Profile pictures must be 2 MB or smaller.');
+  const dataUrl = await fileToDataUrl(file);
+  if (!dataUrl) throw new Error('Could not read that image file.');
+  const image = await loadImage(dataUrl);
+  const cropper = formNode.querySelector('[data-profile-cropper]');
+  if (cropper) cropper.hidden = false;
+  formNode._profileCropImage = image;
+  formNode.querySelector('[data-profile-crop-zoom]').value = '1';
+  formNode.querySelector('[data-profile-crop-x]').value = '0';
+  formNode.querySelector('[data-profile-crop-y]').value = '0';
+  updateProfileAvatarCrop(formNode);
+}
+
+function updateProfileAvatarCrop(formNode) {
+  if (!formNode?._profileCropImage) return;
+  const canvas = formNode.querySelector('[data-profile-crop-canvas]');
+  const hidden = formNode.querySelector('[data-profile-cropped-avatar]');
+  if (!canvas || !hidden) return;
+  const ctx = canvas.getContext('2d');
+  const size = canvas.width;
+  const image = formNode._profileCropImage;
+  const zoom = Math.max(1, Number(formNode.querySelector('[data-profile-crop-zoom]')?.value || 1));
+  const offsetX = Number(formNode.querySelector('[data-profile-crop-x]')?.value || 0) / 100;
+  const offsetY = Number(formNode.querySelector('[data-profile-crop-y]')?.value || 0) / 100;
+  const baseScale = Math.max(size / image.naturalWidth, size / image.naturalHeight);
+  const scale = baseScale * zoom;
+  const drawWidth = image.naturalWidth * scale;
+  const drawHeight = image.naturalHeight * scale;
+  const maxOffsetX = Math.max(0, (drawWidth - size) / 2);
+  const maxOffsetY = Math.max(0, (drawHeight - size) / 2);
+  const drawX = (size - drawWidth) / 2 + offsetX * maxOffsetX;
+  const drawY = (size - drawHeight) / 2 + offsetY * maxOffsetY;
+  ctx.clearRect(0, 0, size, size);
+  ctx.fillStyle = '#fff';
+  ctx.fillRect(0, 0, size, size);
+  ctx.drawImage(image, drawX, drawY, drawWidth, drawHeight);
+  hidden.value = canvas.toDataURL('image/png');
+  const preview = formNode.querySelector('#profile-avatar-preview');
+  if (preview) preview.innerHTML = `<img src="${h(hidden.value)}" alt="" />`;
+  if (preview) preview.classList.add('has-image');
+}
+
 async function saveProfileAvatar(file) {
   const allowed = ['image/jpeg', 'image/png', 'image/webp'];
   if (!allowed.includes(file.type)) {
@@ -8713,6 +8780,24 @@ async function saveProfileAvatar(file) {
     return { ok: false, url: '' };
   }
   return { ok: true, url: publicUrl };
+}
+
+function loadImage(src) {
+  return new Promise((resolve, reject) => {
+    const image = new Image();
+    image.onload = () => resolve(image);
+    image.onerror = () => reject(new Error('Could not load that image.'));
+    image.src = src;
+  });
+}
+
+function dataUrlToFile(dataUrl, fileName) {
+  const [header, payload] = String(dataUrl || '').split(',');
+  const mime = header.match(/data:([^;]+)/)?.[1] || 'image/png';
+  const binary = atob(payload || '');
+  const bytes = new Uint8Array(binary.length);
+  for (let index = 0; index < binary.length; index += 1) bytes[index] = binary.charCodeAt(index);
+  return new File([bytes], fileName, { type: mime });
 }
 
 async function signInWithSupabase(formNode) {
@@ -9779,6 +9864,10 @@ function onDocumentInput(event) {
     filterMessagePeopleList(event.target);
     return;
   }
+  if (event.target.matches('[data-profile-crop-zoom], [data-profile-crop-x], [data-profile-crop-y]')) {
+    updateProfileAvatarCrop(event.target.closest('[data-profile-form]'));
+    return;
+  }
   if (event.target.matches('[data-form-field]')) {
     updateFormField(event.target);
     return;
@@ -9853,6 +9942,12 @@ function onDocumentChange(event) {
   if (event.target.matches('[data-form-type-filter]')) {
     state.formTypeFilter = event.target.value || 'all';
     render();
+    return;
+  }
+  if (event.target.matches('[data-profile-avatar-file]')) {
+    prepareProfileAvatarCrop(event.target.closest('[data-profile-form]')).catch((error) => {
+      showToast(error.message || 'Could not preview that profile picture.', 'local', 'Profile');
+    });
     return;
   }
   if (event.target.matches('[data-form-field]')) {
@@ -13419,10 +13514,14 @@ function financeStatusPill(status) {
   return `<span class="finance-status ${h(slugify(status))}">${h(status)}</span>`;
 }
 
-function renderAvatar(profile, className) {
-  if (profile.avatar_url) return `<span class="${h(className)}"><img src="${h(profile.avatar_url)}" alt="" /></span>`;
+function renderAvatar(profile, className, attrs = {}) {
+  const attrText = Object.entries(attrs)
+    .filter(([, value]) => value !== undefined && value !== null && value !== '')
+    .map(([key, value]) => `${h(key)}="${h(String(value))}"`)
+    .join(' ');
+  if (profile.avatar_url) return `<span class="${h(`${className} has-image`)}" ${attrText}><img src="${h(profile.avatar_url)}" alt="" /></span>`;
   const initials = String(profile.full_name || profile.email || 'QB').trim().split(/\s+/).map((part) => part[0]).join('').slice(0, 2).toUpperCase() || 'QB';
-  return `<span class="${h(className)}">${h(initials)}</span>`;
+  return `<span class="${h(className)}" ${attrText}>${h(initials)}</span>`;
 }
 
 function calendarAssigneeOptions(companyId = activeCompanyId()) {
