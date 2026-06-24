@@ -1943,7 +1943,7 @@ function shellTemplate(route, workspace) {
   const companyId = activeCompanyId();
   const emailVerified = isSessionEmailVerified(session);
   return `
-    <div class="quest-app ${state.sidebarCollapsed ? 'sidebar-collapsed' : ''}" data-route="${h(route.name)}">
+    <div class="quest-app ${state.sidebarCollapsed ? 'sidebar-collapsed' : ''}" data-route="${h(route.name)}" data-section="${h(route.section || '')}">
       ${renderSvgSprite()}
       <header class="topbar">
         <div class="topbar-left">
