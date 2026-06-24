@@ -24,8 +24,8 @@ const ACCOUNT_CACHE_KEY = 'quest-hq-account-cache-v1';
 const DEAL_CACHE_KEY = 'quest-hq-deal-cache-v1';
 const ACTIVITY_CACHE_KEY = 'quest-hq-activity-cache-v1';
 const JOB_STAGES_KEY = 'quest-hq-job-stages-v1';
-const CONTACT_STAGES_KEY = 'quest-hq-contact-stages-v1';
-const DEAL_STAGES_KEY = 'quest-hq-deal-stages-v1';
+const CONTACT_STAGES_KEY = 'quest-hq-lead-stages-v2';
+const DEAL_STAGES_KEY = 'quest-hq-quote-stages-v2';
 const DEAL_BOARD_VIEW_KEY = 'quest-hq-deal-board-view';
 const TASK_CACHE_KEY = 'quest-hq-task-cache-v1';
 const FILE_CACHE_KEY = 'quest-hq-file-cache-v1';
@@ -109,21 +109,21 @@ const PERMISSION_ALIASES = {
 
 const MODULE_REGISTRY = [
   { id: 'home', group: 'Workspace', label: 'Home', icon: 'ti-home', symbol: 'q-logo', status: 'live', permission: '' },
-  { id: 'jobs', group: 'Workspace', label: 'Jobs', icon: 'ti-briefcase', symbol: 'q-symbol-jobs', status: 'live', permission: 'jobs.view' },
-  { id: 'tasks', group: 'Workspace', label: 'Tasks', icon: 'ti-list-check', symbol: 'q-symbol-tasks', status: 'live', permission: 'tasks.view' },
+  { id: 'jobs', group: 'Production', label: 'Jobs', icon: 'ti-hammer', symbol: 'q-symbol-jobs', status: 'live', permission: 'jobs.view' },
+  { id: 'tasks', group: 'Work', label: 'My tasks', icon: 'ti-list-check', symbol: 'q-symbol-tasks', status: 'live', permission: 'tasks.view' },
   { id: 'files', group: 'Workspace', label: 'Files', icon: 'ti-folder', symbol: 'q-symbol-files', status: 'live', permission: 'files.view' },
   { id: 'forms', group: 'Workspace', label: 'Forms', icon: 'ti-clipboard-list', symbol: 'q-symbol-forms', status: 'live', permission: 'forms.view' },
   { id: 'analytics', group: 'Workspace', label: 'Analytics', icon: 'ti-chart-bar', symbol: 'q-symbol-analytics', status: 'live', permission: 'jobs.view' },
   { id: 'crm', group: 'Workspace', label: 'Accounts', icon: 'ti-building-community', symbol: 'q-symbol-crm', status: 'live', permission: 'crm.view' },
-  { id: 'contacts', group: 'Workspace', label: 'Contacts', icon: 'ti-address-book', symbol: 'q-symbol-crm', status: 'live', permission: 'crm.view' },
-  { id: 'deals', group: 'Workspace', label: 'Deals', icon: 'ti-businessplan', symbol: 'q-symbol-jobs', status: 'live', permission: 'crm.view' },
+  { id: 'contacts', group: 'Leads · Top of Funnel', label: 'Leads', icon: 'ti-id-badge-2', symbol: 'q-symbol-crm', status: 'live', permission: 'crm.view' },
+  { id: 'deals', group: 'Quotes · Bottom of Funnel', label: 'Quotes', icon: 'ti-briefcase', symbol: 'q-symbol-jobs', status: 'live', permission: 'crm.view' },
   { id: 'tickets', group: 'Workspace', label: 'Tickets', icon: 'ti-ticket', symbol: 'q-symbol-tickets', status: 'planned' },
   { id: 'finance', group: 'Workspace', label: 'Finance', icon: 'ti-receipt-dollar', symbol: 'q-symbol-finance', status: 'live', permission: 'finance.view' },
   { id: 'knowledge', group: 'Workspace', label: 'Knowledge Base', icon: 'ti-books', symbol: 'q-symbol-knowledge', status: 'planned' },
   { id: 'automations', group: 'Workspace', label: 'Automations', icon: 'ti-automation', symbol: 'q-symbol-automations', status: 'planned' },
   { id: 'templates', group: 'Workspace', label: 'Templates', icon: 'ti-template', symbol: 'q-symbol-templates', status: 'planned' },
   { id: 'users', group: 'Company', label: 'Users', icon: 'ti-users', symbol: 'q-symbol-users', status: 'live', permission: 'users.view' },
-  { id: 'messages', group: 'Company', label: 'Messages', icon: 'ti-messages', symbol: 'q-symbol-messages', status: 'live', permission: 'messages.view' },
+  { id: 'messages', group: 'Company', label: 'Inbox', icon: 'ti-inbox', symbol: 'q-symbol-messages', status: 'live', permission: 'messages.view' },
   { id: 'settings', group: 'Company', label: 'Settings', icon: 'ti-settings', symbol: 'q-symbol-settings', status: 'live', permission: 'settings.view' },
   { id: 'team-chart', group: 'Company', label: 'Team chart', icon: 'ti-hierarchy-3', symbol: 'q-symbol-team-chart', status: 'live', permission: 'team.view' },
   { id: 'time', group: 'Operations', label: 'My time', icon: 'ti-clock', symbol: 'q-symbol-time', status: 'live', permission: 'time.track' },
@@ -134,11 +134,12 @@ const MODULE_REGISTRY = [
 ];
 
 const NAV_GROUPS = [
-  { label: 'Command', ids: ['home', 'messages', 'calendar'] },
-  { label: 'Sales', ids: ['crm', 'contacts', 'deals'] },
-  { label: 'Work', ids: ['jobs', 'tasks', 'files', 'forms'] },
-  { label: 'Money', ids: ['finance', 'analytics'] },
-  { label: 'People', ids: ['users', 'team-chart', 'time', 'approvals', 'clock'] },
+  { label: 'Work', ids: ['home', 'tasks', 'messages'] },
+  { label: 'Leads · Top of Funnel', ids: ['contacts'] },
+  { label: 'Quotes · Bottom of Funnel', ids: ['deals'] },
+  { label: 'Production', ids: ['jobs'] },
+  { label: 'Estimating', ids: ['finance', 'files', 'forms'] },
+  { label: 'Review', ids: ['analytics', 'users', 'team-chart', 'time', 'approvals', 'clock'] },
   { label: 'Control', ids: ['settings'] },
   { label: 'Future', ids: ['tickets', 'knowledge', 'automations', 'templates', 'team-workload'] },
 ];
@@ -160,8 +161,8 @@ const LEGACY_ROUTE_SECTIONS = {
 };
 
 // Pipeline stages are customizable placeholder "groups" the client can edit.
-// Each stage is { name, color }. The job pipeline (production) and the contact
-// pipeline (sales) each have their own editable list, persisted to localStorage.
+// Each stage is { name, color }. Leads, quotes, and jobs each keep their own
+// editable list, persisted to localStorage.
 const DEFAULT_JOB_STAGES = [
   { name: 'Unscheduled', color: '#9AA0A8' },
   { name: 'Scheduled', color: '#378ADD' },
@@ -173,35 +174,29 @@ const DEFAULT_JOB_STAGES = [
   { name: 'On hold', color: '#C4C7CC' },
 ];
 const DEFAULT_CONTACT_STAGES = [
-  { name: 'Prospects', color: '#9AA0A8' },
-  { name: 'Leads', color: '#378ADD' },
-  { name: 'Underwriting', color: '#BA7517' },
-  { name: 'Estimate sent', color: '#3C7BD0' },
-  { name: 'Negotiating', color: '#C08A2B' },
-  { name: 'Contract out', color: '#7F77DD' },
-  { name: 'Won', color: '#639922' },
-  { name: 'Follow-up', color: '#C4C7CC' },
-  { name: 'Lost', color: '#E24B4A' },
+  { name: 'Prospect', color: '#9AA0A8' },
+  { name: 'Contacted', color: '#378ADD' },
+  { name: 'Nurturing', color: '#5AB0A6' },
 ];
 const DEFAULT_DEAL_STAGES = [
-  { name: 'Prospect', color: '#9AA0A8' },
-  { name: 'Qualified', color: '#378ADD' },
-  { name: 'Proposal sent', color: '#3C7BD0' },
-  { name: 'Negotiation', color: '#C08A2B' },
-  { name: 'Verbal commit', color: '#7F77DD' },
+  { name: 'Underwriting', color: '#BA7517' },
+  { name: 'Estimate Sent', color: '#3C7BD0' },
+  { name: 'Negotiating', color: '#C08A2B' },
+  { name: 'Contract Sent', color: '#7F77DD' },
+  { name: 'Waiting to Sign', color: '#7067CF' },
   { name: 'Won', color: '#639922' },
-  { name: 'Lost', color: '#E24B4A' },
 ];
 const STAGE_COLOR_PALETTE = ['#9AA0A8', '#378ADD', '#BA7517', '#7F77DD', '#639922', '#E24B4A', '#3C7BD0', '#C08A2B', '#5AB0A6', '#C4C7CC'];
 const TEMPERATURES = ['Hot', 'Warm', 'Cold'];
 const CONTACT_GUIDANCE = [
   { match: /prospect/i, t: 'Work the prospect.', b: ['Where did this lead come from?', 'Best way to reach them — call, text, email?', 'Is there a real project here, or just looking?', 'Get them into a real conversation.'] },
+  { match: /contact/i, t: 'Keep the conversation moving.', b: ['Did you reach the decision maker?', 'What is the preferred next touch?', 'Is there enough detail to hand this into estimating?', 'Set the follow-up before you leave the record.'] },
   { match: /lead/i, t: 'Qualify the lead.', b: ['Have you confirmed the decision maker(s)?', 'Is this an insurance claim or retail pay?', "What's the roof age, system, and visible damage?", "What's their timeline to start?"] },
   { match: /nurtur|follow/i, t: 'Keep it warm.', b: ['When did you last touch base?', 'What are they waiting on to move forward?', "Set a follow-up cadence so they don't go cold.", 'Send value — photos, tips, financing options.'] },
   { match: /underwrit/i, t: 'Scope it and price it.', b: ['Is the takeoff / measurements done?', 'If insurance — do you have the carrier scope?', 'Are material selections confirmed?', 'Is the margin target set on the estimate?'] },
   { match: /estimate/i, t: 'Present the estimate.', b: ['Has the proposal been sent?', 'Did you walk them through Standard vs Recommended?', 'What objections came up?', 'Is the follow-up scheduled?'] },
   { match: /negotiat/i, t: 'Close the deal.', b: ['Are all outstanding questions answered?', 'Are all decision makers on board?', 'Do you need a discount or incentive?', 'Ask for the signature.'] },
-  { match: /contract/i, t: 'Get it signed.', b: ['Is the contract out for signature?', 'Has the deposit been collected?', 'Is the start date set?', 'Hand off the details to production.'] },
+  { match: /contract|sign/i, t: 'Get it signed.', b: ['Is the contract out for signature?', 'Has the deposit been collected?', 'Is the start date set?', 'Hand off the details to production.'] },
   { match: /won/i, t: 'Won — convert to a job.', b: ['Schedule the build and assign a crew.', 'Order materials from your vendors.', 'Confirm the scope with the customer.', 'Hit Convert to Job to move it to production.'] },
   { match: /lost/i, t: 'Lost — capture why.', b: ['Log the reason this fell through.', 'Is there a future opportunity to nurture later?', 'Anything to learn for the next bid?'] },
 ];
@@ -257,13 +252,35 @@ function resolveContactStage(value) {
   const names = contactStageNames();
   const raw = String(value || '').trim();
   if (names.includes(raw)) return raw;
-  return names[0] || 'Prospects';
+  const legacy = {
+    Prospects: 'Prospect',
+    Leads: 'Contacted',
+    Underwriting: 'Nurturing',
+    'Estimate sent': 'Nurturing',
+    Negotiating: 'Nurturing',
+    'Contract out': 'Nurturing',
+    Won: 'Nurturing',
+    'Follow-up': 'Nurturing',
+    Lost: 'Nurturing',
+  }[raw];
+  if (legacy && names.includes(legacy)) return legacy;
+  return names[0] || 'Prospect';
 }
 function resolveDealStage(value) {
   const names = dealStageNames();
   const raw = String(value || '').trim();
   if (names.includes(raw)) return raw;
-  return names[0] || 'Prospect';
+  const legacy = {
+    Prospect: 'Underwriting',
+    Qualified: 'Underwriting',
+    'Proposal sent': 'Estimate Sent',
+    Negotiation: 'Negotiating',
+    'Verbal commit': 'Waiting to Sign',
+    Won: 'Won',
+    Lost: 'Negotiating',
+  }[raw];
+  if (legacy && names.includes(legacy)) return legacy;
+  return names[0] || 'Underwriting';
 }
 
 function persistJobStages() { JOB_STAGES = JOB_STAGES.filter((stage) => stage.name); writeJson(JOB_STAGES_KEY, JOB_STAGES); }
@@ -376,16 +393,16 @@ const jobsFallback = [
 ];
 
 const contactsFallback = [
-  { id: 'contact-1', company_id: 'roofing', name: 'William Moran', phone: '928-231-0147', email: 'wrmoran@gmail.com', location: 'Future project', stage: 'Prospects', value: 0, owner_name: 'Abraham Flores' },
-  { id: 'contact-2', company_id: 'roofing', name: 'Valerie McKenzie', phone: '602-750-5678', email: '', location: '6054 E Blanche Dr, Scottsdale', stage: 'Prospects', value: 0, owner_name: 'Maya Rosales' },
-  { id: 'contact-3', company_id: 'roofing', name: 'April Reyes', phone: '480-277-1540', email: '', location: '451 E 10th Ave, Mesa', stage: 'Leads', value: 14500, owner_name: 'Andre Lee' },
-  { id: 'contact-4', company_id: 'roofing', name: 'Mario Esquivel', phone: '480-955-4036', email: 'esquivel@residence.com', location: 'Costa Bella Residence', stage: 'Leads', value: 22000, owner_name: 'Maya Rosales' },
-  { id: 'contact-5', company_id: 'roofing', name: 'Mike - Maricopa', phone: '503-317-4788', email: '', location: 'Maricopa', stage: 'Underwriting', value: 31000, owner_name: 'Andre Lee' },
-  { id: 'contact-6', company_id: 'roofing', name: 'Kumar Residence', phone: '', email: '', location: '16750 E Nicklaus Dr, Fountain Hills', stage: 'Estimate sent', value: 47800, owner_name: 'Maya Rosales' },
-  { id: 'contact-7', company_id: 'roofing', name: 'Keith Salas', phone: '717-991-7029', email: '', location: '15948 E Sycamore', stage: 'Negotiating', value: 28900, owner_name: 'Andre Lee' },
-  { id: 'contact-8', company_id: 'roofing', name: 'Brad Lundstrom', phone: '602-577-9523', email: 'lundstromdesign@gmail.com', location: '3200 W Wander Ln', stage: 'Contract out', value: 53200, owner_name: 'Abraham Flores' },
-  { id: 'contact-9', company_id: 'roofing', name: 'Rosa Cruz-Blanch', phone: '787-549-0942', email: 'rcruz@natlbtr.com', location: 'W Encanto Blvd', stage: 'Won', value: 61000, owner_name: 'Maya Rosales' },
-  { id: 'contact-10', company_id: 'drafting', name: 'Horizon HVAC', phone: '480-555-0199', email: 'plans@horizonhvac.com', location: 'Chandler, AZ', stage: 'Estimate sent', value: 4200, owner_name: 'Noah Park', account_id: 'account-3', title: 'Facilities lead' },
+  { id: 'contact-1', company_id: 'roofing', name: 'William Moran', phone: '928-231-0147', email: 'wrmoran@gmail.com', location: 'Future project', stage: 'Prospect', value: 0, owner_name: 'Abraham Flores' },
+  { id: 'contact-2', company_id: 'roofing', name: 'Valerie McKenzie', phone: '602-750-5678', email: '', location: '6054 E Blanche Dr, Scottsdale', stage: 'Prospect', value: 0, owner_name: 'Maya Rosales' },
+  { id: 'contact-3', company_id: 'roofing', name: 'April Reyes', phone: '480-277-1540', email: '', location: '451 E 10th Ave, Mesa', stage: 'Contacted', value: 14500, owner_name: 'Andre Lee' },
+  { id: 'contact-4', company_id: 'roofing', name: 'Mario Esquivel', phone: '480-955-4036', email: 'esquivel@residence.com', location: 'Costa Bella Residence', stage: 'Contacted', value: 22000, owner_name: 'Maya Rosales' },
+  { id: 'contact-5', company_id: 'roofing', name: 'Mike - Maricopa', phone: '503-317-4788', email: '', location: 'Maricopa', stage: 'Nurturing', value: 31000, owner_name: 'Andre Lee' },
+  { id: 'contact-6', company_id: 'roofing', name: 'Kumar Residence', phone: '', email: '', location: '16750 E Nicklaus Dr, Fountain Hills', stage: 'Nurturing', value: 47800, owner_name: 'Maya Rosales' },
+  { id: 'contact-7', company_id: 'roofing', name: 'Keith Salas', phone: '717-991-7029', email: '', location: '15948 E Sycamore', stage: 'Contacted', value: 28900, owner_name: 'Andre Lee' },
+  { id: 'contact-8', company_id: 'roofing', name: 'Brad Lundstrom', phone: '602-577-9523', email: 'lundstromdesign@gmail.com', location: '3200 W Wander Ln', stage: 'Nurturing', value: 53200, owner_name: 'Abraham Flores' },
+  { id: 'contact-9', company_id: 'roofing', name: 'Rosa Cruz-Blanch', phone: '787-549-0942', email: 'rcruz@natlbtr.com', location: 'W Encanto Blvd', stage: 'Contacted', value: 61000, owner_name: 'Maya Rosales' },
+  { id: 'contact-10', company_id: 'drafting', name: 'Horizon HVAC', phone: '480-555-0199', email: 'plans@horizonhvac.com', location: 'Chandler, AZ', stage: 'Nurturing', value: 4200, owner_name: 'Noah Park', account_id: 'account-3', title: 'Facilities lead' },
 ];
 
 const accountsFallback = [
@@ -395,10 +412,10 @@ const accountsFallback = [
 ];
 
 const dealsFallback = [
-  { id: 'deal-1', company_id: 'roofing', account_id: 'account-1', primary_contact_id: 'contact-9', name: 'Encanto re-roof', stage: 'Verbal commit', status: 'open', value: 61000, probability: 80, owner_name: 'Maya Rosales', source: 'Referral' },
-  { id: 'deal-2', company_id: 'roofing', account_id: 'account-2', primary_contact_id: '', name: 'Mesa membrane repair', stage: 'Proposal sent', status: 'open', value: 18400, probability: 50, owner_name: 'Andre Lee', source: 'Website' },
-  { id: 'deal-3', company_id: 'roofing', account_id: 'account-1', primary_contact_id: 'contact-7', name: 'Sycamore tear-off', stage: 'Negotiation', status: 'open', value: 28900, probability: 60, owner_name: 'Andre Lee', source: 'Door knock' },
-  { id: 'deal-4', company_id: 'drafting', account_id: 'account-3', primary_contact_id: 'contact-10', name: 'Permit drawing package', stage: 'Qualified', status: 'open', value: 4200, probability: 40, owner_name: 'Noah Park', source: 'Partner' },
+  { id: 'deal-1', company_id: 'roofing', account_id: 'account-1', primary_contact_id: 'contact-9', name: 'Encanto re-roof', stage: 'Waiting to Sign', status: 'open', value: 61000, probability: 80, owner_name: 'Maya Rosales', source: 'Referral' },
+  { id: 'deal-2', company_id: 'roofing', account_id: 'account-2', primary_contact_id: '', name: 'Mesa membrane repair', stage: 'Estimate Sent', status: 'open', value: 18400, probability: 50, owner_name: 'Andre Lee', source: 'Website' },
+  { id: 'deal-3', company_id: 'roofing', account_id: 'account-1', primary_contact_id: 'contact-7', name: 'Sycamore tear-off', stage: 'Negotiating', status: 'open', value: 28900, probability: 60, owner_name: 'Andre Lee', source: 'Door knock' },
+  { id: 'deal-4', company_id: 'drafting', account_id: 'account-3', primary_contact_id: 'contact-10', name: 'Permit drawing package', stage: 'Underwriting', status: 'open', value: 4200, probability: 40, owner_name: 'Noah Park', source: 'Partner' },
 ];
 
 const activitiesFallback = [
@@ -2131,7 +2148,7 @@ function renderReadOnlyDemoBanner() {
       <i class="ti ti-eye"></i>
       <div>
         <strong>Read-only sample workspace</strong>
-        <small>Create your own workspace to save jobs, contacts, files, forms, billing, or team changes.</small>
+        <small>Create your own workspace to save leads, quotes, jobs, files, forms, billing, or team changes.</small>
       </div>
       <button class="btn" type="button" data-action="open-auth-modal" data-auth-mode="register">Create workspace</button>
     </div>
@@ -2764,7 +2781,7 @@ function pipelineToolbar(kind, companyId) {
   `;
 }
 
-// ---- Contacts (sales pipeline) --------------------------------------------
+// ---- Leads (top-of-funnel pipeline) ---------------------------------------
 function renderContactsPage(route, companyId) {
   const contactId = route.params.get('contact_id');
   if (contactId) {
@@ -2774,9 +2791,9 @@ function renderContactsPage(route, companyId) {
   const stageParam = route.params.get('stage');
   if (stageParam) state.contactStageFilter = contactStageNames().includes(stageParam) ? stageParam : 'all';
   return `
-    ${workspaceHeader('Contacts', 'Sales pipeline - prospects and leads moving toward won work.', `
+    ${workspaceHeader('Leads', 'Top-of-funnel prospects before quote handoff.', `
       <button class="btn" type="button" data-action="open-stage-manager" data-module="contacts"><i class="ti ti-adjustments-horizontal"></i>Manage stages</button>
-      <button class="btn btn-primary" type="button" data-action="open-contact-form" data-mode="new"><i class="ti ti-plus"></i>Add contact</button>
+      <button class="btn btn-primary" type="button" data-action="open-contact-form" data-mode="new"><i class="ti ti-plus"></i>Add lead</button>
     `)}
     ${pipelineToolbar('contacts', companyId)}
     ${state.contactBoardView === 'board' ? renderContactBoard(companyId) : renderContactTable(companyId)}
@@ -2787,7 +2804,7 @@ function renderContactTable(companyId) {
   const rows = filteredContacts(companyId);
   return `
     <section class="panel">
-      <div class="section-head"><div><h2>Contacts</h2><p>${rows.length} visible contact${rows.length === 1 ? '' : 's'}</p></div></div>
+      <div class="section-head"><div><h2>Leads</h2><p>${rows.length} visible lead${rows.length === 1 ? '' : 's'}</p></div></div>
       <div class="data-table contacts-table">
         <div class="table-head"><span>Client</span><span>Phone</span><span>Email</span><span>Location</span><span>Stage</span><span>Value</span></div>
         ${rows.map((contact) => `
@@ -2799,7 +2816,7 @@ function renderContactTable(companyId) {
             <span>${stageTagPipe('contacts', contact.stage)}</span>
             <span>${contact.value ? money(contact.value) : '<span class="muted-dash">—</span>'}</span>
           </button>
-        `).join('') || emptyState('No contacts in this view yet.')}
+        `).join('') || emptyState('No leads in this view yet.')}
       </div>
     </section>
   `;
@@ -2817,7 +2834,7 @@ function renderContactBoard(companyId) {
           <article class="pipe-lane">
             <header class="pipe-lane-head">${pipelineDot(stage.color)}<span>${h(stage.name)}</span><b>${cards.length}</b></header>
             <div class="pipe-lane-body">
-              ${cards.map((contact) => contactCard(contact)).join('') || '<div class="lane-empty">No contacts</div>'}
+              ${cards.map((contact) => contactCard(contact)).join('') || '<div class="lane-empty">No leads</div>'}
             </div>
           </article>
         `;
@@ -2860,13 +2877,13 @@ function renderContactRecord(companyId, contact) {
     <div class="sf-record">
       <div class="sf-object-tabs">
         <a class="sf-object-tab" href="${appHref(companyPath('home', {}, companyId))}" data-router>Home</a>
-        <a class="sf-object-tab" href="${appHref(companyPath('contacts', {}, companyId))}" data-router>All Contacts <span class="sf-tab-kind">| Contacts</span></a>
-        <span class="sf-object-tab on">${h(contact.name)} <span class="sf-tab-kind">| Contact</span></span>
+        <a class="sf-object-tab" href="${appHref(companyPath('contacts', {}, companyId))}" data-router>All Leads <span class="sf-tab-kind">| Leads</span></a>
+        <span class="sf-object-tab on">${h(contact.name)} <span class="sf-tab-kind">| Lead</span></span>
       </div>
 
       <div class="sf-record-head">
         <span class="sf-record-icon"><i class="ti ti-user"></i></span>
-        <div><div class="sf-record-label">Contact</div><div class="sf-record-name">${h(contact.name)}</div></div>
+        <div><div class="sf-record-label">Lead</div><div class="sf-record-name">${h(contact.name)}</div></div>
         <div class="sf-actions">
           ${headerActions.map(([label, ico]) => label === 'Edit'
             ? `<button class="sf-btn" type="button" data-action="open-contact-form" data-mode="edit" data-contact-id="${h(contact.id)}"><i class="ti ${ico}"></i>${label}</button>`
@@ -2903,7 +2920,7 @@ function renderContactRecord(companyId, contact) {
           </div></div>
           <div class="sf-card"><div class="sf-card-head"><i class="ti ti-clipboard-data"></i>Status</div><div class="sf-card-body">
             ${fieldRow('Stage', `<span>${h(contact.stage)}</span>`)}
-            ${fieldRow('Est. Value', `<span class="sf-money">$<span class="sf-edit mono" data-contact-edit="value" data-contact-id="${h(contact.id)}" title="Click to edit">${money(contact.value || 0)}</span></span>`)}
+            ${fieldRow('Est. Value', `<span class="sf-money"><span class="sf-edit mono" data-contact-edit="value" data-contact-id="${h(contact.id)}" title="Click to edit">${money(contact.value || 0)}</span></span>`)}
             ${fieldRow('Temperature', `<span class="sf-edit" data-contact-edit="temperature" data-contact-id="${h(contact.id)}" style="color:${tempColor}" title="Click to edit">${h(contact.temperature)}</span>`)}
             ${fieldRow('Pay Type', ed('pay_type'))}
             ${fieldRow('Roof System', ed('roof_system'))}
@@ -3025,8 +3042,8 @@ function contactQuickCreate(contactId, kind) {
   if (kind === 'Note') return logContactActivity(contactId, 'note', 'Note added');
   if (kind === 'Call Log' || kind === 'Log a Call') return logContactActivity(contactId, 'call', 'Logged a call');
   if (kind === 'Meeting' || kind === 'New Event') return logContactActivity(contactId, 'meeting', 'Meeting scheduled');
-  if (kind === 'Follow') return showToast('Following this contact.', 'local', 'Contacts');
-  return showToast(`${kind} isn't set up yet.`, 'local', 'Contacts');
+  if (kind === 'Follow') return showToast('Following this lead.', 'local', 'Leads');
+  return showToast(`${kind} isn't set up yet.`, 'local', 'Leads');
 }
 
 async function postContactNote(form) {
@@ -3067,14 +3084,21 @@ async function convertContactToJob(contactId) {
   upsertJob(ok && data ? normalizeJob(data) : job);
   const wonStage = contactStageNames().find((name) => /win|won/i.test(name)) || contact.stage;
   await persistContact({ ...contact, stage: wonStage });
-  await logActivity({ type: 'system', subject: 'Contact won → Job created', body: contact.name, related_type: 'contact', related_id: contact.id, account_id: contact.account_id });
+  await logActivity({ type: 'system', subject: 'Lead converted → Job created', body: contact.name, related_type: 'contact', related_id: contact.id, account_id: contact.account_id });
   state.selectedJobId = job.id;
-  showToast('Contact won — job created.', ok ? 'live' : 'local', 'Contacts');
+  showToast('Lead converted to job.', ok ? 'live' : 'local', 'Leads');
   navigate(companyPath('jobs', { tab: 'profile', job_id: job.id }, companyId));
 }
 
 function tasksForContact(contactId) {
   return companyTasks().filter((task) => task.contact_id === contactId)
+    .sort((a, b) => (a.status === 'done' ? 1 : 0) - (b.status === 'done' ? 1 : 0) || String(a.due).localeCompare(String(b.due)));
+}
+
+function tasksForDeal(deal) {
+  if (!deal) return [];
+  return companyTasks(deal.company_id)
+    .filter((task) => task.contact_id === deal.primary_contact_id || task.account_id === deal.account_id)
     .sort((a, b) => (a.status === 'done' ? 1 : 0) - (b.status === 'done' ? 1 : 0) || String(a.due).localeCompare(String(b.due)));
 }
 
@@ -3253,7 +3277,7 @@ function beginJobInlineEdit(span) {
 }
 
 function renderContactFormModal(companyId, contact) {
-  return renderModalShell('Contacts', contact ? 'Edit contact' : 'Add contact', renderContactEditor(companyId, contact), 'wide-modal');
+  return renderModalShell('Leads', contact ? 'Edit lead' : 'Add lead', renderContactEditor(companyId, contact), 'wide-modal');
 }
 
 function renderContactEditor(companyId, contact) {
@@ -3262,7 +3286,7 @@ function renderContactEditor(companyId, contact) {
     <form class="job-editor" data-contact-form>
       <input type="hidden" name="id" value="${h(edit.id || '')}" />
       <div class="section-head span-2">
-        <div><h2>${contact ? 'Edit contact' : 'New contact'}</h2><p>Contacts move through your customizable sales pipeline stages.</p></div>
+        <div><h2>${contact ? 'Edit lead' : 'New lead'}</h2><p>Leads move through Prospect, Contacted, and Nurturing before quote handoff.</p></div>
       </div>
       ${field('Name', 'name', edit.name, true)}
       ${selectField('Company', 'company_id', companyId, allowedCompanies().map((company) => [company.id, companyLabel(company)]))}
@@ -3279,7 +3303,7 @@ function renderContactEditor(companyId, contact) {
       ${field('Roof system', 'roof_system', edit.roof_system)}
       ${textareaField('Notes', 'notes', edit.notes, 'span-2')}
       <div class="form-actions span-2">
-        <button class="btn btn-primary" type="submit">Save contact</button>
+        <button class="btn btn-primary" type="submit">Save lead</button>
         ${contact ? `<button class="btn danger" type="button" data-action="delete-contact" data-contact-id="${h(contact.id)}">Delete</button>` : ''}
         <button class="btn" type="button" data-action="close-modal">Cancel</button>
       </div>
@@ -3306,7 +3330,7 @@ async function saveContact(form) {
         upsertContact(normalizeContact(result.data));
         state.selectedContactId = payload.id;
         state.modal = '';
-        showToast(`${payload.name} saved.`, 'live', 'Contacts');
+        showToast(`${payload.name} saved.`, 'live', 'Leads');
         render();
         return;
       }
@@ -3317,7 +3341,7 @@ async function saveContact(form) {
   upsertContact(payload);
   state.selectedContactId = payload.id;
   state.modal = '';
-  showToast(`${payload.name} saved.`, 'local', 'Contacts');
+  showToast(`${payload.name} saved.`, 'local', 'Leads');
   render();
 }
 
@@ -3341,7 +3365,7 @@ async function deleteContact(id) {
 // ---- Stage manager (create / rename / recolor / delete) -------------------
 function renderStageManagerModal(kind) {
   const stages = pipelineStages(kind);
-  const title = kind === 'contacts' ? 'Contact pipeline stages' : kind === 'deals' ? 'Deal pipeline stages' : 'Job pipeline stages';
+  const title = kind === 'contacts' ? 'Lead pipeline stages' : kind === 'deals' ? 'Quote pipeline stages' : 'Job pipeline stages';
   const body = `
     <form class="stage-manager" data-stage-form data-kind="${kind}">
       <p class="stage-manager-hint">Stages are your pipeline columns - the placeholder groups your team can shape. Rename or recolor any stage and your records keep their place; add new stages for any workflow.</p>
@@ -3724,8 +3748,8 @@ function renderJobRecord(companyId, job) {
           </div></div>
           <div class="sf-card"><div class="sf-card-head"><i class="ti ti-clipboard-data"></i>Status</div><div class="sf-card-body">
             ${fieldRow('Stage', `<span>${h(job.stage)}</span>`)}
-            ${fieldRow('Estimate Total', `<span class="sf-money">$<span class="sf-edit mono" data-job-edit="estimate_total" data-job-id="${h(job.id)}" title="Click to edit">${money(job.estimate_total || 0)}</span></span>`)}
-            ${fieldRow('Invoice Total', `<span class="sf-money">$<span class="sf-edit mono" data-job-edit="invoice_total" data-job-id="${h(job.id)}" title="Click to edit">${money(job.invoice_total || 0)}</span></span>`)}
+            ${fieldRow('Estimate Total', `<span class="sf-money"><span class="sf-edit mono" data-job-edit="estimate_total" data-job-id="${h(job.id)}" title="Click to edit">${money(job.estimate_total || 0)}</span></span>`)}
+            ${fieldRow('Invoice Total', `<span class="sf-money"><span class="sf-edit mono" data-job-edit="invoice_total" data-job-id="${h(job.id)}" title="Click to edit">${money(job.invoice_total || 0)}</span></span>`)}
             ${fieldRow('Account', account ? `<button class="link-button" type="button" data-action="open-account" data-account-id="${h(account.id)}">${h(account.name)}</button>` : '<span>-</span>')}
             ${fieldRow('Deal', deal ? `<button class="link-button" type="button" data-action="open-deal" data-deal-id="${h(deal.id)}">${h(deal.name)}</button>` : '<span>-</span>')}
           </div></div>
@@ -4983,14 +5007,14 @@ function renderAccountList(companyId) {
   const all = companyAccounts(companyId);
   const openDeals = companyDeals(companyId).filter((deal) => deal.status === 'open');
   return `
-    ${workspaceHeader('Accounts', 'Organizations and customers - the hub for contacts, deals, and jobs.', `
+    ${workspaceHeader('Accounts', 'Organizations and customers - the hub for leads, quotes, and jobs.', `
       <button class="btn btn-primary" type="button" data-action="open-account-form" data-mode="new"><i class="ti ti-plus"></i>Add account</button>
     `)}
     <section class="metric-grid crm-metrics">
       ${metricCard('Accounts', all.length)}
-      ${metricCard('Contacts', companyContacts(companyId).length)}
-      ${metricCard('Open deals', openDeals.length)}
-      ${metricCard('Open pipeline', money(sum(openDeals, 'value')))}
+      ${metricCard('Leads', companyContacts(companyId).length)}
+      ${metricCard('Open quotes', openDeals.length)}
+      ${metricCard('Quote pipeline', money(sum(openDeals, 'value')))}
     </section>
     <section class="pipe-toolbar">
       <label class="crm-search"><i class="ti ti-search"></i><input data-account-search value="${h(state.accountQuery)}" placeholder="Search accounts" /></label>
@@ -5002,7 +5026,7 @@ function renderAccountList(companyId) {
     <section class="panel">
       <div class="section-head"><div><h2>Accounts</h2><p>${rows.length} visible</p></div></div>
       <div class="data-table accounts-table">
-        <div class="table-head"><span>Account</span><span>Type</span><span>Owner</span><span>Contacts</span><span>Open deals</span><span>Pipeline</span></div>
+        <div class="table-head"><span>Account</span><span>Type</span><span>Owner</span><span>Leads</span><span>Open quotes</span><span>Pipeline</span></div>
         ${rows.map((account) => {
           const deals = dealsForAccount(account.id).filter((deal) => deal.status === 'open');
           return `
@@ -5037,12 +5061,12 @@ function renderAccountDetail(companyId, account) {
     ${workspaceHeader(account.name, `${account.type}${account.industry ? ' - ' + account.industry : ''}`, `
       <a class="btn" href="${appHref(companyPath('crm', {}, companyId))}" data-router><i class="ti ti-arrow-left"></i>Accounts</a>
       <button class="btn" type="button" data-action="open-activity-form" data-related-type="account" data-related-id="${h(account.id)}" data-account-id="${h(account.id)}"><i class="ti ti-note"></i>Log activity</button>
-      <button class="btn" type="button" data-action="open-deal-form" data-mode="new" data-account-id="${h(account.id)}"><i class="ti ti-plus"></i>New deal</button>
+      <button class="btn" type="button" data-action="open-deal-form" data-mode="new" data-account-id="${h(account.id)}"><i class="ti ti-plus"></i>New quote</button>
       <button class="btn" type="button" data-action="open-account-form" data-mode="edit" data-account-id="${h(account.id)}"><i class="ti ti-pencil"></i>Edit</button>
     `)}
     <section class="metric-grid crm-metrics">
-      ${metricCard('Open deals', openDeals.length)}
-      ${metricCard('Open pipeline', money(sum(openDeals, 'value')))}
+      ${metricCard('Open quotes', openDeals.length)}
+      ${metricCard('Quote pipeline', money(sum(openDeals, 'value')))}
       ${metricCard('Won', money(sum(deals.filter((deal) => deal.status === 'won'), 'value')))}
       ${metricCard('Jobs', jobs.length)}
     </section>
@@ -5056,7 +5080,7 @@ function renderAccountDetail(companyId, account) {
 function renderAccountTab(companyId, account, tab, data) {
   if (tab === 'contacts') {
     return `<section class="panel">
-      <div class="section-head"><div><h2>Contacts</h2><p>People at ${h(account.name)}</p></div><button class="btn" type="button" data-action="open-contact-form" data-mode="new" data-account-id="${h(account.id)}"><i class="ti ti-plus"></i>Add contact</button></div>
+      <div class="section-head"><div><h2>Leads</h2><p>People at ${h(account.name)}</p></div><button class="btn" type="button" data-action="open-contact-form" data-mode="new" data-account-id="${h(account.id)}"><i class="ti ti-plus"></i>Add lead</button></div>
       <div class="data-table contacts-table">
         <div class="table-head"><span>Name</span><span>Title</span><span>Phone</span><span>Email</span><span>Owner</span><span></span></div>
         ${data.contacts.map((contact) => `
@@ -5067,16 +5091,16 @@ function renderAccountTab(companyId, account, tab, data) {
             <span>${contact.email ? h(contact.email) : '<span class="muted-dash">—</span>'}</span>
             <span>${h(contact.owner_name || 'Unassigned')}</span>
             <span></span>
-          </button>`).join('') || emptyState('No contacts linked to this account yet.')}
+          </button>`).join('') || emptyState('No leads linked to this account yet.')}
       </div>
     </section>`;
   }
   if (tab === 'deals') {
     return `<section class="panel">
-      <div class="section-head"><div><h2>Deals</h2><p>Opportunities for ${h(account.name)}</p></div><button class="btn" type="button" data-action="open-deal-form" data-mode="new" data-account-id="${h(account.id)}"><i class="ti ti-plus"></i>New deal</button></div>
+      <div class="section-head"><div><h2>Quotes</h2><p>Bottom-of-funnel opportunities for ${h(account.name)}</p></div><button class="btn" type="button" data-action="open-deal-form" data-mode="new" data-account-id="${h(account.id)}"><i class="ti ti-plus"></i>New quote</button></div>
       <div class="data-table deals-table">
         <div class="table-head"><span>Deal</span><span>Stage</span><span>Status</span><span>Value</span><span>Owner</span><span>Close</span></div>
-        ${data.deals.map((deal) => dealRow(deal)).join('') || emptyState('No deals for this account yet.')}
+        ${data.deals.map((deal) => dealRow(deal)).join('') || emptyState('No quotes for this account yet.')}
       </div>
     </section>`;
   }
@@ -5139,7 +5163,7 @@ function renderAccountEditor(companyId, account) {
   return `
     <form class="job-editor" data-account-form>
       <input type="hidden" name="id" value="${h(edit.id || '')}" />
-      <div class="section-head span-2"><div><h2>${account ? 'Edit account' : 'New account'}</h2><p>Accounts group the contacts, deals, and jobs for one organization.</p></div></div>
+      <div class="section-head span-2"><div><h2>${account ? 'Edit account' : 'New account'}</h2><p>Accounts group the leads, quotes, and jobs for one organization.</p></div></div>
       ${field('Account name', 'name', edit.name, true)}
       ${selectField('Company', 'company_id', companyId, allowedCompanies().map((company) => [company.id, companyLabel(company)]))}
       ${selectField('Type', 'type', edit.type, ACCOUNT_TYPES.map((type) => [type, type]))}
@@ -5179,7 +5203,7 @@ function dealKpiRow(companyId) {
   const won = deals.filter((deal) => deal.status === 'won');
   return `
     <section class="metric-grid crm-metrics">
-      ${metricCard('Open deals', open.length)}
+      ${metricCard('Open quotes', open.length)}
       ${metricCard('Open value', money(sum(open, 'value')))}
       ${metricCard('Weighted', money(Math.round(weighted)))}
       ${metricCard('Won value', money(sum(won, 'value')))}
@@ -5195,13 +5219,13 @@ function renderDealsPage(route, companyId) {
   const stageParam = route.params.get('stage');
   if (stageParam) state.stageFilterDeals = dealStageNames().includes(stageParam) ? stageParam : 'all';
   return `
-    ${workspaceHeader('Deals', 'Your sales pipeline - opportunities from prospect to won.', `
+    ${workspaceHeader('Quotes', 'Bottom-of-funnel estimates and contracts moving to won work.', `
       <button class="btn" type="button" data-action="open-stage-manager" data-module="deals"><i class="ti ti-adjustments-horizontal"></i>Manage stages</button>
-      <button class="btn btn-primary" type="button" data-action="open-deal-form" data-mode="new"><i class="ti ti-plus"></i>New deal</button>
+      <button class="btn btn-primary" type="button" data-action="open-deal-form" data-mode="new"><i class="ti ti-plus"></i>New quote</button>
     `)}
     ${dealKpiRow(companyId)}
     <section class="pipe-toolbar deals-search-row">
-      <label class="crm-search"><i class="ti ti-search"></i><input data-deal-search value="${h(state.dealQuery)}" placeholder="Search deals" /></label>
+      <label class="crm-search"><i class="ti ti-search"></i><input data-deal-search value="${h(state.dealQuery)}" placeholder="Search quotes" /></label>
     </section>
     ${pipelineToolbar('deals', companyId)}
     ${state.dealBoardView === 'board' ? renderDealBoard(companyId) : renderDealTable(companyId)}
@@ -5221,7 +5245,7 @@ function renderDealBoard(companyId) {
             <header class="pipe-lane-head">${pipelineDot(stage.color)}<span>${h(stage.name)}</span><b>${cards.length}</b></header>
             <div class="pipe-lane-sub">${money(sum(cards, 'value'))}</div>
             <div class="pipe-lane-body">
-              ${cards.map((deal) => dealCard(deal)).join('') || '<div class="lane-empty">No deals</div>'}
+              ${cards.map((deal) => dealCard(deal)).join('') || '<div class="lane-empty">No quotes</div>'}
             </div>
           </article>`;
       }).join('')}
@@ -5241,10 +5265,10 @@ function renderDealTable(companyId) {
   const rows = filteredDeals(companyId);
   return `
     <section class="panel">
-      <div class="section-head"><div><h2>Deals</h2><p>${rows.length} visible</p></div></div>
+      <div class="section-head"><div><h2>Quotes</h2><p>${rows.length} visible</p></div></div>
       <div class="data-table deals-table">
-        <div class="table-head"><span>Deal</span><span>Stage</span><span>Status</span><span>Value</span><span>Owner</span><span>Close</span></div>
-        ${rows.map((deal) => dealRow(deal)).join('') || emptyState('No deals match this view.')}
+        <div class="table-head"><span>Quote</span><span>Stage</span><span>Status</span><span>Value</span><span>Owner</span><span>Close</span></div>
+        ${rows.map((deal) => dealRow(deal)).join('') || emptyState('No quotes match this view.')}
       </div>
     </section>`;
 }
@@ -5253,47 +5277,112 @@ function renderDealDetail(companyId, deal) {
   const account = accountById(deal.account_id);
   const contact = contactById(deal.primary_contact_id);
   const job = deal.job_id ? jobById(deal.job_id) : null;
+  const stages = dealStages();
+  const ci = stages.findIndex((s) => s.name === deal.stage);
+  const g = guidanceForStage(deal.stage);
+  const activeTab = state.dealActivityTab || 'Email';
+  const feed = activitiesFor('deal', deal.id);
+  const tasks = tasksForDeal(deal);
+  const ed = (key, opts = {}) => {
+    const display = (deal[key] === '' || deal[key] == null) ? '—' : deal[key];
+    const cls = ['sf-edit', opts.blue ? 'blue' : '', opts.mono ? 'mono' : ''].filter(Boolean).join(' ');
+    return `<span class="${cls}" data-deal-edit="${h(key)}" data-deal-id="${h(deal.id)}" title="Click to edit">${h(String(display))}</span>`;
+  };
+  const fieldRow = (label, content) => `<div class="sf-field"><div class="sf-field-label">${h(label)}<i class="ti ti-pencil sf-pencil"></i></div><div class="sf-field-value">${content}</div></div>`;
+  const headerActions = [['Follow', 'ti-plus'], ['New Task', 'ti-checkbox'], ['Log a Call', 'ti-phone'], ['New Estimate', 'ti-calculator'], ['Edit', 'ti-pencil']];
+  const quickTiles = [['Task', 'ti-checkbox'], ['Meeting', 'ti-calendar'], ['Estimate', 'ti-calculator'], ['Proposal', 'ti-file-text'], ['Note', 'ti-note'], ['Call Log', 'ti-phone']];
+  const activityTabs = [['Email', 'ti-mail'], ['New Task', 'ti-checkbox'], ['New Event', 'ti-calendar'], ['Log a Call', 'ti-phone']];
   return `
-    ${workspaceHeader(deal.name, `${money(deal.value)} - ${deal.stage}`, `
-      <a class="btn" href="${appHref(companyPath('deals', {}, companyId))}" data-router><i class="ti ti-arrow-left"></i>Deals</a>
-      <button class="btn" type="button" data-action="open-activity-form" data-related-type="deal" data-related-id="${h(deal.id)}" data-account-id="${h(deal.account_id)}"><i class="ti ti-note"></i>Log activity</button>
-      ${deal.status !== 'won' ? `<button class="btn btn-primary" type="button" data-action="convert-deal" data-deal-id="${h(deal.id)}"><i class="ti ti-briefcase"></i>Mark won + create job</button>` : ''}
-      <button class="btn" type="button" data-action="open-deal-form" data-mode="edit" data-deal-id="${h(deal.id)}"><i class="ti ti-pencil"></i>Edit</button>
-    `)}
-    <section class="crm-detail-grid">
-      <article class="panel">
-        <div class="section-head"><div><h2>Details</h2></div>${dealStatusPill(deal.status)}</div>
-        ${contractRows([
-          ['Account', account ? account.name : 'No account'],
-          ['Primary contact', contact ? contact.name : 'None'],
-          ['Stage', deal.stage],
-          ['Value', money(deal.value)],
-          ['Probability', `${deal.probability}%`],
-          ['Expected close', deal.close_date ? formatDate(deal.close_date) : '—'],
-          ['Owner', deal.owner_name || 'Unassigned'],
-          ['Source', deal.source || '—'],
-          ['Linked job', job ? job.name : '—'],
-        ])}
-        ${deal.notes ? `<p class="crm-notes">${h(deal.notes)}</p>` : ''}
-        <div class="button-grid">
-          ${account ? `<button class="btn" type="button" data-action="open-account" data-account-id="${h(account.id)}"><i class="ti ti-building-community"></i>Open account</button>` : ''}
-          ${job ? `<a class="btn" href="${appHref(companyPath('jobs', { tab: 'profile', job_id: job.id }, companyId))}" data-router><i class="ti ti-briefcase"></i>Open job</a>` : ''}
+    <div class="sf-record">
+      <div class="sf-object-tabs">
+        <a class="sf-object-tab" href="${appHref(companyPath('home', {}, companyId))}" data-router>Home</a>
+        <a class="sf-object-tab" href="${appHref(companyPath('deals', {}, companyId))}" data-router>All Quotes <span class="sf-tab-kind">| Quotes</span></a>
+        <span class="sf-object-tab on">${h(deal.name)} <span class="sf-tab-kind">| Quote</span></span>
+      </div>
+
+      <div class="sf-record-head">
+        <span class="sf-record-icon"><i class="ti ti-briefcase"></i></span>
+        <div><div class="sf-record-label">Quote</div><div class="sf-record-name">${h(deal.name)}</div></div>
+        <div class="sf-actions">
+          ${headerActions.map(([label, ico]) => label === 'Edit'
+            ? `<button class="sf-btn" type="button" data-action="open-deal-form" data-mode="edit" data-deal-id="${h(deal.id)}"><i class="ti ${ico}"></i>${label}</button>`
+            : `<button class="sf-btn" type="button" data-action="deal-quick" data-kind="${h(label)}" data-deal-id="${h(deal.id)}"><i class="ti ${ico}"></i>${label}</button>`).join('')}
         </div>
-      </article>
-      <article class="panel">
-        <div class="section-head"><div><h2>Activity</h2></div><button class="btn" type="button" data-action="open-activity-form" data-related-type="deal" data-related-id="${h(deal.id)}" data-account-id="${h(deal.account_id)}"><i class="ti ti-plus"></i>Log</button></div>
-        ${renderActivityTimeline('deal', deal.id, deal.account_id)}
-      </article>
-    </section>
+      </div>
+
+      <div class="sf-path-wrap">
+        <div class="sf-path-row">
+          <div class="sf-stage-track">
+            ${stages.map((s, i) => {
+              const cls = i < ci ? 'done' : i === ci ? 'current' : 'future';
+              return `<button class="sf-stage ${cls}" type="button" data-action="set-deal-stage" data-deal-id="${h(deal.id)}" data-stage="${h(s.name)}" title="Move to ${h(s.name)}">${i < ci ? '<i class="ti ti-check"></i>' : h(s.name)}</button>`;
+            }).join('')}
+          </div>
+          <button class="sf-mark-btn" type="button" data-action="deal-mark-next" data-deal-id="${h(deal.id)}">Mark as Current Stage</button>
+        </div>
+        <div class="sf-guidance">
+          <div class="sf-guidance-label">Guidance for Success</div>
+          <div class="sf-guidance-title">${h(g.t)}</div>
+          <div class="sf-guidance-lines">${g.b.map((x) => `<div>— ${h(x)}</div>`).join('')}</div>
+        </div>
+      </div>
+
+      <div class="sf-three-col">
+        <div class="sf-col">
+          <div class="sf-card"><div class="sf-card-head"><i class="ti ti-id-badge-2"></i>About</div><div class="sf-card-body">
+            ${fieldRow('Phone', contact?.phone ? h(contact.phone) : '<span class="muted-dash">—</span>')}
+            ${fieldRow('Email', contact?.email ? `<span class="sf-edit blue">${h(contact.email)}</span>` : '<span class="muted-dash">—</span>')}
+            ${fieldRow('Location', account?.address ? h(account.address) : '<span class="muted-dash">—</span>')}
+            ${fieldRow('Job Type', `<span class="sf-pill">${h(deal.source || 'Re-roof')}</span>`)}
+            ${fieldRow('Owner', ed('owner_name', { blue: true }))}
+            ${fieldRow('Account', account ? `<button class="link-button" type="button" data-action="open-account" data-account-id="${h(account.id)}">${h(account.name)}</button>` : '<span class="muted-dash">—</span>')}
+          </div></div>
+          <div class="sf-card"><div class="sf-card-head"><i class="ti ti-clipboard-data"></i>Status</div><div class="sf-card-body">
+            ${fieldRow('Funnel', '<span>Quotes (bottom of funnel)</span>')}
+            ${fieldRow('Stage', `<span>${h(deal.stage)}</span>`)}
+            ${fieldRow('Est. Value', `<span class="sf-money"><span class="sf-edit mono" data-deal-edit="value" data-deal-id="${h(deal.id)}" title="Click to edit">${money(deal.value || 0)}</span></span>`)}
+            ${fieldRow('Probability', `<span class="sf-edit mono" data-deal-edit="probability" data-deal-id="${h(deal.id)}" title="Click to edit">${h(String(deal.probability || 0))}</span>%`)}
+            ${fieldRow('Pay Type', `<span>${h(deal.status === 'won' ? 'Won' : 'Retail')}</span>`)}
+            ${fieldRow('Linked Job', job ? `<a class="link-button" href="${appHref(companyPath('jobs', { tab: 'profile', job_id: job.id }, companyId))}" data-router>${h(job.name)}</a>` : '<span class="muted-dash">—</span>')}
+          </div></div>
+        </div>
+
+        <div class="sf-col">
+          <div class="sf-card">
+            <div class="sf-activity-tabs">${activityTabs.map(([label, ico]) => `<button class="sf-activity-tab ${activeTab === label ? 'active' : ''}" type="button" data-action="deal-activity-tab" data-tab="${h(label)}"><i class="ti ${ico}"></i>${label}</button>`).join('')}</div>
+            <form class="sf-note-box" data-deal-note-form autocomplete="off">
+              <input type="hidden" name="deal_id" value="${h(deal.id)}" />
+              <input name="body" placeholder="Write a note or @mention..." />
+              <span class="sf-note-tools"><i class="ti ti-paperclip"></i><i class="ti ti-at"></i></span>
+            </form>
+            <div class="sf-filters">Filters: Within 2 months · All activities · All types</div>
+            <div class="sf-feed">
+              ${feed.length ? feed.map((a) => sfFeedItem(a)).join('') : '<div class="sf-feed-empty">No activity yet. Log a note, call, or meeting.</div>'}
+            </div>
+          </div>
+        </div>
+
+        <div class="sf-col">
+          <div class="sf-card"><div class="sf-card-head"><i class="ti ti-bolt"></i>Quick Create</div>
+            <div class="sf-quick-grid">${quickTiles.map(([label, ico]) => `<button class="sf-quick-tile" type="button" data-action="deal-quick" data-kind="${h(label)}" data-deal-id="${h(deal.id)}"><i class="ti ${ico}"></i><span>${label}</span></button>`).join('')}</div>
+            <button class="sf-convert-btn" type="button" data-action="convert-deal" data-deal-id="${h(deal.id)}"><i class="ti ti-arrow-right"></i>Convert to Job</button>
+          </div>
+          <div class="sf-card"><div class="sf-card-head"><i class="ti ti-checkbox"></i>Open Tasks<span class="sf-connect"><i class="ti ti-plug"></i>Connect</span></div>
+            <div class="sf-tasks">
+              ${tasks.map((t) => `<div class="sf-task-row ${t.status === 'done' ? 'done' : ''}"><button class="sf-check" type="button" data-action="toggle-contact-task" data-task-id="${h(t.id)}" aria-label="Toggle task">${t.status === 'done' ? '<i class="ti ti-check"></i>' : ''}</button><span class="sf-task-title">${h(t.title)}</span>${t.due ? `<span class="sf-due">${h(formatDate(t.due))}</span>` : ''}</div>`).join('') || '<div class="sf-task-empty">No tasks yet.</div>'}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
   `;
 }
-
 function blankDeal(companyId = activeCompanyId()) {
   const pf = state.dealPrefill || {};
   return normalizeDeal({ id: '', company_id: companyId, name: '', stage: pf.stage || dealStageNames()[0], account_id: pf.account_id || '', primary_contact_id: pf.primary_contact_id || '' });
 }
 function renderDealFormModal(companyId, deal) {
-  return renderModalShell('Deals', deal ? 'Edit deal' : 'New deal', renderDealEditor(companyId, deal), 'wide-modal');
+  return renderModalShell('Quotes', deal ? 'Edit quote' : 'New quote', renderDealEditor(companyId, deal), 'wide-modal');
 }
 function renderDealEditor(companyId, deal) {
   const edit = deal || blankDeal(companyId);
@@ -5302,8 +5391,8 @@ function renderDealEditor(companyId, deal) {
   return `
     <form class="job-editor" data-deal-form>
       <input type="hidden" name="id" value="${h(edit.id || '')}" />
-      <div class="section-head span-2"><div><h2>${deal ? 'Edit deal' : 'New deal'}</h2><p>An opportunity moving through your sales pipeline.</p></div></div>
-      ${field('Deal name', 'name', edit.name, true)}
+      <div class="section-head span-2"><div><h2>${deal ? 'Edit quote' : 'New quote'}</h2><p>A priced opportunity moving through the bottom-of-funnel quote path.</p></div></div>
+      ${field('Quote name', 'name', edit.name, true)}
       ${selectField('Company', 'company_id', companyId, allowedCompanies().map((company) => [company.id, companyLabel(company)]))}
       ${selectField('Account', 'account_id', edit.account_id, [['', '— None —']].concat(accounts.map((account) => [account.id, account.name])))}
       ${selectField('Primary contact', 'primary_contact_id', edit.primary_contact_id, [['', '— None —']].concat(contacts.map((contact) => [contact.id, contact.name])))}
@@ -5316,8 +5405,8 @@ function renderDealEditor(companyId, deal) {
       ${field('Source', 'source', edit.source)}
       ${textareaField('Notes', 'notes', edit.notes, 'span-2')}
       <div class="form-actions span-2">
-        <button class="btn btn-primary" type="submit">Save deal</button>
-        ${deal && deal.status !== 'won' ? `<button class="btn" type="button" data-action="convert-deal" data-deal-id="${h(deal.id)}"><i class="ti ti-briefcase"></i>Win + create job</button>` : ''}
+        <button class="btn btn-primary" type="submit">Save quote</button>
+        ${deal && deal.status !== 'won' ? `<button class="btn" type="button" data-action="convert-deal" data-deal-id="${h(deal.id)}"><i class="ti ti-briefcase"></i>Convert to job</button>` : ''}
         ${deal ? `<button class="btn danger" type="button" data-action="delete-deal" data-deal-id="${h(deal.id)}">Delete</button>` : ''}
         <button class="btn" type="button" data-action="close-modal">Cancel</button>
       </div>
@@ -6687,7 +6776,7 @@ function renderDemoModeLauncher(returnUrl) {
       <section class="demo-mode-box">
         <div>
           <strong>Read-only sample workspace</strong>
-          <span>Explore sample jobs, contacts, files, forms, approvals, and billing without saving changes.</span>
+          <span>Explore sample leads, quotes, jobs, files, forms, approvals, and billing without saving changes.</span>
         </div>
         <button class="btn full" type="button" data-action="start-demo-mode" data-return-url="${h(returnUrl)}">Open read-only demo</button>
       </section>
@@ -7161,6 +7250,13 @@ function onDocumentClick(event) {
     return;
   }
 
+  const dealEditSpan = event.target.closest('[data-deal-edit]');
+  if (dealEditSpan) {
+    event.preventDefault();
+    beginDealInlineEdit(dealEditSpan);
+    return;
+  }
+
   const link = event.target.closest('a[href][data-router]');
   if (!link) {
     if (closeAccountMenu || closeNotificationMenu) render();
@@ -7604,6 +7700,27 @@ function handleAction(event, node) {
     event.preventDefault();
     state.selectedDealId = node.dataset.dealId || '';
     navigate(companyPath('deals', { deal_id: node.dataset.dealId }, activeCompanyId()));
+    return;
+  }
+  if (action === 'set-deal-stage') {
+    event.preventDefault();
+    setDealStage(node.dataset.dealId, node.dataset.stage);
+    return;
+  }
+  if (action === 'deal-mark-next') {
+    event.preventDefault();
+    markDealNextStage(node.dataset.dealId);
+    return;
+  }
+  if (action === 'deal-quick') {
+    event.preventDefault();
+    dealQuickCreate(node.dataset.dealId, node.dataset.kind);
+    return;
+  }
+  if (action === 'deal-activity-tab') {
+    event.preventDefault();
+    state.dealActivityTab = node.dataset.tab || 'Email';
+    render();
     return;
   }
   if (action === 'open-contact') {
@@ -8132,6 +8249,12 @@ function onDocumentSubmit(event) {
   if (event.target.matches('[data-job-note-form]')) {
     event.preventDefault();
     postJobNote(event.target);
+    return;
+  }
+
+  if (event.target.matches('[data-deal-note-form]')) {
+    event.preventDefault();
+    postDealNote(event.target);
     return;
   }
 
@@ -10969,8 +11092,117 @@ async function saveDeal(form) {
   }
   state.selectedDealId = payload.id;
   state.modal = '';
-  showToast(`${payload.name} saved.`, ok ? 'live' : 'local', 'Deals');
+  showToast(`${payload.name} saved.`, ok ? 'live' : 'local', 'Quotes');
   render();
+}
+
+async function persistDeal(deal, label = 'Quote saved.') {
+  const payload = normalizeDeal({ ...deal, updated_at: new Date().toISOString() });
+  if (/^won/i.test(payload.stage)) payload.status = 'won';
+  else if (/^lost/i.test(payload.stage)) payload.status = 'lost';
+  else if (payload.status !== 'open' && !/^won|^lost/i.test(payload.stage)) payload.status = 'open';
+  const row = emptyToNull(supabaseRow(payload, DEAL_COLS), ['account_id', 'primary_contact_id', 'close_date', 'job_id']);
+  const { ok, data } = await supabaseWrite('deals', row);
+  upsertDeal(ok && data ? normalizeDeal(data) : payload);
+  showToast(label, ok ? 'live' : 'local', 'Quotes');
+  render();
+  return payload;
+}
+
+async function setDealStage(dealId, stage) {
+  const deal = dealById(dealId);
+  if (!deal || !stage || deal.stage === stage) return;
+  await persistDeal({ ...deal, stage }, 'Quote stage saved.');
+  await logActivity({ type: 'stage_change', subject: `Stage → ${stage}`, related_type: 'deal', related_id: dealId, account_id: deal.account_id });
+}
+
+function markDealNextStage(dealId) {
+  const deal = dealById(dealId);
+  const names = dealStageNames();
+  const idx = deal ? names.indexOf(deal.stage) : -1;
+  if (!deal || idx < 0 || idx >= names.length - 1) return;
+  setDealStage(deal.id, names[idx + 1]);
+}
+
+function patchDealField(dealId, key, raw) {
+  const deal = dealById(dealId);
+  if (!deal) return;
+  let value;
+  if (key === 'value' || key === 'probability') value = Number(String(raw).replace(/[^0-9.]/g, '')) || 0;
+  else value = String(raw).trim();
+  if (deal[key] === value) { render(); return; }
+  persistDeal({ ...deal, [key]: value }, 'Quote field saved.');
+}
+
+function beginDealInlineEdit(span) {
+  const key = span.dataset.dealEdit;
+  const dealId = span.dataset.dealId;
+  const deal = dealById(dealId);
+  if (!deal) return;
+  const input = document.createElement('input');
+  input.className = 'sf-edit-input';
+  input.value = (key === 'value' || key === 'probability') ? (deal[key] || 0) : (deal[key] || '');
+  span.replaceWith(input);
+  input.focus();
+  input.select();
+  let done = false;
+  const commit = () => { if (done) return; done = true; patchDealField(dealId, key, input.value); };
+  input.addEventListener('blur', commit);
+  input.addEventListener('keydown', (ev) => {
+    if (ev.key === 'Enter') { ev.preventDefault(); commit(); }
+    if (ev.key === 'Escape') { done = true; render(); }
+  });
+}
+
+async function createDealTask(dealId, title) {
+  const deal = dealById(dealId);
+  const clean = String(title || '').trim();
+  if (!deal || !clean) return;
+  const payload = normalizeTask({
+    id: `task-${crypto.randomUUID()}`,
+    company_id: deal.company_id,
+    title: clean,
+    contact_id: deal.primary_contact_id,
+    creator_id: activeSession().profile.member_id || companyMembers(deal.company_id)[0]?.id || 'abraham',
+    status: 'todo',
+    due: isoDate(1),
+  });
+  upsertTask(payload);
+  render();
+  const client = createSupabaseClient();
+  if (client) {
+    try {
+      const result = await client.from('tasks').insert(taskPayload(payload)).select().single();
+      if (!result.error && result.data) { upsertTask(normalizeTask(result.data)); render(); }
+    } catch (error) { console.warn('Quote task sync failed', error); }
+  }
+}
+
+async function logDealActivity(dealId, type, subject, body = '') {
+  const deal = dealById(dealId);
+  if (!deal) return;
+  await logActivity({ type, subject, body, related_type: 'deal', related_id: dealId, account_id: deal.account_id });
+  render();
+}
+
+function dealQuickCreate(dealId, kind) {
+  if (kind === 'Task' || kind === 'New Task') return createDealTask(dealId, 'New quote task');
+  if (kind === 'Note') return logDealActivity(dealId, 'note', 'Note added');
+  if (kind === 'Call Log' || kind === 'Log a Call') return logDealActivity(dealId, 'call', 'Logged a call');
+  if (kind === 'Meeting' || kind === 'New Event') return logDealActivity(dealId, 'meeting', 'Meeting scheduled');
+  if (kind === 'Follow') return showToast('Following this quote.', 'local', 'Quotes');
+  return showToast(`${kind} isn't set up yet.`, 'local', 'Quotes');
+}
+
+async function postDealNote(form) {
+  const data = Object.fromEntries(new FormData(form).entries());
+  const text = String(data.body || '').trim();
+  const dealId = String(data.deal_id || '');
+  if (!text) return;
+  const tab = state.dealActivityTab || 'Email';
+  if (tab === 'New Task') return createDealTask(dealId, text);
+  const typeMap = { Email: 'email', 'Log a Call': 'call', 'New Event': 'meeting' };
+  await logDealActivity(dealId, typeMap[tab] || 'note', '', text);
 }
 
 async function deleteDeal(id) {
@@ -11073,11 +11305,11 @@ async function convertDealToJob(dealId) {
   const updatedDeal = normalizeDeal({ ...deal, status: 'won', stage: wonStage, job_id: job.id, updated_at: new Date().toISOString() });
   const dealRes = await supabaseWrite('deals', emptyToNull(supabaseRow(updatedDeal, DEAL_COLS), ['account_id', 'primary_contact_id', 'close_date', 'job_id']));
   upsertDeal(updatedDeal);
-  logActivity({ type: 'system', subject: 'Deal won → Job created', body: deal.name, related_type: 'deal', related_id: deal.id, account_id: deal.account_id });
+  logActivity({ type: 'system', subject: 'Quote converted → Job created', body: deal.name, related_type: 'deal', related_id: deal.id, account_id: deal.account_id });
   state.selectedJobId = job.id;
   state.modal = '';
   const live = ok && dealRes.ok;
-  showToast('Deal won — job created.', live ? 'live' : 'local', 'Deals');
+  showToast('Quote converted to job.', live ? 'live' : 'local', 'Quotes');
   navigate(companyPath('jobs', { tab: 'profile', job_id: job.id }, companyId));
 }
 
