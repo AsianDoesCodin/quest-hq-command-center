@@ -1196,6 +1196,8 @@ const state = {
   memberships: readSeededList(MEMBERSHIP_CACHE_KEY, membershipsFallback),
   profiles: [],
   platformAdmin: false,
+  platformCompanies: [],
+  platformCompanyMembers: [],
   subscriptions: [],
   workspaceReviews: [],
   roles: [],
@@ -1642,7 +1644,30 @@ async function loadSupabaseData() {
   }
   state.platformAdmin = !platformAdminResult.error && platformAdminResult.data === true;
 
-  if (isQuestDeveloper()) {
+  if (state.platformAdmin) {
+    const [platformCompaniesResult, platformMembersResult] = await Promise.all([
+      client.rpc('list_platform_companies').catch((error) => ({ error })),
+      client.rpc('list_platform_company_members', { target_company_id: null }).catch((error) => ({ error })),
+    ]);
+    if (!platformCompaniesResult.error) {
+      state.platformCompanies = (platformCompaniesResult.data || []).map(normalizePlatformCompany);
+      state.workspaceReviews = state.platformCompanies.map(normalizeWorkspaceReview);
+      state.companies = mergeCompanies(state.companies.concat(state.platformCompanies.map((company) => normalizeCompany({
+        id: company.company_id,
+        name: company.company_name,
+        short_name: company.short_name || company.company_name,
+        color: company.color,
+        label: company.label,
+        pill: company.pill,
+      }))));
+      state.subscriptions = mergeSubscriptions(state.subscriptions.concat(state.platformCompanies.map(normalizeSubscription)));
+    }
+    if (!platformMembersResult.error) {
+      state.platformCompanyMembers = (platformMembersResult.data || []).map(normalizePlatformCompanyMember);
+    }
+  }
+
+  if (isQuestDeveloper() && !state.platformCompanies.length) {
     const reviewsResult = await client.rpc('list_workspace_reviews').catch((error) => ({ error }));
     if (!reviewsResult.error) {
       state.workspaceReviews = (reviewsResult.data || []).map(normalizeWorkspaceReview);
@@ -1701,6 +1726,8 @@ function resetLiveWorkspaceData() {
   state.memberships = [];
   state.profiles = [];
   state.platformAdmin = false;
+  state.platformCompanies = [];
+  state.platformCompanyMembers = [];
   state.subscriptions = [];
   state.workspaceReviews = [];
   state.roles = [];
@@ -1745,6 +1772,8 @@ function resetDemoWorkspaceData() {
   state.memberships = readDemoList(MEMBERSHIP_CACHE_KEY, membershipsFallback);
   state.profiles = [];
   state.platformAdmin = false;
+  state.platformCompanies = [];
+  state.platformCompanyMembers = [];
   state.subscriptions = [];
   state.workspaceReviews = [];
   state.roles = [];
@@ -4446,16 +4475,19 @@ function renderTeamNode(companyId, member, members, depth = 0) {
 
 function renderSettingsPage(route, companyId) {
   const company = companyById(companyId);
-  const tab = ['company', 'billing', 'roles', 'access', 'team'].includes(route.params.get('tab')) ? route.params.get('tab') : 'company';
+  const settingsTabs = [
+    [companyPath('settings', { tab: 'company' }, companyId), 'Company', 'company'],
+    [companyPath('settings', { tab: 'billing' }, companyId), 'Billing', 'billing'],
+    [companyPath('settings', { tab: 'roles' }, companyId), 'Roles', 'roles'],
+    [companyPath('settings', { tab: 'access' }, companyId), 'Access', 'access'],
+    [companyPath('settings', { tab: 'team' }, companyId), 'Workers', 'team'],
+  ];
+  if (isQuestDeveloper()) settingsTabs.push([companyPath('settings', { tab: 'master' }, companyId), 'Master', 'master']);
+  const allowedTabs = settingsTabs.map((item) => item[2]);
+  const tab = allowedTabs.includes(route.params.get('tab')) ? route.params.get('tab') : 'company';
   return `
     ${workspaceHeader('Settings', 'Company settings, roles, approvals, and admin controls.', '')}
-    ${compactTabs('Settings sections', [
-      [companyPath('settings', { tab: 'company' }, companyId), 'Company', tab === 'company'],
-      [companyPath('settings', { tab: 'billing' }, companyId), 'Billing', tab === 'billing'],
-      [companyPath('settings', { tab: 'roles' }, companyId), 'Roles', tab === 'roles'],
-      [companyPath('settings', { tab: 'access' }, companyId), 'Access', tab === 'access'],
-      [companyPath('settings', { tab: 'team' }, companyId), 'Workers', tab === 'team'],
-    ])}
+    ${compactTabs('Settings sections', settingsTabs.map(([href, label, id]) => [href, label, tab === id]))}
     <section class="dashboard-grid compact-settings-grid">
       ${tab === 'company' ? `
       <article class="panel">
@@ -4503,6 +4535,7 @@ function renderSettingsPage(route, companyId) {
         </div>
       </article>
       ` : ''}
+      ${tab === 'master' && isQuestDeveloper() ? renderPlatformMasterPanel(companyId) : ''}
     </section>
   `;
 }
@@ -4570,6 +4603,88 @@ function renderWorkspaceReviewRow(review, currentCompanyId) {
         <button class="btn" type="button" data-action="review-workspace" data-company-id="${h(review.company_id)}" data-status="suspended" ${review.status === 'suspended' ? 'disabled' : ''}>Suspend</button>
         <button class="btn" type="button" data-action="review-workspace" data-company-id="${h(review.company_id)}" data-status="canceled" ${review.status === 'canceled' ? 'disabled' : ''}>Reject</button>
       </div>
+    </article>
+  `;
+}
+
+function renderPlatformMasterPanel(currentCompanyId) {
+  const companies = platformCompanyRows();
+  const totals = companies.reduce((acc, company) => {
+    acc.members += number(company.member_count);
+    acc.pending += company.status === 'pending_review' ? 1 : 0;
+    acc.active += ['active', 'trialing', 'past_due', 'grace'].includes(company.status) ? 1 : 0;
+    acc.suspended += ['suspended', 'canceled'].includes(company.status) ? 1 : 0;
+    return acc;
+  }, { members: 0, pending: 0, active: 0, suspended: 0 });
+  return `
+    <article class="panel span-3 platform-master-panel">
+      <div class="section-head">
+        <div>
+          <h2>Master panel</h2>
+          <p>Platform-owner view of companies, members, and workspace access.</p>
+        </div>
+        <button class="btn" type="button" data-action="refresh-data"><i class="ti ti-refresh"></i>Refresh</button>
+      </div>
+      <section class="metric-grid platform-master-metrics">
+        ${metricCard('Companies', companies.length)}
+        ${metricCard('Active', totals.active)}
+        ${metricCard('Pending', totals.pending)}
+        ${metricCard('Members', totals.members)}
+      </section>
+      <div class="platform-company-list">
+        ${companies.map((company) => renderPlatformCompanyRow(company, currentCompanyId)).join('') || emptyState('No companies found for platform review.')}
+      </div>
+    </article>
+  `;
+}
+
+function renderPlatformCompanyRow(company, currentCompanyId) {
+  const active = ['active', 'trialing', 'past_due', 'grace'].includes(company.status);
+  const pending = company.status === 'pending_review';
+  const suspended = ['suspended', 'canceled'].includes(company.status);
+  const isPlatformCompany = company.company_id === 'lumen';
+  const members = platformMembersForCompany(company.company_id);
+  const statusClass = active ? 'active' : pending ? 'pending' : suspended ? 'muted' : 'hold';
+  return `
+    <article class="platform-company-card ${pending ? 'pending' : suspended ? 'suspended' : ''}">
+      <div class="platform-company-main">
+        <span class="company-dot" style="--company-color:${h(company.color || companyColor(company.company_id))}"></span>
+        <div>
+          <strong>${h(company.company_name || companyName(company.company_id))}${company.company_id === currentCompanyId ? ' / current' : ''}</strong>
+          <small>${h(company.company_id)} / Owner: ${h(company.owner_email || company.owner_name || 'No owner yet')}</small>
+        </div>
+      </div>
+      <div class="platform-company-stats">
+        <b class="status-pill ${statusClass}">${h(subscriptionLabelForStatus(company.status, company))}</b>
+        <span>${h(String(number(company.active_member_count)))} active</span>
+        <span>${h(String(number(company.pending_member_count)))} pending</span>
+        <span>${h(String(number(company.disabled_member_count)))} disabled</span>
+      </div>
+      <div class="platform-company-actions">
+        <button class="btn btn-primary" type="button" data-action="platform-company-action" data-company-id="${h(company.company_id)}" data-platform-action="approve" ${active ? 'disabled' : ''}>Approve</button>
+        <button class="btn" type="button" data-action="platform-company-action" data-company-id="${h(company.company_id)}" data-platform-action="suspend" ${suspended || isPlatformCompany ? 'disabled' : ''}>Suspend</button>
+        <button class="btn" type="button" data-action="platform-company-action" data-company-id="${h(company.company_id)}" data-platform-action="reactivate" ${active ? 'disabled' : ''}>Reactivate</button>
+        <button class="btn danger" type="button" data-action="platform-company-action" data-company-id="${h(company.company_id)}" data-platform-action="archive" ${isPlatformCompany || company.status === 'canceled' ? 'disabled' : ''}>Archive</button>
+      </div>
+      <details class="platform-members" ${pending ? 'open' : ''}>
+        <summary>${members.length} member${members.length === 1 ? '' : 's'}</summary>
+        <div class="platform-member-list">
+          ${members.map(renderPlatformMemberRow).join('') || emptyState('No members found for this company.')}
+        </div>
+      </details>
+    </article>
+  `;
+}
+
+function renderPlatformMemberRow(member) {
+  return `
+    <article class="platform-member-row ${member.status !== 'active' ? 'muted' : ''}">
+      ${renderAvatar({ full_name: member.name, email: member.email }, 'avatar small')}
+      <span>
+        <strong>${h(member.name || member.email || shortUserId(member.profile_id))}</strong>
+        <small>${h(member.email || member.profile_id)} / ${h(member.role_label)} / ${h(titleCase(member.status))}</small>
+      </span>
+      <b class="status-pill ${member.status === 'active' ? 'active' : member.status === 'pending' ? 'pending' : 'muted'}">${h(titleCase(member.status))}</b>
     </article>
   `;
 }
@@ -7638,6 +7753,11 @@ function handleAction(event, node) {
     reviewWorkspace(node.dataset.companyId, node.dataset.status);
     return;
   }
+  if (action === 'platform-company-action') {
+    event.preventDefault();
+    managePlatformCompany(node.dataset.companyId, node.dataset.platformAction);
+    return;
+  }
   if (action === 'open-file-upload') {
     event.preventDefault();
     if (!requirePermission('files.manage', activeCompanyId(), 'Your role can view files but cannot upload.', 'Files')) return;
@@ -8803,6 +8923,42 @@ async function reviewWorkspace(companyId, status) {
   render();
 }
 
+async function managePlatformCompany(companyId, platformAction) {
+  const targetCompanyId = canonicalCompanyId(companyId);
+  const action = String(platformAction || '').toLowerCase().trim();
+  const nextStatus = platformActionStatus(action);
+  if (!targetCompanyId || !nextStatus || !isQuestDeveloper()) {
+    showToast('Platform owner access is required to manage companies.', 'local', 'Master panel');
+    return;
+  }
+  if (targetCompanyId === 'lumen' && ['suspend', 'archive', 'delete', 'cancel'].includes(action)) {
+    showToast('The Lumen platform workspace cannot be suspended or archived from the panel.', 'local', 'Master panel');
+    return;
+  }
+  const client = createSupabaseClient();
+  state.sync = { label: 'Updating company access...', mode: 'loading' };
+  render();
+  if (state.session?.auth === 'supabase' && client) {
+    const result = await client.rpc('manage_platform_company', {
+      target_company_id: targetCompanyId,
+      platform_action: action,
+      review_note: `Platform master panel marked ${targetCompanyId} as ${nextStatus}`,
+    });
+    if (result.error) {
+      state.sync = { label: result.error.message || 'Company update failed', mode: 'local' };
+      showToast(result.error.message || 'Company update failed.', 'local', 'Master panel');
+      render();
+      return;
+    }
+  }
+  applyPlatformCompanyStatus(targetCompanyId, nextStatus);
+  await recordAuditEvent(targetCompanyId, `platform.company.${action}`, 'company', targetCompanyId, { action, status: nextStatus }, state.session?.auth === 'supabase');
+  state.sync = { label: `${companyName(targetCompanyId)} marked ${subscriptionLabelForStatus(nextStatus).toLowerCase()}`, mode: state.session?.auth === 'supabase' ? 'live' : 'local' };
+  showToast(`${companyName(targetCompanyId)} marked ${subscriptionLabelForStatus(nextStatus).toLowerCase()}.`, state.session?.auth === 'supabase' ? 'live' : 'local', 'Master panel');
+  if (state.session?.auth === 'supabase') state.dataLoaded = false;
+  render();
+}
+
 function applyWorkspaceReviewStatus(companyId, status) {
   const subscription = normalizeSubscription({
     ...(companySubscription(companyId) || {}),
@@ -8823,6 +8979,22 @@ function applyWorkspaceReviewStatus(companyId, status) {
   state.workspaceReviews = state.workspaceReviews.filter((item) => item.company_id !== companyId).concat(review);
   if (status === 'pending_review') markWorkspacePendingReview(companyId);
   else clearWorkspacePendingReview(companyId);
+}
+
+function applyPlatformCompanyStatus(companyId, status) {
+  applyWorkspaceReviewStatus(companyId, status);
+  const index = state.platformCompanies.findIndex((company) => company.company_id === companyId);
+  const current = index >= 0 ? state.platformCompanies[index] : platformCompanyRows().find((company) => company.company_id === companyId) || normalizePlatformCompany({
+    company_id: companyId,
+    company_name: companyName(companyId),
+  });
+  const next = normalizePlatformCompany({
+    ...current,
+    status,
+    updated_at: new Date().toISOString(),
+  });
+  if (index >= 0) state.platformCompanies[index] = next;
+  else state.platformCompanies.push(next);
 }
 
 async function saveRole(formNode) {
@@ -11752,6 +11924,7 @@ function isMutableAction(action = '') {
     'manage-message-chat',
     'start-checkout',
     'review-workspace',
+    'platform-company-action',
     'set-contact-stage',
     'set-contact-temp',
     'toggle-contact-task',
@@ -11902,6 +12075,78 @@ function workspaceReviewRows() {
   });
 }
 
+function platformCompanyRows() {
+  const fromPlatform = state.platformCompanies.map(normalizePlatformCompany);
+  const fromCompanies = state.companies.map((company) => {
+    const subscription = companySubscription(company.id);
+    const members = companyAccessUsers(company.id);
+    return normalizePlatformCompany({
+      company_id: company.id,
+      company_name: company.name,
+      short_name: company.short_name,
+      color: company.color,
+      label: company.label,
+      pill: company.pill,
+      status: subscription?.status || (pendingReviewCompanyIds().includes(company.id) ? 'pending_review' : 'active'),
+      plan_code: subscription?.plan_code || (company.id === 'lumen' ? 'manual_platform' : 'manual'),
+      amount_cents: subscription?.amount_cents || 0,
+      currency: subscription?.currency || 'usd',
+      owner_email: members.find((member) => member.role === 'owner')?.email || '',
+      owner_name: members.find((member) => member.role === 'owner')?.name || '',
+      member_count: members.length,
+      active_member_count: members.filter((member) => member.status === 'active').length,
+      pending_member_count: members.filter((member) => member.status === 'pending').length,
+      disabled_member_count: members.filter((member) => ['disabled', 'left'].includes(member.status)).length,
+      created_at: subscription?.created_at || '',
+    });
+  });
+  const byCompany = new Map();
+  fromCompanies.concat(fromPlatform).forEach((company) => {
+    if (!company.company_id) return;
+    byCompany.set(company.company_id, { ...(byCompany.get(company.company_id) || {}), ...company });
+  });
+  return Array.from(byCompany.values()).sort(platformCompanySort);
+}
+
+function platformCompanySort(a, b) {
+  const weight = { pending_review: 0, active: 1, trialing: 2, suspended: 3, canceled: 4 };
+  return (weight[a.status] ?? 5) - (weight[b.status] ?? 5) || String(a.company_name).localeCompare(String(b.company_name));
+}
+
+function platformMembersForCompany(companyId) {
+  const liveMembers = state.platformCompanyMembers.filter((member) => member.company_id === companyId);
+  if (liveMembers.length) return liveMembers.sort(platformMemberSort);
+  return companyAccessUsers(companyId).map((member) => normalizePlatformCompanyMember({
+    company_id: companyId,
+    profile_id: member.profile_id,
+    member_id: member.member_id,
+    full_name: member.name,
+    email: member.email,
+    role: member.role,
+    role_label: member.role_label,
+    role_id: member.role_id,
+    status: member.status,
+  })).sort(platformMemberSort);
+}
+
+function platformMemberSort(a, b) {
+  return (a.status === 'active' ? 0 : 1) - (b.status === 'active' ? 0 : 1) || String(a.name).localeCompare(String(b.name));
+}
+
+function platformActionStatus(action) {
+  return {
+    approve: 'active',
+    activate: 'active',
+    reactivate: 'active',
+    suspend: 'suspended',
+    disable: 'suspended',
+    archive: 'canceled',
+    delete: 'canceled',
+    cancel: 'canceled',
+    pending: 'pending_review',
+  }[String(action || '').toLowerCase().trim()] || '';
+}
+
 function subscriptionAllowsCompany(companyId = activeCompanyId()) {
   if (state.session?.auth !== 'supabase') return true;
   if (subscriptionNeedsReview(companyId)) return false;
@@ -12021,6 +12266,7 @@ function normalizeCompany(input) {
     short_name: String(input.short_name || input.label || input.name || input.id || '').trim(),
     color: String(input.color || '#f0b23b'),
     label: String(input.label || input.short_name || input.name || input.id || '').trim(),
+    pill: String(input.pill || ''),
   };
 }
 
@@ -12367,6 +12613,10 @@ function normalizeWorkspaceReview(input) {
   return {
     company_id: canonicalCompanyId(input.company_id || ''),
     company_name: String(input.company_name || input.name || input.short_name || input.company_id || '').trim(),
+    short_name: String(input.short_name || input.company_name || input.name || input.company_id || '').trim(),
+    color: String(input.color || '#f0b23b'),
+    label: String(input.label || input.short_name || input.company_name || input.name || input.company_id || '').trim(),
+    pill: String(input.pill || ''),
     status: normalizeSubscriptionStatus(input.status) || 'pending_review',
     plan_code: String(input.plan_code || 'quest_company_300'),
     amount_cents: number(input.amount_cents || 30000),
@@ -12374,11 +12624,38 @@ function normalizeWorkspaceReview(input) {
     owner_profile_id: String(input.owner_profile_id || ''),
     owner_name: String(input.owner_name || ''),
     owner_email: String(input.owner_email || ''),
+    member_count: number(input.member_count),
+    active_member_count: number(input.active_member_count),
+    pending_member_count: number(input.pending_member_count),
+    disabled_member_count: number(input.disabled_member_count),
     current_period_end: input.current_period_end || '',
     trial_ends_at: input.trial_ends_at || '',
     grace_ends_at: input.grace_ends_at || '',
     created_at: input.created_at || '',
     updated_at: input.updated_at || '',
+  };
+}
+
+function normalizePlatformCompany(input) {
+  return normalizeWorkspaceReview(input);
+}
+
+function normalizePlatformCompanyMember(input) {
+  return {
+    company_id: canonicalCompanyId(input.company_id || ''),
+    profile_id: String(input.profile_id || ''),
+    member_id: String(input.member_id || ''),
+    name: String(input.full_name || input.name || input.email || input.profile_id || '').trim(),
+    email: String(input.email || '').trim(),
+    role: String(input.role || 'member'),
+    role_label: String(input.role_label || titleCase(input.role || 'member')),
+    role_id: String(input.role_id || ''),
+    status: ['active', 'pending', 'disabled', 'left'].includes(String(input.status)) ? String(input.status) : 'active',
+    created_at: input.created_at || '',
+    updated_at: input.updated_at || '',
+    disabled_at: input.disabled_at || '',
+    left_at: input.left_at || '',
+    last_active_at: input.last_active_at || '',
   };
 }
 
