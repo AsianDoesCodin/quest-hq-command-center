@@ -21,6 +21,15 @@ test('workspace creation applies optimistic active membership state', () => {
   assert.match(source, /writeJson\(SESSION_KEY, state\.session\);/);
 });
 
+test('supabase access survives noncritical full-data load fallback', () => {
+  assert.match(source, /async function loadSupabaseBootstrapData\(\)/);
+  assert.match(source, /client\.from\('company_memberships'\)\.select\('\*'\)\.eq\('profile_id', profile\.id\)/);
+  assert.match(source, /client\.rpc\('is_platform_admin'\)/);
+  assert.match(source, /client\.rpc\('list_platform_companies'\)/);
+  assert.match(source, /const trustedProfileCompany = \(profile\.company_ids \|\| \[\]\)\.map\(canonicalCompanyId\)\.includes/);
+  assert.match(source, /trustedProfileCompany && \['owner', 'admin', 'developer'\]\.includes/);
+});
+
 test('supabase workspace creation is idempotent for active members', () => {
   assert.match(migration, /create or replace function public\.create_company_workspace\(company_name text\)/);
   assert.match(migration, /select cm\.company_id\s+into existing_company_id/);

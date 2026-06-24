@@ -1474,8 +1474,12 @@ function ensureDataLoad() {
   if (state.dataLoaded || state.dataLoading) return;
   state.dataLoading = true;
   loadSupabaseData()
-    .catch(() => {
-      state.sync = { label: 'Local fallback', mode: 'local' };
+    .catch(async (error) => {
+      console.warn('Workspace data load failed', error);
+      if (state.session?.auth === 'supabase') {
+        await loadSupabaseBootstrapData().catch((bootstrapError) => console.warn('Workspace bootstrap load failed', bootstrapError));
+      }
+      if (state.sync.mode === 'loading') state.sync = { label: 'Local fallback', mode: 'local' };
     })
     .finally(() => {
       state.dataLoaded = true;
@@ -1693,6 +1697,66 @@ async function loadSupabaseData() {
   }
 
   state.sync = liveTables ? { label: 'Quest Supabase live', mode: 'live' } : { label: 'Local fallback', mode: 'local' };
+}
+
+async function loadSupabaseBootstrapData() {
+  if (state.session?.auth !== 'supabase') return;
+  const client = createSupabaseClient();
+  if (!client) return;
+  const profile = activeSession().profile;
+  const [membershipsResult, profileResult, platformAdminResult] = await Promise.all([
+    client.from('company_memberships').select('*').eq('profile_id', profile.id).catch((error) => ({ error })),
+    client.from('profiles').select('*').eq('id', profile.id).maybeSingle().catch((error) => ({ error })),
+    client.rpc('is_platform_admin').catch((error) => ({ error })),
+  ]);
+  if (!profileResult.error && profileResult.data) {
+    const nextProfile = normalizeProfile(profileResult.data, profile);
+    state.session = { ...activeSession(), profile: nextProfile };
+    writeJson(SESSION_KEY, state.session);
+  }
+  if (!membershipsResult.error) {
+    const ownMemberships = (membershipsResult.data || []).map(normalizeMembership);
+    state.memberships = ownMemberships.concat(state.memberships.filter((item) => item.profile_id !== profile.id));
+  }
+  state.platformAdmin = !platformAdminResult.error && platformAdminResult.data === true;
+  const companyIds = compactUnique(state.memberships
+    .filter((item) => item.profile_id === activeSession().profile.id && item.status === 'active')
+    .map((item) => item.company_id)
+    .concat(activeSession().profile.company_ids || []));
+  if (companyIds.length) {
+    const [companiesResult, subscriptionsResult, rolesResult, rolePermissionsResult, roleAssignmentsResult] = await Promise.all([
+      client.from('companies').select('*').in('id', companyIds).catch((error) => ({ error })),
+      client.from('company_subscriptions').select('*').in('company_id', companyIds).catch((error) => ({ error })),
+      client.from('roles').select('*').in('company_id', companyIds).catch((error) => ({ error })),
+      client.from('role_permissions').select('*').catch((error) => ({ error })),
+      client.from('user_role_assignments').select('*').in('company_id', companyIds).catch((error) => ({ error })),
+    ]);
+    if (!companiesResult.error) state.companies = mergeCompanies(state.companies.concat((companiesResult.data || []).map(normalizeCompany)));
+    if (!subscriptionsResult.error) state.subscriptions = mergeSubscriptions(state.subscriptions.concat((subscriptionsResult.data || []).map(normalizeSubscription)));
+    if (!rolesResult.error) state.roles = mergeRoles(state.roles.concat((rolesResult.data || []).map(normalizeRole)));
+    if (!rolePermissionsResult.error) state.rolePermissions = (rolePermissionsResult.data || []).map(normalizeRolePermission);
+    if (!roleAssignmentsResult.error) state.roleAssignments = (roleAssignmentsResult.data || []).map(normalizeRoleAssignment);
+  }
+  if (state.platformAdmin) {
+    const [platformCompaniesResult, platformMembersResult] = await Promise.all([
+      client.rpc('list_platform_companies').catch((error) => ({ error })),
+      client.rpc('list_platform_company_members', { target_company_id: null }).catch((error) => ({ error })),
+    ]);
+    if (!platformCompaniesResult.error) {
+      state.platformCompanies = (platformCompaniesResult.data || []).map(normalizePlatformCompany);
+      state.companies = mergeCompanies(state.companies.concat(state.platformCompanies.map((company) => normalizeCompany({
+        id: company.company_id,
+        name: company.company_name,
+        short_name: company.short_name || company.company_name,
+        color: company.color,
+        label: company.label,
+        pill: company.pill,
+      }))));
+      state.subscriptions = mergeSubscriptions(state.subscriptions.concat(state.platformCompanies.map(normalizeSubscription)));
+    }
+    if (!platformMembersResult.error) state.platformCompanyMembers = (platformMembersResult.data || []).map(normalizePlatformCompanyMember);
+  }
+  state.sync = { label: 'Quest Supabase limited', mode: 'live' };
 }
 
 function createSupabaseClient() {
@@ -11874,6 +11938,8 @@ function can(permission, companyId = activeCompanyId()) {
   const profile = activeSession().profile;
   if (state.session?.auth === 'supabase') {
     const membership = membershipForProfile(companyId, profile.id);
+    const trustedProfileCompany = (profile.company_ids || []).map(canonicalCompanyId).includes(canonicalCompanyId(companyId));
+    if (!membership && trustedProfileCompany && ['owner', 'admin', 'developer'].includes(String(profile.role || '').toLowerCase())) return true;
     if (!membership || membership.status !== 'active') return false;
     if (['owner', 'developer'].includes(String(membership.role).toLowerCase())) return true;
     const assignedRoleIds = state.roleAssignments
@@ -12305,6 +12371,15 @@ function mergeSubscriptions(subscriptions) {
   subscriptions.map(normalizeSubscription).forEach((subscription) => {
     if (!subscription.company_id) return;
     seen.set(subscription.company_id, { ...(seen.get(subscription.company_id) || {}), ...subscription });
+  });
+  return Array.from(seen.values());
+}
+
+function mergeRoles(roles) {
+  const seen = new Map();
+  roles.map(normalizeRole).forEach((role) => {
+    if (!role.id) return;
+    seen.set(role.id, { ...(seen.get(role.id) || {}), ...role });
   });
   return Array.from(seen.values());
 }
