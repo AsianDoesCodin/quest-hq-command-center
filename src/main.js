@@ -1405,6 +1405,7 @@ function render() {
 }
 
 function renderNoCompanyAccess() {
+  const busy = /creating|joining|opening/i.test(state.authMessage || '');
   document.title = 'Company access pending | Quest HQ';
   app.innerHTML = `
     <main class="login-shell">
@@ -1426,8 +1427,8 @@ function renderNoCompanyAccess() {
             </div>
             <form data-company-create-form>
               <label>Company workspace<input name="company_name" placeholder="Example Roofing LLC" required /></label>
-              <button class="btn btn-primary full" type="submit">Create business workspace</button>
-              <div class="form-message">You become Owner, then Quest approves access before live modules open.</div>
+              <button class="btn btn-primary full" type="submit" ${busy ? 'disabled' : ''}>${busy ? 'Creating workspace...' : 'Create business workspace'}</button>
+              ${state.loginError ? `<div class="form-message error">${h(state.loginError)}</div>` : `<div class="form-message">${h(state.authMessage || 'You become Owner, then Quest approves access before live modules open.')}</div>`}
             </form>
           </article>
           <article class="login-lane-card">
@@ -8341,7 +8342,11 @@ function onDocumentSubmit(event) {
       render();
       return;
     }
-    acceptCompanyInvite(inviteCode);
+    acceptCompanyInvite(inviteCode).catch((error) => {
+      state.loginError = error.message || 'Unable to accept invite.';
+      state.authMessage = '';
+      render();
+    });
     return;
   }
 
@@ -8353,7 +8358,11 @@ function onDocumentSubmit(event) {
 
   if (event.target.matches('[data-company-create-form]')) {
     event.preventDefault();
-    createWorkspaceForCurrentUser(event.target);
+    createWorkspaceForCurrentUser(event.target).catch((error) => {
+      state.loginError = error.message || 'Workspace setup failed.';
+      state.authMessage = '';
+      render();
+    });
     return;
   }
 
@@ -8794,10 +8803,7 @@ async function registerWorkspace(formNode) {
     render();
     return;
   }
-  state.activeCompanyId = canonicalCompanyId(workspace.data || defaultCompanyId());
-  markWorkspacePendingReview(state.activeCompanyId);
-  localStorage.setItem(COMPANY_KEY, state.activeCompanyId);
-  state.dataLoaded = false;
+  applyCreatedWorkspace(workspace.data, companyName);
   state.authMessage = '';
   navigate(companyPath('settings', { tab: 'billing' }, state.activeCompanyId), { replace: true });
 }
@@ -8808,20 +8814,63 @@ async function createWorkspaceForCurrentUser(formNode) {
   const companyName = String(form.company_name || '').trim();
   if (!client || !companyName) {
     state.loginError = 'Company workspace name is required.';
+    state.authMessage = '';
     render();
     return;
   }
-  const workspace = await client.rpc('create_company_workspace', { company_name: companyName });
+  state.loginError = '';
+  state.authMessage = 'Creating workspace...';
+  render();
+  const workspace = await client.rpc('create_company_workspace', { company_name: companyName }).catch((error) => ({ error }));
   if (workspace.error) {
     state.loginError = workspace.error.message || 'Workspace setup failed.';
+    state.authMessage = '';
     render();
     return;
   }
-  state.activeCompanyId = canonicalCompanyId(workspace.data || defaultCompanyId());
-  markWorkspacePendingReview(state.activeCompanyId);
-  localStorage.setItem(COMPANY_KEY, state.activeCompanyId);
-  state.dataLoaded = false;
+  applyCreatedWorkspace(workspace.data, companyName);
+  state.authMessage = 'Opening workspace...';
   navigate(companyPath('settings', { tab: 'billing' }, state.activeCompanyId), { replace: true });
+}
+
+function applyCreatedWorkspace(workspaceId, requestedName = '') {
+  const companyId = canonicalCompanyId(workspaceId || defaultCompanyId());
+  const cleanName = String(requestedName || companyName(companyId) || companyId).trim();
+  const existingSubscription = companySubscription(companyId);
+  state.activeCompanyId = companyId;
+  state.companies = mergeCompanies(state.companies.concat(normalizeCompany({
+    id: companyId,
+    name: cleanName,
+    short_name: cleanName,
+    color: companyColor(companyId),
+  })));
+  state.memberships = state.memberships
+    .filter((membership) => !(membership.company_id === companyId && membership.profile_id === activeSession().profile.id))
+    .concat(normalizeMembership({
+      company_id: companyId,
+      profile_id: activeSession().profile.id,
+      member_id: activeSession().profile.member_id,
+      role: 'owner',
+      status: 'active',
+    }));
+  state.subscriptions = mergeSubscriptions(state.subscriptions.concat(normalizeSubscription({
+    ...(existingSubscription || {}),
+    company_id: companyId,
+    status: existingSubscription?.status || 'pending_review',
+  })));
+  const profile = normalizeProfile({
+    ...activeSession().profile,
+    company_ids: compactUnique((activeSession().profile.company_ids || []).concat(companyId)),
+    approved: true,
+    role: activeSession().profile.role === 'member' ? 'admin' : activeSession().profile.role,
+  });
+  state.session = { ...activeSession(), profile };
+  writeJson(SESSION_KEY, state.session);
+  const subscription = companySubscription(companyId);
+  if (subscription?.status === 'pending_review') markWorkspacePendingReview(companyId);
+  else clearWorkspacePendingReview(companyId);
+  localStorage.setItem(COMPANY_KEY, companyId);
+  state.dataLoaded = false;
 }
 
 async function requestCompanyAccess(formNode) {
@@ -11951,11 +12000,13 @@ function isMutableFormSubmit(formNode) {
 function allowedCompanyIds() {
   const profile = activeSession().profile;
   const allIds = state.companies.map((company) => company.id);
+  const fallbackIds = companiesFallback.map((company) => canonicalCompanyId(company.id));
   if (state.session?.auth === 'supabase') {
     const membershipIds = state.memberships
       .filter((item) => item.profile_id === profile.id && item.status === 'active')
       .map((item) => canonicalCompanyId(item.company_id));
-    return compactUnique(membershipIds).filter((id) => allIds.includes(id));
+    const profileIds = Array.isArray(profile.company_ids) ? profile.company_ids.map(canonicalCompanyId) : [];
+    return compactUnique(membershipIds.concat(profileIds)).filter((id) => allIds.includes(id) || fallbackIds.includes(id));
   }
   if (['developer', 'admin'].includes(profile.role)) return compactUnique(allIds.length ? allIds : companiesFallback.map((company) => canonicalCompanyId(company.id)));
   const membershipIds = state.memberships
