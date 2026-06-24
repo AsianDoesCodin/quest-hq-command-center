@@ -1,7 +1,10 @@
 import https from 'node:https';
 
 const baseUrl = process.env.QUEST_HQ_PROD_URL || 'https://quest-hq-command-center.vercel.app';
-const companies = ['roofing', 'drafting', 'lumen'];
+const companies = String(process.env.QUEST_HQ_COMPANIES || 'lumen')
+  .split(',')
+  .map((company) => company.trim())
+  .filter(Boolean);
 const modules = [
   'jobs',
   'tasks',

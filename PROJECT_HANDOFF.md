@@ -1,6 +1,6 @@
 # Quest HQ Project Handoff
 
-Last updated: 2026-06-16
+Last updated: 2026-06-24
 
 ## Current Project
 
@@ -8,7 +8,7 @@ The active app is `Lumen Command Center`, deployed as **Quest HQ Operations Comm
 
 - Repo: `C:\Users\Joshua\Desktop\Quest roofing\Lumen Command Center`
 - GitHub: `AsianDoesCodin/quest-hq-command-center`
-- Production: https://quest-hq-command-center.vercel.app
+- Production: https://quest-hq-command-center-gamma.vercel.app
 - Framework: vanilla Vite SPA, no React
 - Main source: `src/main.js`, `src/styles.css`
 - GitHub Pages compatibility output: `docs/`
@@ -18,19 +18,19 @@ The active app is `Lumen Command Center`, deployed as **Quest HQ Operations Comm
 
 - Do **not** touch or mutate the original TaskManagement Supabase project.
 - Original TaskManagement Supabase project id/reference to avoid: `qqvmcsvdxhgjooirznrj`.
-- Quest HQ target Supabase project: `lpzotcznihwyyudxycmd`.
+- Quest HQ target Supabase project: `rqundirizvojpzhljtdn`.
 - Do not run a local dev server unless Joshua explicitly allows it.
 - Deployment flow is GitHub push plus Vercel deploy.
 - Supabase Auth is now the default app path. Local demo login only works when `VITE_LOCAL_LOGIN_ENABLED=true`.
-- Public onboarding is split into **Business account** and **Worker account** lanes:
+- Public onboarding is split into **Business account**, **Worker invite**, and **read-only demo** lanes:
   - Business owners can create a company workspace, but new workspaces start as `pending_review` until Quest approval/billing activation.
-  - Workers cannot freely create workplace access; they join through an Owner/Admin invite code now, with email invite delivery planned later.
+  - Workers cannot freely create workplace access; they join through an Owner/Admin invite code or link.
   - One person account can belong to multiple companies through separate memberships and invites.
-- Previous temporary login remains a demo fallback only:
-  - username: `lumen123`
-  - password: `lumen123`
+- The public demo stays visible before signup, but it is read-only and disconnected from production tenant data.
+- `info@lumenmarketingusa.com` is the Lumen platform Owner after signup.
 - Tenant isolation now has live Supabase migrations for memberships, subscriptions, roles, role permissions, ACLs, field permissions, invites, join requests, and hardened RLS leftovers.
-- Do not claim full paid-production readiness until Stripe env vars are configured, the avatar bucket warning is resolved, leaked-password protection is enabled, and end-to-end multi-tenant tests pass.
+- Billing is Manual approval for launch week. Do not show Stripe checkout as active until Stripe/server env vars are configured.
+- Do not claim full paid-production readiness until leaked-password protection is enabled and end-to-end multi-tenant tests pass.
 
 ## Product Direction
 
@@ -38,7 +38,7 @@ Quest HQ should become a monday.com-style multi-company operations workspace, no
 
 The active company is the top-level workspace context. Each company should have its own jobs, tasks, users, workers, files, forms, settings, and dashboards. Users assigned to one company should only see that company once real auth/RLS is enabled.
 
-Target companies include Quest/Roofing, Drafting, and Lumen. The app should feel like each company has its own instance inside one central Quest HQ system.
+The platform keeps multi-company architecture, but normal single-company users should not see a company dropdown. Multi-company switching appears only when a real account has more than one active company membership.
 
 The desired flow is:
 
@@ -225,9 +225,9 @@ Browser verification should target production or the Vercel deployment URL.
 Production QA checklist:
 
 - Reusable checklist file: `PRODUCTION_QA_CHECKLIST.md`
-- Use `/login` with temporary credentials `lumen123` / `lumen123`.
-- Verify no duplicate company entries in the company switcher.
-- Verify every enabled module route loads for `roofing`, `drafting`, and `lumen`.
+- Verify `/login` shows Supabase access and a read-only demo.
+- Verify single-company accounts see a static company badge, not a dropdown.
+- Verify every enabled module route loads for the active company.
 - Verify CRM customer modals and Finance invoice/payment/expense/vendor/report modals open and close without stale query params.
 - Verify mobile widths do not show broken horizontal overflow or crowded modal actions.
 

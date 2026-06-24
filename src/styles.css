@@ -123,6 +123,34 @@ button { cursor: pointer; }
   font-weight: 800;
 }
 
+.readonly-demo-banner {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  border-bottom: 1px solid #fed7aa;
+  background: #fff7ed;
+  color: #7c2d12;
+  padding: 9px 24px;
+}
+
+.readonly-demo-banner i {
+  font-size: 18px;
+}
+
+.readonly-demo-banner strong,
+.readonly-demo-banner small {
+  display: block;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.readonly-demo-banner small {
+  color: #9a3412;
+  font-size: 12px;
+  font-weight: 800;
+}
+
 .logo,
 .side-mark {
   display: grid;
@@ -168,6 +196,18 @@ button { cursor: pointer; }
   padding: 0;
   font-size: 13px;
   font-weight: 900;
+}
+
+.company-switch strong {
+  min-width: 120px;
+  color: var(--ink);
+  font-size: 13px;
+  font-weight: 900;
+  line-height: 1.2;
+}
+
+.company-switch.single-company {
+  cursor: default;
 }
 
 .global-search {

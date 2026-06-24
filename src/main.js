@@ -5,8 +5,11 @@ const CONFIG = {
   buildId: 'Quest HQ Company Workspace v1',
   questAuthEnabled: import.meta.env.VITE_QUEST_AUTH_ENABLED !== 'false',
   localLoginEnabled: import.meta.env.VITE_LOCAL_LOGIN_ENABLED === 'true',
-  localUsername: import.meta.env.VITE_LOCAL_LOGIN_USERNAME || 'lumen123',
-  localPassword: import.meta.env.VITE_LOCAL_LOGIN_PASSWORD || 'lumen123',
+  demoModeEnabled: import.meta.env.VITE_DEMO_MODE_ENABLED !== 'false',
+  demoReadonly: import.meta.env.VITE_DEMO_READONLY !== 'false',
+  billingMode: import.meta.env.VITE_BILLING_MODE || 'manual',
+  localUsername: import.meta.env.VITE_LOCAL_LOGIN_USERNAME || 'local-demo',
+  localPassword: import.meta.env.VITE_LOCAL_LOGIN_PASSWORD || 'local-demo',
   supabaseUrl: import.meta.env.VITE_SUPABASE_URL || 'https://rqundirizvojpzhljtdn.supabase.co',
   supabaseKey: import.meta.env.VITE_SUPABASE_ANON_KEY || 'sb_publishable_2WrlRVv2obg2N5g7ifl7Rg_wxGjs29U',
   stripePriceId: import.meta.env.VITE_STRIPE_PRICE_ID || '',
@@ -1174,6 +1177,7 @@ const state = {
   teamMembers: readSeededList(TEAM_CACHE_KEY, teamMembersFallback).map(normalizeTeamMember),
   memberships: readSeededList(MEMBERSHIP_CACHE_KEY, membershipsFallback),
   profiles: [],
+  platformAdmin: false,
   subscriptions: [],
   workspaceReviews: [],
   roles: [],
@@ -1461,8 +1465,8 @@ function ensureDataLoad() {
 }
 
 async function loadSupabaseData() {
-  if (state.session?.auth === 'local-basic') {
-    state.sync = { label: 'Demo mode', mode: 'local' };
+  if (state.session?.auth === 'local-basic' || state.session?.auth === 'demo-readonly') {
+    state.sync = { label: isReadOnlyDemo() ? 'Read-only demo' : 'Demo mode', mode: 'local' };
     return;
   }
   const client = createSupabaseClient();
@@ -1504,6 +1508,7 @@ async function loadSupabaseData() {
     accountsResult,
     dealsResult,
     activitiesResult,
+    platformAdminResult,
   ] = await Promise.all([
     client.from('companies').select('*').order('name', { ascending: true }),
     client.from('jobs').select('*').order('updated_at', { ascending: false }),
@@ -1537,6 +1542,7 @@ async function loadSupabaseData() {
     client.from('accounts').select('*').order('name', { ascending: true }),
     client.from('deals').select('*').order('updated_at', { ascending: false }),
     client.from('activities').select('*').order('created_at', { ascending: false }).limit(500),
+    client.rpc('is_platform_admin').catch((error) => ({ error })),
   ]);
 
   let liveTables = 0;
@@ -1616,6 +1622,7 @@ async function loadSupabaseData() {
   if (!activitiesResult.error) {
     state.activities = (activitiesResult.data || []).map(normalizeActivity);
   }
+  state.platformAdmin = !platformAdminResult.error && platformAdminResult.data === true;
 
   if (isQuestDeveloper()) {
     const reviewsResult = await client.rpc('list_workspace_reviews').catch((error) => ({ error }));
@@ -1675,6 +1682,7 @@ function resetLiveWorkspaceData() {
   state.teamMembers = [];
   state.memberships = [];
   state.profiles = [];
+  state.platformAdmin = false;
   state.subscriptions = [];
   state.workspaceReviews = [];
   state.roles = [];
@@ -1690,28 +1698,35 @@ function resetLiveWorkspaceData() {
 }
 
 function resetDemoWorkspaceData() {
-  state.jobs = readSeededList(JOB_CACHE_KEY, jobsFallback).map(normalizeJob);
-  state.tasks = readSeededList(TASK_CACHE_KEY, tasksFallback).map(normalizeTask);
-  state.files = readSeededList(FILE_CACHE_KEY, filesFallback).map(normalizeFile);
-  state.driveFolders = readSeededList(DRIVE_FOLDER_CACHE_KEY, []).map(normalizeDriveFolder);
-  state.forms = readSeededList(FORM_CACHE_KEY, formsFallback).map(normalizeForm);
-  state.formResponses = readSeededList(FORM_RESPONSE_CACHE_KEY, formResponsesFallback).map(normalizeFormResponse);
-  state.financeInvoices = readSeededList(FINANCE_INVOICE_CACHE_KEY, financeInvoicesFallback).map(normalizeFinanceInvoice);
-  state.financePayments = readSeededList(FINANCE_PAYMENT_CACHE_KEY, financePaymentsFallback).map(normalizeFinancePayment);
-  state.financeExpenses = readSeededList(FINANCE_EXPENSE_CACHE_KEY, financeExpensesFallback).map(normalizeFinanceExpense);
-  state.financeVendors = readSeededList(FINANCE_VENDOR_CACHE_KEY, financeVendorsFallback).map(normalizeFinanceVendor);
-  state.notifications = readSeededList(NOTIFICATION_CACHE_KEY, notificationsFallback).map(normalizeNotification);
-  state.messageConversations = readSeededList(MESSAGE_CONVERSATION_CACHE_KEY, messageConversationsFallback).map(normalizeMessageConversation);
-  state.messageAccess = readSeededList(MESSAGE_ACCESS_CACHE_KEY, messageAccessFallback).map(normalizeMessageAccess);
-  state.messages = readSeededList(MESSAGE_CACHE_KEY, messagesFallback).map(normalizeMessage);
-  state.messageReads = readSeededList(MESSAGE_READ_CACHE_KEY, messageReadsFallback).map(normalizeMessageRead);
-  state.messageAttachments = readSeededList(MESSAGE_ATTACHMENT_CACHE_KEY, messageAttachmentsFallback).map(normalizeMessageAttachment);
-  state.calendarEvents = readSeededList(CALENDAR_EVENT_CACHE_KEY, calendarEventsFallback).map(normalizeCalendarEvent);
-  state.timeEntries = readJson(TIME_ENTRY_CACHE_KEY, []);
-  state.activeTimer = readJson(ACTIVE_TIMER_KEY, null);
-  state.teamMembers = readSeededList(TEAM_CACHE_KEY, teamMembersFallback).map(normalizeTeamMember);
-  state.memberships = readSeededList(MEMBERSHIP_CACHE_KEY, membershipsFallback);
+  const readDemoList = isReadOnlyDemo() ? ((_key, fallback) => (Array.isArray(fallback) ? fallback : [])) : readSeededList;
+  const readDemoJson = isReadOnlyDemo() ? ((_key, fallback) => fallback) : readJson;
+  state.jobs = readDemoList(JOB_CACHE_KEY, jobsFallback).map(normalizeJob);
+  state.contacts = readDemoList(CONTACT_CACHE_KEY, contactsFallback).map(normalizeContact);
+  state.accounts = readDemoList(ACCOUNT_CACHE_KEY, accountsFallback).map(normalizeAccount);
+  state.deals = readDemoList(DEAL_CACHE_KEY, dealsFallback).map(normalizeDeal);
+  state.activities = readDemoList(ACTIVITY_CACHE_KEY, activitiesFallback).map(normalizeActivity);
+  state.tasks = readDemoList(TASK_CACHE_KEY, tasksFallback).map(normalizeTask);
+  state.files = readDemoList(FILE_CACHE_KEY, filesFallback).map(normalizeFile);
+  state.driveFolders = readDemoList(DRIVE_FOLDER_CACHE_KEY, []).map(normalizeDriveFolder);
+  state.forms = readDemoList(FORM_CACHE_KEY, formsFallback).map(normalizeForm);
+  state.formResponses = readDemoList(FORM_RESPONSE_CACHE_KEY, formResponsesFallback).map(normalizeFormResponse);
+  state.financeInvoices = readDemoList(FINANCE_INVOICE_CACHE_KEY, financeInvoicesFallback).map(normalizeFinanceInvoice);
+  state.financePayments = readDemoList(FINANCE_PAYMENT_CACHE_KEY, financePaymentsFallback).map(normalizeFinancePayment);
+  state.financeExpenses = readDemoList(FINANCE_EXPENSE_CACHE_KEY, financeExpensesFallback).map(normalizeFinanceExpense);
+  state.financeVendors = readDemoList(FINANCE_VENDOR_CACHE_KEY, financeVendorsFallback).map(normalizeFinanceVendor);
+  state.notifications = readDemoList(NOTIFICATION_CACHE_KEY, notificationsFallback).map(normalizeNotification);
+  state.messageConversations = readDemoList(MESSAGE_CONVERSATION_CACHE_KEY, messageConversationsFallback).map(normalizeMessageConversation);
+  state.messageAccess = readDemoList(MESSAGE_ACCESS_CACHE_KEY, messageAccessFallback).map(normalizeMessageAccess);
+  state.messages = readDemoList(MESSAGE_CACHE_KEY, messagesFallback).map(normalizeMessage);
+  state.messageReads = readDemoList(MESSAGE_READ_CACHE_KEY, messageReadsFallback).map(normalizeMessageRead);
+  state.messageAttachments = readDemoList(MESSAGE_ATTACHMENT_CACHE_KEY, messageAttachmentsFallback).map(normalizeMessageAttachment);
+  state.calendarEvents = readDemoList(CALENDAR_EVENT_CACHE_KEY, calendarEventsFallback).map(normalizeCalendarEvent);
+  state.timeEntries = readDemoJson(TIME_ENTRY_CACHE_KEY, []);
+  state.activeTimer = readDemoJson(ACTIVE_TIMER_KEY, null);
+  state.teamMembers = readDemoList(TEAM_CACHE_KEY, teamMembersFallback).map(normalizeTeamMember);
+  state.memberships = readDemoList(MEMBERSHIP_CACHE_KEY, membershipsFallback);
   state.profiles = [];
+  state.platformAdmin = false;
   state.subscriptions = [];
   state.workspaceReviews = [];
   state.roles = [];
@@ -1723,7 +1738,7 @@ function resetDemoWorkspaceData() {
   state.joinRequests = [];
   state.auditEvents = [];
   state.companies = mergeCompanies(companiesFallback.map(normalizeCompany));
-  state.sync = { label: 'Demo mode', mode: 'local' };
+  state.sync = { label: isReadOnlyDemo() ? 'Read-only demo' : 'Demo mode', mode: 'local' };
 }
 
 function renderSvgSprite() {
@@ -1883,6 +1898,28 @@ function metricSymbol(label) {
   return moduleSymbol();
 }
 
+function renderCompanySwitch(companyId, extraClass = '') {
+  const companies = allowedCompanies();
+  const current = companies.find((company) => company.id === companyId) || companyById(companyId) || companies[0] || {};
+  const className = ['company-switch', extraClass, companies.length <= 1 ? 'single-company' : ''].filter(Boolean).join(' ');
+  if (companies.length <= 1) {
+    return `
+      <div class="${h(className)}" aria-label="Active company">
+        ${svgIcon('q-company')}
+        <strong>${h(companyLabel(current))}</strong>
+      </div>
+    `;
+  }
+  return `
+    <label class="${h(className)}">
+      ${svgIcon('q-company')}
+      <select data-company-switch aria-label="Active company">
+        ${companies.map((company) => `<option value="${h(company.id)}" ${company.id === companyId ? 'selected' : ''}>${h(companyLabel(company))}</option>`).join('')}
+      </select>
+    </label>
+  `;
+}
+
 function shellTemplate(route, workspace) {
   const session = activeSession();
   const companyId = activeCompanyId();
@@ -1901,12 +1938,7 @@ function shellTemplate(route, workspace) {
           </div>
         </div>
         <div class="topbar-right">
-          <label class="company-switch">
-            ${svgIcon('q-company')}
-            <select data-company-switch aria-label="Active company">
-              ${allowedCompanies().map((company) => `<option value="${h(company.id)}" ${company.id === companyId ? 'selected' : ''}>${h(companyLabel(company))}</option>`).join('')}
-            </select>
-          </label>
+          ${renderCompanySwitch(companyId)}
           <label class="global-search">
             ${svgIcon('q-search')}
             <input data-global-search value="${h(state.query)}" placeholder="Search this company" />
@@ -1934,6 +1966,7 @@ function shellTemplate(route, workspace) {
         </div>
       </header>
       ${renderMobileStatusRail(companyId)}
+      ${renderReadOnlyDemoBanner()}
       ${renderRolePreviewBanner(companyId)}
       <div class="app-body">
         <aside class="deck" aria-label="Quest navigation">
@@ -2091,10 +2124,25 @@ function renderRolePreviewBanner(companyId) {
   `;
 }
 
+function renderReadOnlyDemoBanner() {
+  if (!isReadOnlyDemo()) return '';
+  return `
+    <div class="readonly-demo-banner">
+      <i class="ti ti-eye"></i>
+      <div>
+        <strong>Read-only sample workspace</strong>
+        <small>Create your own workspace to save jobs, contacts, files, forms, billing, or team changes.</small>
+      </div>
+      <button class="btn" type="button" data-action="open-auth-modal" data-auth-mode="register">Create workspace</button>
+    </div>
+  `;
+}
+
 function renderDeck(route) {
   const companyId = activeCompanyId();
   const session = activeSession();
   const modulesById = new Map(MODULE_REGISTRY.map((module) => [module.id, module]));
+  const showWorkspaceSwitcherCue = allowedCompanies().length > 1;
   return `
     <div class="deck-brand">
       <a class="logo" href="${appHref(companyPath('home', {}, companyId))}" data-router aria-label="Quest HQ home">
@@ -2129,7 +2177,7 @@ function renderDeck(route) {
       <a class="deck-company-switch" href="${appHref(companyPath('settings', { tab: 'company' }, companyId))}" data-router>
         ${svgIcon('q-company')}
         <span><strong>${h(companyName(companyId))}</strong><small>Workspace</small></span>
-        <i class="ti ti-chevron-down"></i>
+        ${showWorkspaceSwitcherCue ? '<i class="ti ti-chevron-down"></i>' : ''}
       </a>
       <button class="deck-user-card" type="button" data-action="open-profile">
         ${renderAvatar(session.profile, 'avatar small')}
@@ -2367,12 +2415,7 @@ function renderCompanyHomePage(companyId) {
           <p>Here is what is happening across your workspace.</p>
         </div>
         <div class="home-hero-actions">
-          <label class="company-switch home-company-switch">
-            ${svgIcon('q-company')}
-            <select data-company-switch aria-label="Active company">
-              ${allowedCompanies().map((company) => `<option value="${h(company.id)}" ${company.id === companyId ? 'selected' : ''}>${h(companyLabel(company))}</option>`).join('')}
-            </select>
-          </label>
+          ${renderCompanySwitch(companyId, 'home-company-switch')}
           <button class="icon-button" type="button" data-action="toggle-notifications" aria-label="Open notifications">
             <i class="ti ti-bell"></i>
             ${unreadMessages ? `<b>${h(String(Math.min(unreadMessages, 99)))}</b>` : ''}
@@ -4442,17 +4485,20 @@ function renderSettingsPage(route, companyId) {
 function renderBillingSettings(companyId) {
   const subscription = companySubscription(companyId);
   const pendingReview = subscriptionNeedsReview(companyId);
+  const manualBilling = CONFIG.billingMode === 'manual';
+  const buttonLabel = manualBilling ? 'Manual approval' : pendingReview ? 'Billing pending' : 'Start subscription';
   return `
     <article class="panel">
       <div class="section-head">
-        <div><h2>${pendingReview ? 'Workspace awaiting approval' : 'Subscription'}</h2><p>${pendingReview ? 'Quest needs to approve billing/access before live company data opens.' : '$300/month company workspace billing gate.'}</p></div>
-        <button class="btn btn-primary" type="button" data-action="start-checkout" ${pendingReview ? 'disabled' : ''}><i class="ti ti-credit-card"></i>${pendingReview ? 'Billing pending' : 'Start subscription'}</button>
+        <div><h2>${pendingReview ? 'Workspace awaiting approval' : 'Subscription'}</h2><p>${manualBilling ? 'Manual approval is active for launch week. Lumen activates workspaces after review.' : pendingReview ? 'Quest needs to approve billing/access before live company data opens.' : '$300/month company workspace billing gate.'}</p></div>
+        <button class="btn btn-primary" type="button" data-action="start-checkout" ${pendingReview || manualBilling ? 'disabled' : ''}><i class="ti ti-credit-card"></i>${buttonLabel}</button>
       </div>
       ${contractRows([
         ['Plan', '$300/month company workspace'],
         ['Status', subscriptionLabel(companyId)],
+        ['Billing mode', manualBilling ? 'Manual approval' : 'Stripe checkout'],
         ['Stripe customer', subscription?.stripe_customer_id || 'Not connected'],
-        ['Approval', pendingReview ? 'Waiting for Quest review' : 'Ready'],
+        ['Approval', pendingReview || manualBilling ? 'Waiting for Lumen review' : 'Ready'],
         ['Renewal / trial', subscription?.current_period_end || subscription?.trial_ends_at ? formatDate(subscription.current_period_end || subscription.trial_ends_at) : 'Pending'],
       ])}
     </article>
@@ -4591,7 +4637,7 @@ function renderInviteFormModal(companyId) {
       <input type="hidden" name="company_id" value="${h(companyId)}" />
       ${field('Email', 'email', '', true, 'email')}
       ${selectField('Role', 'role_id', defaultInviteRoleId(companyId), options)}
-      <div class="form-message span-2">Quest creates an invite code you can copy now. Email invite delivery will use this same record after SMTP/Resend is configured.</div>
+      <div class="form-message span-2">Quest creates an invite code and link for you to copy. Automatic invite email delivery is not active in v1.</div>
       <div class="form-actions span-2">
         <button class="btn btn-primary" type="submit">Create invite code</button>
         <button class="btn" type="button" data-action="close-modal">Cancel</button>
@@ -6590,10 +6636,7 @@ function renderAuthModal(returnUrl, inviteToken, authEnabled) {
             ${renderAuthLanePicker(inviteToken)}
             ${renderSupabaseAuthForm(returnUrl)}
           ` : ''}
-          <details class="demo-mode-details">
-            <summary>Demo mode</summary>
-            ${renderDemoModeLauncher(returnUrl)}
-          </details>
+          ${renderDemoModeLauncher(returnUrl)}
           ${CONFIG.localLoginEnabled && authEnabled ? `
             <details class="demo-login-details">
               <summary>Legacy demo credentials</summary>
@@ -6637,14 +6680,18 @@ function renderAuthLanePicker(inviteToken = '') {
 }
 
 function renderDemoModeLauncher(returnUrl) {
+  if (!CONFIG.demoModeEnabled) return '';
   return `
-    <section class="demo-mode-box">
-      <div>
-        <strong>Demo mode</strong>
-        <span>Local-only sample workspace. No Supabase database reads or writes.</span>
-      </div>
-      <button class="btn full" type="button" data-action="start-demo-mode" data-return-url="${h(returnUrl)}">Open demo mode</button>
-    </section>
+    <details class="demo-mode-details">
+      <summary>Demo mode</summary>
+      <section class="demo-mode-box">
+        <div>
+          <strong>Read-only sample workspace</strong>
+          <span>Explore sample jobs, contacts, files, forms, approvals, and billing without saving changes.</span>
+        </div>
+        <button class="btn full" type="button" data-action="start-demo-mode" data-return-url="${h(returnUrl)}">Open read-only demo</button>
+      </section>
+    </details>
   `;
 }
 
@@ -6724,7 +6771,7 @@ function renderLocalLoginForm(returnUrl) {
       <label>Password<input name="password" type="password" autocomplete="current-password" /></label>
       <input type="hidden" name="return_url" value="${h(returnUrl)}" />
       <button class="btn btn-primary full" type="submit">Sign in to demo</button>
-      ${state.loginError ? `<div class="form-message error">${h(state.loginError)}</div>` : `<div class="form-message">Temporary demo credentials: lumen123 / lumen123</div>`}
+      ${state.loginError ? `<div class="form-message error">${h(state.loginError)}</div>` : `<div class="form-message">Use the configured local demo credentials.</div>`}
     </form>
   `;
 }
@@ -7127,6 +7174,11 @@ function onDocumentClick(event) {
 
 function handleAction(event, node) {
   const action = node.dataset.action;
+  if (isReadOnlyDemo() && isMutableAction(action)) {
+    event.preventDefault();
+    requireMutableWorkspace();
+    return;
+  }
   if (action === 'refresh-data') {
     event.preventDefault();
     state.dataLoaded = false;
@@ -7982,6 +8034,12 @@ function closeActiveModal() {
 }
 
 function onDocumentSubmit(event) {
+  if (isReadOnlyDemo() && isMutableFormSubmit(event.target)) {
+    event.preventDefault();
+    requireMutableWorkspace();
+    return;
+  }
+
   if (event.target.matches('[data-login-form]')) {
     event.preventDefault();
     const form = Object.fromEntries(new FormData(event.target).entries());
@@ -8217,7 +8275,7 @@ async function signOut() {
 function startDemoMode(returnUrl = '') {
   state.loginError = '';
   state.authMessage = '';
-  state.session = buildLocalSession();
+  state.session = buildDemoSession();
   resetDemoWorkspaceData();
   state.activeCompanyId = activeCompanyId();
   localStorage.setItem(COMPANY_KEY, state.activeCompanyId);
@@ -8540,6 +8598,12 @@ async function requestCompanyAccess(formNode) {
 
 async function startCheckout() {
   const companyId = activeCompanyId();
+  if (CONFIG.billingMode === 'manual') {
+    state.sync = { label: 'Manual approval active', mode: 'local' };
+    showToast('Manual approval is active for launch week. Lumen will activate billing after review.', 'local', 'Billing');
+    render();
+    return;
+  }
   state.sync = { label: 'Opening billing...', mode: 'loading' };
   render();
   try {
@@ -8567,7 +8631,7 @@ async function reviewWorkspace(companyId, status) {
   const targetCompanyId = canonicalCompanyId(companyId);
   const nextStatus = normalizeSubscriptionStatus(status);
   if (!targetCompanyId || !nextStatus || !isQuestDeveloper()) {
-    showToast('Quest developer access is required to review workspaces.', 'local', 'Workspace review');
+    showToast('Platform owner access is required to review workspaces.', 'local', 'Workspace review');
     return;
   }
   const client = createSupabaseClient();
@@ -11354,6 +11418,108 @@ function requirePermission(permission, companyId = activeCompanyId(), message = 
   return false;
 }
 
+function isReadOnlyDemo() {
+  return state.session?.auth === 'demo-readonly' && CONFIG.demoReadonly;
+}
+
+function requireMutableWorkspace(message = 'Demo is read-only. Create a workspace to save changes.', title = 'Read-only demo') {
+  if (!isReadOnlyDemo()) return true;
+  showToast(message, 'local', title);
+  return false;
+}
+
+function isMutableAction(action = '') {
+  const clean = String(action || '');
+  if (!clean) return false;
+  const safeActions = new Set([
+    'refresh-data',
+    'sign-out',
+    'toggle-account-menu',
+    'toggle-notifications',
+    'toggle-mobile-menu',
+    'toggle-sidebar',
+    'toggle-nav-group',
+    'toggle-nav-expand',
+    'pipeline-open',
+    'pipeline-stage',
+    'open-notification',
+    'verify-email',
+    'start-demo-mode',
+    'open-auth-modal',
+    'close-auth-modal',
+    'set-auth-mode',
+    'open-profile',
+    'view-as-role',
+    'exit-role-preview',
+    'message-details',
+    'message-search-results',
+    'set-message-filter',
+    'set-calendar-scope',
+    'set-calendar-view',
+    'calendar-prev',
+    'calendar-next',
+    'calendar-today',
+    'open-calendar-event',
+    'copy-invite-link',
+    'copy-invite-code',
+    'open-account',
+    'set-account-tab',
+    'account-type',
+    'open-deal',
+    'open-contact',
+    'contact-activity-tab',
+    'job-activity-tab',
+    'set-pipeline-view',
+    'open-form-actions',
+    'open-form-preview',
+    'set-form-start-tab',
+    'select-form-start-template',
+    'close-modal',
+    'set-task-view',
+    'set-drive-view',
+    'select-file',
+    'download-file',
+    'set-forms-tab',
+    'set-form-editor-tab',
+    'select-form',
+    'toggle-form-card',
+    'copy-form-link',
+    'export-forms',
+  ]);
+  if (safeActions.has(clean)) return false;
+  if (/^(new|edit|delete|save|publish|archive|duplicate|revoke|approve|reject)-/.test(clean)) return true;
+  if (/^open-/.test(clean) && /(form|upload|tools|stage-manager)/.test(clean)) return true;
+  return [
+    'mark-all-notifications-read',
+    'delete-message',
+    'run-message-scenario',
+    'reset-message-demo',
+    'manage-message-chat',
+    'start-checkout',
+    'review-workspace',
+    'set-contact-stage',
+    'set-contact-temp',
+    'toggle-contact-task',
+    'contact-quick',
+    'contact-mark-next',
+    'contact-convert-job',
+    'set-job-stage',
+    'job-mark-next',
+    'job-quick',
+    'convert-deal',
+    'add-stage',
+    'delete-stage',
+    'clock-in',
+    'clock-out',
+  ].includes(clean);
+}
+
+function isMutableFormSubmit(formNode) {
+  if (!formNode || !formNode.matches('form')) return false;
+  if (formNode.matches('[data-login-form], [data-auth-sign-in-form], [data-auth-register-form], [data-auth-invite-code-form], [data-auth-request-form]')) return false;
+  return Object.keys(formNode.dataset || {}).some((key) => key.toLowerCase().includes('form'));
+}
+
 function allowedCompanyIds() {
   const profile = activeSession().profile;
   const allIds = state.companies.map((company) => company.id);
@@ -11545,6 +11711,7 @@ function normalizeSubscriptionStatus(status) {
 }
 
 function isQuestDeveloper() {
+  if (state.session?.auth === 'supabase') return state.platformAdmin === true;
   return String(activeSession().profile?.role || '').toLowerCase() === 'developer';
 }
 
@@ -12394,7 +12561,7 @@ function buildSupabaseSession(session, profile) {
 function buildLocalSession() {
   const profile = {
     id: 'basic-quest-user',
-    email: 'lumen123@quest-hq.local',
+    email: 'local-demo@quest-hq.local',
     full_name: 'Quest Basic Mode',
     role: 'developer',
     role_label: 'Developer',
@@ -12407,6 +12574,25 @@ function buildLocalSession() {
   return {
     auth: 'local-basic',
     user: { id: profile.id, username: CONFIG.localUsername, email: profile.email },
+    profile,
+  };
+}
+
+function buildDemoSession() {
+  const profile = {
+    id: 'demo-readonly-user',
+    email: 'demo@quest-hq.local',
+    full_name: 'Demo Visitor',
+    role: 'owner',
+    role_label: 'Demo',
+    member_id: 'demo-visitor',
+    company_ids: ['roofing'],
+    avatar_url: '',
+    email_verified: true,
+  };
+  return {
+    auth: 'demo-readonly',
+    user: { id: profile.id, username: 'demo', email: profile.email },
     profile,
   };
 }
@@ -12613,6 +12799,7 @@ function copyParams(params, keys) {
 }
 
 function persistAll() {
+  if (isReadOnlyDemo()) return;
   if (state.session?.auth === 'supabase') return;
   writeJson(JOB_CACHE_KEY, state.jobs);
   writeJson(CONTACT_CACHE_KEY, state.contacts);
@@ -12642,22 +12829,26 @@ function persistAll() {
 }
 
 function persistTimeState() {
+  if (isReadOnlyDemo()) return;
   if (state.session?.auth === 'supabase') return;
   writeJson(TIME_ENTRY_CACHE_KEY, state.timeEntries);
   writeJson(ACTIVE_TIMER_KEY, state.activeTimer);
 }
 
 function persistNotifications() {
+  if (isReadOnlyDemo()) return;
   if (state.session?.auth === 'supabase') return;
   writeJson(NOTIFICATION_CACHE_KEY, state.notifications);
 }
 
 function persistCalendarEvents() {
+  if (isReadOnlyDemo()) return;
   if (state.session?.auth === 'supabase') return;
   writeJson(CALENDAR_EVENT_CACHE_KEY, state.calendarEvents);
 }
 
 function persistMessages() {
+  if (isReadOnlyDemo()) return;
   if (state.session?.auth === 'supabase') return;
   writeJson(MESSAGE_CONVERSATION_CACHE_KEY, state.messageConversations);
   writeJson(MESSAGE_ACCESS_CACHE_KEY, state.messageAccess);
@@ -14221,6 +14412,7 @@ function readSeededList(key, fallback) {
 }
 
 function writeJson(key, value) {
+  if (isReadOnlyDemo() && key !== SESSION_KEY) return;
   try {
     localStorage.setItem(key, JSON.stringify(value));
   } catch {
