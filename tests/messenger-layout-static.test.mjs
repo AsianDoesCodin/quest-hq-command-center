@@ -22,7 +22,7 @@ test('messages composer uses icon attach and send controls around the input', ()
 
 test('messenger styling keeps chat-first layout across desktop and mobile', () => {
   assert.match(styles, /\/\* Messenger-style chat app surface \*\//);
-  assert.match(styles, /grid-template-columns: minmax\(260px, 324px\) minmax\(440px, 1fr\) minmax\(250px, 310px\);/);
+  assert.match(styles, /grid-template-columns: minmax\(260px, 304px\) minmax\(560px, 1fr\) minmax\(220px, 272px\);/);
   assert.match(styles, /\.message-bubble\.own \.message-card \{\s*background: var\(--msg-blue\);/);
   assert.match(styles, /\.message-details-rail \{\s*display: grid;/);
   assert.match(styles, /\.messages-page \.mobile-thread-back \{\s*display: none;/);
