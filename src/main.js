@@ -3352,7 +3352,7 @@ function renderContactRecord(companyId, contact) {
   const activeTab = state.contactActivityTab || 'Email';
   const tasks = tasksForContact(contact.id);
   const feed = activitiesFor('contact', contact.id);
-  const canGraduateContactToJob = resolvePipelineStage('contacts', contact.stage, companyId) === 'Nurturing';
+  const canGraduateContactToQuote = resolvePipelineStage('contacts', contact.stage, companyId) === 'Nurturing';
 
   const ed = (key, opts = {}) => {
     const display = (contact[key] === '' || contact[key] == null) ? '—' : contact[key];
@@ -3392,7 +3392,7 @@ function renderContactRecord(companyId, contact) {
             }).join('')}
           </div>
           <button class="sf-mark-btn" type="button" data-action="contact-mark-next" data-contact-id="${h(contact.id)}">Mark as Current Stage</button>
-          ${canGraduateContactToJob ? `<button class="sf-mark-btn sf-graduate-btn" type="button" data-action="contact-convert-job" data-contact-id="${h(contact.id)}"><i class="ti ti-briefcase"></i>Graduate to Job</button>` : ''}
+          ${canGraduateContactToQuote ? `<button class="sf-mark-btn sf-graduate-btn" type="button" data-action="contact-convert-quote" data-contact-id="${h(contact.id)}"><i class="ti ti-file-text"></i>Graduate to Quote</button>` : ''}
         </div>
         <div class="sf-guidance">
           <div class="sf-guidance-label">Guidance for Success</div>
@@ -3438,7 +3438,7 @@ function renderContactRecord(companyId, contact) {
         <div class="sf-col">
           <div class="sf-card"><div class="sf-card-head"><i class="ti ti-bolt"></i>Quick Create</div>
             <div class="sf-quick-grid">${quickTiles.map(([label, ico]) => `<button class="sf-quick-tile" type="button" data-action="contact-quick" data-kind="${h(label)}" data-contact-id="${h(contact.id)}"><i class="ti ${ico}"></i><span>${label}</span></button>`).join('')}</div>
-            <button class="sf-convert-btn" type="button" data-action="contact-convert-job" data-contact-id="${h(contact.id)}"><i class="ti ti-arrow-right"></i>Convert to Job</button>
+            <button class="sf-convert-btn" type="button" data-action="contact-convert-quote" data-contact-id="${h(contact.id)}"><i class="ti ti-arrow-right"></i>Convert to Quote</button>
           </div>
           <div class="sf-card"><div class="sf-card-head"><i class="ti ti-checkbox"></i>Open Tasks<span class="sf-connect"><i class="ti ti-plug"></i>Connect</span></div>
             <div class="sf-tasks">
@@ -3550,39 +3550,34 @@ async function postContactNote(form) {
   await logContactActivity(contactId, typeMap[tab] || 'note', '', text);
 }
 
-async function convertContactToJob(contactId) {
+async function convertContactToQuote(contactId) {
   const contact = contactById(contactId);
   if (!contact) return;
   const companyId = contact.company_id;
-  if (!requirePermission('jobs.manage', companyId, 'Your role cannot create jobs.', 'Jobs')) return;
-  const account = accountById(contact.account_id);
-  const job = normalizeJob({
-    id: '',
+  if (!requirePermission('crm.view', companyId, 'Your role cannot create quotes.', 'Quotes')) return;
+  const deal = normalizeDeal({
+    id: `deal-${crypto.randomUUID()}`,
     company_id: companyId,
-    name: `${contact.name}${contact.title ? ' — ' + contact.title : ''}`,
-    client_name: account?.name || contact.name,
-    contact_name: contact.name,
-    site_address: contact.location || account?.address || '',
-    owner_name: contact.owner_name,
-    estimate_total: contact.value,
-    stage: jobStageNames()[0],
     account_id: contact.account_id,
-    scope: contact.notes,
+    primary_contact_id: contact.id,
+    name: `${contact.name}${contact.title ? ' - ' + contact.title : ''}`,
+    stage: pipelineStages('deals', companyId)[0]?.name || dealStageNames()[0],
+    status: 'open',
+    value: contact.value,
+    owner_name: contact.owner_name,
+    source: contact.source,
+    notes: contact.notes,
   });
-  job.id = crypto.randomUUID();
-  job.updated_at = new Date().toISOString();
-  const jobRow = supabaseRow(job, ['id', 'company_id', 'name', 'client_name', 'contact_name', 'site_address', 'job_type', 'stage', 'priority', 'owner_name', 'scope', 'notes', 'estimate_total', 'invoice_total', 'account_id', 'deal_id', 'updated_at']);
-  emptyToNull(jobRow, ['account_id', 'deal_id']);
-  const { ok, data } = await supabaseWrite('jobs', jobRow);
-  upsertJob(ok && data ? normalizeJob(data) : job);
-  const wonStage = contactStageNames().find((name) => /win|won/i.test(name)) || contact.stage;
-  await persistContact({ ...contact, stage: wonStage });
-  await logActivity({ type: 'system', subject: 'Contact converted -> Job created', body: contact.name, related_type: 'contact', related_id: contact.id, account_id: contact.account_id });
-  state.selectedJobId = job.id;
-  showToast('Contact converted to job.', ok ? 'live' : 'local', 'Contacts');
-  navigate(companyPath('jobs', { tab: 'profile', job_id: job.id }, companyId));
+  deal.updated_at = new Date().toISOString();
+  const row = emptyToNull(supabaseRow(deal, DEAL_COLS), ['account_id', 'primary_contact_id', 'close_date', 'job_id']);
+  const { ok, data } = await supabaseWrite('deals', row);
+  upsertDeal(ok && data ? normalizeDeal(data) : deal);
+  await logActivity({ type: 'system', subject: 'Contact graduated -> Quote created', body: deal.name, related_type: 'contact', related_id: contact.id, account_id: contact.account_id });
+  state.selectedDealId = deal.id;
+  showToast('Contact graduated to quote.', ok ? 'live' : 'local', 'Contacts');
+  navigate(companyPath('deals', { tab: 'profile', deal_id: deal.id }, companyId));
+  return;
 }
-
 function tasksForContact(contactId) {
   return companyTasks().filter((task) => task.contact_id === contactId)
     .sort((a, b) => (a.status === 'done' ? 1 : 0) - (b.status === 'done' ? 1 : 0) || String(a.due).localeCompare(String(b.due)));
@@ -8528,9 +8523,9 @@ function handleAction(event, node) {
     render();
     return;
   }
-  if (action === 'contact-convert-job') {
+  if (action === 'contact-convert-quote') {
     event.preventDefault();
-    convertContactToJob(node.dataset.contactId);
+    convertContactToQuote(node.dataset.contactId);
     return;
   }
   if (action === 'set-job-stage') {
@@ -12318,7 +12313,7 @@ async function convertDealToJob(dealId) {
     site_address: account?.address || '',
     owner_name: deal.owner_name,
     estimate_total: deal.value,
-    stage: jobStageNames()[0],
+    stage: pipelineStages('jobs', companyId)[0]?.name || jobStageNames()[0],
     account_id: deal.account_id,
     deal_id: deal.id,
     scope: deal.notes,
@@ -12769,7 +12764,7 @@ function isMutableAction(action = '') {
     'toggle-contact-task',
     'contact-quick',
     'contact-mark-next',
-    'contact-convert-job',
+    'contact-convert-quote',
     'set-job-stage',
     'job-mark-next',
     'job-quick',

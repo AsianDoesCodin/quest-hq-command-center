@@ -50,14 +50,29 @@ test('record detail routes read as contacts and quotes', () => {
   assert.match(source, /Convert to Job/);
 });
 
-test('nurturing contact records expose a stage-level graduate to job action', () => {
+test('nurturing contact records expose a stage-level graduate to quote action', () => {
   const recordSource = source.match(/function renderContactRecord\(companyId, contact\) \{[\s\S]*?\n\}/)?.[0] || '';
-  assert.match(recordSource, /const canGraduateContactToJob = resolvePipelineStage\('contacts', contact\.stage, companyId\) === 'Nurturing'/);
-  assert.match(recordSource, /canGraduateContactToJob \? `<button class="sf-mark-btn sf-graduate-btn" type="button" data-action="contact-convert-job"/);
-  assert.match(recordSource, /Graduate to Job/);
+  assert.match(recordSource, /const canGraduateContactToQuote = resolvePipelineStage\('contacts', contact\.stage, companyId\) === 'Nurturing'/);
+  assert.match(recordSource, /canGraduateContactToQuote \? `<button class="sf-mark-btn sf-graduate-btn" type="button" data-action="contact-convert-quote"/);
+  assert.match(recordSource, /Graduate to Quote/);
+  assert.doesNotMatch(recordSource, /data-action="contact-convert-job"/);
+  assert.doesNotMatch(recordSource, /Graduate to Job/);
 });
 
-test('graduate to job remains visible in compact contact record layouts', () => {
+test('contacts graduate into quotes before quotes graduate to unscheduled jobs', () => {
+  const contactConverter = source.match(/async function convertContactToQuote\(contactId\) \{[\s\S]*?\n\}/)?.[0] || '';
+  const quoteConverter = source.match(/async function convertDealToJob\(dealId\) \{[\s\S]*?\n\}/)?.[0] || '';
+  assert.match(source, /async function convertContactToQuote\(contactId\)/);
+  assert.doesNotMatch(source, /async function convertContactToJob\(contactId\)/);
+  assert.match(source, /data-action="contact-convert-quote"/);
+  assert.match(source, /if \(action === 'contact-convert-quote'\)/);
+  assert.doesNotMatch(source, /contact-convert-job/);
+  assert.match(contactConverter, /stage: pipelineStages\('deals', companyId\)\[0\]\?\.name \|\| dealStageNames\(\)\[0\]/);
+  assert.match(contactConverter, /primary_contact_id: contact\.id/);
+  assert.match(quoteConverter, /stage: pipelineStages\('jobs', companyId\)\[0\]\?\.name \|\| jobStageNames\(\)\[0\]/);
+});
+
+test('graduate action remains visible in compact contact record layouts', () => {
   assert.match(styles, /\.sf-mark-btn \{ display: none; \}/);
   assert.match(styles, /\.sf-graduate-btn \{ display: inline-flex; \}/);
 });
