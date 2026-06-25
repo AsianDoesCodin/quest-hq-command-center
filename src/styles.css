@@ -2564,6 +2564,14 @@ textarea:focus {
   text-align: center;
 }
 
+.workspace-icon-svg {
+  display: block;
+  width: 26px;
+  height: 26px;
+  fill: currentColor;
+  flex: 0 0 auto;
+}
+
 .workspace-settings-form {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
@@ -2629,6 +2637,12 @@ textarea:focus {
   height: 1em;
   color: var(--orange);
   font-size: 23px;
+}
+
+.workspace-icon-choice .workspace-icon-svg {
+  width: 26px;
+  height: 26px;
+  color: var(--orange);
 }
 
 .workspace-icon-choice span {
@@ -13785,6 +13799,8 @@ button {
 }
 
 .workspace-menu-option .workspace-icon {
+  display: grid;
+  place-items: center;
   width: 42px;
   height: 42px;
 }
@@ -13793,7 +13809,12 @@ button {
   font-size: 21px;
 }
 
-.workspace-menu-option span,
+.workspace-menu-option .workspace-icon-svg {
+  width: 27px;
+  height: 27px;
+}
+
+.workspace-menu-option span:not(.workspace-icon),
 .workspace-menu-option strong,
 .workspace-menu-option small {
   display: block;

@@ -200,6 +200,56 @@ const WORKSPACE_ICON_OPTIONS = [
   { key: 'phone', icon: 'ti-phone-filled', label: 'Phone' },
   { key: 'headset', icon: 'ti-headphones-filled', label: 'Headset' },
 ];
+const WORKSPACE_ICON_SVG = {
+  home: '<path d="M3 11.2 12 4l9 7.2v8.3a1.5 1.5 0 0 1-1.5 1.5H15v-6H9v6H4.5A1.5 1.5 0 0 1 3 19.5v-8.3Z" />',
+  building: '<path d="M5 20V6.8L12 3l7 3.8V20h-4v-5H9v5H5Zm4-10h2V8H9v2Zm4 0h2V8h-2v2Z" />',
+  store: '<path d="M5 7h14l1 5H4l1-5Zm1 7h12v6H6v-6Zm2-10h8v2H8V4Z" />',
+  warehouse: '<path d="M4 10.5 12 5l8 5.5V20h-3v-6H7v6H4v-9.5Zm4 5.5v2h8v-2H8Z" />',
+  briefcase: '<path d="M8 6V4h8v2h4v13H4V6h4Zm2 0h4V5h-4v1Zm1 5v2h2v-2h-2Z" />',
+  tools: '<circle cx="12" cy="12" r="3.1" /><path d="M11 2.8h2l.7 3.1 2.8-1.7 1.4 1.4-1.7 2.8 3.1.7v2l-3.1.7 1.7 2.8-1.4 1.4-2.8-1.7-.7 3.1h-2l-.7-3.1-2.8 1.7-1.4-1.4 1.7-2.8-3.1-.7v-2l3.1-.7-1.7-2.8 1.4-1.4 2.8 1.7.7-3.1Z" />',
+  tool: '<path d="M6 4h3v7H6V4Zm5 0h3v16h-3V4Zm5 0h3v10h-3V4ZM5 13h5v7H5v-7Zm10 3h5v4h-5v-4Z" />',
+  hammer: '<path d="M13.5 4 20 10.5l-2.2 2.2-2-2-8.9 8.9-2.5-2.5 8.9-8.9-2-2L13.5 4Z" />',
+  helmet: '<path d="M4 14a8 8 0 0 1 16 0v3H4v-3Zm2 5h12v2H6v-2Z" />',
+  ruler: '<path d="M4 5h16v14H4V5Zm3 3v3h2V8H7Zm4 0v3h2V8h-2Zm4 0v3h2V8h-2ZM7 14v2h10v-2H7Z" />',
+  truck: '<path d="M3 7h11v9H3V7Zm12 3h3.5L21 13v3h-6v-6ZM6.5 20a2 2 0 1 1 0-4 2 2 0 0 1 0 4Zm10.5 0a2 2 0 1 1 0-4 2 2 0 0 1 0 4Z" />',
+  delivery: '<path d="M4 5h9l7 7-7 7H4l6.8-7L4 5Z" />',
+  users: '<circle cx="9" cy="8.5" r="3.2" /><circle cx="16" cy="9.5" r="2.4" /><path d="M3.5 20c.9-3.8 2.7-5.7 5.5-5.7s4.6 1.9 5.5 5.7h-11Zm10.3 0c.6-2.6 1.9-4 4-4 1.4 0 2.4 1.3 2.9 4h-6.9Z" />',
+  messages: '<path d="M4 5h16v11H9l-5 4V5Zm4 4v2h8V9H8Zm0 4v2h5v-2H8Z" />',
+  calendar: '<path d="M5 4h14v16H5V4Zm3-2h2v4H8V2Zm6 0h2v4h-2V2ZM7 9v3h3V9H7Zm5 0v3h3V9h-3Zm-5 5v3h3v-3H7Z" />',
+  folder: '<path d="M3 6h7l2 2h9v11H3V6Z" />',
+  chart: '<path d="M11 3a9 9 0 1 0 9 9h-9V3Zm2 0v7h7a9 9 0 0 0-7-7Z" />',
+  shield: '<path d="M12 3 20 6v5.5c0 4.2-2.7 7.4-8 9.5-5.3-2.1-8-5.3-8-9.5V6l8-3Zm-1 11.3 5-5-1.6-1.6L11 11.1 9.6 9.7 8 11.3l3 3Z" />',
+  star: '<path d="m12 3 2.6 5.3 5.9.9-4.3 4.2 1 5.9L12 16.5l-5.2 2.8 1-5.9-4.3-4.2 5.9-.9L12 3Z" />',
+  contacts: '<path d="M6 4h12v16H6V4Zm3 3v4h6V7H9Zm0 7v2h6v-2H9Z" />',
+  checklist: '<path d="M8 5h12v3H8V5Zm0 5.5h12v3H8v-3ZM8 16h12v3H8v-3ZM4 5.5h2.5V8H4V5.5Zm0 5.5h2.5v2.5H4V11Zm0 5.5h2.5V19H4v-2.5Z" />',
+  approved: '<path d="M5 4h14v16H5V4Zm3 8 3 3.2L16.5 9 15 7.6l-4 4.4-1.6-1.6L8 12Z" />',
+  'map-pin': '<path d="M12 2.8a7 7 0 0 1 7 7c0 5.2-7 11.4-7 11.4S5 15 5 9.8a7 7 0 0 1 7-7Zm0 9.5a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5Z" />',
+  map: '<path d="M4 5.5 9 3l6 2.5 5-2.2v15.2L15 21l-6-2.5-5 2.2V5.5Zm6 .1v11.1l4 1.7V7.3l-4-1.7Z" />',
+  paint: '<path d="M6 3h12v8H6V3Zm2 10h8v3H8v-3Zm2 4h4v4h-4v-4Z" />',
+  plugin: '<path d="M8 4h4v4h4v4h4v4h-4v4h-4v-4H8v4H4v-4h4v-4H4V8h4V4Z" />',
+  alerts: '<path d="M6 10a6 6 0 0 1 12 0v5l2 3H4l2-3v-5Zm4 10h4a2 2 0 0 1-4 0Z" />',
+  book: '<path d="M5 4h7a4 4 0 0 1 4 4v12H9a4 4 0 0 0-4 4V4Zm11 0h3v16h-3V4Z" />',
+  receipt: '<path d="M6 3h12v18l-2-1.2-2 1.2-2-1.2-2 1.2-2-1.2L6 21V3Zm3 5v2h6V8H9Zm0 4v2h6v-2H9Z" />',
+  clock: '<path d="M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18Zm1 5v4.4l3.3 2-1.1 1.8L11 13.7V8h2Z" />',
+  camera: '<path d="M7 6h3l1-2h2l1 2h3a3 3 0 0 1 3 3v8H4V9a3 3 0 0 1 3-3Zm5 10a4 4 0 1 0 0-8 4 4 0 0 0 0 8Z" />',
+  photo: '<path d="M4 5h16v14H4V5Zm3 10h10l-3.5-4-2.5 3-1.5-1.8L7 15Zm2-5a2 2 0 1 0 0-4 2 2 0 0 0 0 4Z" />',
+  file: '<path d="M7 3h7l4 4v14H7V3Zm7 1v4h4l-4-4Zm-4 9v2h5v-2h-5Z" />',
+  database: '<path d="M12 3c4.4 0 8 1.3 8 3s-3.6 3-8 3-8-1.3-8-3 3.6-3 8-3Zm-8 5c0 1.7 3.6 3 8 3s8-1.3 8-3v4c0 1.7-3.6 3-8 3s-8-1.3-8-3V8Zm0 6c0 1.7 3.6 3 8 3s8-1.3 8-3v4c0 1.7-3.6 3-8 3s-8-1.3-8-3v-4Z" />',
+  lock: '<path d="M7 10V8a5 5 0 0 1 10 0v2h2v10H5V10h2Zm2 0h6V8a3 3 0 0 0-6 0v2Z" />',
+  key: '<path d="M8.5 14a5.5 5.5 0 1 1 4.8-2.8L21 18.9 18.9 21l-2-2H14v-2.9l-2.2-2.2A5.4 5.4 0 0 1 8.5 14Zm0-3a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5Z" />',
+  flag: '<path d="M5 3h2v18H5V3Zm4 1h10l-2 5 2 5H9V4Z" />',
+  partner: '<path d="M12 20S4 15.3 4 9.5A4.5 4.5 0 0 1 12 6a4.5 4.5 0 0 1 8 3.5C20 15.3 12 20 12 20Z" />',
+  support: '<path d="M12 3a8 8 0 0 1 8 8v4a3 3 0 0 1-3 3h-2v-6h3v-1a6 6 0 0 0-12 0v1h3v6H7a3 3 0 0 1-3-3v-4a8 8 0 0 1 8-8Z" />',
+  target: '<path d="M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18Zm0 4a5 5 0 1 1 0 10 5 5 0 0 1 0-10Zm0 3a2 2 0 1 0 0 4 2 2 0 0 0 0-4Z" />',
+  rocket: '<path d="M12 3c3 1.3 5.6 3.9 7 7l-4 1 2 2-4 4-2-2-1 4c-3.1-1.4-5.7-4-7-7l5.5-1.5L12 3Z" />',
+  bolt: '<path d="M13 2 5 13h6l-1 9 9-12h-6l1-8Z" />',
+  package: '<path d="M4 7.5 12 3l8 4.5v9L12 21l-8-4.5v-9Zm8 2.5 5-2.8L12 4.5 7 7.2l5 2.8Zm-6 1v4.5l5 2.8V12l-5-2.8Z" />',
+  desktop: '<path d="M4 5h16v11H4V5Zm5 13h6v2H9v-2Z" />',
+  cloud: '<path d="M7.5 18A4.5 4.5 0 0 1 7 9a6 6 0 0 1 11.5 2A3.5 3.5 0 0 1 18 18H7.5Z" />',
+  mail: '<path d="M4 6h16v12H4V6Zm2 2 6 4.5L18 8H6Z" />',
+  phone: '<path d="M7 3h10v18H7V3Zm3 2v12h4V5h-4Zm1 14h2v1h-2v-1Z" />',
+  headset: '<path d="M12 3a8 8 0 0 1 8 8v5a3 3 0 0 1-3 3h-3v-6h4v-2a6 6 0 0 0-12 0v2h4v6H7a3 3 0 0 1-3-3v-5a8 8 0 0 1 8-8Z" />',
+};
 
 const MODULE_REGISTRY = [
   { id: 'home', group: 'Workspace', label: 'Home', icon: 'ti-home', symbol: 'q-logo', status: 'live', permission: '' },
@@ -5385,7 +5435,7 @@ function renderWorkspaceSettings(companyId) {
           ${WORKSPACE_ICON_OPTIONS.map((item) => `
             <label class="workspace-icon-choice ${item.key === company.icon_key ? 'active' : ''}" data-workspace-icon-choice>
               <input type="radio" name="icon_key" value="${h(item.key)}" ${item.key === company.icon_key ? 'checked' : ''} ${canManage ? '' : 'disabled'} />
-              <i class="ti ${h(item.icon)}"></i>
+              ${workspaceIconSvgMarkup(item)}
               <span>${h(item.label)}</span>
             </label>
           `).join('')}
@@ -13920,10 +13970,16 @@ function workspaceIconOption(key) {
   return WORKSPACE_ICON_OPTIONS.find((item) => item.key === String(key || '').trim()) || WORKSPACE_ICON_OPTIONS[0];
 }
 
+function workspaceIconSvgMarkup(iconOption) {
+  const option = workspaceIconOption(iconOption?.key);
+  const shape = WORKSPACE_ICON_SVG[option.key] || WORKSPACE_ICON_SVG.home;
+  return `<svg class="workspace-icon-svg" viewBox="0 0 24 24" aria-hidden="true" focusable="false">${shape}</svg>`;
+}
+
 function workspaceIconMarkup(companyOrId, className = '') {
   const company = typeof companyOrId === 'object' ? normalizeCompany(companyOrId) : companyById(companyOrId);
   const icon = workspaceIconOption(company?.icon_key);
-  return `<span class="workspace-icon ${h(className)}" style="--company-accent:${h(company?.color || companyColor(company?.id))}"><i class="ti ${h(icon.icon)}"></i></span>`;
+  return `<span class="workspace-icon ${h(className)}" style="--company-accent:${h(company?.color || companyColor(company?.id))}">${workspaceIconSvgMarkup(icon)}</span>`;
 }
 
 function companyIdForJob(jobId) {

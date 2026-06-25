@@ -87,7 +87,11 @@ test('workspace settings can rename and change one of many filled icons', () => 
   const missingIconClasses = workspaceIconClasses.filter((iconClass) => !tablerIconsCss.includes(`.${iconClass}:before`));
   assert.deepEqual(missingIconClasses, [], `workspace icons missing from bundled Tabler CSS: ${missingIconClasses.join(', ')}`);
   assert.match(source, /function workspaceIconOption\(key\)/);
+  assert.match(source, /function workspaceIconSvgMarkup\(iconOption\)/);
   assert.match(source, /function workspaceIconMarkup\(companyOrId, className = ''\)/);
+  assert.match(source, /<svg class="workspace-icon-svg" viewBox="0 0 24 24"/);
+  assert.match(source, /workspaceIconSvgMarkup\(item\)/);
+  assert.match(source, /workspaceIconSvgMarkup\(icon\)/);
   assert.match(source, /icon_key: workspaceIconOption\(input\.icon_key\)\.key/);
   assert.match(source, /renderWorkspaceSettings\(companyId\)/);
   assert.match(source, /data-workspace-settings-form/);
@@ -96,6 +100,10 @@ test('workspace settings can rename and change one of many filled icons', () => 
   assert.match(source, /async function saveWorkspaceSettings\(formNode\)/);
   assert.match(source, /client\.rpc\('update_company_workspace'/);
   assert.match(styles, /\.workspace-icon i::before,\s*\.workspace-icon-choice i::before\s*\{/);
+  assert.match(styles, /\.workspace-icon-svg\s*\{[\s\S]*width: 26px;[\s\S]*height: 26px;[\s\S]*fill: currentColor;/);
+  assert.match(styles, /\.workspace-menu-option \.workspace-icon-svg\s*\{[\s\S]*width: 27px;[\s\S]*height: 27px;/);
+  assert.match(styles, /\.workspace-menu-option \.workspace-icon\s*\{[\s\S]*display: grid;[\s\S]*place-items: center;/);
+  assert.match(styles, /\.workspace-menu-option span:not\(\.workspace-icon\),/);
   assert.match(styles, /\.workspace-icon\s*\{[\s\S]*position: relative;/);
   assert.match(styles, /\.workspace-icon i\s*\{[\s\S]*position: absolute;[\s\S]*transform: translate\(-50%, -50%\);/);
   assert.match(styles, /\.workspace-menu-option\s*\{[\s\S]*grid-template-columns: 42px minmax\(0, 1fr\) 18px;/);
