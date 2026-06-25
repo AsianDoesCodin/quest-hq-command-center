@@ -3,6 +3,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import test from 'node:test';
 
 const source = readFileSync(new URL('../src/main.js', import.meta.url), 'utf8');
+const tablerIconsCss = readFileSync(new URL('../taskmanagement/vendor/tabler-icons/tabler-icons.min.css', import.meta.url), 'utf8');
 const migration = readFileSync(new URL('../supabase/migrations/202606251230_idempotent_workspace_creation.sql', import.meta.url), 'utf8');
 const quotaMigrationUrl = new URL('../supabase/migrations/202606260900_workspace_quota_icons.sql', import.meta.url);
 const quotaMigration = existsSync(quotaMigrationUrl) ? readFileSync(quotaMigrationUrl, 'utf8') : '';
@@ -78,8 +79,12 @@ test('workspace settings can rename and change one of many filled icons', () => 
   assert.ok(iconEntryCount >= 45, `expected at least 45 workspace icon choices, got ${iconEntryCount}`);
   assert.match(source, /const WORKSPACE_ICON_OPTIONS = \[/);
   assert.match(source, /icon: 'ti-home-filled'/);
-  assert.match(source, /icon: 'ti-tools-filled'/);
-  assert.match(source, /icon: 'ti-building-warehouse-filled'/);
+  assert.match(source, /icon: 'ti-settings-filled'/);
+  assert.match(source, /icon: 'ti-building-broadcast-tower-filled'/);
+  const workspaceIconBlock = source.match(/const WORKSPACE_ICON_OPTIONS = \[[\s\S]*?\];/)?.[0] || '';
+  const workspaceIconClasses = [...workspaceIconBlock.matchAll(/icon: '(ti-[^']+)'/g)].map((match) => match[1]);
+  const missingIconClasses = workspaceIconClasses.filter((iconClass) => !tablerIconsCss.includes(`.${iconClass}:before`));
+  assert.deepEqual(missingIconClasses, [], `workspace icons missing from bundled Tabler CSS: ${missingIconClasses.join(', ')}`);
   assert.match(source, /function workspaceIconOption\(key\)/);
   assert.match(source, /function workspaceIconMarkup\(companyOrId, className = ''\)/);
   assert.match(source, /icon_key: workspaceIconOption\(input\.icon_key\)\.key/);

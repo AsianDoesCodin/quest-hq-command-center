@@ -2539,6 +2539,11 @@ textarea:focus {
 }
 
 .workspace-icon i {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1em;
+  height: 1em;
   font-size: 20px;
   line-height: 1;
 }
@@ -2601,6 +2606,11 @@ textarea:focus {
 }
 
 .workspace-icon-choice i {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1em;
+  height: 1em;
   color: var(--orange);
   font-size: 23px;
 }
