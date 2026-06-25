@@ -98,4 +98,9 @@ test('workspace switcher lives in the sidebar workspace card, not the top nav', 
   assert.match(source, /function renderCompanySwitch\(companyId, extraClass = '', options = \{\}\)/);
   assert.match(source, /const interactive = options\.interactive !== false;/);
   assert.match(source, /if \(companies\.length <= 1 \|\| !interactive\)/);
+  assert.match(source, /data-action="toggle-workspace-menu"/);
+  assert.match(source, /data-action="select-workspace"/);
+  assert.match(source, /workspace-menu-option/);
+  assert.match(source, /workspaceIconMarkup\(company\)/);
+  assert.doesNotMatch(source, /<select data-company-switch aria-label="Active company">\s*\$\{companies\.map\(.*deckMode/s);
 });

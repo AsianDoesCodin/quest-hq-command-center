@@ -1411,6 +1411,7 @@ const state = {
   modal: '',
   accountMenuOpen: false,
   notificationMenuOpen: false,
+  workspaceMenuOpen: false,
   mobileMenuOpen: false,
   rolePreview: null,
 };
@@ -2212,6 +2213,7 @@ function metricSymbol(label) {
 function renderCompanySwitch(companyId, extraClass = '', options = {}) {
   const companies = allowedCompanies();
   const current = companies.find((company) => company.id === companyId) || companyById(companyId) || companies[0] || {};
+  const menuCompanies = companies.filter((company) => company.id === current.id).concat(companies.filter((company) => company.id !== current.id));
   const interactive = options.interactive !== false;
   const deckMode = extraClass.split(' ').includes('deck-company-select');
   const className = ['company-switch', extraClass, companies.length <= 1 ? 'single-company' : ''].filter(Boolean).join(' ');
@@ -2225,16 +2227,25 @@ function renderCompanySwitch(companyId, extraClass = '', options = {}) {
   }
   if (deckMode) {
     return `
-      <label class="${h(className)}">
-        ${workspaceIconMarkup(current)}
-        <span class="company-switch-copy">
-          <select data-company-switch aria-label="Active company">
-            ${companies.map((company) => `<option value="${h(company.id)}" ${company.id === companyId ? 'selected' : ''}>${h(companyLabel(company))}</option>`).join('')}
-          </select>
-          <small>${h(roleForCompany(companyId))} workspace</small>
-        </span>
-        <i class="ti ti-chevron-down"></i>
-      </label>
+      <div class="${h(className)} workspace-menu ${state.workspaceMenuOpen ? 'open' : ''}">
+        <button class="workspace-menu-trigger" type="button" data-action="toggle-workspace-menu" aria-label="Switch workspace" aria-expanded="${state.workspaceMenuOpen ? 'true' : 'false'}">
+          ${workspaceIconMarkup(current)}
+          <span class="company-switch-copy">
+            <strong>${h(companyLabel(current))}</strong>
+            <small>${h(roleForCompany(companyId))} workspace</small>
+          </span>
+          <i class="ti ti-chevron-down"></i>
+        </button>
+        <div class="workspace-menu-popover">
+          ${menuCompanies.map((company) => `
+            <button class="workspace-menu-option ${company.id === companyId ? 'active' : ''}" type="button" data-action="select-workspace" data-company-id="${h(company.id)}">
+              ${workspaceIconMarkup(company)}
+              <span><strong>${h(companyLabel(company))}</strong><small>${h(roleForCompany(company.id))} workspace</small></span>
+              ${company.id === companyId ? '<i class="ti ti-check"></i>' : ''}
+            </button>
+          `).join('')}
+        </div>
+      </div>
     `;
   }
   return `
@@ -8037,8 +8048,10 @@ function renderFormActionsModal(companyId, form) {
 function onDocumentClick(event) {
   const closeAccountMenu = state.accountMenuOpen && !event.target.closest('.account-menu');
   const closeNotificationMenu = state.notificationMenuOpen && !event.target.closest('.notification-center');
+  const closeWorkspaceMenu = state.workspaceMenuOpen && !event.target.closest('.workspace-menu');
   if (closeAccountMenu) state.accountMenuOpen = false;
   if (closeNotificationMenu) state.notificationMenuOpen = false;
+  if (closeWorkspaceMenu) state.workspaceMenuOpen = false;
 
   const action = event.target.closest('[data-action]');
   if (action) {
@@ -8083,7 +8096,7 @@ function onDocumentClick(event) {
 
   const link = event.target.closest('a[href][data-router]');
   if (!link) {
-    if (closeAccountMenu || closeNotificationMenu) render();
+    if (closeAccountMenu || closeNotificationMenu || closeWorkspaceMenu) render();
     return;
   }
   if (link.target || link.hasAttribute('download')) return;
@@ -8116,6 +8129,7 @@ function handleAction(event, node) {
     event.preventDefault();
     state.accountMenuOpen = !state.accountMenuOpen;
     state.notificationMenuOpen = false;
+    state.workspaceMenuOpen = false;
     render();
     return;
   }
@@ -8123,7 +8137,22 @@ function handleAction(event, node) {
     event.preventDefault();
     state.notificationMenuOpen = !state.notificationMenuOpen;
     state.accountMenuOpen = false;
+    state.workspaceMenuOpen = false;
     render();
+    return;
+  }
+  if (action === 'toggle-workspace-menu') {
+    event.preventDefault();
+    state.workspaceMenuOpen = !state.workspaceMenuOpen;
+    state.accountMenuOpen = false;
+    state.notificationMenuOpen = false;
+    render();
+    return;
+  }
+  if (action === 'select-workspace') {
+    event.preventDefault();
+    state.workspaceMenuOpen = false;
+    setActiveCompany(node.dataset.companyId || defaultCompanyId());
     return;
   }
   if (action === 'toggle-mobile-menu') {
@@ -8131,6 +8160,7 @@ function handleAction(event, node) {
     state.mobileMenuOpen = !state.mobileMenuOpen;
     state.accountMenuOpen = false;
     state.notificationMenuOpen = false;
+    state.workspaceMenuOpen = false;
     render();
     return;
   }
@@ -12895,6 +12925,8 @@ function isMutableAction(action = '') {
     'sign-out',
     'toggle-account-menu',
     'toggle-notifications',
+    'toggle-workspace-menu',
+    'select-workspace',
     'toggle-mobile-menu',
     'toggle-sidebar',
     'toggle-nav-group',
