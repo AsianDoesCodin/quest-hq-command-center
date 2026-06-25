@@ -9,6 +9,7 @@ const modules = [
   'jobs',
   'tasks',
   'files',
+  'client-portals',
   'forms',
   'analytics',
   'crm',

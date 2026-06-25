@@ -56,12 +56,18 @@ const MESSAGE_CACHE_KEY = 'quest-hq-message-cache-v1';
 const MESSAGE_READ_CACHE_KEY = 'quest-hq-message-read-cache-v1';
 const MESSAGE_ATTACHMENT_CACHE_KEY = 'quest-hq-message-attachment-cache-v1';
 const CALENDAR_EVENT_CACHE_KEY = 'quest-hq-calendar-event-cache-v1';
+const CLIENT_PORTAL_CACHE_KEY = 'quest-hq-client-portal-cache-v1';
+const CLIENT_PORTAL_DOCUMENT_CACHE_KEY = 'quest-hq-client-portal-document-cache-v1';
+const CLIENT_PORTAL_ANNOTATION_CACHE_KEY = 'quest-hq-client-portal-annotation-cache-v1';
+const CLIENT_PORTAL_EVENT_CACHE_KEY = 'quest-hq-client-portal-event-cache-v1';
+const CLIENT_PORTAL_SESSION_KEY = 'quest-client-portal-session-v1';
+const CLIENT_PORTAL_TOKEN_CACHE_KEY = 'quest-client-portal-token-cache-v1';
 
 const ROLE_PERMISSIONS = {
   developer: ['*'],
   admin: ['*'],
   owner: ['*'],
-  manager: ['jobs.view', 'jobs.manage', 'tasks.view', 'tasks.manage', 'files.view', 'files.manage', 'forms.view', 'forms.manage', 'crm.view', 'underwriter.view', 'underwriter.manage', 'finance.view', 'team.view', 'clock.manage', 'approvals.manage', 'approvals.view', 'calendar.view', 'calendar.manage', 'calendar.view_team', 'users.view', 'settings.view', 'billing.view', 'roles.view', 'messages.view', 'messages.send', 'messages.create_group', 'messages.manage_groups', 'messages.attach_files'],
+  manager: ['jobs.view', 'jobs.manage', 'tasks.view', 'tasks.manage', 'files.view', 'files.manage', 'forms.view', 'forms.manage', 'crm.view', 'underwriter.view', 'underwriter.manage', 'finance.view', 'team.view', 'clock.manage', 'approvals.manage', 'approvals.view', 'calendar.view', 'calendar.manage', 'calendar.view_team', 'users.view', 'settings.view', 'billing.view', 'roles.view', 'messages.view', 'messages.send', 'messages.create_group', 'messages.manage_groups', 'messages.attach_files', 'client_portals.view', 'client_portals.manage'],
   member: ['jobs.view', 'tasks.view', 'tasks.manage', 'files.view', 'forms.view', 'time.track', 'approvals.view', 'calendar.view', 'users.view', 'messages.view', 'messages.send', 'messages.attach_files'],
 };
 
@@ -104,6 +110,8 @@ const PERMISSION_KEYS = [
   ['messages.delete_own', 'Delete own messages'],
   ['messages.delete_any', 'Delete any messages'],
   ['messages.manage', 'Manage messages (compatibility)'],
+  ['client_portals.view', 'View client portals'],
+  ['client_portals.manage', 'Manage client portals'],
 ];
 
 const PERMISSION_ALIASES = {
@@ -117,6 +125,7 @@ const WORKSPACE_PLUGIN_REGISTRY = [
   { id: 'crm_2', label: 'CRM 2', summary: 'Contacts, quotes, and production jobs workspace.', icon: 'ti-id-badge-2', module_ids: ['contacts', 'deals', 'jobs'], permissions: ['crm.view'], exclusiveGroup: 'crm' },
   { id: 'underwriter', label: 'Underwriter', summary: 'Qualification, scope, pricing, and handoff readiness queue.', icon: 'ti-clipboard-search', module_ids: ['underwriter'], permissions: ['underwriter.view', 'underwriter.manage'], recommendedWith: ['crm_2'] },
   { id: 'files', label: 'Files', summary: 'Shared files, job folders, and document storage.', icon: 'ti-folder', module_ids: ['files'], permissions: ['files.view', 'files.manage'] },
+  { id: 'client_portal', label: 'Client Portal', summary: 'Password-protected plan links, markups, comments, and client review.', icon: 'ti-world-upload', module_ids: ['client-portals'], permissions: ['client_portals.view', 'client_portals.manage'], recommendedWith: ['files'] },
   { id: 'forms', label: 'Forms', summary: 'Internal forms, templates, and response capture.', icon: 'ti-clipboard-list', module_ids: ['forms'], permissions: ['forms.view', 'forms.manage'] },
   { id: 'finance', label: 'Finance', summary: 'Invoices, payments, expenses, vendors, and AR.', icon: 'ti-receipt-dollar', module_ids: ['finance'], permissions: ['finance.view', 'finance.manage'] },
   { id: 'messages', label: 'Messages', summary: 'Company chats, role rooms, direct messages, and attachments.', icon: 'ti-messages', module_ids: ['messages'], permissions: ['messages.view', 'messages.send', 'messages.create_group', 'messages.manage_groups', 'messages.attach_files', 'messages.delete_own', 'messages.delete_any', 'messages.manage'] },
@@ -165,6 +174,7 @@ const MODULE_REGISTRY = [
   { id: 'tasks', group: 'Work', label: 'My tasks', icon: 'ti-list-check', symbol: 'q-symbol-tasks', status: 'live', permission: 'tasks.view' },
   { id: 'files', group: 'Workspace', label: 'Files', icon: 'ti-folder', symbol: 'q-symbol-files', status: 'live', permission: 'files.view' },
   { id: 'forms', group: 'Workspace', label: 'Forms', icon: 'ti-clipboard-list', symbol: 'q-symbol-forms', status: 'live', permission: 'forms.view' },
+  { id: 'client-portals', group: 'Workspace', label: 'Client portals', icon: 'ti-world-upload', symbol: 'q-symbol-files', status: 'live', permission: 'client_portals.view' },
   { id: 'analytics', group: 'Workspace', label: 'Analytics', icon: 'ti-chart-bar', symbol: 'q-symbol-analytics', status: 'live', permission: 'jobs.view' },
   { id: 'crm', group: 'Workspace', label: 'Accounts', icon: 'ti-building-community', symbol: 'q-symbol-crm', status: 'live', permission: 'crm.view' },
   { id: 'contacts', group: 'Contacts · Top of Funnel', label: 'Contacts', icon: 'ti-id-badge-2', symbol: 'q-symbol-crm', status: 'live', permission: 'crm.view' },
@@ -192,7 +202,7 @@ const NAV_GROUPS = [
   { label: 'Contacts · Top of Funnel', ids: ['contacts'] },
   { label: 'Quotes · Bottom of Funnel', ids: ['deals'] },
   { label: 'Production', ids: ['jobs'] },
-  { label: 'Estimating', ids: ['finance', 'files', 'forms'] },
+  { label: 'Estimating', ids: ['finance', 'files', 'forms', 'client-portals'] },
   { label: 'Review', ids: ['analytics', 'users', 'team-chart', 'time', 'approvals', 'clock'] },
   { label: 'Control', ids: ['settings'] },
   { label: 'Future', ids: ['tickets', 'knowledge', 'automations', 'templates', 'team-workload'] },
@@ -1321,6 +1331,14 @@ const state = {
   messageReads: readSeededList(MESSAGE_READ_CACHE_KEY, messageReadsFallback).map(normalizeMessageRead),
   messageAttachments: readSeededList(MESSAGE_ATTACHMENT_CACHE_KEY, messageAttachmentsFallback).map(normalizeMessageAttachment),
   calendarEvents: readSeededList(CALENDAR_EVENT_CACHE_KEY, calendarEventsFallback).map(normalizeCalendarEvent),
+  clientPortals: readSeededList(CLIENT_PORTAL_CACHE_KEY, []).map(normalizeClientPortal),
+  clientPortalDocuments: readSeededList(CLIENT_PORTAL_DOCUMENT_CACHE_KEY, []).map(normalizeClientPortalDocument),
+  clientPortalAnnotations: readSeededList(CLIENT_PORTAL_ANNOTATION_CACHE_KEY, []).map(normalizeClientPortalAnnotation),
+  clientPortalEvents: readSeededList(CLIENT_PORTAL_EVENT_CACHE_KEY, []).map(normalizeClientPortalEvent),
+  clientPortalPublic: readJson(CLIENT_PORTAL_SESSION_KEY, null),
+  clientPortalTool: 'pan',
+  clientPortalColor: '#E8611A',
+  clientPortalStroke: 2,
   timeEntries: readJson(TIME_ENTRY_CACHE_KEY, []),
   activeTimer: readJson(ACTIVE_TIMER_KEY, null),
   teamMembers: readSeededList(TEAM_CACHE_KEY, teamMembersFallback).map(normalizeTeamMember),
@@ -1366,6 +1384,7 @@ const state = {
   selectedTaskId: '',
   selectedFileId: '',
   selectedFormId: '',
+  selectedClientPortalId: '',
   selectedQuestionId: '',
   selectedFinanceInvoiceId: '',
   selectedFinanceExpenseId: '',
@@ -1378,6 +1397,7 @@ const state = {
   query: '',
   fileQuery: '',
   formQuery: '',
+  clientPortalQuery: '',
   crmQuery: '',
   stageFilter: 'all',
   crmStageFilter: 'all',
@@ -1528,6 +1548,13 @@ function render() {
 
   if (state.route.name === 'login') {
     renderLandingPage(true);
+    return;
+  }
+
+  if (state.route.name === 'client-portal') {
+    document.title = 'Client portal | Quest HQ';
+    app.innerHTML = renderClientPortalPublicPage(state.route);
+    queueMicrotask(() => mountClientPortalViewer().catch((error) => console.warn('Client portal viewer failed', error)));
     return;
   }
 
@@ -1710,6 +1737,10 @@ async function loadSupabaseData() {
     dealsResult,
     activitiesResult,
     companyPluginsResult,
+    clientPortalsResult,
+    clientPortalDocumentsResult,
+    clientPortalAnnotationsResult,
+    clientPortalEventsResult,
     platformAdminResult,
   ] = await Promise.all([
     client.from('companies').select('*').order('name', { ascending: true }),
@@ -1745,6 +1776,10 @@ async function loadSupabaseData() {
     client.from('deals').select('*').order('updated_at', { ascending: false }),
     client.from('activities').select('*').order('created_at', { ascending: false }).limit(500),
     safeSupabaseQuery(client.from('company_plugins').select('*')),
+    safeSupabaseQuery(client.from('client_portals').select('*').order('updated_at', { ascending: false })),
+    safeSupabaseQuery(client.from('client_portal_documents').select('*').order('created_at', { ascending: false })),
+    safeSupabaseQuery(client.from('client_portal_annotations').select('*').order('created_at', { ascending: true })),
+    safeSupabaseQuery(client.from('client_portal_events').select('*').order('created_at', { ascending: false }).limit(500)),
     safeSupabaseQuery(client.rpc('is_platform_admin')),
   ]);
 
@@ -1831,6 +1866,10 @@ async function loadSupabaseData() {
   } else {
     state.pluginLoadFailed = true;
   }
+  if (!clientPortalsResult.error) state.clientPortals = (clientPortalsResult.data || []).map(normalizeClientPortal);
+  if (!clientPortalDocumentsResult.error) state.clientPortalDocuments = (clientPortalDocumentsResult.data || []).map(normalizeClientPortalDocument);
+  if (!clientPortalAnnotationsResult.error) state.clientPortalAnnotations = (clientPortalAnnotationsResult.data || []).map(normalizeClientPortalAnnotation);
+  if (!clientPortalEventsResult.error) state.clientPortalEvents = (clientPortalEventsResult.data || []).map(normalizeClientPortalEvent);
   state.platformAdmin = !platformAdminResult.error && platformAdminResult.data === true;
 
   if (state.platformAdmin) {
@@ -1981,6 +2020,10 @@ function resetLiveWorkspaceData() {
   state.messageReads = [];
   state.messageAttachments = [];
   state.calendarEvents = [];
+  state.clientPortals = [];
+  state.clientPortalDocuments = [];
+  state.clientPortalAnnotations = [];
+  state.clientPortalEvents = [];
   state.timeEntries = [];
   state.activeTimer = null;
   state.teamMembers = [];
@@ -2029,6 +2072,10 @@ function resetDemoWorkspaceData() {
   state.messageReads = readDemoList(MESSAGE_READ_CACHE_KEY, messageReadsFallback).map(normalizeMessageRead);
   state.messageAttachments = readDemoList(MESSAGE_ATTACHMENT_CACHE_KEY, messageAttachmentsFallback).map(normalizeMessageAttachment);
   state.calendarEvents = readDemoList(CALENDAR_EVENT_CACHE_KEY, calendarEventsFallback).map(normalizeCalendarEvent);
+  state.clientPortals = readDemoList(CLIENT_PORTAL_CACHE_KEY, []).map(normalizeClientPortal);
+  state.clientPortalDocuments = readDemoList(CLIENT_PORTAL_DOCUMENT_CACHE_KEY, []).map(normalizeClientPortalDocument);
+  state.clientPortalAnnotations = readDemoList(CLIENT_PORTAL_ANNOTATION_CACHE_KEY, []).map(normalizeClientPortalAnnotation);
+  state.clientPortalEvents = readDemoList(CLIENT_PORTAL_EVENT_CACHE_KEY, []).map(normalizeClientPortalEvent);
   state.timeEntries = readDemoJson(TIME_ENTRY_CACHE_KEY, []);
   state.activeTimer = readDemoJson(ACTIVE_TIMER_KEY, null);
   state.teamMembers = readDemoList(TEAM_CACHE_KEY, teamMembersFallback).map(normalizeTeamMember);
@@ -2668,7 +2715,7 @@ function installedLiveModules(companyId) {
 }
 
 function installedModulesForMobileWork(companyId) {
-  return ['jobs', 'tasks', 'underwriter', 'calendar', 'crm', 'contacts', 'deals', 'finance', 'forms', 'users', 'time', 'approvals', 'clock', 'team-chart']
+  return ['jobs', 'tasks', 'underwriter', 'calendar', 'crm', 'contacts', 'deals', 'finance', 'forms', 'client-portals', 'users', 'time', 'approvals', 'clock', 'team-chart']
     .filter((moduleId) => isModuleInstalled(moduleId, companyId));
 }
 
@@ -2679,6 +2726,7 @@ function permissionPluginIds(permission) {
   if (clean.startsWith('files.')) return ['files'];
   if (clean.startsWith('forms.')) return ['forms'];
   if (clean.startsWith('finance.')) return ['finance'];
+  if (clean.startsWith('client_portals.')) return ['client_portal'];
   if (clean.startsWith('messages.')) return ['messages'];
   if (clean.startsWith('calendar.')) return ['calendar'];
   if (['time.track', 'clock.manage'].includes(clean)) return ['time_clock'];
@@ -2708,6 +2756,7 @@ function moduleBadgeCount(moduleId, companyId = activeCompanyId()) {
   if (moduleId === 'jobs') return companyJobs(companyId).length;
   if (moduleId === 'tasks') return companyTasks(companyId).length;
   if (moduleId === 'files') return companyFiles(companyId).length;
+  if (moduleId === 'client-portals') return companyClientPortals(companyId).length;
   if (moduleId === 'forms') return companyForms(companyId).length;
   if (moduleId === 'crm') return companyAccounts(companyId).length;
   if (moduleId === 'contacts') return companyContacts(companyId).length;
@@ -2751,6 +2800,7 @@ function renderWorkspace(route) {
   if (route.section === 'jobs') return renderJobsPage(route, companyId);
   if (route.section === 'tasks') return renderTasksPage(route, companyId);
   if (route.section === 'files') return renderFilesPage(route, companyId);
+  if (route.section === 'client-portals') return renderClientPortalsPage(route, companyId);
   if (route.section === 'users') return renderUsersPage(route, companyId);
   if (route.section === 'settings') return renderSettingsPage(route, companyId);
   if (route.section === 'forms') return renderFormsPage(companyId);
@@ -5062,6 +5112,226 @@ function renderSettingsPage(route, companyId) {
       </article>
       ` : ''}
       ${tab === 'master' && isQuestDeveloper() ? renderPlatformMasterPanel(companyId) : ''}
+    </section>
+  `;
+}
+
+function renderClientPortalPublicPage(route) {
+  const portal = state.clientPortalPublic;
+  const token = route.token || '';
+  if (!portal?.session || portal.token !== token) {
+    return `
+      <main class="client-portal-public">
+        <section class="client-portal-gate">
+          <div class="client-portal-brand"><span class="side-mark">Q</span><span><strong>Quest Client Portal</strong><small>Plan review</small></span></div>
+          <h1>Open plan portal</h1>
+          <p>Enter your name and the portal password if one was provided. You can view plans, add comments, and export a marked PDF.</p>
+          <form data-client-portal-open-form>
+            <input type="hidden" name="token" value="${h(token)}" />
+            <label><span>Your name</span><input name="guest_name" autocomplete="name" placeholder="Your name" required /></label>
+            <label><span>Password</span><input name="password" type="password" autocomplete="current-password" placeholder="Optional unless required" /></label>
+            <button class="btn btn-primary full" type="submit">Open portal</button>
+            ${portal?.error ? `<div class="form-message error">${h(portal.error)}</div>` : ''}
+          </form>
+        </section>
+      </main>
+    `;
+  }
+  const documents = portal.documents || [];
+  const selectedDoc = documents.find((doc) => doc.id === portal.documentId) || documents[0] || null;
+  return `
+    <main class="client-portal-public open">
+      <header class="client-portal-public-top">
+        <div class="client-portal-brand"><span class="side-mark">Q</span><span><strong>${h(portal.portal?.title || 'Client Portal')}</strong><small>${h(portal.portal?.client_name || portal.guestName || 'Plan review')}</small></span></div>
+        <button class="btn" type="button" data-action="client-portal-export"><i class="ti ti-download"></i>Export marked PDF</button>
+      </header>
+      <section class="client-portal-workbench">
+        <aside class="client-portal-docs">
+          <strong>Plan set</strong>
+          ${documents.map((doc) => `
+            <button class="${selectedDoc?.id === doc.id ? 'active' : ''}" type="button" data-action="client-portal-doc" data-document-id="${h(doc.id)}">
+              <i class="ti ${doc.mime_type?.includes('pdf') ? 'ti-file-type-pdf' : 'ti-photo'}"></i>
+              <span>${h(doc.file_name)}<small>${formatBytes(doc.size_bytes)}</small></span>
+            </button>
+          `).join('') || emptyState('No documents are available.')}
+          <div class="client-portal-help">DWG files should be exported to PDF before upload.</div>
+        </aside>
+        <section class="client-portal-viewer">
+          <div class="client-portal-toolbar">
+            ${[
+              { id: 'pan', attr: 'data-portal-tool="pan"', label: 'Pan' },
+              { id: 'pen', attr: 'data-portal-tool="pen"', label: 'Pen' },
+              { id: 'line', attr: 'data-portal-tool="line"', label: '/' },
+              { id: 'rect', attr: 'data-portal-tool="rect"', label: 'Box' },
+              { id: 'circle', attr: 'data-portal-tool="circle"', label: 'Oval' },
+              { id: 'arrow', attr: 'data-portal-tool="arrow"', label: 'Arrow' },
+              { id: 'text', attr: 'data-portal-tool="text"', label: 'T' },
+              { id: 'comment', attr: 'data-portal-tool="comment"', label: 'Pin' },
+              { id: 'measure', attr: 'data-portal-tool="measure"', label: 'Ft' },
+              { id: 'stamp', attr: 'data-portal-tool="stamp"', label: 'OK' },
+            ].map((tool) => `
+              <button class="client-portal-tool ${state.clientPortalTool === tool.id ? 'active' : ''}" type="button" data-action="client-portal-tool" ${tool.attr} title="${h(titleCase(tool.id))}">${h(tool.label)}</button>
+            `).join('')}
+            <input type="color" value="${h(state.clientPortalColor)}" data-action="client-portal-color" title="Markup color" />
+            <button class="btn" type="button" data-action="client-portal-save-annotations"><i class="ti ti-device-floppy"></i>Save markups</button>
+          </div>
+          <div class="client-portal-stage" data-client-portal-stage>
+            ${selectedDoc ? `
+              <div class="client-portal-canvas-wrap">
+                <canvas id="client-portal-doc-canvas"></canvas>
+                <canvas id="client-portal-draw-canvas"></canvas>
+              </div>
+            ` : emptyState('Choose a document.')}
+          </div>
+        </section>
+        <aside class="client-portal-comments">
+          <strong>Comments</strong>
+          ${(portal.annotations || []).filter((annotation) => !selectedDoc || annotation.document_id === selectedDoc.id).map((annotation) => `
+            <div class="client-portal-comment">
+              <b>${h(annotation.guest_name || portal.guestName || 'Guest')}</b>
+              <span>${h(annotation.payload?.text || annotation.payload?.label || annotation.annotation_type || 'Markup')}</span>
+              <small>Page ${h(annotation.page_number || 1)}</small>
+            </div>
+          `).join('') || emptyState('No comments yet.')}
+        </aside>
+      </section>
+    </main>
+  `;
+}
+
+function renderClientPortalFormModal(companyId, portal = null) {
+  return renderModalShell('Client Portal', portal ? 'Edit portal' : 'New portal link', `
+    <form class="compact-tool-form client-portal-editor" data-client-portal-form>
+      <input type="hidden" name="id" value="${h(portal?.id || '')}" />
+      ${field('Portal title', 'title', portal?.title || '', true)}
+      ${field('Client name', 'client_name', portal?.client_name || '')}
+      ${field('Client email', 'client_email', portal?.client_email || '', false, 'email')}
+      ${selectField('Linked job', 'job_id', portal?.job_id || '', [['', 'No linked job']].concat(companyJobs(companyId).map((job) => [job.id, job.name])))}
+      <label><span>${portal ? 'New password' : 'Password'} (optional)</span><input name="password" type="password" autocomplete="new-password" placeholder="${portal?.password_hash ? 'Leave blank to keep current password' : 'Leave blank for link-only access'}" /></label>
+      <div class="file-policy-note">
+        <strong>Security</strong>
+        <span>Quest stores only token and password hashes. The raw link is shown after creation and can be copied from the portal detail.</span>
+      </div>
+      <div class="form-actions">
+        <button class="btn btn-primary" type="submit">${portal ? 'Save portal' : 'Create portal'}</button>
+        <button class="btn" type="button" data-action="close-modal">Cancel</button>
+      </div>
+    </form>
+  `, 'task-modal');
+}
+
+function renderClientPortalDocumentModal(companyId, portal) {
+  if (!portal) return renderModalShell('Client Portal', 'Upload plan set', emptyState('Choose a portal first.'));
+  return renderModalShell('Client Portal', 'Upload plan set', `
+    <form class="file-upload-panel" data-client-portal-document-form>
+      <input type="hidden" name="portal_id" value="${h(portal.id)}" />
+      <div class="file-policy-note span-2">
+        <strong>${h(portal.title)}</strong>
+        <span>Upload PDF, PNG, or JPG. DWG files should be exported to PDF first.</span>
+      </div>
+      <label class="span-2"><span>Plan documents</span><input name="files" type="file" accept=".pdf,.png,.jpg,.jpeg,application/pdf,image/png,image/jpeg" multiple required /></label>
+      <div class="form-actions span-2">
+        <button class="btn btn-primary" type="submit">Upload documents</button>
+        <button class="btn" type="button" data-action="close-modal">Cancel</button>
+      </div>
+    </form>
+  `, 'file-modal-panel');
+}
+
+function renderClientPortalsPage(route, companyId) {
+  const portals = filteredClientPortals(companyId);
+  const selectedId = route.params.get('portal_id') || portals[0]?.id || '';
+  const selected = clientPortalById(selectedId);
+  const canManagePortals = can('client_portals.manage', companyId);
+  return `
+    <section class="tool-page client-portals-page">
+      ${workspaceHeader('Client portals', 'Share plan sets with password-protected markup links.', `
+        ${canManagePortals ? `<button class="btn btn-primary" type="button" data-action="open-client-portal-form"><i class="ti ti-world-plus"></i>New portal</button>` : ''}
+      `)}
+      <section class="client-portal-layout">
+        <aside class="panel client-portal-list-panel">
+          <label class="crm-search"><i class="ti ti-search"></i><input data-client-portal-search value="${h(state.clientPortalQuery)}" placeholder="Search portals" /></label>
+          <div class="client-portal-list">
+            ${portals.map((portal) => renderClientPortalListItem(portal, portal.id === selectedId)).join('') || emptyState('No client portals yet.')}
+          </div>
+        </aside>
+        <section class="panel client-portal-detail-panel">
+          ${selected ? renderClientPortalDetail(selected, canManagePortals) : emptyState('Create a portal to share PDF plans and markups.')}
+        </section>
+      </section>
+    </section>
+  `;
+}
+
+function renderClientPortalListItem(portal, active) {
+  const docs = clientPortalDocumentsForPortal(portal.id);
+  const annotations = clientPortalAnnotationsForPortal(portal.id);
+  return `
+    <a class="client-portal-row ${active ? 'active' : ''}" href="${appHref(companyPath('client-portals', { portal_id: portal.id }, portal.company_id))}" data-router>
+      <span><i class="ti ti-world-upload"></i></span>
+      <strong>${h(portal.title)}</strong>
+      <small>${h(portal.client_name || portal.client_email || companyName(portal.company_id))}</small>
+      <em>${docs.length} docs / ${annotations.length} marks</em>
+      <b>${h(titleCase(portal.status))}</b>
+    </a>
+  `;
+}
+
+function renderClientPortalDetail(portal, canManagePortals) {
+  const docs = clientPortalDocumentsForPortal(portal.id);
+  const annotations = clientPortalAnnotationsForPortal(portal.id);
+  const events = clientPortalEventsForPortal(portal.id);
+  const link = clientPortalPublicLink(portal);
+  return `
+    <div class="client-portal-head">
+      <div>
+        <div class="eyebrow">Client Portal</div>
+        <h2>${h(portal.title)}</h2>
+        <p>${h(portal.client_name || 'External reviewer')} / ${h(portal.client_email || 'No email saved')}</p>
+      </div>
+      <span class="status-pill ${h(portal.status)}">${h(titleCase(portal.status))}</span>
+    </div>
+    <div class="forms-summary-share compact">
+      <strong>Portal link</strong>
+      <input readonly value="${h(link)}" />
+      <button class="btn" type="button" data-action="copy-client-portal-link" data-portal-id="${h(portal.id)}"><i class="ti ti-copy"></i>Copy link</button>
+      ${canManagePortals ? `<button class="btn" type="button" data-action="regenerate-client-portal-link" data-portal-id="${h(portal.id)}"><i class="ti ti-refresh"></i>Regenerate</button>` : ''}
+      ${canManagePortals ? `<button class="btn danger" type="button" data-action="revoke-client-portal" data-portal-id="${h(portal.id)}"><i class="ti ti-ban"></i>Revoke</button>` : ''}
+    </div>
+    ${canManagePortals ? `
+      <div class="client-portal-actionbar">
+        <button class="btn btn-primary" type="button" data-action="open-client-portal-document-form" data-portal-id="${h(portal.id)}"><i class="ti ti-upload"></i>Upload plan set</button>
+        <button class="btn" type="button" data-action="open-client-portal-form" data-portal-id="${h(portal.id)}"><i class="ti ti-key"></i>Edit password/details</button>
+      </div>
+    ` : ''}
+    <div class="client-portal-detail-grid">
+      <article>
+        <div class="section-head"><div><h2>Documents</h2><p>PDF, PNG, and JPG plan sets. DWG should be exported to PDF first.</p></div></div>
+        <div class="client-portal-doc-list">
+          ${docs.map((doc) => `
+            <div class="client-portal-doc-row">
+              ${fileTypeBadge({ file_name: doc.file_name, mime_type: doc.mime_type })}
+              <span><strong>${h(doc.file_name)}</strong><small>${formatBytes(doc.size_bytes)} / ${formatDate(doc.created_at)}</small></span>
+            </div>
+          `).join('') || emptyState('No plan documents uploaded.')}
+        </div>
+      </article>
+      <article>
+        <div class="section-head"><div><h2>Guest markups</h2><p>${annotations.length} saved annotation${annotations.length === 1 ? '' : 's'}.</p></div></div>
+        <div class="client-portal-annotation-list">
+          ${annotations.slice(0, 12).map((annotation) => `
+            <div class="client-portal-annotation-row">
+              <strong>${h(annotation.guest_name || 'Guest')}</strong>
+              <span>${h(annotation.annotation_type)} / page ${h(annotation.page_number)}</span>
+              <small>${h(annotation.payload?.text || annotation.payload?.label || annotation.payload?.type || 'Markup saved')}</small>
+            </div>
+          `).join('') || emptyState('No guest markups yet.')}
+        </div>
+      </article>
+    </div>
+    <section class="client-portal-events">
+      <div class="section-head"><div><h2>Activity</h2><p>${events.length} portal event${events.length === 1 ? '' : 's'}.</p></div></div>
+      ${events.slice(0, 6).map((event) => `<div class="activity-line"><b>${h(event.event_type)}</b><span>${h(event.guest_name || 'Guest')} / ${formatDateTime(event.created_at)}</span></div>`).join('') || emptyState('No portal activity yet.')}
     </section>
   `;
 }
@@ -7738,6 +8008,8 @@ function renderProfileModal(profile) {
 function renderActiveModal(route, session) {
   if (state.modal === 'profile') return renderProfileModal(session.profile);
   if (state.modal === 'file-upload') return renderFileUploadModal();
+  if (state.modal === 'client-portal-form') return renderClientPortalFormModal(activeCompanyId(), clientPortalById(state.selectedClientPortalId));
+  if (state.modal === 'client-portal-document') return renderClientPortalDocumentModal(activeCompanyId(), clientPortalById(state.selectedClientPortalId));
   if (state.modal === 'folder-new') return renderNewFolderModal();
   if (state.modal === 'file-detail') return renderFileDetailModal(activeCompanyId());
   if (state.modal === 'forms-tools') return renderFormsToolsModal(activeCompanyId());
@@ -8133,6 +8405,37 @@ function handleAction(event, node) {
     render();
     return;
   }
+  if (action === 'client-portal-tool') {
+    event.preventDefault();
+    state.clientPortalTool = node.dataset.portalTool || 'pan';
+    render();
+    return;
+  }
+  if (action === 'client-portal-color') {
+    state.clientPortalColor = node.value || node.getAttribute('value') || '#E8611A';
+    return;
+  }
+  if (action === 'client-portal-doc') {
+    event.preventDefault();
+    if (state.clientPortalPublic) {
+      state.clientPortalPublic.documentId = node.dataset.documentId || '';
+      state.clientPortalPublic.documentUrl = '';
+      state.clientPortalPublic.annotations = [];
+      writeJson(CLIENT_PORTAL_SESSION_KEY, state.clientPortalPublic);
+      render();
+    }
+    return;
+  }
+  if (action === 'client-portal-save-annotations') {
+    event.preventDefault();
+    saveClientPortalAnnotations().catch((error) => showToast(error.message || 'Could not save markups.', 'local', 'Client Portal'));
+    return;
+  }
+  if (action === 'client-portal-export') {
+    event.preventDefault();
+    exportClientPortalMarkedPdf().catch((error) => showToast(error.message || 'Could not export marked PDF.', 'local', 'Client Portal'));
+    return;
+  }
   if (action === 'toggle-notifications') {
     event.preventDefault();
     state.notificationMenuOpen = !state.notificationMenuOpen;
@@ -8499,6 +8802,37 @@ function handleAction(event, node) {
     if (!requirePermission('files.manage', activeCompanyId(), 'Your role can view files but cannot upload.', 'Files')) return;
     state.modal = 'file-upload';
     render();
+    return;
+  }
+  if (action === 'open-client-portal-form') {
+    event.preventDefault();
+    if (!requirePermission('client_portals.manage', activeCompanyId(), 'Your role cannot manage client portals.', 'Client Portal')) return;
+    state.selectedClientPortalId = node.dataset.portalId || '';
+    state.modal = 'client-portal-form';
+    render();
+    return;
+  }
+  if (action === 'open-client-portal-document-form') {
+    event.preventDefault();
+    if (!requirePermission('client_portals.manage', activeCompanyId(), 'Your role cannot upload portal documents.', 'Client Portal')) return;
+    state.selectedClientPortalId = node.dataset.portalId || '';
+    state.modal = 'client-portal-document';
+    render();
+    return;
+  }
+  if (action === 'copy-client-portal-link') {
+    event.preventDefault();
+    copyClientPortalLink(node.dataset.portalId);
+    return;
+  }
+  if (action === 'regenerate-client-portal-link') {
+    event.preventDefault();
+    regenerateClientPortalLink(node.dataset.portalId).catch((error) => showToast(error.message || 'Could not regenerate portal link.', 'local', 'Client Portal'));
+    return;
+  }
+  if (action === 'revoke-client-portal') {
+    event.preventDefault();
+    revokeClientPortal(node.dataset.portalId);
     return;
   }
   if (action === 'open-folder-form') {
@@ -9043,6 +9377,12 @@ function onDocumentSubmit(event) {
     return;
   }
 
+  if (event.target.matches('[data-client-portal-open-form]')) {
+    event.preventDefault();
+    openClientPortal(event.target);
+    return;
+  }
+
   if (event.target.matches('[data-login-form]')) {
     event.preventDefault();
     const form = Object.fromEntries(new FormData(event.target).entries());
@@ -9207,6 +9547,18 @@ function onDocumentSubmit(event) {
   if (event.target.matches('[data-file-form]')) {
     event.preventDefault();
     saveFileRecord(event.target);
+    return;
+  }
+
+  if (event.target.matches('[data-client-portal-form]')) {
+    event.preventDefault();
+    saveClientPortal(event.target);
+    return;
+  }
+
+  if (event.target.matches('[data-client-portal-document-form]')) {
+    event.preventDefault();
+    saveClientPortalDocuments(event.target);
     return;
   }
 
@@ -10683,6 +11035,11 @@ function onDocumentInput(event) {
     updateWorkspaceOnly();
     return;
   }
+  if (event.target.matches('[data-client-portal-search]')) {
+    state.clientPortalQuery = event.target.value;
+    updateWorkspaceOnly();
+    return;
+  }
   if (event.target.matches('[data-crm-search]')) {
     state.crmQuery = event.target.value;
     updateWorkspaceOnly();
@@ -10976,6 +11333,452 @@ async function saveFileRecord(form) {
   );
   state.modal = '';
   navigate(companyPath('files', { folder: fields.folder || 'shared', ...(fields.job_id ? { job_id: fields.job_id } : {}) }, companyId), { replace: true });
+}
+
+async function saveClientPortal(form) {
+  const companyId = activeCompanyId();
+  if (!requirePermission('client_portals.manage', companyId, 'Your role cannot manage client portals.', 'Client Portal')) return;
+  const fields = Object.fromEntries(new FormData(form).entries());
+  const existing = fields.id ? clientPortalById(String(fields.id)) : null;
+  const rawToken = existing ? cachedClientPortalToken(existing.id) || existing.raw_token || '' : randomPortalToken();
+  const tokenHash = existing?.token_hash || await digestHex(rawToken);
+  const password = String(fields.password || '');
+  const passwordSalt = password ? randomPortalToken(18) : existing?.password_salt || '';
+  const passwordHash = password ? await pbkdf2Hex(password, passwordSalt) : existing?.password_hash || '';
+  let portal = normalizeClientPortal({
+    ...(existing || {}),
+    id: existing?.id || crypto.randomUUID(),
+    company_id: companyId,
+    job_id: fields.job_id || '',
+    title: String(fields.title || '').trim() || 'Client plan portal',
+    client_name: fields.client_name || '',
+    client_email: fields.client_email || '',
+    token_hash: tokenHash,
+    raw_token: rawToken,
+    password_hash: passwordHash,
+    password_salt: passwordSalt,
+    status: existing?.status || 'active',
+    created_by: existing?.created_by || activeSession().profile.id,
+    created_at: existing?.created_at || new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  });
+  const client = createSupabaseClient();
+  if (state.session?.auth === 'supabase' && client) {
+    const payload = clientPortalPayload(portal);
+    const result = existing
+      ? await client.from('client_portals').update(payload).eq('id', existing.id).select().single()
+      : await client.from('client_portals').insert(payload).select().single();
+    if (result.error) {
+      showToast(result.error.message || 'Portal save failed.', 'local', 'Client Portal');
+      return;
+    }
+    portal = normalizeClientPortal({ ...result.data, raw_token: rawToken });
+  }
+  upsertClientPortal(portal);
+  cacheClientPortalToken(portal.id, rawToken);
+  state.modal = '';
+  showToast(existing ? 'Portal saved.' : 'Portal created. Copy the link from the detail panel.', state.session?.auth === 'supabase' ? 'live' : 'local', 'Client Portal');
+  navigate(companyPath('client-portals', { portal_id: portal.id }, companyId), { replace: true });
+}
+
+async function saveClientPortalDocuments(form) {
+  const companyId = activeCompanyId();
+  if (!requirePermission('client_portals.manage', companyId, 'Your role cannot upload portal documents.', 'Client Portal')) return;
+  const fields = Object.fromEntries(new FormData(form).entries());
+  const portal = clientPortalById(String(fields.portal_id || ''));
+  if (!portal) {
+    showToast('Choose a portal first.', 'local', 'Client Portal');
+    return;
+  }
+  const files = Array.from(form.elements.files?.files || []);
+  if (!files.length) {
+    showToast('Choose at least one PDF, PNG, or JPG.', 'local', 'Client Portal');
+    return;
+  }
+  const client = createSupabaseClient();
+  let savedCount = 0;
+  for (const file of files) {
+    const id = crypto.randomUUID();
+    const objectPath = `${companyId}/portals/${portal.id}/${id}-${slugify(file.name || 'plan-set')}`;
+    let uploaded = false;
+    if (state.session?.auth === 'supabase' && client) {
+      const upload = await client.storage
+        .from('quest-client-portal-documents')
+        .upload(objectPath, file, { cacheControl: '3600', upsert: false, contentType: file.type || 'application/octet-stream' });
+      if (upload.error) {
+        showToast(upload.error.message || 'Plan upload failed.', 'local', 'Client Portal');
+        continue;
+      }
+      uploaded = true;
+    }
+    let doc = normalizeClientPortalDocument({
+      id,
+      company_id: companyId,
+      portal_id: portal.id,
+      bucket_id: 'quest-client-portal-documents',
+      object_path: uploaded ? objectPath : '',
+      file_name: file.name || 'Plan set',
+      mime_type: file.type || 'application/octet-stream',
+      size_bytes: file.size || 0,
+      uploaded_by: activeSession().profile.id,
+    });
+    if (state.session?.auth === 'supabase' && client) {
+      const result = await client.from('client_portal_documents').insert(clientPortalDocumentPayload(doc)).select().single();
+      if (result.error) {
+        if (uploaded) await client.storage.from('quest-client-portal-documents').remove([objectPath]);
+        showToast(result.error.message || 'Document record failed.', 'local', 'Client Portal');
+        continue;
+      }
+      doc = normalizeClientPortalDocument(result.data);
+    }
+    upsertClientPortalDocument(doc);
+    savedCount += 1;
+  }
+  state.modal = '';
+  persistAll();
+  showToast(`${savedCount} document${savedCount === 1 ? '' : 's'} uploaded.`, state.session?.auth === 'supabase' ? 'live' : 'local', 'Client Portal');
+  navigate(companyPath('client-portals', { portal_id: portal.id }, companyId), { replace: true });
+}
+
+function copyClientPortalLink(portalId) {
+  const portal = clientPortalById(portalId);
+  if (!portal) return;
+  const token = cachedClientPortalToken(portal.id) || portal.raw_token;
+  if (!token) {
+    showToast('Use Regenerate to issue a new copyable portal link.', 'local', 'Client Portal');
+    return;
+  }
+  const link = `${window.location.origin}${appHref(`/portal/${encodeURIComponent(token)}`)}`;
+  navigator.clipboard?.writeText(link).then(
+    () => showToast('Portal link copied.', 'live', 'Client Portal'),
+    () => showToast(link, 'local', 'Copy this portal link'),
+  );
+}
+
+async function regenerateClientPortalLink(portalId) {
+  const portal = clientPortalById(portalId);
+  if (!portal || !requirePermission('client_portals.manage', portal.company_id, 'Your role cannot regenerate portal links.', 'Client Portal')) return;
+  if (!window.confirm(`Regenerate the public link for ${portal.title}? The old link will stop opening.`)) return;
+  const rawToken = randomPortalToken();
+  const tokenHash = await digestHex(rawToken);
+  const next = normalizeClientPortal({ ...portal, token_hash: tokenHash, status: 'active', revoked_at: null, updated_at: new Date().toISOString(), raw_token: rawToken });
+  const client = createSupabaseClient();
+  if (state.session?.auth === 'supabase' && client) {
+    const result = await client
+      .from('client_portals')
+      .update({ token_hash: tokenHash, status: 'active', revoked_at: null, updated_at: next.updated_at })
+      .eq('id', portal.id)
+      .select()
+      .single();
+    if (result.error) throw new Error(result.error.message || 'Portal link regenerate failed.');
+  }
+  cacheClientPortalToken(portal.id, rawToken);
+  upsertClientPortal(next);
+  persistAll();
+  copyClientPortalLink(portal.id);
+  render();
+}
+
+async function revokeClientPortal(portalId) {
+  const portal = clientPortalById(portalId);
+  if (!portal || !requirePermission('client_portals.manage', portal.company_id, 'Your role cannot revoke portals.', 'Client Portal')) return;
+  if (!window.confirm(`Revoke ${portal.title}? Existing guests will lose access.`)) return;
+  const next = normalizeClientPortal({ ...portal, status: 'revoked', revoked_at: new Date().toISOString(), updated_at: new Date().toISOString() });
+  const client = createSupabaseClient();
+  if (state.session?.auth === 'supabase' && client) {
+    const result = await client.from('client_portals').update({ status: 'revoked', revoked_at: next.revoked_at, updated_at: next.updated_at }).eq('id', portal.id).select().single();
+    if (result.error) {
+      showToast(result.error.message || 'Portal revoke failed.', 'local', 'Client Portal');
+      return;
+    }
+  }
+  upsertClientPortal(next);
+  showToast('Portal revoked.', state.session?.auth === 'supabase' ? 'live' : 'local', 'Client Portal');
+  render();
+}
+
+async function openClientPortal(form) {
+  const fields = Object.fromEntries(new FormData(form).entries());
+  const token = String(fields.token || '').trim();
+  const guestName = String(fields.guest_name || '').trim() || 'Guest';
+  const response = await fetch('/api/client-portal-open', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ token, guest_name: guestName, password: fields.password || '' }),
+  });
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    state.clientPortalPublic = { token, error: payload.error || 'Could not open portal.' };
+    render();
+    return;
+  }
+  state.clientPortalPublic = {
+    token,
+    guestName,
+    session: payload.session,
+    portal: payload.portal,
+    documents: payload.documents || [],
+    documentId: payload.documents?.[0]?.id || '',
+    documentUrl: '',
+    annotations: [],
+  };
+  writeJson(CLIENT_PORTAL_SESSION_KEY, state.clientPortalPublic);
+  render();
+}
+
+async function ensureClientPortalDocumentUrl() {
+  const portal = state.clientPortalPublic;
+  if (!portal?.session || portal.documentUrl) return portal?.documentUrl || '';
+  const documentId = portal.documentId || portal.documents?.[0]?.id || '';
+  if (!documentId) return '';
+  const response = await fetch('/api/client-portal-document-url', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ session: portal.session, document_id: documentId }),
+  });
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(payload.error || 'Document unavailable.');
+  state.clientPortalPublic.documentUrl = payload.url;
+  state.clientPortalPublic.documentId = documentId;
+  writeJson(CLIENT_PORTAL_SESSION_KEY, state.clientPortalPublic);
+  return payload.url;
+}
+
+async function loadClientPortalAnnotations() {
+  const portal = state.clientPortalPublic;
+  if (!portal?.session || !portal.documentId) return [];
+  const url = `/api/client-portal-annotations?session=${encodeURIComponent(portal.session)}&document_id=${encodeURIComponent(portal.documentId)}`;
+  const response = await fetch(url);
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) return [];
+  state.clientPortalPublic.annotations = (payload.annotations || []).map(normalizeClientPortalAnnotation);
+  writeJson(CLIENT_PORTAL_SESSION_KEY, state.clientPortalPublic);
+  return state.clientPortalPublic.annotations;
+}
+
+async function saveClientPortalAnnotations() {
+  const portal = state.clientPortalPublic;
+  if (!portal?.session || !portal.documentId) throw new Error('Open a document first.');
+  const annotations = (portal.annotations || []).filter((annotation) => annotation.document_id === portal.documentId);
+  const response = await fetch('/api/client-portal-annotations', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ session: portal.session, document_id: portal.documentId, annotations }),
+  });
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(payload.error || 'Markup save failed.');
+  showToast('Markups saved.', 'live', 'Client Portal');
+}
+
+async function mountClientPortalViewer() {
+  const portal = state.clientPortalPublic;
+  const base = document.getElementById('client-portal-doc-canvas');
+  const overlay = document.getElementById('client-portal-draw-canvas');
+  if (!portal?.session || !base || !overlay) return;
+  const doc = (portal.documents || []).find((item) => item.id === portal.documentId) || portal.documents?.[0];
+  if (!doc) return;
+  const url = await ensureClientPortalDocumentUrl();
+  if (!url) return;
+  if (!portal.annotations?.length) await loadClientPortalAnnotations();
+  await renderClientPortalDocumentCanvas(doc, url, base, overlay);
+  attachClientPortalDrawing(base, overlay, doc);
+}
+
+async function renderClientPortalDocumentCanvas(doc, url, base, overlay) {
+  const ctx = base.getContext('2d');
+  if (doc.mime_type?.includes('pdf') || /\.pdf($|\?)/i.test(doc.file_name || '')) {
+    await loadExternalScript('https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js', 'pdfjsLib');
+    window.pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+    const pdf = await window.pdfjsLib.getDocument(url).promise;
+    const page = await pdf.getPage(1);
+    const viewport = page.getViewport({ scale: Math.min(1.35, Math.max(0.8, (document.querySelector('.client-portal-stage')?.clientWidth || 900) / page.getViewport({ scale: 1 }).width)) });
+    base.width = viewport.width;
+    base.height = viewport.height;
+    overlay.width = viewport.width;
+    overlay.height = viewport.height;
+    await page.render({ canvasContext: ctx, viewport }).promise;
+  } else {
+    const image = await loadClientPortalImage(url);
+    const maxWidth = Math.min(1200, document.querySelector('.client-portal-stage')?.clientWidth || 900);
+    const scale = Math.min(1, maxWidth / image.width);
+    base.width = image.width * scale;
+    base.height = image.height * scale;
+    overlay.width = base.width;
+    overlay.height = base.height;
+    ctx.drawImage(image, 0, 0, base.width, base.height);
+  }
+  redrawClientPortalAnnotations(overlay);
+}
+
+function attachClientPortalDrawing(_base, overlay, doc) {
+  let start = null;
+  let drawing = false;
+  const point = (event) => {
+    const rect = overlay.getBoundingClientRect();
+    const touch = event.touches?.[0] || event.changedTouches?.[0];
+    const src = touch || event;
+    return { x: src.clientX - rect.left, y: src.clientY - rect.top };
+  };
+  const begin = (event) => {
+    if (state.clientPortalTool === 'pan') return;
+    event.preventDefault();
+    start = point(event);
+    drawing = true;
+    if (['text', 'comment', 'stamp'].includes(state.clientPortalTool)) {
+      const text = state.clientPortalTool === 'stamp' ? 'APPROVED' : window.prompt(state.clientPortalTool === 'text' ? 'Text' : 'Comment') || '';
+      if (text) addClientPortalAnnotation(doc, state.clientPortalTool, { ...start, text, label: text });
+      drawing = false;
+      start = null;
+      redrawClientPortalAnnotations(overlay);
+    }
+  };
+  const move = (event) => {
+    if (!drawing || !start || state.clientPortalTool === 'pan') return;
+    event.preventDefault();
+    const current = point(event);
+    redrawClientPortalAnnotations(overlay);
+    drawClientPortalShape(overlay.getContext('2d'), { type: state.clientPortalTool, x: start.x, y: start.y, x2: current.x, y2: current.y, color: state.clientPortalColor, sw: state.clientPortalStroke });
+  };
+  const end = (event) => {
+    if (!drawing || !start || state.clientPortalTool === 'pan') return;
+    event.preventDefault();
+    const current = point(event);
+    addClientPortalAnnotation(doc, state.clientPortalTool, { x: start.x, y: start.y, x2: current.x, y2: current.y });
+    drawing = false;
+    start = null;
+    redrawClientPortalAnnotations(overlay);
+  };
+  overlay.onmousedown = begin;
+  overlay.onmousemove = move;
+  overlay.onmouseup = end;
+  overlay.onmouseleave = end;
+  overlay.ontouchstart = begin;
+  overlay.ontouchmove = move;
+  overlay.ontouchend = end;
+}
+
+function addClientPortalAnnotation(doc, type, points) {
+  const annotation = normalizeClientPortalAnnotation({
+    id: crypto.randomUUID(),
+    company_id: state.clientPortalPublic.portal?.company_id,
+    portal_id: state.clientPortalPublic.portal?.id,
+    document_id: doc.id,
+    page_number: 1,
+    guest_name: state.clientPortalPublic.guestName || 'Guest',
+    annotation_type: type,
+    payload: { type, ...points, color: state.clientPortalColor, sw: state.clientPortalStroke },
+  });
+  state.clientPortalPublic.annotations = (state.clientPortalPublic.annotations || []).concat(annotation);
+  writeJson(CLIENT_PORTAL_SESSION_KEY, state.clientPortalPublic);
+}
+
+function redrawClientPortalAnnotations(overlay) {
+  const ctx = overlay.getContext('2d');
+  ctx.clearRect(0, 0, overlay.width, overlay.height);
+  (state.clientPortalPublic?.annotations || [])
+    .filter((annotation) => annotation.document_id === state.clientPortalPublic.documentId)
+    .forEach((annotation) => drawClientPortalShape(ctx, annotation.payload || {}));
+}
+
+function drawClientPortalShape(ctx, item) {
+  const color = item.color || '#E8611A';
+  const sw = Number(item.sw || 2);
+  ctx.save();
+  ctx.strokeStyle = color;
+  ctx.fillStyle = color;
+  ctx.lineWidth = sw;
+  ctx.lineCap = 'round';
+  const x = Number(item.x || 0);
+  const y = Number(item.y || 0);
+  const x2 = Number(item.x2 || x);
+  const y2 = Number(item.y2 || y);
+  if (item.type === 'rect') ctx.strokeRect(x, y, x2 - x, y2 - y);
+  else if (item.type === 'circle') {
+    ctx.beginPath();
+    ctx.ellipse(x + (x2 - x) / 2, y + (y2 - y) / 2, Math.abs(x2 - x) / 2, Math.abs(y2 - y) / 2, 0, 0, Math.PI * 2);
+    ctx.stroke();
+  } else if (item.type === 'text' || item.type === 'comment' || item.type === 'stamp') {
+    ctx.font = item.type === 'stamp' ? '700 14px Inter, sans-serif' : '600 14px Inter, sans-serif';
+    const text = item.text || item.label || 'Comment';
+    const width = ctx.measureText(text).width + 16;
+    ctx.fillStyle = item.type === 'stamp' ? color : 'rgba(255,255,255,.94)';
+    ctx.strokeStyle = color;
+    ctx.beginPath();
+    if (typeof ctx.roundRect === 'function') ctx.roundRect(x, y - 22, width, 28, 6);
+    else ctx.rect(x, y - 22, width, 28);
+    item.type === 'stamp' ? ctx.fill() : (ctx.fill(), ctx.stroke());
+    ctx.fillStyle = item.type === 'stamp' ? '#fff' : color;
+    ctx.fillText(text, x + 8, y - 4);
+  } else {
+    ctx.beginPath();
+    ctx.moveTo(x, y);
+    ctx.lineTo(x2, y2);
+    ctx.stroke();
+    if (item.type === 'arrow') {
+      const angle = Math.atan2(y2 - y, x2 - x);
+      const head = 12 + sw;
+      ctx.beginPath();
+      ctx.moveTo(x2, y2);
+      ctx.lineTo(x2 - head * Math.cos(angle - Math.PI / 6), y2 - head * Math.sin(angle - Math.PI / 6));
+      ctx.lineTo(x2 - head * Math.cos(angle + Math.PI / 6), y2 - head * Math.sin(angle + Math.PI / 6));
+      ctx.closePath();
+      ctx.fill();
+    }
+    if (item.type === 'measure') {
+      const dist = Math.sqrt((x2 - x) ** 2 + (y2 - y) ** 2);
+      ctx.font = '600 12px JetBrains Mono, monospace';
+      ctx.fillText(`${Math.round(dist)} px`, (x + x2) / 2 + 6, (y + y2) / 2 - 6);
+    }
+  }
+  ctx.restore();
+}
+
+async function exportClientPortalMarkedPdf() {
+  const base = document.getElementById('client-portal-doc-canvas');
+  const overlay = document.getElementById('client-portal-draw-canvas');
+  if (!base || !overlay) throw new Error('Open a document first.');
+  await loadExternalScript('https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js', 'jspdf');
+  const merged = document.createElement('canvas');
+  merged.width = base.width;
+  merged.height = base.height;
+  const ctx = merged.getContext('2d');
+  ctx.drawImage(base, 0, 0);
+  ctx.drawImage(overlay, 0, 0);
+  const pdf = new window.jspdf.jsPDF({ orientation: merged.width > merged.height ? 'l' : 'p', unit: 'px', format: [merged.width, merged.height], compress: true });
+  pdf.addImage(merged.toDataURL('image/jpeg', 0.92), 'JPEG', 0, 0, merged.width, merged.height);
+  pdf.save(`Quest-Portal-Markups-${new Date().toISOString().slice(0, 10)}.pdf`);
+  await fetch('/api/client-portal-export-event', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ session: state.clientPortalPublic?.session, details: { document_id: state.clientPortalPublic?.documentId } }),
+  }).catch(() => null);
+}
+
+function loadExternalScript(src, globalName) {
+  if (window[globalName]) return Promise.resolve();
+  return new Promise((resolve, reject) => {
+    const existing = [...document.scripts].find((script) => script.src === src);
+    if (existing) {
+      existing.addEventListener('load', resolve, { once: true });
+      existing.addEventListener('error', reject, { once: true });
+      return;
+    }
+    const script = document.createElement('script');
+    script.src = src;
+    script.onload = resolve;
+    script.onerror = reject;
+    document.head.appendChild(script);
+  });
+}
+
+function loadClientPortalImage(src) {
+  return new Promise((resolve, reject) => {
+    const image = new Image();
+    image.crossOrigin = 'anonymous';
+    image.onload = () => resolve(image);
+    image.onerror = reject;
+    image.src = src;
+  });
 }
 
 function createDriveFolder(form) {
@@ -11303,6 +12106,7 @@ function updateWorkspaceOnly() {
 function getRoute() {
   const path = appPathname();
   const params = new URLSearchParams(window.location.search);
+  if (path.startsWith('/portal/')) return { name: 'client-portal', path, params, section: 'client-portal', companyId: '', token: decodeURIComponent(path.replace(/^\/portal\//, '')), jobId: '' };
   if (path === '/login') return { name: 'login', path, params, section: '', companyId: '', jobId: '' };
   if (path === '/') return { name: 'home', path, params, section: '', companyId: '', jobId: '' };
   if (path === '/command') return { name: 'command', path, params, section: 'dashboard', companyId: activeCompanyId(), jobId: params.get('job_id') || '' };
@@ -12975,6 +13779,7 @@ function isMutableAction(action = '') {
     'select-form',
     'toggle-form-card',
     'copy-form-link',
+    'copy-client-portal-link',
     'export-forms',
   ]);
   if (safeActions.has(clean)) return false;
@@ -13650,6 +14455,73 @@ function normalizeFormResponse(input) {
     submitted_by: String(input.submitted_by || input.submitter_email || 'Anonymous'),
     submitter_email: String(input.submitter_email || ''),
     answers: input.answers && typeof input.answers === 'object' ? input.answers : {},
+    created_at: input.created_at || new Date().toISOString(),
+  };
+}
+
+function normalizeClientPortal(input) {
+  return {
+    id: String(input.id || crypto.randomUUID()),
+    company_id: canonicalCompanyId(input.company_id || defaultCompanyId()),
+    job_id: String(input.job_id || ''),
+    title: String(input.title || 'Client plan portal').trim() || 'Client plan portal',
+    client_name: String(input.client_name || '').trim(),
+    client_email: String(input.client_email || '').trim(),
+    token_hash: String(input.token_hash || ''),
+    raw_token: String(input.raw_token || ''),
+    password_hash: String(input.password_hash || ''),
+    password_salt: String(input.password_salt || ''),
+    status: ['active', 'revoked', 'archived'].includes(input.status) ? input.status : 'active',
+    created_by: String(input.created_by || ''),
+    last_opened_at: input.last_opened_at || '',
+    revoked_at: input.revoked_at || '',
+    archived_at: input.archived_at || '',
+    created_at: input.created_at || new Date().toISOString(),
+    updated_at: input.updated_at || input.created_at || new Date().toISOString(),
+  };
+}
+
+function normalizeClientPortalDocument(input) {
+  return {
+    id: String(input.id || crypto.randomUUID()),
+    company_id: canonicalCompanyId(input.company_id || defaultCompanyId()),
+    portal_id: String(input.portal_id || ''),
+    bucket_id: String(input.bucket_id || 'quest-client-portal-documents'),
+    object_path: String(input.object_path || ''),
+    file_name: String(input.file_name || 'Plan set.pdf'),
+    mime_type: String(input.mime_type || 'application/octet-stream'),
+    size_bytes: Number(input.size_bytes || 0),
+    page_count: Number(input.page_count || 0) || null,
+    uploaded_by: String(input.uploaded_by || ''),
+    created_at: input.created_at || new Date().toISOString(),
+    updated_at: input.updated_at || input.created_at || new Date().toISOString(),
+  };
+}
+
+function normalizeClientPortalAnnotation(input) {
+  return {
+    id: String(input.id || crypto.randomUUID()),
+    company_id: canonicalCompanyId(input.company_id || defaultCompanyId()),
+    portal_id: String(input.portal_id || ''),
+    document_id: String(input.document_id || ''),
+    page_number: Number(input.page_number || input.page || 1) || 1,
+    guest_name: String(input.guest_name || 'Guest'),
+    annotation_type: String(input.annotation_type || input.type || 'markup'),
+    payload: input.payload && typeof input.payload === 'object' ? input.payload : {},
+    resolved_at: input.resolved_at || '',
+    created_at: input.created_at || new Date().toISOString(),
+    updated_at: input.updated_at || input.created_at || new Date().toISOString(),
+  };
+}
+
+function normalizeClientPortalEvent(input) {
+  return {
+    id: String(input.id || crypto.randomUUID()),
+    company_id: canonicalCompanyId(input.company_id || defaultCompanyId()),
+    portal_id: String(input.portal_id || ''),
+    event_type: String(input.event_type || 'portal.event'),
+    guest_name: String(input.guest_name || ''),
+    details: input.details && typeof input.details === 'object' ? input.details : {},
     created_at: input.created_at || new Date().toISOString(),
   };
 }
@@ -14484,6 +15356,76 @@ function emptyState(text) {
   return `<div class="empty-state">${svgIcon('q-empty', 'empty-symbol')}<span>${h(text)}</span></div>`;
 }
 
+function randomPortalToken(bytes = 24) {
+  const values = new Uint8Array(bytes);
+  crypto.getRandomValues(values);
+  return btoa(String.fromCharCode(...values)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
+
+async function digestHex(value) {
+  const data = new TextEncoder().encode(String(value || ''));
+  const hash = await crypto.subtle.digest('SHA-256', data);
+  return [...new Uint8Array(hash)].map((byte) => byte.toString(16).padStart(2, '0')).join('');
+}
+
+async function pbkdf2Hex(password, salt) {
+  const key = await crypto.subtle.importKey('raw', new TextEncoder().encode(String(password || '')), 'PBKDF2', false, ['deriveBits']);
+  const bits = await crypto.subtle.deriveBits({ name: 'PBKDF2', salt: new TextEncoder().encode(String(salt || '')), iterations: 120000, hash: 'SHA-256' }, key, 256);
+  return [...new Uint8Array(bits)].map((byte) => byte.toString(16).padStart(2, '0')).join('');
+}
+
+function cachedClientPortalToken(portalId) {
+  return String(readJson(CLIENT_PORTAL_TOKEN_CACHE_KEY, {})[portalId] || '');
+}
+
+function cacheClientPortalToken(portalId, token) {
+  if (!portalId || !token) return;
+  const cache = readJson(CLIENT_PORTAL_TOKEN_CACHE_KEY, {});
+  cache[portalId] = token;
+  writeJson(CLIENT_PORTAL_TOKEN_CACHE_KEY, cache);
+}
+
+function clientPortalPayload(portal) {
+  return {
+    id: portal.id,
+    company_id: portal.company_id,
+    job_id: portal.job_id || null,
+    title: portal.title,
+    client_name: portal.client_name || null,
+    client_email: portal.client_email || null,
+    token_hash: portal.token_hash,
+    password_hash: portal.password_hash || null,
+    password_salt: portal.password_salt || null,
+    status: portal.status,
+    created_by: portal.created_by || activeSession().profile.id,
+  };
+}
+
+function clientPortalDocumentPayload(doc) {
+  return {
+    id: doc.id,
+    company_id: doc.company_id,
+    portal_id: doc.portal_id,
+    bucket_id: doc.bucket_id,
+    object_path: doc.object_path,
+    file_name: doc.file_name,
+    mime_type: doc.mime_type,
+    size_bytes: doc.size_bytes,
+    page_count: doc.page_count,
+    uploaded_by: doc.uploaded_by || activeSession().profile.id,
+  };
+}
+
+function upsertClientPortal(portal) {
+  state.clientPortals = [portal].concat(state.clientPortals.filter((item) => item.id !== portal.id));
+  persistAll();
+}
+
+function upsertClientPortalDocument(doc) {
+  state.clientPortalDocuments = [doc].concat(state.clientPortalDocuments.filter((item) => item.id !== doc.id));
+  persistAll();
+}
+
 function copyParams(params, keys) {
   const next = {};
   keys.forEach((key) => {
@@ -14521,6 +15463,10 @@ function persistAll() {
   writeJson(MESSAGE_READ_CACHE_KEY, state.messageReads);
   writeJson(MESSAGE_ATTACHMENT_CACHE_KEY, state.messageAttachments);
   writeJson(CALENDAR_EVENT_CACHE_KEY, state.calendarEvents);
+  writeJson(CLIENT_PORTAL_CACHE_KEY, state.clientPortals);
+  writeJson(CLIENT_PORTAL_DOCUMENT_CACHE_KEY, state.clientPortalDocuments);
+  writeJson(CLIENT_PORTAL_ANNOTATION_CACHE_KEY, state.clientPortalAnnotations);
+  writeJson(CLIENT_PORTAL_EVENT_CACHE_KEY, state.clientPortalEvents);
 }
 
 function persistTimeState() {
@@ -15269,6 +16215,41 @@ function filteredDriveFiles(companyId = activeCompanyId(), folder = 'home', jobI
       .some((value) => String(value || '').toLowerCase().includes(query)));
   }
   return files.sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0));
+}
+
+function companyClientPortals(companyId = activeCompanyId()) {
+  return state.clientPortals.filter((portal) => portal.company_id === companyId);
+}
+
+function filteredClientPortals(companyId = activeCompanyId()) {
+  const query = String(state.clientPortalQuery || '').trim().toLowerCase();
+  let portals = companyClientPortals(companyId);
+  if (query) {
+    portals = portals.filter((portal) => [portal.title, portal.client_name, portal.client_email, jobById(portal.job_id)?.name]
+      .some((value) => String(value || '').toLowerCase().includes(query)));
+  }
+  return portals.sort((a, b) => new Date(b.updated_at || 0) - new Date(a.updated_at || 0));
+}
+
+function clientPortalById(id) {
+  return state.clientPortals.find((portal) => portal.id === id) || null;
+}
+
+function clientPortalDocumentsForPortal(portalId) {
+  return state.clientPortalDocuments.filter((doc) => doc.portal_id === portalId).sort((a, b) => new Date(a.created_at || 0) - new Date(b.created_at || 0));
+}
+
+function clientPortalAnnotationsForPortal(portalId) {
+  return state.clientPortalAnnotations.filter((annotation) => annotation.portal_id === portalId).sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0));
+}
+
+function clientPortalEventsForPortal(portalId) {
+  return state.clientPortalEvents.filter((event) => event.portal_id === portalId).sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0));
+}
+
+function clientPortalPublicLink(portal) {
+  const raw = cachedClientPortalToken(portal?.id) || portal?.raw_token || '';
+  return raw ? `${window.location.origin}${appHref(`/portal/${encodeURIComponent(raw)}`)}` : 'Link token unavailable in this browser';
 }
 
 function fileTypeLabel(file) {
