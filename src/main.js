@@ -2265,7 +2265,6 @@ function shellTemplate(route, workspace) {
           </div>
         </div>
         <div class="topbar-right">
-          ${renderCompanySwitch(companyId, 'topbar-company-indicator', { interactive: false })}
           <label class="global-search">
             ${svgIcon('q-search')}
             <input data-global-search value="${h(state.query)}" placeholder="Search this company" />

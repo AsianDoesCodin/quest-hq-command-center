@@ -93,7 +93,7 @@ test('workspace settings can rename and change one of fifteen icons', () => {
 });
 
 test('workspace switcher lives in the sidebar workspace card, not the top nav', () => {
-  assert.match(source, /renderCompanySwitch\(companyId, 'topbar-company-indicator', \{ interactive: false \}\)/);
+  assert.doesNotMatch(source, /topbar-company-indicator/);
   assert.match(source, /<div class="company-card">\s*\$\{renderCompanySwitch\(companyId, 'deck-company-select'\)\}/);
   assert.match(source, /function renderCompanySwitch\(companyId, extraClass = '', options = \{\}\)/);
   assert.match(source, /const interactive = options\.interactive !== false;/);
