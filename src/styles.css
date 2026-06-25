@@ -12510,6 +12510,26 @@ textarea:focus {
   align-items: center;
 }
 
+.underwriter-table .table-head,
+.underwriter-table .table-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1.35fr) minmax(0, .85fr) minmax(0, .8fr) minmax(0, .7fr) minmax(0, .55fr);
+  gap: 12px;
+  align-items: center;
+}
+
+.underwriter-table .empty-state {
+  min-height: 140px;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.underwriter-table .empty-state span {
+  max-width: 100%;
+  overflow-wrap: anywhere;
+}
+
 /* --- Stage manager modal --- */
 .stage-manager {
   display: grid;
@@ -12595,6 +12615,16 @@ textarea:focus {
     grid-auto-rows: auto;
   }
   .contacts-table .table-row span:nth-child(n+3) {
+    display: none;
+  }
+  .underwriter-table .table-head {
+    display: none;
+  }
+  .underwriter-table .table-row {
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-auto-rows: auto;
+  }
+  .underwriter-table .table-row span:nth-child(n+3) {
     display: none;
   }
 }

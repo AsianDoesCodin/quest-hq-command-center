@@ -3,6 +3,7 @@ import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import test from 'node:test';
 
 const source = readFileSync(new URL('../src/main.js', import.meta.url), 'utf8');
+const styles = readFileSync(new URL('../src/styles.css', import.meta.url), 'utf8');
 const migrationDir = new URL('../supabase/migrations/', import.meta.url);
 const migrationFiles = readdirSync(migrationDir).filter((name) => name.endsWith('.sql')).sort();
 const pluginMigrationName = migrationFiles.find((name) => {
@@ -81,6 +82,16 @@ test('crm 2 plugin adds the underwriter workspace module and migration support',
   assert.match(crm2Migration, /when 'roofing' then array\['crm', 'crm_2', 'files', 'forms', 'finance', 'messages', 'calendar', 'approvals', 'reporting'\]::text\[\]/);
   assert.match(crm2Migration, /when permission like 'underwriter\.%' then 'crm_2'/);
   assert.match(crm2Migration, /select 'lumen', 'crm_2', 'installed'/);
+});
+
+test('underwriter queue uses contact language and a dedicated table layout', () => {
+  assert.match(source, /<p>\$\{visible\.length\} contact\$\{visible\.length === 1 \? '' : 's'\} in this CRM 2 view\.<\/p>/);
+  assert.match(source, /<div class="data-table underwriter-table">/);
+  assert.match(source, /<div class="table-head"><span>Contact<\/span><span>Stage<\/span><span>Owner<\/span><span>Pay type<\/span><span>Value<\/span><\/div>/);
+  assert.match(source, /emptyState\('No contacts match this underwriter stage\.'\)/);
+  assert.doesNotMatch(source, /No leads match this underwriter stage\./);
+  assert.match(styles, /\.underwriter-table \.table-head,[\s\S]*grid-template-columns: minmax\(0, 1\.35fr\) minmax\(0, \.85fr\) minmax\(0, \.8fr\) minmax\(0, \.7fr\) minmax\(0, \.55fr\);/);
+  assert.match(styles, /\.underwriter-table \.empty-state span[\s\S]*overflow-wrap: anywhere;/);
 });
 
 test('plugin migration file exists in migrations directory', () => {

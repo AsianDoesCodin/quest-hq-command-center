@@ -3096,12 +3096,12 @@ function renderUnderwriterPage(route, companyId) {
   const requestedStage = route.params.get('stage') || 'all';
   const stageKeys = new Set(CRM2_UNDERWRITER_STAGES.map((stage) => stage.key));
   const activeStage = stageKeys.has(requestedStage) ? requestedStage : 'all';
-  const leads = companyContacts(companyId)
+  const contacts = companyContacts(companyId)
     .map((contact) => ({ ...contact, underwriter_stage: underwriterStageForContact(contact) }))
     .sort((a, b) => CRM2_UNDERWRITER_STAGES.findIndex((stage) => stage.key === a.underwriter_stage.key) - CRM2_UNDERWRITER_STAGES.findIndex((stage) => stage.key === b.underwriter_stage.key));
-  const visible = activeStage === 'all' ? leads : leads.filter((lead) => lead.underwriter_stage.key === activeStage);
-  const underwriting = leads.filter((lead) => lead.underwriter_stage.key === 'underwriting');
-  const estimates = leads.filter((lead) => ['estimate', 'negotiating'].includes(lead.underwriter_stage.key));
+  const visible = activeStage === 'all' ? contacts : contacts.filter((contact) => contact.underwriter_stage.key === activeStage);
+  const underwriting = contacts.filter((contact) => contact.underwriter_stage.key === 'underwriting');
+  const estimates = contacts.filter((contact) => ['estimate', 'negotiating'].includes(contact.underwriter_stage.key));
   const canManageUnderwriter = can('underwriter.manage', companyId);
   const guide = activeStage === 'all' ? CRM2_UNDERWRITER_GUIDANCE.underwriting : CRM2_UNDERWRITER_GUIDANCE[activeStage];
   return `
@@ -3118,19 +3118,19 @@ function renderUnderwriterPage(route, companyId) {
       </section>
       <section class="pipe-toolbar">
         <div class="pipe-chips" role="group" aria-label="CRM 2 underwriter stage">
-          <a class="pipe-chip ${activeStage === 'all' ? 'on' : ''}" href="${appHref(companyPath('underwriter', {}, companyId))}" data-router>All<b>${h(String(leads.length))}</b></a>
+          <a class="pipe-chip ${activeStage === 'all' ? 'on' : ''}" href="${appHref(companyPath('underwriter', {}, companyId))}" data-router>All<b>${h(String(contacts.length))}</b></a>
           ${CRM2_UNDERWRITER_STAGES.map((stage) => {
-            const count = leads.filter((lead) => lead.underwriter_stage.key === stage.key).length;
+            const count = contacts.filter((contact) => contact.underwriter_stage.key === stage.key).length;
             return `<a class="pipe-chip ${activeStage === stage.key ? 'on' : ''}" href="${appHref(companyPath('underwriter', { stage: stage.key }, companyId))}" data-router>${pipelineDot(stage.color)}${h(stage.name)}<b>${h(String(count))}</b></a>`;
           }).join('')}
         </div>
       </section>
       <section class="home-dashboard-grid">
         <article class="panel home-activity-panel">
-          <div class="section-head"><div><h2>Underwriter queue</h2><p>${visible.length} lead${visible.length === 1 ? '' : 's'} in this CRM 2 view.</p></div></div>
-          <div class="data-table contacts-table">
-            <div class="table-head"><span>Lead</span><span>Stage</span><span>Owner</span><span>Pay type</span><span>Value</span></div>
-            ${visible.map(renderUnderwriterQueueRow).join('') || emptyState('No leads match this underwriter stage.')}
+          <div class="section-head"><div><h2>Underwriter queue</h2><p>${visible.length} contact${visible.length === 1 ? '' : 's'} in this CRM 2 view.</p></div></div>
+          <div class="data-table underwriter-table">
+            <div class="table-head"><span>Contact</span><span>Stage</span><span>Owner</span><span>Pay type</span><span>Value</span></div>
+            ${visible.map(renderUnderwriterQueueRow).join('') || emptyState('No contacts match this underwriter stage.')}
           </div>
         </article>
         <article class="panel home-health-panel">
