@@ -30,9 +30,9 @@ Date: 2026-06-25
 ## Navigation And Routing
 
 - [x] Main sidebar top-level items route correctly.
-- [!] Contacts stage items reproduced the stale-route bug from a contact record: Leads opened, then Nurturing did not change the route before the fix.
+- [x] Contacts stage items route/filter correctly and remain clickable. Reproduced stale-route bug before the fix; post-deploy verification passed for `Leads -> Nurturing`.
 - [x] Quotes stage items route/filter correctly and remain clickable in the current CRM 2 install.
-- [!] Jobs stage items reproduced the stale-route bug: Scheduled opened, then Unscheduled did not change the route before the fix.
+- [x] Jobs stage items route/filter correctly and remain clickable. Reproduced stale-route bug before the fix; post-deploy verification passed for `Scheduled -> Unscheduled`.
 - [x] Direct URL refresh works for Home, Jobs, CRM/Contacts, Messages, Users, Settings, and Plugins.
 - [x] Uninstalled plugin routes show a plugin-not-installed state instead of blank or broken content.
 
@@ -95,6 +95,7 @@ Record failures here during the browser pass:
 - Fix implemented: `setPipelineStage()` now always routes through `navigate(nextPath, ...)`, keeping route params and UI state aligned.
 - Added regression test: `pipeline stage changes update the URL instead of rendering against stale route params`.
 - Verified locally: `node --check src/main.js`, `node --test tests/*.test.mjs`, and `npm run build`.
+- Deployed and verified on production: Contacts `Leads -> Nurturing` and Jobs `Scheduled -> Unscheduled` both updated URL and visible content.
 - Screenshots saved:
   - `exports/qa-messages.png`
   - `exports/qa-plugins.png`
