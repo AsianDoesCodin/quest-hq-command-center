@@ -1,6 +1,6 @@
 # Quest HQ Command Center
 
-Quest HQ is the operations shell for Quest Roofing, Quest Drafting, and Lumen Marketing. It is a single Vite SPA around jobs, clients, module records, and the vendored TaskManagement task engine.
+Quest HQ is the Lumen Command Center SaaS workspace for company operations. It is a single Vite SPA around jobs, contacts, CRM records, files, finance, team access, and the vendored TaskManagement task engine.
 
 The key product boundary is intentional:
 
@@ -61,12 +61,17 @@ npm run preview
 
 Vite only exposes client-side variables that start with `VITE_`. Do not put private Supabase service-role keys or other server secrets in Vite environment variables.
 
-The current SPA keeps Supabase Auth switched off while the shell is stabilized. The temporary local gate uses `lumen123` for both username and password and must be replaced before real customer data is entered.
+Launch defaults use Supabase Auth, a public read-only demo, copy-link invites, and manual workspace approval. Local demo credentials are disabled unless `VITE_LOCAL_LOGIN_ENABLED=true` is set for development.
 
 | Variable | Required | Used by | Notes |
 | --- | --- | --- | --- |
 | `VITE_SUPABASE_URL` | Required for live TaskManagement auth/data | Browser Supabase client | Public project URL for the Command Center-owned Supabase project. |
 | `VITE_SUPABASE_ANON_KEY` | Required for live TaskManagement auth/data | Browser Supabase client | Public anon key protected by Row Level Security policies. |
+| `VITE_QUEST_AUTH_ENABLED` | Recommended | Browser app | Keep `true` for launch so Supabase Auth, memberships, and RLS are used. |
+| `VITE_LOCAL_LOGIN_ENABLED` | No | Browser app | Keep `false` for production. Local demo credentials are development-only. |
+| `VITE_DEMO_MODE_ENABLED` | Recommended | Browser app | Enables the public sample workspace entry point before signup. |
+| `VITE_DEMO_READONLY` | Required for production demo | Browser app | Keep `true` so demo users cannot persist create/edit/delete actions. |
+| `VITE_BILLING_MODE` | Recommended | Browser app | Use `manual` until Stripe checkout and server secrets are configured. |
 
 Local env files such as `.env.local` are ignored by Git. For Vercel, configure these values in the project dashboard under Environment Variables for Preview and Production.
 
@@ -78,7 +83,7 @@ Expected handoff behavior:
 
 ```text
 /login
-  temporary local gate while Supabase Auth is disabled
+  Supabase sign in, workspace creation, invite-code join, and read-only demo access
 
 Quest HQ Operations Command
   opens /jobs?job_id=<job.id>&tab=tasks
@@ -101,22 +106,15 @@ Required data contract:
 
 ## Supabase Notes
 
-The current demo uses Supabase for Jobs, Companies, and Job Files. Other modules remain planned workspaces until their real data model is approved. The broader planned model is documented in [supabase/schema-plan.md](supabase/schema-plan.md).
+The production app uses the Quest HQ Supabase project for Auth, profiles, companies, memberships, subscriptions, roles, jobs, tasks, files, CRM, finance, messages, calendar, and audit data. The public demo is bundled sample data in the browser and must remain read-only; it is not backed by writable production tenant rows.
 
-Current demo project:
+Launch account model:
 
-- Project ref: `lpzotcznihwyyudxycmd`
-- Public URL: `https://lpzotcznihwyyudxycmd.supabase.co`
-- Live tables used by the browser today: `public.jobs`, `public.companies`, `public.job_files`, `public.profiles`, `public.tasks`, `public.team_members`
-- Live storage buckets used by the browser today: `quest-job-files`, `avatars`
-- Reproducible migrations:
-  - `supabase/migrations/202606082049_job_center_demo.sql`
-  - `supabase/migrations/202606101100_job_files_storage.sql`
-  - `supabase/migrations/202606121100_taskmanagement_runtime.sql`
-  - `supabase/migrations/202606121230_quest_profile_avatars.sql`
-  - `supabase/migrations/202606121240_quest_auth_bootstrap.sql`
-
-The public Vercel demo intentionally allows browser writes to `public.jobs`, `public.companies`, `public.job_files`, and Storage objects in `quest-job-files` so the presentation can demonstrate create, edit, upload, download, and delete behavior. Treat this as temporary demo RLS only; production must add Supabase Auth, company memberships, and scoped write policies before real customer data is entered.
+- `info@lumenmarketingusa.com` is the Lumen platform Owner after signup.
+- New signups start neutral unless they create a workspace or accept an invite.
+- Workspace creation produces an Owner membership and a `pending_review` subscription.
+- Platform approval uses `app_private.platform_admins`, not a global demo developer role.
+- Invites are copy-link/code in v1. Automatic email delivery is not active.
 
 File Center notes:
 

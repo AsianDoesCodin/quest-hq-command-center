@@ -5,8 +5,11 @@ const CONFIG = {
   buildId: 'Quest HQ Company Workspace v1',
   questAuthEnabled: import.meta.env.VITE_QUEST_AUTH_ENABLED !== 'false',
   localLoginEnabled: import.meta.env.VITE_LOCAL_LOGIN_ENABLED === 'true',
-  localUsername: import.meta.env.VITE_LOCAL_LOGIN_USERNAME || 'lumen123',
-  localPassword: import.meta.env.VITE_LOCAL_LOGIN_PASSWORD || 'lumen123',
+  demoModeEnabled: import.meta.env.VITE_DEMO_MODE_ENABLED !== 'false',
+  demoReadonly: import.meta.env.VITE_DEMO_READONLY !== 'false',
+  billingMode: import.meta.env.VITE_BILLING_MODE || 'manual',
+  localUsername: import.meta.env.VITE_LOCAL_LOGIN_USERNAME || 'local-demo',
+  localPassword: import.meta.env.VITE_LOCAL_LOGIN_PASSWORD || 'local-demo',
   supabaseUrl: import.meta.env.VITE_SUPABASE_URL || 'https://rqundirizvojpzhljtdn.supabase.co',
   supabaseKey: import.meta.env.VITE_SUPABASE_ANON_KEY || 'sb_publishable_2WrlRVv2obg2N5g7ifl7Rg_wxGjs29U',
   stripePriceId: import.meta.env.VITE_STRIPE_PRICE_ID || '',
@@ -21,8 +24,8 @@ const ACCOUNT_CACHE_KEY = 'quest-hq-account-cache-v1';
 const DEAL_CACHE_KEY = 'quest-hq-deal-cache-v1';
 const ACTIVITY_CACHE_KEY = 'quest-hq-activity-cache-v1';
 const JOB_STAGES_KEY = 'quest-hq-job-stages-v1';
-const CONTACT_STAGES_KEY = 'quest-hq-contact-stages-v1';
-const DEAL_STAGES_KEY = 'quest-hq-deal-stages-v1';
+const CONTACT_STAGES_KEY = 'quest-hq-contact-stages-v3';
+const DEAL_STAGES_KEY = 'quest-hq-quote-stages-v2';
 const DEAL_BOARD_VIEW_KEY = 'quest-hq-deal-board-view';
 const TASK_CACHE_KEY = 'quest-hq-task-cache-v1';
 const FILE_CACHE_KEY = 'quest-hq-file-cache-v1';
@@ -53,12 +56,18 @@ const MESSAGE_CACHE_KEY = 'quest-hq-message-cache-v1';
 const MESSAGE_READ_CACHE_KEY = 'quest-hq-message-read-cache-v1';
 const MESSAGE_ATTACHMENT_CACHE_KEY = 'quest-hq-message-attachment-cache-v1';
 const CALENDAR_EVENT_CACHE_KEY = 'quest-hq-calendar-event-cache-v1';
+const CLIENT_PORTAL_CACHE_KEY = 'quest-hq-client-portal-cache-v1';
+const CLIENT_PORTAL_DOCUMENT_CACHE_KEY = 'quest-hq-client-portal-document-cache-v1';
+const CLIENT_PORTAL_ANNOTATION_CACHE_KEY = 'quest-hq-client-portal-annotation-cache-v1';
+const CLIENT_PORTAL_EVENT_CACHE_KEY = 'quest-hq-client-portal-event-cache-v1';
+const CLIENT_PORTAL_SESSION_KEY = 'quest-client-portal-session-v1';
+const CLIENT_PORTAL_TOKEN_CACHE_KEY = 'quest-client-portal-token-cache-v1';
 
 const ROLE_PERMISSIONS = {
   developer: ['*'],
   admin: ['*'],
   owner: ['*'],
-  manager: ['jobs.view', 'jobs.manage', 'tasks.view', 'tasks.manage', 'files.view', 'files.manage', 'forms.view', 'forms.manage', 'finance.view', 'team.view', 'clock.manage', 'approvals.manage', 'approvals.view', 'calendar.view', 'calendar.manage', 'calendar.view_team', 'users.view', 'settings.view', 'billing.view', 'roles.view', 'messages.view', 'messages.send', 'messages.create_group', 'messages.manage_groups', 'messages.attach_files'],
+  manager: ['jobs.view', 'jobs.manage', 'tasks.view', 'tasks.manage', 'files.view', 'files.manage', 'forms.view', 'forms.manage', 'crm.view', 'underwriter.view', 'underwriter.manage', 'finance.view', 'team.view', 'clock.manage', 'approvals.manage', 'approvals.view', 'calendar.view', 'calendar.manage', 'calendar.view_team', 'users.view', 'settings.view', 'billing.view', 'roles.view', 'messages.view', 'messages.send', 'messages.create_group', 'messages.manage_groups', 'messages.attach_files', 'client_portals.view', 'client_portals.manage'],
   member: ['jobs.view', 'tasks.view', 'tasks.manage', 'files.view', 'forms.view', 'time.track', 'approvals.view', 'calendar.view', 'users.view', 'messages.view', 'messages.send', 'messages.attach_files'],
 };
 
@@ -72,12 +81,16 @@ const PERMISSION_KEYS = [
   ['forms.view', 'View forms'],
   ['forms.manage', 'Create/edit forms'],
   ['crm.view', 'View CRM'],
+  ['underwriter.view', 'View underwriter'],
+  ['underwriter.manage', 'Manage underwriter'],
   ['finance.view', 'View finance'],
   ['finance.manage', 'Create/edit finance'],
   ['users.view', 'View users'],
   ['users.manage', 'Invite/manage users'],
   ['roles.view', 'View roles'],
   ['roles.manage', 'Create/edit roles'],
+  ['plugins.view', 'View plugins'],
+  ['plugins.manage', 'Install/disable plugins'],
   ['billing.view', 'View billing'],
   ['billing.manage', 'Manage subscription'],
   ['settings.view', 'View settings'],
@@ -97,6 +110,8 @@ const PERMISSION_KEYS = [
   ['messages.delete_own', 'Delete own messages'],
   ['messages.delete_any', 'Delete any messages'],
   ['messages.manage', 'Manage messages (compatibility)'],
+  ['client_portals.view', 'View client portals'],
+  ['client_portals.manage', 'Manage client portals'],
 ];
 
 const PERMISSION_ALIASES = {
@@ -104,23 +119,74 @@ const PERMISSION_ALIASES = {
   'messages.manage_groups': ['messages.manage'],
 };
 
+const CORE_MODULE_IDS = new Set(['home', 'jobs', 'tasks', 'users', 'settings']);
+const WORKSPACE_PLUGIN_REGISTRY = [
+  { id: 'crm', label: 'CRM', summary: 'Accounts, contacts, quotes, and customer activity.', icon: 'ti-building-community', module_ids: ['crm', 'contacts', 'deals'], permissions: ['crm.view'], exclusiveGroup: 'crm' },
+  { id: 'crm_2', label: 'CRM 2', summary: 'Contacts, quotes, and production jobs workspace.', icon: 'ti-id-badge-2', module_ids: ['contacts', 'deals', 'jobs'], permissions: ['crm.view'], exclusiveGroup: 'crm' },
+  { id: 'underwriter', label: 'Underwriter', summary: 'Qualification, scope, pricing, and handoff readiness queue.', icon: 'ti-clipboard-search', module_ids: ['underwriter'], permissions: ['underwriter.view', 'underwriter.manage'], recommendedWith: ['crm_2'] },
+  { id: 'files', label: 'Files', summary: 'Shared files, job folders, and document storage.', icon: 'ti-folder', module_ids: ['files'], permissions: ['files.view', 'files.manage'] },
+  { id: 'client_portal', label: 'Client Portal', summary: 'Password-protected plan links, markups, comments, and client review.', icon: 'ti-world-upload', module_ids: ['client-portals'], permissions: ['client_portals.view', 'client_portals.manage'], recommendedWith: ['files'] },
+  { id: 'forms', label: 'Forms', summary: 'Internal forms, templates, and response capture.', icon: 'ti-clipboard-list', module_ids: ['forms'], permissions: ['forms.view', 'forms.manage'] },
+  { id: 'finance', label: 'Finance', summary: 'Invoices, payments, expenses, vendors, and AR.', icon: 'ti-receipt-dollar', module_ids: ['finance'], permissions: ['finance.view', 'finance.manage'] },
+  { id: 'messages', label: 'Messages', summary: 'Company chats, role rooms, direct messages, and attachments.', icon: 'ti-messages', module_ids: ['messages'], permissions: ['messages.view', 'messages.send', 'messages.create_group', 'messages.manage_groups', 'messages.attach_files', 'messages.delete_own', 'messages.delete_any', 'messages.manage'] },
+  { id: 'calendar', label: 'Calendar', summary: 'Company schedule, task deadlines, and manual events.', icon: 'ti-calendar', module_ids: ['calendar'], permissions: ['calendar.view', 'calendar.manage', 'calendar.view_team'] },
+  { id: 'time_clock', label: 'Time & clock', summary: 'Personal time queues and clock dashboard.', icon: 'ti-clock-hour-4', module_ids: ['time', 'clock'], permissions: ['time.track', 'clock.manage'] },
+  { id: 'approvals', label: 'Approvals', summary: 'Review queues for handoffs, forms, and access.', icon: 'ti-user-check', module_ids: ['approvals'], permissions: ['approvals.view', 'approvals.manage'] },
+  { id: 'reporting', label: 'Reporting', summary: 'Analytics and team chart views.', icon: 'ti-chart-bar', module_ids: ['analytics', 'team-chart'], permissions: ['team.view'] },
+  { id: 'tickets', label: 'Tickets', summary: 'Future service and issue tracking module.', icon: 'ti-ticket', module_ids: ['tickets'], permissions: [], comingSoon: true },
+  { id: 'knowledge', label: 'Knowledge Base', summary: 'Future company knowledge and SOP library.', icon: 'ti-books', module_ids: ['knowledge'], permissions: [], comingSoon: true },
+  { id: 'automations', label: 'Automations', summary: 'Future no-code workflow automations.', icon: 'ti-automation', module_ids: ['automations'], permissions: [], comingSoon: true },
+  { id: 'templates', label: 'Templates', summary: 'Future reusable workspace templates.', icon: 'ti-template', module_ids: ['templates'], permissions: [], comingSoon: true },
+  { id: 'team_workload', label: 'Team workload', summary: 'Future workload planning board.', icon: 'ti-users', module_ids: ['team-workload'], permissions: [], comingSoon: true },
+];
+const WORKSPACE_PLUGIN_PRESETS = {
+  roofing: ['crm_2', 'underwriter', 'files', 'forms', 'finance', 'messages', 'calendar', 'approvals', 'reporting'],
+  construction: ['files', 'forms', 'finance', 'messages', 'calendar', 'time_clock', 'approvals', 'reporting'],
+  generic: ['crm', 'files', 'messages'],
+};
+const WORKSPACE_PLUGIN_PRESET_LABELS = {
+  roofing: 'Roofing',
+  construction: 'Construction',
+  generic: 'Generic services',
+};
+const WORKSPACE_SELF_CREATE_LIMIT = 3;
+const WORKSPACE_ICON_OPTIONS = [
+  { key: 'home', icon: 'ti-home', label: 'Home' },
+  { key: 'building', icon: 'ti-building', label: 'Building' },
+  { key: 'briefcase', icon: 'ti-briefcase', label: 'Briefcase' },
+  { key: 'tools', icon: 'ti-tools', label: 'Tools' },
+  { key: 'hammer', icon: 'ti-hammer', label: 'Hammer' },
+  { key: 'helmet', icon: 'ti-helmet', label: 'Helmet' },
+  { key: 'ruler', icon: 'ti-ruler-measure', label: 'Ruler' },
+  { key: 'truck', icon: 'ti-truck', label: 'Truck' },
+  { key: 'users', icon: 'ti-users', label: 'Users' },
+  { key: 'messages', icon: 'ti-messages', label: 'Messages' },
+  { key: 'calendar', icon: 'ti-calendar', label: 'Calendar' },
+  { key: 'folder', icon: 'ti-folder', label: 'Folder' },
+  { key: 'chart', icon: 'ti-chart-bar', label: 'Chart' },
+  { key: 'shield', icon: 'ti-shield-check', label: 'Shield' },
+  { key: 'star', icon: 'ti-star', label: 'Star' },
+];
+
 const MODULE_REGISTRY = [
   { id: 'home', group: 'Workspace', label: 'Home', icon: 'ti-home', symbol: 'q-logo', status: 'live', permission: '' },
-  { id: 'jobs', group: 'Workspace', label: 'Jobs', icon: 'ti-briefcase', symbol: 'q-symbol-jobs', status: 'live', permission: 'jobs.view' },
-  { id: 'tasks', group: 'Workspace', label: 'Tasks', icon: 'ti-list-check', symbol: 'q-symbol-tasks', status: 'live', permission: 'tasks.view' },
+  { id: 'jobs', group: 'Production', label: 'Jobs', icon: 'ti-hammer', symbol: 'q-symbol-jobs', status: 'live', permission: 'jobs.view' },
+  { id: 'tasks', group: 'Work', label: 'My tasks', icon: 'ti-list-check', symbol: 'q-symbol-tasks', status: 'live', permission: 'tasks.view' },
   { id: 'files', group: 'Workspace', label: 'Files', icon: 'ti-folder', symbol: 'q-symbol-files', status: 'live', permission: 'files.view' },
   { id: 'forms', group: 'Workspace', label: 'Forms', icon: 'ti-clipboard-list', symbol: 'q-symbol-forms', status: 'live', permission: 'forms.view' },
+  { id: 'client-portals', group: 'Workspace', label: 'Client portals', icon: 'ti-world-upload', symbol: 'q-symbol-files', status: 'live', permission: 'client_portals.view' },
   { id: 'analytics', group: 'Workspace', label: 'Analytics', icon: 'ti-chart-bar', symbol: 'q-symbol-analytics', status: 'live', permission: 'jobs.view' },
   { id: 'crm', group: 'Workspace', label: 'Accounts', icon: 'ti-building-community', symbol: 'q-symbol-crm', status: 'live', permission: 'crm.view' },
-  { id: 'contacts', group: 'Workspace', label: 'Contacts', icon: 'ti-address-book', symbol: 'q-symbol-crm', status: 'live', permission: 'crm.view' },
-  { id: 'deals', group: 'Workspace', label: 'Deals', icon: 'ti-businessplan', symbol: 'q-symbol-jobs', status: 'live', permission: 'crm.view' },
+  { id: 'contacts', group: 'Contacts · Top of Funnel', label: 'Contacts', icon: 'ti-id-badge-2', symbol: 'q-symbol-crm', status: 'live', permission: 'crm.view' },
+  { id: 'deals', group: 'Quotes · Bottom of Funnel', label: 'Quotes', icon: 'ti-briefcase', symbol: 'q-symbol-jobs', status: 'live', permission: 'crm.view' },
+  { id: 'underwriter', group: 'Workspace', label: 'Underwriter', icon: 'ti-clipboard-search', symbol: 'q-symbol-crm', status: 'live', permission: 'underwriter.view' },
   { id: 'tickets', group: 'Workspace', label: 'Tickets', icon: 'ti-ticket', symbol: 'q-symbol-tickets', status: 'planned' },
   { id: 'finance', group: 'Workspace', label: 'Finance', icon: 'ti-receipt-dollar', symbol: 'q-symbol-finance', status: 'live', permission: 'finance.view' },
   { id: 'knowledge', group: 'Workspace', label: 'Knowledge Base', icon: 'ti-books', symbol: 'q-symbol-knowledge', status: 'planned' },
   { id: 'automations', group: 'Workspace', label: 'Automations', icon: 'ti-automation', symbol: 'q-symbol-automations', status: 'planned' },
   { id: 'templates', group: 'Workspace', label: 'Templates', icon: 'ti-template', symbol: 'q-symbol-templates', status: 'planned' },
   { id: 'users', group: 'Company', label: 'Users', icon: 'ti-users', symbol: 'q-symbol-users', status: 'live', permission: 'users.view' },
-  { id: 'messages', group: 'Company', label: 'Messages', icon: 'ti-messages', symbol: 'q-symbol-messages', status: 'live', permission: 'messages.view' },
+  { id: 'messages', group: 'Communication', label: 'Messages', icon: 'ti-messages', symbol: 'q-symbol-messages', status: 'live', permission: 'messages.view' },
   { id: 'settings', group: 'Company', label: 'Settings', icon: 'ti-settings', symbol: 'q-symbol-settings', status: 'live', permission: 'settings.view' },
   { id: 'team-chart', group: 'Company', label: 'Team chart', icon: 'ti-hierarchy-3', symbol: 'q-symbol-team-chart', status: 'live', permission: 'team.view' },
   { id: 'time', group: 'Operations', label: 'My time', icon: 'ti-clock', symbol: 'q-symbol-time', status: 'live', permission: 'time.track' },
@@ -131,11 +197,13 @@ const MODULE_REGISTRY = [
 ];
 
 const NAV_GROUPS = [
-  { label: 'Command', ids: ['home', 'messages', 'calendar'] },
-  { label: 'Sales', ids: ['crm', 'contacts', 'deals'] },
-  { label: 'Work', ids: ['jobs', 'tasks', 'files', 'forms'] },
-  { label: 'Money', ids: ['finance', 'analytics'] },
-  { label: 'People', ids: ['users', 'team-chart', 'time', 'approvals', 'clock'] },
+  { label: 'Work', ids: ['home', 'tasks', 'underwriter'] },
+  { label: 'Communication', ids: ['messages', 'calendar'] },
+  { label: 'Contacts · Top of Funnel', ids: ['contacts'] },
+  { label: 'Quotes · Bottom of Funnel', ids: ['deals'] },
+  { label: 'Production', ids: ['jobs'] },
+  { label: 'Estimating', ids: ['finance', 'files', 'forms', 'client-portals'] },
+  { label: 'Review', ids: ['analytics', 'users', 'team-chart', 'time', 'approvals', 'clock'] },
   { label: 'Control', ids: ['settings'] },
   { label: 'Future', ids: ['tickets', 'knowledge', 'automations', 'templates', 'team-workload'] },
 ];
@@ -149,6 +217,7 @@ const LEGACY_ROUTE_SECTIONS = {
   '/files.html': 'files',
   '/finance.html': 'finance',
   '/forms.html': 'forms',
+  '/underwriter.html': 'underwriter',
   '/jobs.html': 'jobs',
   '/knowledge.html': 'knowledge',
   '/messages.html': 'messages',
@@ -157,9 +226,9 @@ const LEGACY_ROUTE_SECTIONS = {
 };
 
 // Pipeline stages are customizable placeholder "groups" the client can edit.
-// Each stage is { name, color }. The job pipeline (production) and the contact
-// pipeline (sales) each have their own editable list, persisted to localStorage.
-const DEFAULT_JOB_STAGES = [
+// Each stage is { name, color }. Contacts, quotes, and jobs each keep their own
+// editable list, persisted to localStorage.
+const CRM1_JOB_STAGES = [
   { name: 'Unscheduled', color: '#9AA0A8' },
   { name: 'Scheduled', color: '#378ADD' },
   { name: 'Material ordered', color: '#3C7BD0' },
@@ -169,18 +238,18 @@ const DEFAULT_JOB_STAGES = [
   { name: 'Paid / closed', color: '#639922' },
   { name: 'On hold', color: '#C4C7CC' },
 ];
+const CRM2_JOB_STAGES = [
+  { name: 'Unscheduled', color: '#9AA0A8' },
+  { name: 'Scheduled', color: '#378ADD' },
+  { name: 'Material Ordered', color: '#3C7BD0' },
+  { name: 'In Production', color: '#BA7517' },
+];
 const DEFAULT_CONTACT_STAGES = [
   { name: 'Prospects', color: '#9AA0A8' },
   { name: 'Leads', color: '#378ADD' },
-  { name: 'Underwriting', color: '#BA7517' },
-  { name: 'Estimate sent', color: '#3C7BD0' },
-  { name: 'Negotiating', color: '#C08A2B' },
-  { name: 'Contract out', color: '#7F77DD' },
-  { name: 'Won', color: '#639922' },
-  { name: 'Follow-up', color: '#C4C7CC' },
-  { name: 'Lost', color: '#E24B4A' },
+  { name: 'Nurturing', color: '#5AB0A6' },
 ];
-const DEFAULT_DEAL_STAGES = [
+const CRM1_DEAL_STAGES = [
   { name: 'Prospect', color: '#9AA0A8' },
   { name: 'Qualified', color: '#378ADD' },
   { name: 'Proposal sent', color: '#3C7BD0' },
@@ -189,16 +258,27 @@ const DEFAULT_DEAL_STAGES = [
   { name: 'Won', color: '#639922' },
   { name: 'Lost', color: '#E24B4A' },
 ];
+const CRM2_DEAL_STAGES = [
+  { name: 'Underwriting', color: '#BA7517' },
+  { name: 'Estimate Sent', color: '#3C7BD0' },
+  { name: 'Negotiating', color: '#C08A2B' },
+  { name: 'Contract Sent', color: '#7F77DD' },
+  { name: 'Waiting to Sign', color: '#7067CF' },
+  { name: 'Won', color: '#639922' },
+];
+const DEFAULT_JOB_STAGES = CRM1_JOB_STAGES;
+const DEFAULT_DEAL_STAGES = CRM1_DEAL_STAGES;
 const STAGE_COLOR_PALETTE = ['#9AA0A8', '#378ADD', '#BA7517', '#7F77DD', '#639922', '#E24B4A', '#3C7BD0', '#C08A2B', '#5AB0A6', '#C4C7CC'];
 const TEMPERATURES = ['Hot', 'Warm', 'Cold'];
 const CONTACT_GUIDANCE = [
   { match: /prospect/i, t: 'Work the prospect.', b: ['Where did this lead come from?', 'Best way to reach them — call, text, email?', 'Is there a real project here, or just looking?', 'Get them into a real conversation.'] },
+  { match: /contact/i, t: 'Keep the conversation moving.', b: ['Did you reach the decision maker?', 'What is the preferred next touch?', 'Is there enough detail to hand this into estimating?', 'Set the follow-up before you leave the record.'] },
   { match: /lead/i, t: 'Qualify the lead.', b: ['Have you confirmed the decision maker(s)?', 'Is this an insurance claim or retail pay?', "What's the roof age, system, and visible damage?", "What's their timeline to start?"] },
   { match: /nurtur|follow/i, t: 'Keep it warm.', b: ['When did you last touch base?', 'What are they waiting on to move forward?', "Set a follow-up cadence so they don't go cold.", 'Send value — photos, tips, financing options.'] },
   { match: /underwrit/i, t: 'Scope it and price it.', b: ['Is the takeoff / measurements done?', 'If insurance — do you have the carrier scope?', 'Are material selections confirmed?', 'Is the margin target set on the estimate?'] },
   { match: /estimate/i, t: 'Present the estimate.', b: ['Has the proposal been sent?', 'Did you walk them through Standard vs Recommended?', 'What objections came up?', 'Is the follow-up scheduled?'] },
   { match: /negotiat/i, t: 'Close the deal.', b: ['Are all outstanding questions answered?', 'Are all decision makers on board?', 'Do you need a discount or incentive?', 'Ask for the signature.'] },
-  { match: /contract/i, t: 'Get it signed.', b: ['Is the contract out for signature?', 'Has the deposit been collected?', 'Is the start date set?', 'Hand off the details to production.'] },
+  { match: /contract|sign/i, t: 'Get it signed.', b: ['Is the contract out for signature?', 'Has the deposit been collected?', 'Is the start date set?', 'Hand off the details to production.'] },
   { match: /won/i, t: 'Won — convert to a job.', b: ['Schedule the build and assign a crew.', 'Order materials from your vendors.', 'Confirm the scope with the customer.', 'Hit Convert to Job to move it to production.'] },
   { match: /lost/i, t: 'Lost — capture why.', b: ['Log the reason this fell through.', 'Is there a future opportunity to nurture later?', 'Anything to learn for the next bid?'] },
 ];
@@ -227,6 +307,46 @@ function loadStageList(key, defaults) {
     .filter((stage) => stage.name);
 }
 
+function canonicalContactStageName(value) {
+  const raw = String(value || '').trim();
+  if (!raw) return '';
+  const aliases = {
+    prospect: 'Prospects',
+    prospects: 'Prospects',
+    contacted: 'Leads',
+    lead: 'Leads',
+    leads: 'Leads',
+    nurturing: 'Nurturing',
+    underwriting: 'Nurturing',
+    'estimate sent': 'Nurturing',
+    'proposal sent': 'Nurturing',
+    negotiating: 'Nurturing',
+    negotiation: 'Nurturing',
+    'contract out': 'Nurturing',
+    'contract sent': 'Nurturing',
+    'waiting to sign': 'Nurturing',
+    won: 'Nurturing',
+    'follow-up': 'Nurturing',
+    lost: 'Nurturing',
+  };
+  return aliases[raw.toLowerCase()] || raw;
+}
+
+function normalizeContactStageList(rows, fallback = DEFAULT_CONTACT_STAGES) {
+  const defaultsByName = new Map(fallback.map((stage) => [stage.name, stage]));
+  const output = [];
+  const seen = new Set();
+  rows.forEach((row) => {
+    const name = canonicalContactStageName(row?.name);
+    if (!name || seen.has(name)) return;
+    const fallbackStage = defaultsByName.get(name);
+    const color = fallbackStage?.color || (/^#[0-9a-fA-F]{3,8}$/.test(String(row?.color || '')) ? row.color : '#9AA0A8');
+    output.push({ name, color });
+    seen.add(name);
+  });
+  return output.length ? output : fallback.map((stage) => ({ ...stage }));
+}
+
 let JOB_STAGES = loadStageList(JOB_STAGES_KEY, DEFAULT_JOB_STAGES);
 let CONTACT_STAGES = loadStageList(CONTACT_STAGES_KEY, DEFAULT_CONTACT_STAGES);
 let DEAL_STAGES = loadStageList(DEAL_STAGES_KEY, DEFAULT_DEAL_STAGES);
@@ -240,8 +360,38 @@ function dealStageNames() { return DEAL_STAGES.map((stage) => stage.name); }
 function jobStageColor(name) { return (JOB_STAGES.find((stage) => stage.name === name) || {}).color || '#9AA0A8'; }
 function contactStageColor(name) { return (CONTACT_STAGES.find((stage) => stage.name === name) || {}).color || '#9AA0A8'; }
 function dealStageColor(name) { return (DEAL_STAGES.find((stage) => stage.name === name) || {}).color || '#9AA0A8'; }
-function pipelineStages(kind) { return kind === 'contacts' ? CONTACT_STAGES : kind === 'deals' ? DEAL_STAGES : JOB_STAGES; }
-function pipelineStageColor(kind, name) { return kind === 'contacts' ? contactStageColor(name) : kind === 'deals' ? dealStageColor(name) : jobStageColor(name); }
+function activeCrmPluginId(companyId = activeCompanyId()) {
+  if (isPluginInstalled(companyId, 'crm_2')) return 'crm_2';
+  if (isPluginInstalled(companyId, 'crm')) return 'crm';
+  return 'crm';
+}
+function pipelineStages(kind, companyId = activeCompanyId()) {
+  if (kind === 'contacts') return CONTACT_STAGES;
+  if (activeCrmPluginId(companyId) === 'crm_2') return kind === 'deals' ? CRM2_DEAL_STAGES : CRM2_JOB_STAGES;
+  return kind === 'deals' ? DEAL_STAGES : JOB_STAGES;
+}
+function pipelineStageColor(kind, name, companyId = activeCompanyId()) {
+  return (pipelineStages(kind, companyId).find((stage) => stage.name === name) || {}).color || '#9AA0A8';
+}
+function resolvePipelineStage(kind, value, companyId = activeCompanyId()) {
+  const stages = pipelineStages(kind, companyId);
+  const names = stages.map((stage) => stage.name);
+  const raw = String(value || '').trim();
+  if (names.includes(raw)) return raw;
+  const lower = raw.toLowerCase();
+  const aliases = {
+    'material ordered': 'Material Ordered',
+    'in production': 'In Production',
+    'estimate sent': 'Estimate Sent',
+    'proposal sent': activeCrmPluginId(companyId) === 'crm_2' ? 'Estimate Sent' : 'Proposal sent',
+    negotiating: activeCrmPluginId(companyId) === 'crm_2' ? 'Negotiating' : 'Negotiation',
+    negotiation: activeCrmPluginId(companyId) === 'crm_2' ? 'Negotiating' : 'Negotiation',
+    'contract out': 'Contract Sent',
+    'contract sent': 'Contract Sent',
+    'waiting to sign': 'Waiting to Sign',
+  };
+  return names.includes(aliases[lower]) ? aliases[lower] : names[0];
+}
 
 function resolveJobStage(value) {
   const names = jobStageNames();
@@ -254,13 +404,25 @@ function resolveContactStage(value) {
   const names = contactStageNames();
   const raw = String(value || '').trim();
   if (names.includes(raw)) return raw;
+  const legacy = canonicalContactStageName(raw);
+  if (names.includes(legacy)) return legacy;
   return names[0] || 'Prospects';
 }
 function resolveDealStage(value) {
   const names = dealStageNames();
   const raw = String(value || '').trim();
   if (names.includes(raw)) return raw;
-  return names[0] || 'Prospect';
+  const legacy = {
+    Prospect: 'Underwriting',
+    Qualified: 'Underwriting',
+    'Proposal sent': 'Estimate Sent',
+    Negotiation: 'Negotiating',
+    'Verbal commit': 'Waiting to Sign',
+    Won: 'Won',
+    Lost: 'Negotiating',
+  }[raw];
+  if (legacy && names.includes(legacy)) return legacy;
+  return names[0] || 'Underwriting';
 }
 
 function persistJobStages() { JOB_STAGES = JOB_STAGES.filter((stage) => stage.name); writeJson(JOB_STAGES_KEY, JOB_STAGES); }
@@ -377,12 +539,12 @@ const contactsFallback = [
   { id: 'contact-2', company_id: 'roofing', name: 'Valerie McKenzie', phone: '602-750-5678', email: '', location: '6054 E Blanche Dr, Scottsdale', stage: 'Prospects', value: 0, owner_name: 'Maya Rosales' },
   { id: 'contact-3', company_id: 'roofing', name: 'April Reyes', phone: '480-277-1540', email: '', location: '451 E 10th Ave, Mesa', stage: 'Leads', value: 14500, owner_name: 'Andre Lee' },
   { id: 'contact-4', company_id: 'roofing', name: 'Mario Esquivel', phone: '480-955-4036', email: 'esquivel@residence.com', location: 'Costa Bella Residence', stage: 'Leads', value: 22000, owner_name: 'Maya Rosales' },
-  { id: 'contact-5', company_id: 'roofing', name: 'Mike - Maricopa', phone: '503-317-4788', email: '', location: 'Maricopa', stage: 'Underwriting', value: 31000, owner_name: 'Andre Lee' },
-  { id: 'contact-6', company_id: 'roofing', name: 'Kumar Residence', phone: '', email: '', location: '16750 E Nicklaus Dr, Fountain Hills', stage: 'Estimate sent', value: 47800, owner_name: 'Maya Rosales' },
-  { id: 'contact-7', company_id: 'roofing', name: 'Keith Salas', phone: '717-991-7029', email: '', location: '15948 E Sycamore', stage: 'Negotiating', value: 28900, owner_name: 'Andre Lee' },
-  { id: 'contact-8', company_id: 'roofing', name: 'Brad Lundstrom', phone: '602-577-9523', email: 'lundstromdesign@gmail.com', location: '3200 W Wander Ln', stage: 'Contract out', value: 53200, owner_name: 'Abraham Flores' },
-  { id: 'contact-9', company_id: 'roofing', name: 'Rosa Cruz-Blanch', phone: '787-549-0942', email: 'rcruz@natlbtr.com', location: 'W Encanto Blvd', stage: 'Won', value: 61000, owner_name: 'Maya Rosales' },
-  { id: 'contact-10', company_id: 'drafting', name: 'Horizon HVAC', phone: '480-555-0199', email: 'plans@horizonhvac.com', location: 'Chandler, AZ', stage: 'Estimate sent', value: 4200, owner_name: 'Noah Park', account_id: 'account-3', title: 'Facilities lead' },
+  { id: 'contact-5', company_id: 'roofing', name: 'Mike - Maricopa', phone: '503-317-4788', email: '', location: 'Maricopa', stage: 'Nurturing', value: 31000, owner_name: 'Andre Lee' },
+  { id: 'contact-6', company_id: 'roofing', name: 'Kumar Residence', phone: '', email: '', location: '16750 E Nicklaus Dr, Fountain Hills', stage: 'Nurturing', value: 47800, owner_name: 'Maya Rosales' },
+  { id: 'contact-7', company_id: 'roofing', name: 'Keith Salas', phone: '717-991-7029', email: '', location: '15948 E Sycamore', stage: 'Leads', value: 28900, owner_name: 'Andre Lee' },
+  { id: 'contact-8', company_id: 'roofing', name: 'Brad Lundstrom', phone: '602-577-9523', email: 'lundstromdesign@gmail.com', location: '3200 W Wander Ln', stage: 'Nurturing', value: 53200, owner_name: 'Abraham Flores' },
+  { id: 'contact-9', company_id: 'roofing', name: 'Rosa Cruz-Blanch', phone: '787-549-0942', email: 'rcruz@natlbtr.com', location: 'W Encanto Blvd', stage: 'Leads', value: 61000, owner_name: 'Maya Rosales' },
+  { id: 'contact-10', company_id: 'drafting', name: 'Horizon HVAC', phone: '480-555-0199', email: 'plans@horizonhvac.com', location: 'Chandler, AZ', stage: 'Nurturing', value: 4200, owner_name: 'Noah Park', account_id: 'account-3', title: 'Facilities lead' },
 ];
 
 const accountsFallback = [
@@ -392,10 +554,10 @@ const accountsFallback = [
 ];
 
 const dealsFallback = [
-  { id: 'deal-1', company_id: 'roofing', account_id: 'account-1', primary_contact_id: 'contact-9', name: 'Encanto re-roof', stage: 'Verbal commit', status: 'open', value: 61000, probability: 80, owner_name: 'Maya Rosales', source: 'Referral' },
-  { id: 'deal-2', company_id: 'roofing', account_id: 'account-2', primary_contact_id: '', name: 'Mesa membrane repair', stage: 'Proposal sent', status: 'open', value: 18400, probability: 50, owner_name: 'Andre Lee', source: 'Website' },
-  { id: 'deal-3', company_id: 'roofing', account_id: 'account-1', primary_contact_id: 'contact-7', name: 'Sycamore tear-off', stage: 'Negotiation', status: 'open', value: 28900, probability: 60, owner_name: 'Andre Lee', source: 'Door knock' },
-  { id: 'deal-4', company_id: 'drafting', account_id: 'account-3', primary_contact_id: 'contact-10', name: 'Permit drawing package', stage: 'Qualified', status: 'open', value: 4200, probability: 40, owner_name: 'Noah Park', source: 'Partner' },
+  { id: 'deal-1', company_id: 'roofing', account_id: 'account-1', primary_contact_id: 'contact-9', name: 'Encanto re-roof', stage: 'Waiting to Sign', status: 'open', value: 61000, probability: 80, owner_name: 'Maya Rosales', source: 'Referral' },
+  { id: 'deal-2', company_id: 'roofing', account_id: 'account-2', primary_contact_id: '', name: 'Mesa membrane repair', stage: 'Estimate Sent', status: 'open', value: 18400, probability: 50, owner_name: 'Andre Lee', source: 'Website' },
+  { id: 'deal-3', company_id: 'roofing', account_id: 'account-1', primary_contact_id: 'contact-7', name: 'Sycamore tear-off', stage: 'Negotiating', status: 'open', value: 28900, probability: 60, owner_name: 'Andre Lee', source: 'Door knock' },
+  { id: 'deal-4', company_id: 'drafting', account_id: 'account-3', primary_contact_id: 'contact-10', name: 'Permit drawing package', stage: 'Underwriting', status: 'open', value: 4200, probability: 40, owner_name: 'Noah Park', source: 'Partner' },
 ];
 
 const activitiesFallback = [
@@ -1169,11 +1331,22 @@ const state = {
   messageReads: readSeededList(MESSAGE_READ_CACHE_KEY, messageReadsFallback).map(normalizeMessageRead),
   messageAttachments: readSeededList(MESSAGE_ATTACHMENT_CACHE_KEY, messageAttachmentsFallback).map(normalizeMessageAttachment),
   calendarEvents: readSeededList(CALENDAR_EVENT_CACHE_KEY, calendarEventsFallback).map(normalizeCalendarEvent),
+  clientPortals: readSeededList(CLIENT_PORTAL_CACHE_KEY, []).map(normalizeClientPortal),
+  clientPortalDocuments: readSeededList(CLIENT_PORTAL_DOCUMENT_CACHE_KEY, []).map(normalizeClientPortalDocument),
+  clientPortalAnnotations: readSeededList(CLIENT_PORTAL_ANNOTATION_CACHE_KEY, []).map(normalizeClientPortalAnnotation),
+  clientPortalEvents: readSeededList(CLIENT_PORTAL_EVENT_CACHE_KEY, []).map(normalizeClientPortalEvent),
+  clientPortalPublic: readJson(CLIENT_PORTAL_SESSION_KEY, null),
+  clientPortalTool: 'pan',
+  clientPortalColor: '#E8611A',
+  clientPortalStroke: 2,
   timeEntries: readJson(TIME_ENTRY_CACHE_KEY, []),
   activeTimer: readJson(ACTIVE_TIMER_KEY, null),
   teamMembers: readSeededList(TEAM_CACHE_KEY, teamMembersFallback).map(normalizeTeamMember),
   memberships: readSeededList(MEMBERSHIP_CACHE_KEY, membershipsFallback),
   profiles: [],
+  platformAdmin: false,
+  platformCompanies: [],
+  platformCompanyMembers: [],
   subscriptions: [],
   workspaceReviews: [],
   roles: [],
@@ -1184,6 +1357,8 @@ const state = {
   companyInvites: [],
   joinRequests: [],
   auditEvents: [],
+  companyPlugins: [],
+  pluginLoadFailed: false,
   companies: mergeCompanies(companiesFallback.map(normalizeCompany)),
   activeCompanyId: localStorage.getItem(COMPANY_KEY) || '',
   sidebarCollapsed: localStorage.getItem(SIDEBAR_COLLAPSED_KEY) === 'true',
@@ -1209,6 +1384,7 @@ const state = {
   selectedTaskId: '',
   selectedFileId: '',
   selectedFormId: '',
+  selectedClientPortalId: '',
   selectedQuestionId: '',
   selectedFinanceInvoiceId: '',
   selectedFinanceExpenseId: '',
@@ -1221,6 +1397,7 @@ const state = {
   query: '',
   fileQuery: '',
   formQuery: '',
+  clientPortalQuery: '',
   crmQuery: '',
   stageFilter: 'all',
   crmStageFilter: 'all',
@@ -1254,6 +1431,7 @@ const state = {
   modal: '',
   accountMenuOpen: false,
   notificationMenuOpen: false,
+  workspaceMenuOpen: false,
   mobileMenuOpen: false,
   rolePreview: null,
 };
@@ -1294,7 +1472,6 @@ async function initializeAuth() {
     await setSupabaseSession(data?.session || null);
     client.auth.onAuthStateChange((_event, session) => {
       setSupabaseSession(session || null).finally(() => {
-        state.dataLoaded = false;
         render();
       });
     });
@@ -1310,13 +1487,30 @@ async function setSupabaseSession(session) {
   if (!CONFIG.questAuthEnabled) return;
   if (!session?.user) {
     state.session = null;
+    resetLiveWorkspaceData();
+    state.dataLoaded = false;
     localStorage.removeItem(SESSION_KEY);
     return;
   }
   const profile = await fetchSupabaseProfile(session.user);
-  state.session = buildSupabaseSession(session, profile);
-  resetLiveWorkspaceData();
+  const nextSession = buildSupabaseSession(session, profile);
+  const shouldReloadWorkspace = shouldReloadWorkspaceForSession(state.session, nextSession);
+  state.session = nextSession;
+  if (shouldReloadWorkspace) {
+    resetLiveWorkspaceData();
+    state.dataLoaded = false;
+  }
   writeJson(SESSION_KEY, state.session);
+}
+
+function shouldReloadWorkspaceForSession(previousSession, nextSession) {
+  if (!previousSession || previousSession.auth !== 'supabase') return true;
+  if (!nextSession || nextSession.auth !== 'supabase') return true;
+  if (previousSession?.user?.id !== nextSession?.user?.id) return true;
+  if (previousSession?.profile?.member_id !== nextSession?.profile?.member_id) return true;
+  if (previousSession?.profile?.role !== nextSession?.profile?.role) return true;
+  if (previousSession?.profile?.approved !== nextSession?.profile?.approved) return true;
+  return JSON.stringify(previousSession?.profile?.company_ids || []) !== JSON.stringify(nextSession?.profile?.company_ids || []);
 }
 
 async function fetchSupabaseProfile(user) {
@@ -1357,6 +1551,13 @@ function render() {
     return;
   }
 
+  if (state.route.name === 'client-portal') {
+    document.title = 'Client portal | Quest HQ';
+    app.innerHTML = renderClientPortalPublicPage(state.route);
+    queueMicrotask(() => mountClientPortalViewer().catch((error) => console.warn('Client portal viewer failed', error)));
+    return;
+  }
+
   if (needsLocalLogin(state.route)) {
     navigate('/login?return_url=' + encodeURIComponent(currentAppUrl()), { replace: true });
     return;
@@ -1380,7 +1581,32 @@ function render() {
   app.innerHTML = shellTemplate(state.route, renderWorkspace(state.route));
 }
 
+function workspacePresetSelect(selected = 'generic') {
+  return `
+    <label>Company type
+      <select name="preset_code">
+        ${Object.keys(WORKSPACE_PLUGIN_PRESETS).map((presetCode) => `
+          <option value="${h(presetCode)}" ${presetCode === selected ? 'selected' : ''}>${h(WORKSPACE_PLUGIN_PRESET_LABELS[presetCode] || titleCase(presetCode))}</option>
+        `).join('')}
+      </select>
+    </label>
+  `;
+}
+
+function workspaceIconSelect(selected = 'home') {
+  const activeIcon = workspaceIconOption(selected).key;
+  return `
+    <label>Workspace icon
+      <select name="icon_key">
+        ${WORKSPACE_ICON_OPTIONS.map((item) => `<option value="${h(item.key)}" ${item.key === activeIcon ? 'selected' : ''}>${h(item.label)}</option>`).join('')}
+      </select>
+    </label>
+  `;
+}
+
 function renderNoCompanyAccess() {
+  const busy = /creating|joining|opening/i.test(state.authMessage || '');
+  const canCreate = canCreateAnotherWorkspace();
   document.title = 'Company access pending | Quest HQ';
   app.innerHTML = `
     <main class="login-shell">
@@ -1402,8 +1628,10 @@ function renderNoCompanyAccess() {
             </div>
             <form data-company-create-form>
               <label>Company workspace<input name="company_name" placeholder="Example Roofing LLC" required /></label>
-              <button class="btn btn-primary full" type="submit">Create business workspace</button>
-              <div class="form-message">You become Owner, then Quest approves access before live modules open.</div>
+              ${workspacePresetSelect()}
+              ${workspaceIconSelect()}
+              <button class="btn btn-primary full" type="submit" ${busy || !canCreate ? 'disabled' : ''}>${busy ? 'Creating workspace...' : 'Create business workspace'}</button>
+              ${state.loginError ? `<div class="form-message error">${h(state.loginError)}</div>` : `<div class="form-message">${h(state.authMessage || `${workspaceLimitMessage()} You become Owner, then Quest approves access before live modules open.`)}</div>`}
             </form>
           </article>
           <article class="login-lane-card">
@@ -1449,8 +1677,12 @@ function ensureDataLoad() {
   if (state.dataLoaded || state.dataLoading) return;
   state.dataLoading = true;
   loadSupabaseData()
-    .catch(() => {
-      state.sync = { label: 'Local fallback', mode: 'local' };
+    .catch(async (error) => {
+      console.warn('Workspace data load failed', error);
+      if (state.session?.auth === 'supabase') {
+        await loadSupabaseBootstrapData().catch((bootstrapError) => console.warn('Workspace bootstrap load failed', bootstrapError));
+      }
+      if (state.sync.mode === 'loading') state.sync = { label: 'Local fallback', mode: 'local' };
     })
     .finally(() => {
       state.dataLoaded = true;
@@ -1461,8 +1693,8 @@ function ensureDataLoad() {
 }
 
 async function loadSupabaseData() {
-  if (state.session?.auth === 'local-basic') {
-    state.sync = { label: 'Demo mode', mode: 'local' };
+  if (state.session?.auth === 'local-basic' || state.session?.auth === 'demo-readonly') {
+    state.sync = { label: isReadOnlyDemo() ? 'Read-only demo' : 'Demo mode', mode: 'local' };
     return;
   }
   const client = createSupabaseClient();
@@ -1504,6 +1736,12 @@ async function loadSupabaseData() {
     accountsResult,
     dealsResult,
     activitiesResult,
+    companyPluginsResult,
+    clientPortalsResult,
+    clientPortalDocumentsResult,
+    clientPortalAnnotationsResult,
+    clientPortalEventsResult,
+    platformAdminResult,
   ] = await Promise.all([
     client.from('companies').select('*').order('name', { ascending: true }),
     client.from('jobs').select('*').order('updated_at', { ascending: false }),
@@ -1537,6 +1775,12 @@ async function loadSupabaseData() {
     client.from('accounts').select('*').order('name', { ascending: true }),
     client.from('deals').select('*').order('updated_at', { ascending: false }),
     client.from('activities').select('*').order('created_at', { ascending: false }).limit(500),
+    safeSupabaseQuery(client.from('company_plugins').select('*')),
+    safeSupabaseQuery(client.from('client_portals').select('*').order('updated_at', { ascending: false })),
+    safeSupabaseQuery(client.from('client_portal_documents').select('*').order('created_at', { ascending: false })),
+    safeSupabaseQuery(client.from('client_portal_annotations').select('*').order('created_at', { ascending: true })),
+    safeSupabaseQuery(client.from('client_portal_events').select('*').order('created_at', { ascending: false }).limit(500)),
+    safeSupabaseQuery(client.rpc('is_platform_admin')),
   ]);
 
   let liveTables = 0;
@@ -1616,9 +1860,44 @@ async function loadSupabaseData() {
   if (!activitiesResult.error) {
     state.activities = (activitiesResult.data || []).map(normalizeActivity);
   }
+  if (!companyPluginsResult.error) {
+    state.companyPlugins = (companyPluginsResult.data || []).map(normalizeCompanyPlugin);
+    state.pluginLoadFailed = false;
+  } else {
+    state.pluginLoadFailed = true;
+  }
+  if (!clientPortalsResult.error) state.clientPortals = (clientPortalsResult.data || []).map(normalizeClientPortal);
+  if (!clientPortalDocumentsResult.error) state.clientPortalDocuments = (clientPortalDocumentsResult.data || []).map(normalizeClientPortalDocument);
+  if (!clientPortalAnnotationsResult.error) state.clientPortalAnnotations = (clientPortalAnnotationsResult.data || []).map(normalizeClientPortalAnnotation);
+  if (!clientPortalEventsResult.error) state.clientPortalEvents = (clientPortalEventsResult.data || []).map(normalizeClientPortalEvent);
+  state.platformAdmin = !platformAdminResult.error && platformAdminResult.data === true;
 
-  if (isQuestDeveloper()) {
-    const reviewsResult = await client.rpc('list_workspace_reviews').catch((error) => ({ error }));
+  if (state.platformAdmin) {
+    const [platformCompaniesResult, platformMembersResult] = await Promise.all([
+      safeSupabaseQuery(client.rpc('list_platform_companies')),
+      safeSupabaseQuery(client.rpc('list_platform_company_members', { target_company_id: null })),
+    ]);
+    if (!platformCompaniesResult.error) {
+      state.platformCompanies = (platformCompaniesResult.data || []).map(normalizePlatformCompany);
+      state.workspaceReviews = state.platformCompanies.map(normalizeWorkspaceReview);
+      state.companies = mergeCompanies(state.companies.concat(state.platformCompanies.map((company) => normalizeCompany({
+        id: company.company_id,
+        name: company.company_name,
+        short_name: company.short_name || company.company_name,
+        color: company.color,
+        label: company.label,
+        pill: company.pill,
+        icon_key: company.icon_key,
+      }))));
+      state.subscriptions = mergeSubscriptions(state.subscriptions.concat(state.platformCompanies.map(normalizeSubscription)));
+    }
+    if (!platformMembersResult.error) {
+      state.platformCompanyMembers = (platformMembersResult.data || []).map(normalizePlatformCompanyMember);
+    }
+  }
+
+  if (isQuestDeveloper() && !state.platformCompanies.length) {
+    const reviewsResult = await safeSupabaseQuery(client.rpc('list_workspace_reviews'));
     if (!reviewsResult.error) {
       state.workspaceReviews = (reviewsResult.data || []).map(normalizeWorkspaceReview);
       const reviewCompanies = state.workspaceReviews.map((review) => normalizeCompany({
@@ -1644,12 +1923,83 @@ async function loadSupabaseData() {
   state.sync = liveTables ? { label: 'Quest Supabase live', mode: 'live' } : { label: 'Local fallback', mode: 'local' };
 }
 
+async function loadSupabaseBootstrapData() {
+  if (state.session?.auth !== 'supabase') return;
+  const client = createSupabaseClient();
+  if (!client) return;
+  const profile = activeSession().profile;
+  const [membershipsResult, profileResult, platformAdminResult] = await Promise.all([
+    safeSupabaseQuery(client.from('company_memberships').select('*').eq('profile_id', profile.id)),
+    safeSupabaseQuery(client.from('profiles').select('*').eq('id', profile.id).maybeSingle()),
+    safeSupabaseQuery(client.rpc('is_platform_admin')),
+  ]);
+  if (!profileResult.error && profileResult.data) {
+    const nextProfile = normalizeProfile(profileResult.data, profile);
+    state.session = { ...activeSession(), profile: nextProfile };
+    writeJson(SESSION_KEY, state.session);
+  }
+  if (!membershipsResult.error) {
+    const ownMemberships = (membershipsResult.data || []).map(normalizeMembership);
+    state.memberships = ownMemberships.concat(state.memberships.filter((item) => item.profile_id !== profile.id));
+  }
+  state.platformAdmin = !platformAdminResult.error && platformAdminResult.data === true;
+  const companyIds = compactUnique(state.memberships
+    .filter((item) => item.profile_id === activeSession().profile.id && item.status === 'active')
+    .map((item) => item.company_id)
+    .concat(activeSession().profile.company_ids || []));
+  if (companyIds.length) {
+    const [companiesResult, subscriptionsResult, rolesResult, rolePermissionsResult, roleAssignmentsResult, companyPluginsResult] = await Promise.all([
+      safeSupabaseQuery(client.from('companies').select('*').in('id', companyIds)),
+      safeSupabaseQuery(client.from('company_subscriptions').select('*').in('company_id', companyIds)),
+      safeSupabaseQuery(client.from('roles').select('*').in('company_id', companyIds)),
+      safeSupabaseQuery(client.from('role_permissions').select('*')),
+      safeSupabaseQuery(client.from('user_role_assignments').select('*').in('company_id', companyIds)),
+      safeSupabaseQuery(client.from('company_plugins').select('*').in('company_id', companyIds)),
+    ]);
+    if (!companiesResult.error) state.companies = mergeCompanies(state.companies.concat((companiesResult.data || []).map(normalizeCompany)));
+    if (!subscriptionsResult.error) state.subscriptions = mergeSubscriptions(state.subscriptions.concat((subscriptionsResult.data || []).map(normalizeSubscription)));
+    if (!rolesResult.error) state.roles = mergeRoles(state.roles.concat((rolesResult.data || []).map(normalizeRole)));
+    if (!rolePermissionsResult.error) state.rolePermissions = (rolePermissionsResult.data || []).map(normalizeRolePermission);
+    if (!roleAssignmentsResult.error) state.roleAssignments = (roleAssignmentsResult.data || []).map(normalizeRoleAssignment);
+    if (!companyPluginsResult.error) {
+      state.companyPlugins = mergeCompanyPlugins(state.companyPlugins.concat((companyPluginsResult.data || []).map(normalizeCompanyPlugin)));
+      state.pluginLoadFailed = false;
+    } else {
+      state.pluginLoadFailed = true;
+    }
+  }
+  if (state.platformAdmin) {
+    const [platformCompaniesResult, platformMembersResult] = await Promise.all([
+      safeSupabaseQuery(client.rpc('list_platform_companies')),
+      safeSupabaseQuery(client.rpc('list_platform_company_members', { target_company_id: null })),
+    ]);
+    if (!platformCompaniesResult.error) {
+      state.platformCompanies = (platformCompaniesResult.data || []).map(normalizePlatformCompany);
+      state.companies = mergeCompanies(state.companies.concat(state.platformCompanies.map((company) => normalizeCompany({
+        id: company.company_id,
+        name: company.company_name,
+        short_name: company.short_name || company.company_name,
+        color: company.color,
+        label: company.label,
+        pill: company.pill,
+      }))));
+      state.subscriptions = mergeSubscriptions(state.subscriptions.concat(state.platformCompanies.map(normalizeSubscription)));
+    }
+    if (!platformMembersResult.error) state.platformCompanyMembers = (platformMembersResult.data || []).map(normalizePlatformCompanyMember);
+  }
+  state.sync = { label: 'Quest Supabase limited', mode: 'live' };
+}
+
 function createSupabaseClient() {
   if (!window.supabase || typeof window.supabase.createClient !== 'function') return null;
   if (!supabaseClientCache) {
     supabaseClientCache = window.supabase.createClient(CONFIG.supabaseUrl, CONFIG.supabaseKey);
   }
   return supabaseClientCache;
+}
+
+function safeSupabaseQuery(query) {
+  return Promise.resolve(query).catch((error) => ({ error }));
 }
 
 function resetLiveWorkspaceData() {
@@ -1670,11 +2020,18 @@ function resetLiveWorkspaceData() {
   state.messageReads = [];
   state.messageAttachments = [];
   state.calendarEvents = [];
+  state.clientPortals = [];
+  state.clientPortalDocuments = [];
+  state.clientPortalAnnotations = [];
+  state.clientPortalEvents = [];
   state.timeEntries = [];
   state.activeTimer = null;
   state.teamMembers = [];
   state.memberships = [];
   state.profiles = [];
+  state.platformAdmin = false;
+  state.platformCompanies = [];
+  state.platformCompanyMembers = [];
   state.subscriptions = [];
   state.workspaceReviews = [];
   state.roles = [];
@@ -1685,33 +2042,48 @@ function resetLiveWorkspaceData() {
   state.companyInvites = [];
   state.joinRequests = [];
   state.auditEvents = [];
+  state.companyPlugins = [];
+  state.pluginLoadFailed = false;
   state.companies = [];
   state.sync = { label: 'Loading secure workspace...', mode: 'loading' };
 }
 
 function resetDemoWorkspaceData() {
-  state.jobs = readSeededList(JOB_CACHE_KEY, jobsFallback).map(normalizeJob);
-  state.tasks = readSeededList(TASK_CACHE_KEY, tasksFallback).map(normalizeTask);
-  state.files = readSeededList(FILE_CACHE_KEY, filesFallback).map(normalizeFile);
-  state.driveFolders = readSeededList(DRIVE_FOLDER_CACHE_KEY, []).map(normalizeDriveFolder);
-  state.forms = readSeededList(FORM_CACHE_KEY, formsFallback).map(normalizeForm);
-  state.formResponses = readSeededList(FORM_RESPONSE_CACHE_KEY, formResponsesFallback).map(normalizeFormResponse);
-  state.financeInvoices = readSeededList(FINANCE_INVOICE_CACHE_KEY, financeInvoicesFallback).map(normalizeFinanceInvoice);
-  state.financePayments = readSeededList(FINANCE_PAYMENT_CACHE_KEY, financePaymentsFallback).map(normalizeFinancePayment);
-  state.financeExpenses = readSeededList(FINANCE_EXPENSE_CACHE_KEY, financeExpensesFallback).map(normalizeFinanceExpense);
-  state.financeVendors = readSeededList(FINANCE_VENDOR_CACHE_KEY, financeVendorsFallback).map(normalizeFinanceVendor);
-  state.notifications = readSeededList(NOTIFICATION_CACHE_KEY, notificationsFallback).map(normalizeNotification);
-  state.messageConversations = readSeededList(MESSAGE_CONVERSATION_CACHE_KEY, messageConversationsFallback).map(normalizeMessageConversation);
-  state.messageAccess = readSeededList(MESSAGE_ACCESS_CACHE_KEY, messageAccessFallback).map(normalizeMessageAccess);
-  state.messages = readSeededList(MESSAGE_CACHE_KEY, messagesFallback).map(normalizeMessage);
-  state.messageReads = readSeededList(MESSAGE_READ_CACHE_KEY, messageReadsFallback).map(normalizeMessageRead);
-  state.messageAttachments = readSeededList(MESSAGE_ATTACHMENT_CACHE_KEY, messageAttachmentsFallback).map(normalizeMessageAttachment);
-  state.calendarEvents = readSeededList(CALENDAR_EVENT_CACHE_KEY, calendarEventsFallback).map(normalizeCalendarEvent);
-  state.timeEntries = readJson(TIME_ENTRY_CACHE_KEY, []);
-  state.activeTimer = readJson(ACTIVE_TIMER_KEY, null);
-  state.teamMembers = readSeededList(TEAM_CACHE_KEY, teamMembersFallback).map(normalizeTeamMember);
-  state.memberships = readSeededList(MEMBERSHIP_CACHE_KEY, membershipsFallback);
+  const readDemoList = isReadOnlyDemo() ? ((_key, fallback) => (Array.isArray(fallback) ? fallback : [])) : readSeededList;
+  const readDemoJson = isReadOnlyDemo() ? ((_key, fallback) => fallback) : readJson;
+  state.jobs = readDemoList(JOB_CACHE_KEY, jobsFallback).map(normalizeJob);
+  state.contacts = readDemoList(CONTACT_CACHE_KEY, contactsFallback).map(normalizeContact);
+  state.accounts = readDemoList(ACCOUNT_CACHE_KEY, accountsFallback).map(normalizeAccount);
+  state.deals = readDemoList(DEAL_CACHE_KEY, dealsFallback).map(normalizeDeal);
+  state.activities = readDemoList(ACTIVITY_CACHE_KEY, activitiesFallback).map(normalizeActivity);
+  state.tasks = readDemoList(TASK_CACHE_KEY, tasksFallback).map(normalizeTask);
+  state.files = readDemoList(FILE_CACHE_KEY, filesFallback).map(normalizeFile);
+  state.driveFolders = readDemoList(DRIVE_FOLDER_CACHE_KEY, []).map(normalizeDriveFolder);
+  state.forms = readDemoList(FORM_CACHE_KEY, formsFallback).map(normalizeForm);
+  state.formResponses = readDemoList(FORM_RESPONSE_CACHE_KEY, formResponsesFallback).map(normalizeFormResponse);
+  state.financeInvoices = readDemoList(FINANCE_INVOICE_CACHE_KEY, financeInvoicesFallback).map(normalizeFinanceInvoice);
+  state.financePayments = readDemoList(FINANCE_PAYMENT_CACHE_KEY, financePaymentsFallback).map(normalizeFinancePayment);
+  state.financeExpenses = readDemoList(FINANCE_EXPENSE_CACHE_KEY, financeExpensesFallback).map(normalizeFinanceExpense);
+  state.financeVendors = readDemoList(FINANCE_VENDOR_CACHE_KEY, financeVendorsFallback).map(normalizeFinanceVendor);
+  state.notifications = readDemoList(NOTIFICATION_CACHE_KEY, notificationsFallback).map(normalizeNotification);
+  state.messageConversations = readDemoList(MESSAGE_CONVERSATION_CACHE_KEY, messageConversationsFallback).map(normalizeMessageConversation);
+  state.messageAccess = readDemoList(MESSAGE_ACCESS_CACHE_KEY, messageAccessFallback).map(normalizeMessageAccess);
+  state.messages = readDemoList(MESSAGE_CACHE_KEY, messagesFallback).map(normalizeMessage);
+  state.messageReads = readDemoList(MESSAGE_READ_CACHE_KEY, messageReadsFallback).map(normalizeMessageRead);
+  state.messageAttachments = readDemoList(MESSAGE_ATTACHMENT_CACHE_KEY, messageAttachmentsFallback).map(normalizeMessageAttachment);
+  state.calendarEvents = readDemoList(CALENDAR_EVENT_CACHE_KEY, calendarEventsFallback).map(normalizeCalendarEvent);
+  state.clientPortals = readDemoList(CLIENT_PORTAL_CACHE_KEY, []).map(normalizeClientPortal);
+  state.clientPortalDocuments = readDemoList(CLIENT_PORTAL_DOCUMENT_CACHE_KEY, []).map(normalizeClientPortalDocument);
+  state.clientPortalAnnotations = readDemoList(CLIENT_PORTAL_ANNOTATION_CACHE_KEY, []).map(normalizeClientPortalAnnotation);
+  state.clientPortalEvents = readDemoList(CLIENT_PORTAL_EVENT_CACHE_KEY, []).map(normalizeClientPortalEvent);
+  state.timeEntries = readDemoJson(TIME_ENTRY_CACHE_KEY, []);
+  state.activeTimer = readDemoJson(ACTIVE_TIMER_KEY, null);
+  state.teamMembers = readDemoList(TEAM_CACHE_KEY, teamMembersFallback).map(normalizeTeamMember);
+  state.memberships = readDemoList(MEMBERSHIP_CACHE_KEY, membershipsFallback);
   state.profiles = [];
+  state.platformAdmin = false;
+  state.platformCompanies = [];
+  state.platformCompanyMembers = [];
   state.subscriptions = [];
   state.workspaceReviews = [];
   state.roles = [];
@@ -1722,8 +2094,10 @@ function resetDemoWorkspaceData() {
   state.companyInvites = [];
   state.joinRequests = [];
   state.auditEvents = [];
+  state.companyPlugins = demoCompanyPluginRows();
+  state.pluginLoadFailed = false;
   state.companies = mergeCompanies(companiesFallback.map(normalizeCompany));
-  state.sync = { label: 'Demo mode', mode: 'local' };
+  state.sync = { label: isReadOnlyDemo() ? 'Read-only demo' : 'Demo mode', mode: 'local' };
 }
 
 function renderSvgSprite() {
@@ -1883,12 +2257,60 @@ function metricSymbol(label) {
   return moduleSymbol();
 }
 
+function renderCompanySwitch(companyId, extraClass = '', options = {}) {
+  const companies = allowedCompanies();
+  const current = companies.find((company) => company.id === companyId) || companyById(companyId) || companies[0] || {};
+  const menuCompanies = companies.filter((company) => company.id === current.id).concat(companies.filter((company) => company.id !== current.id));
+  const interactive = options.interactive !== false;
+  const deckMode = extraClass.split(' ').includes('deck-company-select');
+  const className = ['company-switch', extraClass, companies.length <= 1 ? 'single-company' : ''].filter(Boolean).join(' ');
+  if (companies.length <= 1 || !interactive) {
+    return `
+      <div class="${h(className)}" aria-label="Active company">
+        ${workspaceIconMarkup(current)}
+        <span class="company-switch-copy"><strong>${h(companyLabel(current))}</strong>${deckMode ? `<small>${h(roleForCompany(companyId))} workspace</small>` : ''}</span>
+      </div>
+    `;
+  }
+  if (deckMode) {
+    return `
+      <div class="${h(className)} workspace-menu ${state.workspaceMenuOpen ? 'open' : ''}">
+        <button class="workspace-menu-trigger" type="button" data-action="toggle-workspace-menu" aria-label="Switch workspace" aria-expanded="${state.workspaceMenuOpen ? 'true' : 'false'}">
+          ${workspaceIconMarkup(current)}
+          <span class="company-switch-copy">
+            <strong>${h(companyLabel(current))}</strong>
+            <small>${h(roleForCompany(companyId))} workspace</small>
+          </span>
+          <i class="ti ti-chevron-down"></i>
+        </button>
+        <div class="workspace-menu-popover">
+          ${menuCompanies.map((company) => `
+            <button class="workspace-menu-option ${company.id === companyId ? 'active' : ''}" type="button" data-action="select-workspace" data-company-id="${h(company.id)}">
+              ${workspaceIconMarkup(company)}
+              <span><strong>${h(companyLabel(company))}</strong><small>${h(roleForCompany(company.id))} workspace</small></span>
+              ${company.id === companyId ? '<i class="ti ti-check"></i>' : ''}
+            </button>
+          `).join('')}
+        </div>
+      </div>
+    `;
+  }
+  return `
+    <label class="${h(className)}">
+      ${workspaceIconMarkup(current)}
+      <select data-company-switch aria-label="Active company">
+        ${companies.map((company) => `<option value="${h(company.id)}" ${company.id === companyId ? 'selected' : ''}>${h(companyLabel(company))}</option>`).join('')}
+      </select>
+    </label>
+  `;
+}
+
 function shellTemplate(route, workspace) {
   const session = activeSession();
   const companyId = activeCompanyId();
   const emailVerified = isSessionEmailVerified(session);
   return `
-    <div class="quest-app ${state.sidebarCollapsed ? 'sidebar-collapsed' : ''}" data-route="${h(route.name)}">
+    <div class="quest-app ${state.sidebarCollapsed ? 'sidebar-collapsed' : ''}" data-route="${h(route.name)}" data-section="${h(route.section || '')}">
       ${renderSvgSprite()}
       <header class="topbar">
         <div class="topbar-left">
@@ -1901,12 +2323,6 @@ function shellTemplate(route, workspace) {
           </div>
         </div>
         <div class="topbar-right">
-          <label class="company-switch">
-            ${svgIcon('q-company')}
-            <select data-company-switch aria-label="Active company">
-              ${allowedCompanies().map((company) => `<option value="${h(company.id)}" ${company.id === companyId ? 'selected' : ''}>${h(companyLabel(company))}</option>`).join('')}
-            </select>
-          </label>
           <label class="global-search">
             ${svgIcon('q-search')}
             <input data-global-search value="${h(state.query)}" placeholder="Search this company" />
@@ -1934,6 +2350,7 @@ function shellTemplate(route, workspace) {
         </div>
       </header>
       ${renderMobileStatusRail(companyId)}
+      ${renderReadOnlyDemoBanner()}
       ${renderRolePreviewBanner(companyId)}
       <div class="app-body">
         <aside class="deck" aria-label="Quest navigation">
@@ -1974,15 +2391,18 @@ function renderMobileStatusRail(companyId) {
 }
 
 function renderMobileTabbar(route, companyId) {
-  const unreadMessages = can('messages.view', companyId) ? companyMessageUnreadCount(companyId) : 0;
-  const files = can('files.view', companyId) ? companyFiles(companyId).length : '';
+  const showMessages = isModuleInstalled('messages', companyId) && can('messages.view', companyId);
+  const showFiles = isModuleInstalled('files', companyId) && can('files.view', companyId);
+  const unreadMessages = showMessages ? companyMessageUnreadCount(companyId) : 0;
+  const files = showFiles ? companyFiles(companyId).length : '';
   const workBadge = companyJobs(companyId).length + companyTasks(companyId).filter((task) => task.status !== 'done').length;
+  const workSections = installedModulesForMobileWork(companyId);
   return `
     <nav class="mobile-tabbar" aria-label="Mobile workspace navigation">
       ${mobileTabItem(route, companyPath('home', {}, companyId), 'ti-home', 'Home', '', ['home'])}
-      ${mobileTabItem(route, companyPath('jobs', {}, companyId), 'ti-layout-grid', 'Work', workBadge, ['jobs', 'tasks', 'calendar', 'crm', 'finance', 'forms', 'users', 'time', 'approvals', 'clock', 'team-chart'])}
-      ${mobileTabItem(route, companyPath('messages', {}, companyId), 'ti-message-circle', 'Messages', unreadMessages, ['messages'])}
-      ${mobileTabItem(route, companyPath('files', {}, companyId), 'ti-folder', 'Files', files, ['files'])}
+      ${mobileTabItem(route, companyPath('jobs', {}, companyId), 'ti-layout-grid', 'Work', workBadge, workSections)}
+      ${showMessages ? mobileTabItem(route, companyPath('messages', {}, companyId), 'ti-message-circle', 'Messages', unreadMessages, ['messages']) : ''}
+      ${showFiles ? mobileTabItem(route, companyPath('files', {}, companyId), 'ti-folder', 'Files', files, ['files']) : ''}
       <button class="${state.mobileMenuOpen ? 'active' : ''}" type="button" data-action="toggle-mobile-menu" aria-haspopup="true" aria-expanded="${state.mobileMenuOpen ? 'true' : 'false'}" aria-label="More navigation">
         <i class="ti ti-dots"></i>
         <span>More</span>
@@ -2091,6 +2511,20 @@ function renderRolePreviewBanner(companyId) {
   `;
 }
 
+function renderReadOnlyDemoBanner() {
+  if (!isReadOnlyDemo()) return '';
+  return `
+    <div class="readonly-demo-banner">
+      <i class="ti ti-eye"></i>
+      <div>
+        <strong>Read-only sample workspace</strong>
+        <small>Create your own workspace to save leads, quotes, jobs, files, forms, billing, or team changes.</small>
+      </div>
+      <button class="btn" type="button" data-action="open-auth-modal" data-auth-mode="register">Create workspace</button>
+    </div>
+  `;
+}
+
 function renderDeck(route) {
   const companyId = activeCompanyId();
   const session = activeSession();
@@ -2106,11 +2540,7 @@ function renderDeck(route) {
       </button>
     </div>
     <div class="company-card">
-      <span class="company-card-symbol" style="--company-accent:${h(companyColor(companyId))}">${svgIcon('q-company')}</span>
-      <div>
-        <strong>${h(companyName(companyId))}</strong>
-        <small>${h(roleForCompany(companyId))} workspace</small>
-      </div>
+      ${renderCompanySwitch(companyId, 'deck-company-select')}
     </div>
     <div class="deck-scroll">
       ${NAV_GROUPS.map((group) => {
@@ -2127,9 +2557,9 @@ function renderDeck(route) {
     </div>
     <div class="deck-footer">
       <a class="deck-company-switch" href="${appHref(companyPath('settings', { tab: 'company' }, companyId))}" data-router>
-        ${svgIcon('q-company')}
+        ${workspaceIconMarkup(companyId)}
         <span><strong>${h(companyName(companyId))}</strong><small>Workspace</small></span>
-        <i class="ti ti-chevron-down"></i>
+        <i class="ti ti-settings"></i>
       </a>
       <button class="deck-user-card" type="button" data-action="open-profile">
         ${renderAvatar(session.profile, 'avatar small')}
@@ -2168,7 +2598,10 @@ function navItem(route, path, symbol, label, count = '') {
 function pipelineStageCounts(kind, companyId = activeCompanyId()) {
   const rows = kind === 'contacts' ? companyContacts(companyId) : kind === 'deals' ? companyDeals(companyId) : companyJobs(companyId);
   const counts = {};
-  rows.forEach((row) => { counts[row.stage] = (counts[row.stage] || 0) + 1; });
+  rows.forEach((row) => {
+    const stage = resolvePipelineStage(kind, row.stage, companyId);
+    counts[stage] = (counts[stage] || 0) + 1;
+  });
   return counts;
 }
 
@@ -2180,7 +2613,7 @@ function navItemPipeline(route, module, companyId) {
   const count = moduleBadgeCount(kind, companyId);
   const onSection = route.name === 'company' && route.section === kind;
   const filter = kind === 'contacts' ? state.contactStageFilter : kind === 'deals' ? state.stageFilterDeals : state.stageFilter;
-  const stages = pipelineStages(kind);
+  const stages = pipelineStages(kind, companyId);
   const counts = pipelineStageCounts(kind, companyId);
   return `
     <div class="side-pipe ${expanded ? 'expanded' : ''}">
@@ -2224,9 +2657,97 @@ function plannedNavItem(symbol, label) {
   `;
 }
 
+function pluginById(pluginId) {
+  return WORKSPACE_PLUGIN_REGISTRY.find((plugin) => plugin.id === pluginId) || null;
+}
+
+function availableWorkspacePlugins() {
+  return WORKSPACE_PLUGIN_REGISTRY.filter((plugin) => !plugin.comingSoon);
+}
+
+function demoCompanyPluginRows() {
+  return companiesFallback.flatMap((company) => availableWorkspacePlugins().map((plugin) => normalizeCompanyPlugin({
+    company_id: company.id,
+    plugin_id: plugin.id,
+    status: 'installed',
+  })));
+}
+
+function pluginsForModule(moduleId) {
+  return WORKSPACE_PLUGIN_REGISTRY.filter((plugin) => plugin.module_ids.includes(moduleId));
+}
+
+function pluginForModule(moduleId) {
+  return pluginsForModule(moduleId)[0] || null;
+}
+
+function moduleById(moduleId) {
+  return MODULE_REGISTRY.find((module) => module.id === moduleId) || null;
+}
+
+function companyPluginRows(companyId = activeCompanyId()) {
+  const canonical = canonicalCompanyId(companyId);
+  return state.companyPlugins.filter((row) => row.company_id === canonical);
+}
+
+function companyPluginStatus(companyId, pluginId) {
+  const plugin = pluginById(pluginId);
+  if (!plugin) return 'available';
+  if (plugin.comingSoon) return 'coming_soon';
+  if (state.session?.auth !== 'supabase' || isReadOnlyDemo() || state.pluginLoadFailed) return 'installed';
+  const row = companyPluginRows(companyId).find((item) => item.plugin_id === pluginId);
+  return row?.status || 'available';
+}
+
+function isPluginInstalled(companyId, pluginId) {
+  return companyPluginStatus(companyId, pluginId) === 'installed';
+}
+
+function isModuleInstalled(moduleId, companyId = activeCompanyId()) {
+  if (CORE_MODULE_IDS.has(moduleId)) return true;
+  const plugins = pluginsForModule(moduleId);
+  if (!plugins.length) return true;
+  return plugins.some((plugin) => isPluginInstalled(companyId, plugin.id));
+}
+
+function installedLiveModules(companyId) {
+  return MODULE_REGISTRY.filter((module) => module.status === 'live' && isModuleInstalled(module.id, companyId));
+}
+
+function installedModulesForMobileWork(companyId) {
+  return ['jobs', 'tasks', 'underwriter', 'calendar', 'crm', 'contacts', 'deals', 'finance', 'forms', 'client-portals', 'users', 'time', 'approvals', 'clock', 'team-chart']
+    .filter((moduleId) => isModuleInstalled(moduleId, companyId));
+}
+
+function permissionPluginIds(permission) {
+  const clean = String(permission || '');
+  if (clean.startsWith('crm.')) return ['crm', 'crm_2'];
+  if (clean.startsWith('underwriter.')) return ['underwriter'];
+  if (clean.startsWith('files.')) return ['files'];
+  if (clean.startsWith('forms.')) return ['forms'];
+  if (clean.startsWith('finance.')) return ['finance'];
+  if (clean.startsWith('client_portals.')) return ['client_portal'];
+  if (clean.startsWith('messages.')) return ['messages'];
+  if (clean.startsWith('calendar.')) return ['calendar'];
+  if (['time.track', 'clock.manage'].includes(clean)) return ['time_clock'];
+  if (clean.startsWith('approvals.')) return ['approvals'];
+  if (clean === 'team.view') return ['reporting'];
+  return [];
+}
+
+function permissionPluginId(permission) {
+  return permissionPluginIds(permission)[0] || '';
+}
+
+function permissionAvailableForCompany(permission, companyId = activeCompanyId()) {
+  const pluginIds = permissionPluginIds(permission);
+  return !pluginIds.length || pluginIds.some((pluginId) => isPluginInstalled(companyId, pluginId));
+}
+
 function canViewModule(module, companyId = activeCompanyId()) {
   if (module.id === 'home') return true;
-  if (module.status === 'planned') return true;
+  if (module.status === 'planned') return false;
+  if (!isModuleInstalled(module.id, companyId)) return false;
   if (!subscriptionAllowsCompany(companyId) && !['settings', 'users'].includes(module.id)) return false;
   return can(module.permission || `${module.id}.view`, companyId);
 }
@@ -2235,10 +2756,12 @@ function moduleBadgeCount(moduleId, companyId = activeCompanyId()) {
   if (moduleId === 'jobs') return companyJobs(companyId).length;
   if (moduleId === 'tasks') return companyTasks(companyId).length;
   if (moduleId === 'files') return companyFiles(companyId).length;
+  if (moduleId === 'client-portals') return companyClientPortals(companyId).length;
   if (moduleId === 'forms') return companyForms(companyId).length;
   if (moduleId === 'crm') return companyAccounts(companyId).length;
   if (moduleId === 'contacts') return companyContacts(companyId).length;
   if (moduleId === 'deals') return companyDeals(companyId).filter((deal) => deal.status === 'open').length;
+  if (moduleId === 'underwriter') return companyContacts(companyId).filter((contact) => underwriterStageForContact(contact).key === 'underwriting').length;
   if (moduleId === 'finance') return companyFinanceInvoices(companyId).length;
   if (moduleId === 'users') return companyAccessUsers(companyId).filter((user) => user.status === 'active').length;
   if (moduleId === 'messages') {
@@ -2271,11 +2794,13 @@ function renderWorkspace(route) {
   if (route.section === 'home') return renderCompanyHomePage(companyId);
   if (moduleMeta?.status !== 'planned') {
     if (!subscriptionAllowsCompany(companyId) && route.section !== 'settings') return renderSubscriptionBlockedPage(companyId);
+    if (!isModuleInstalled(route.section, companyId)) return renderPluginBlockedPage(companyId, moduleMeta);
     if (moduleMeta?.permission && !can(moduleMeta.permission, companyId)) return renderPermissionBlockedPage(companyId, moduleMeta.permission);
   }
   if (route.section === 'jobs') return renderJobsPage(route, companyId);
   if (route.section === 'tasks') return renderTasksPage(route, companyId);
   if (route.section === 'files') return renderFilesPage(route, companyId);
+  if (route.section === 'client-portals') return renderClientPortalsPage(route, companyId);
   if (route.section === 'users') return renderUsersPage(route, companyId);
   if (route.section === 'settings') return renderSettingsPage(route, companyId);
   if (route.section === 'forms') return renderFormsPage(companyId);
@@ -2283,6 +2808,7 @@ function renderWorkspace(route) {
   if (route.section === 'crm') return renderCrmPage(route, companyId);
   if (route.section === 'contacts') return renderContactsPage(route, companyId);
   if (route.section === 'deals') return renderDealsPage(route, companyId);
+  if (route.section === 'underwriter') return renderUnderwriterPage(route, companyId);
   if (route.section === 'finance') return renderFinancePage(route, companyId);
   if (route.section === 'messages') return renderMessagesPage(route, companyId);
   if (route.section === 'team-chart') return renderTeamChartPage(companyId);
@@ -2303,6 +2829,28 @@ function renderSubscriptionBlockedPage(companyId) {
         ['Subscription', subscriptionLabel(companyId)],
         ['Allowed area', 'Settings, profile, and sign out remain available'],
         ['Next step', pendingReview ? 'Quest approval / billing activation' : 'Restore billing access'],
+      ])}
+    </section>
+  `;
+}
+
+function renderPluginBlockedPage(companyId, moduleMeta) {
+  const plugins = pluginsForModule(moduleMeta?.id || '');
+  const plugin = plugins[0] || null;
+  const canManagePlugins = can('plugins.manage', companyId);
+  const installablePlugins = plugins.filter((item) => !item.comingSoon);
+  return `
+    ${workspaceHeader(`${plugin?.label || moduleMeta?.label || 'Plugin'} not installed`, 'This workspace has not enabled the plugin required for this module.', `
+      <a class="btn" href="${appHref(companyPath('settings', { tab: 'plugins' }, companyId))}" data-router><i class="ti ti-plug"></i>${canManagePlugins ? 'Manage plugins' : 'View plugins'}</a>
+      ${canManagePlugins ? installablePlugins.map((item) => `<button class="btn btn-primary" type="button" data-action="set-company-plugin" data-plugin-id="${h(item.id)}" data-status="installed"><i class="ti ti-download"></i>Install ${h(item.label)}</button>`).join('') : ''}
+    `)}
+    <section class="panel">
+      ${contractRows([
+        ['Company', companyName(companyId)],
+        ['Requested module', moduleMeta?.label || moduleMeta?.id || 'Unknown'],
+        ['Required plugin', plugins.length ? plugins.map((item) => item.label).join(' or ') : 'Unknown'],
+        ['Current status', plugins.length ? plugins.map((item) => `${item.label}: ${titleCase(companyPluginStatus(companyId, item.id).replace('_', ' '))}`).join(' / ') : 'Unavailable'],
+        ['Data policy', 'Existing plugin data is preserved while the plugin is disabled'],
       ])}
     </section>
   `;
@@ -2344,12 +2892,18 @@ function renderCompanyDashboard(companyId) {
 }
 
 function renderCompanyHomePage(companyId) {
+  const messagesModule = moduleById('messages');
+  const filesModule = moduleById('files');
+  const reportingModule = moduleById('analytics');
+  const showMessages = messagesModule && canViewModule(messagesModule, companyId);
+  const showFiles = filesModule && canViewModule(filesModule, companyId);
+  const showReporting = reportingModule && canViewModule(reportingModule, companyId);
   const jobs = companyJobs(companyId);
   const tasks = companyTasks(companyId);
   const openTasks = tasks.filter((task) => task.status !== 'done');
   const overdueTasks = openTasks.filter((task) => task.due && new Date(task.due) < startOfToday());
-  const unreadMessages = can('messages.view', companyId) ? companyMessageUnreadCount(companyId) : 0;
-  const files = companyFiles(companyId);
+  const unreadMessages = showMessages ? companyMessageUnreadCount(companyId) : 0;
+  const files = showFiles ? companyFiles(companyId) : [];
   const forms = companyForms(companyId);
   const users = companyAccessUsers(companyId);
   const activeUsers = users.filter((user) => user.status === 'active');
@@ -2367,12 +2921,7 @@ function renderCompanyHomePage(companyId) {
           <p>Here is what is happening across your workspace.</p>
         </div>
         <div class="home-hero-actions">
-          <label class="company-switch home-company-switch">
-            ${svgIcon('q-company')}
-            <select data-company-switch aria-label="Active company">
-              ${allowedCompanies().map((company) => `<option value="${h(company.id)}" ${company.id === companyId ? 'selected' : ''}>${h(companyLabel(company))}</option>`).join('')}
-            </select>
-          </label>
+          ${renderCompanySwitch(companyId, 'home-company-switch')}
           <button class="icon-button" type="button" data-action="toggle-notifications" aria-label="Open notifications">
             <i class="ti ti-bell"></i>
             ${unreadMessages ? `<b>${h(String(Math.min(unreadMessages, 99)))}</b>` : ''}
@@ -2384,20 +2933,20 @@ function renderCompanyHomePage(companyId) {
         ${homeMetricCard('q-symbol-approvals', 'Company access', subscriptionLabel(companyId), subscriptionNeedsReview(companyId) ? 'Approval required before full access.' : 'Workspace modules are available.', companyPath('settings', { tab: 'billing' }, companyId), 'View status', subscriptionAllowsCompany(companyId) ? 'good' : 'warning')}
         ${homeMetricCard('q-symbol-users', 'Active users', activeUsers.length, `${activeUsers.length} active / ${pendingUsers.length} pending`, companyPath('users', {}, companyId), 'Manage users')}
         ${homeMetricCard('q-symbol-tasks', 'Open tasks', openTasks.length, `${overdueTasks.length} overdue`, companyPath('tasks', {}, companyId), 'View tasks', overdueTasks.length ? 'warning' : '')}
-        ${homeMetricCard('q-symbol-messages', 'Unread messages', unreadMessages, 'Across team chats', companyPath('messages', {}, companyId), 'Open inbox')}
+        ${showMessages ? homeMetricCard('q-symbol-messages', 'Unread messages', unreadMessages, 'Across team chats', companyPath('messages', {}, companyId), 'Open inbox') : ''}
         ${homeMetricCard('q-symbol-settings', 'Workspace health', subscriptionAllowsCompany(companyId) ? 'Good' : 'Pending', subscriptionAllowsCompany(companyId) ? 'All core systems operational' : 'Approval or billing still needs attention.', companyPath('settings', {}, companyId), 'See details', subscriptionAllowsCompany(companyId) ? 'good' : 'warning')}
       </section>
       <section class="home-dashboard-grid">
         <article class="panel home-activity-panel">
           <div class="section-head">
             <div><h2>Recent activity</h2><p>Latest company work and inbox events.</p></div>
-            <a class="btn" href="${appHref(companyPath('analytics', {}, companyId))}" data-router>All activity</a>
+            ${showReporting ? `<a class="btn" href="${appHref(companyPath('analytics', {}, companyId))}" data-router>All activity</a>` : ''}
           </div>
           <div class="home-activity-list">
             ${recentActivity.map(renderHomeActivity).join('') || emptyState('No recent activity yet.')}
           </div>
         </article>
-        <article class="panel home-message-panel">
+        ${showMessages ? `<article class="panel home-message-panel">
           <div class="section-head">
             <div><h2>Unread messages</h2><p>Team conversations needing attention.</p></div>
             <a href="${appHref(companyPath('messages', {}, companyId))}" data-router>View all <i class="ti ti-arrow-right"></i></a>
@@ -2405,7 +2954,7 @@ function renderCompanyHomePage(companyId) {
           <div class="home-message-list">
             ${homeUnreadMessages(companyId).map(renderHomeMessage).join('') || emptyState('No unread messages.')}
           </div>
-        </article>
+        </article>` : ''}
         <article class="panel home-next-panel">
           <div class="section-head">
             <div><h2>Next tasks</h2><p>Your cleanest path through today.</p></div>
@@ -2500,14 +3049,14 @@ function homeRecentActivity(companyId, notifications = []) {
     href: companyPath('tasks', { ...(task.project_id ? { job_id: task.project_id } : {}), task_id: task.id }, companyId),
     avatar: { full_name: memberName(task.assignee_id) },
   }));
-  const fileItems = companyFiles(companyId).slice(0, 2).map((file) => ({
+  const fileItems = can('files.view', companyId) ? companyFiles(companyId).slice(0, 2).map((file) => ({
     icon: 'ti-folder',
     title: `${file.name} was uploaded`,
     meta: 'Files',
     time: file.updated_at || file.created_at,
     href: companyPath('files', file.job_id ? { job_id: file.job_id } : {}, companyId),
     avatar: { full_name: memberName(file.owner_id || file.created_by) },
-  }));
+  })) : [];
   return notificationItems.concat(taskItems, fileItems)
     .sort((a, b) => Date.parse(b.time || 0) - Date.parse(a.time || 0))
     .slice(0, 5);
@@ -2687,18 +3236,123 @@ function renderAnalyticsPage(route, companyId) {
   `;
 }
 
+const CRM2_UNDERWRITER_STAGES = [
+  { key: 'prospect', name: 'Prospect', color: '#9AA0A8' },
+  { key: 'lead', name: 'Lead', color: '#378ADD' },
+  { key: 'nurturing', name: 'Nurturing', color: '#2F9E8F' },
+  { key: 'underwriting', name: 'Underwriting', color: '#BA7517' },
+  { key: 'estimate', name: 'Estimate Sent', color: '#378ADD' },
+  { key: 'negotiating', name: 'Negotiating', color: '#BA7517' },
+  { key: 'won', name: 'Won', color: '#639922' },
+];
+
+const CRM2_UNDERWRITER_GUIDANCE = {
+  prospect: { title: 'Work the prospect.', lines: ['Confirm source and best contact method.', 'Decide if there is a real project.', 'Move them into a real conversation.'] },
+  lead: { title: 'Qualify the lead.', lines: ['Confirm the decision maker.', 'Capture roof age, visible damage, and timeline.', 'Separate retail pay from insurance work.'] },
+  nurturing: { title: 'Keep it warm.', lines: ['Set a follow-up cadence.', 'Send value before they go cold.', 'Capture the next decision needed.'] },
+  underwriting: { title: 'Scope it and price it.', lines: ['Confirm takeoff and measurements.', 'Attach the carrier scope when insurance is involved.', 'Confirm material selections and margin target.'] },
+  estimate: { title: 'Present the estimate.', lines: ['Confirm proposal delivery.', 'Walk through Standard versus Recommended.', 'Schedule the next follow-up.'] },
+  negotiating: { title: 'Close the deal.', lines: ['Resolve open questions.', 'Confirm all decision makers.', 'Move toward signature and deposit.'] },
+  won: { title: 'Won - convert to a job.', lines: ['Schedule production.', 'Order materials.', 'Confirm scope before handoff.'] },
+};
+
+function renderUnderwriterPage(route, companyId) {
+  const requestedStage = route.params.get('stage') || 'all';
+  const stageKeys = new Set(CRM2_UNDERWRITER_STAGES.map((stage) => stage.key));
+  const activeStage = stageKeys.has(requestedStage) ? requestedStage : 'all';
+  const contacts = companyContacts(companyId)
+    .map((contact) => ({ ...contact, underwriter_stage: underwriterStageForContact(contact) }))
+    .sort((a, b) => CRM2_UNDERWRITER_STAGES.findIndex((stage) => stage.key === a.underwriter_stage.key) - CRM2_UNDERWRITER_STAGES.findIndex((stage) => stage.key === b.underwriter_stage.key));
+  const visible = activeStage === 'all' ? contacts : contacts.filter((contact) => contact.underwriter_stage.key === activeStage);
+  const underwriting = contacts.filter((contact) => contact.underwriter_stage.key === 'underwriting');
+  const estimates = contacts.filter((contact) => ['estimate', 'negotiating'].includes(contact.underwriter_stage.key));
+  const canManageUnderwriter = can('underwriter.manage', companyId);
+  const guide = activeStage === 'all' ? CRM2_UNDERWRITER_GUIDANCE.underwriting : CRM2_UNDERWRITER_GUIDANCE[activeStage];
+  return `
+    <section class="tool-page underwriter-page">
+      ${workspaceHeader('Underwriter', 'CRM 2 workspace for qualification, scope, pricing, and quote handoff readiness.', `
+        ${can('crm.view', companyId) ? `<a class="btn" href="${appHref(companyPath('contacts', {}, companyId))}" data-router><i class="ti ti-id-badge-2"></i>Open contacts</a>` : ''}
+        ${canManageUnderwriter && can('crm.view', companyId) ? `<button class="btn btn-primary" type="button" data-action="open-contact-form" data-mode="new"><i class="ti ti-plus"></i>Add contact</button>` : ''}
+      `)}
+      <section class="metric-grid">
+        ${metricCard('Underwriting', underwriting.length)}
+        ${metricCard('Estimate queue', estimates.length)}
+        ${metricCard('Pipeline value', money(sum(visible, 'value')))}
+        ${metricCard('CRM 2 stage', activeStage === 'all' ? 'All' : underwriterStageByKey(activeStage).name)}
+      </section>
+      <section class="pipe-toolbar">
+        <div class="pipe-chips" role="group" aria-label="CRM 2 underwriter stage">
+          <a class="pipe-chip ${activeStage === 'all' ? 'on' : ''}" href="${appHref(companyPath('underwriter', {}, companyId))}" data-router>All<b>${h(String(contacts.length))}</b></a>
+          ${CRM2_UNDERWRITER_STAGES.map((stage) => {
+            const count = contacts.filter((contact) => contact.underwriter_stage.key === stage.key).length;
+            return `<a class="pipe-chip ${activeStage === stage.key ? 'on' : ''}" href="${appHref(companyPath('underwriter', { stage: stage.key }, companyId))}" data-router>${pipelineDot(stage.color)}${h(stage.name)}<b>${h(String(count))}</b></a>`;
+          }).join('')}
+        </div>
+      </section>
+      <section class="home-dashboard-grid">
+        <article class="panel home-activity-panel">
+          <div class="section-head"><div><h2>Underwriter queue</h2><p>${visible.length} contact${visible.length === 1 ? '' : 's'} in this CRM 2 view.</p></div></div>
+          <div class="data-table underwriter-table">
+            <div class="table-head"><span>Contact</span><span>Stage</span><span>Owner</span><span>Pay type</span><span>Value</span></div>
+            ${visible.map(renderUnderwriterQueueRow).join('') || emptyState('No contacts match this underwriter stage.')}
+          </div>
+        </article>
+        <article class="panel home-health-panel">
+          <div class="section-head"><div><h2>Guidance</h2><p>${h(activeStage === 'all' ? 'Default underwriting guidance.' : underwriterStageByKey(activeStage).name)}</p></div></div>
+          <div class="home-health-list">
+            <div class="good"><i class="ti ti-clipboard-search"></i><span>${h(guide.title)}</span></div>
+            ${guide.lines.map((line) => `<div><i class="ti ti-point"></i><span>${h(line)}</span></div>`).join('')}
+          </div>
+        </article>
+      </section>
+    </section>
+  `;
+}
+
+function renderUnderwriterQueueRow(lead) {
+  return `
+    <button class="table-row" type="button" data-action="open-contact" data-contact-id="${h(lead.id)}">
+      <span class="cell-lead">${pipelineDot(lead.underwriter_stage.color)}<span><strong>${h(lead.name)}</strong><small>${h(lead.location || lead.phone || lead.email || 'No details')}</small></span></span>
+      <span>${underwriterStageTag(lead.underwriter_stage)}</span>
+      <span>${h(lead.owner_name || 'Unassigned')}</span>
+      <span>${h(lead.pay_type || 'Retail')}</span>
+      <span>${lead.value ? money(lead.value) : '<span class="muted-dash">-</span>'}</span>
+    </button>
+  `;
+}
+
+function underwriterStageByKey(key) {
+  return CRM2_UNDERWRITER_STAGES.find((stage) => stage.key === key) || CRM2_UNDERWRITER_STAGES[1];
+}
+
+function underwriterStageTag(stage) {
+  return `<span class="stage-tag">${pipelineDot(stage.color)}${h(stage.name)}</span>`;
+}
+
+function underwriterStageForContact(contact) {
+  const stage = String(contact.stage || '').toLowerCase();
+  if (stage.includes('prospect')) return underwriterStageByKey('prospect');
+  if (stage.includes('nurtur')) return underwriterStageByKey('nurturing');
+  if (stage.includes('underwrit')) return underwriterStageByKey('underwriting');
+  if (stage.includes('estimate') || stage.includes('proposal')) return underwriterStageByKey('estimate');
+  if (stage.includes('negotiat')) return underwriterStageByKey('negotiating');
+  if (stage.includes('won')) return underwriterStageByKey('won');
+  return underwriterStageByKey('lead');
+}
+
 // ---- Pipeline (stages) shared building blocks -----------------------------
 function pipelineDot(color) {
   return `<span class="pipe-dot" style="background:${h(color || '#9AA0A8')}"></span>`;
 }
 
-function stageTagPipe(kind, name) {
-  if (!name) return '<span class="muted-dash">—</span>';
-  return `<span class="stage-tag">${pipelineDot(pipelineStageColor(kind, name))}${h(name)}</span>`;
+function stageTagPipe(kind, name, companyId = activeCompanyId()) {
+  if (!name) return '<span class="muted-dash">-</span>';
+  const resolved = resolvePipelineStage(kind, name, companyId);
+  return `<span class="stage-tag">${pipelineDot(pipelineStageColor(kind, resolved, companyId))}${h(resolved)}</span>`;
 }
 
 function pipelineToolbar(kind, companyId) {
-  const stages = pipelineStages(kind);
+  const stages = pipelineStages(kind, companyId);
   const counts = pipelineStageCounts(kind, companyId);
   const total = kind === 'contacts' ? companyContacts(companyId).length : kind === 'deals' ? companyDeals(companyId).length : companyJobs(companyId).length;
   const filter = kind === 'contacts' ? state.contactStageFilter : kind === 'deals' ? state.stageFilterDeals : state.stageFilter;
@@ -2721,7 +3375,7 @@ function pipelineToolbar(kind, companyId) {
   `;
 }
 
-// ---- Contacts (sales pipeline) --------------------------------------------
+// ---- Contacts (top-of-funnel pipeline) ------------------------------------
 function renderContactsPage(route, companyId) {
   const contactId = route.params.get('contact_id');
   if (contactId) {
@@ -2731,7 +3385,7 @@ function renderContactsPage(route, companyId) {
   const stageParam = route.params.get('stage');
   if (stageParam) state.contactStageFilter = contactStageNames().includes(stageParam) ? stageParam : 'all';
   return `
-    ${workspaceHeader('Contacts', 'Sales pipeline - prospects and leads moving toward won work.', `
+    ${workspaceHeader('Contacts', 'Top-of-funnel contacts before quote handoff.', `
       <button class="btn" type="button" data-action="open-stage-manager" data-module="contacts"><i class="ti ti-adjustments-horizontal"></i>Manage stages</button>
       <button class="btn btn-primary" type="button" data-action="open-contact-form" data-mode="new"><i class="ti ti-plus"></i>Add contact</button>
     `)}
@@ -2753,7 +3407,7 @@ function renderContactTable(companyId) {
             <span>${contact.phone ? h(contact.phone) : '<span class="muted-dash">—</span>'}</span>
             <span>${contact.email ? h(contact.email) : '<span class="muted-dash">—</span>'}</span>
             <span>${contact.location ? h(contact.location) : '<span class="muted-dash">—</span>'}</span>
-            <span>${stageTagPipe('contacts', contact.stage)}</span>
+            <span>${stageTagPipe('contacts', contact.stage, companyId)}</span>
             <span>${contact.value ? money(contact.value) : '<span class="muted-dash">—</span>'}</span>
           </button>
         `).join('') || emptyState('No contacts in this view yet.')}
@@ -2765,11 +3419,11 @@ function renderContactTable(companyId) {
 function renderContactBoard(companyId) {
   const rows = filteredContacts(companyId, true);
   const filter = state.contactStageFilter;
-  const lanes = filter === 'all' ? contactStages() : contactStages().filter((stage) => stage.name === filter);
+  const lanes = filter === 'all' ? pipelineStages('contacts', companyId) : pipelineStages('contacts', companyId).filter((stage) => stage.name === filter);
   return `
     <section class="pipe-board">
       ${lanes.map((stage) => {
-        const cards = rows.filter((contact) => contact.stage === stage.name);
+        const cards = rows.filter((contact) => resolvePipelineStage('contacts', contact.stage, companyId) === stage.name);
         return `
           <article class="pipe-lane">
             <header class="pipe-lane-head">${pipelineDot(stage.color)}<span>${h(stage.name)}</span><b>${cards.length}</b></header>
@@ -2801,6 +3455,7 @@ function renderContactRecord(companyId, contact) {
   const activeTab = state.contactActivityTab || 'Email';
   const tasks = tasksForContact(contact.id);
   const feed = activitiesFor('contact', contact.id);
+  const canGraduateContactToQuote = resolvePipelineStage('contacts', contact.stage, companyId) === 'Nurturing';
 
   const ed = (key, opts = {}) => {
     const display = (contact[key] === '' || contact[key] == null) ? '—' : contact[key];
@@ -2840,6 +3495,7 @@ function renderContactRecord(companyId, contact) {
             }).join('')}
           </div>
           <button class="sf-mark-btn" type="button" data-action="contact-mark-next" data-contact-id="${h(contact.id)}">Mark as Current Stage</button>
+          ${canGraduateContactToQuote ? `<button class="sf-mark-btn sf-graduate-btn" type="button" data-action="contact-convert-quote" data-contact-id="${h(contact.id)}"><i class="ti ti-file-text"></i>Graduate to Quote</button>` : ''}
         </div>
         <div class="sf-guidance">
           <div class="sf-guidance-label">Guidance for Success</div>
@@ -2853,14 +3509,14 @@ function renderContactRecord(companyId, contact) {
           <div class="sf-card"><div class="sf-card-head"><i class="ti ti-id-badge-2"></i>About</div><div class="sf-card-body">
             ${fieldRow('Phone', ed('phone'))}
             ${fieldRow('Email', ed('email', { blue: true }))}
-            ${fieldRow('Location', ed('location'))}
+            ${fieldRow('Location', `${ed('location')}${contact.location ? `<a class="sf-field-action" href="${h(mapsSearchUrl(contact.location))}" target="_blank" rel="noreferrer"><i class="ti ti-map-pin"></i>Map</a>` : ''}`)}
             ${fieldRow('Job Type', `<span class="sf-pill">${h(contact.title || '—')}</span>`)}
             ${fieldRow('Owner', ed('owner_name', { blue: true }))}
             ${fieldRow('Source', ed('source'))}
           </div></div>
           <div class="sf-card"><div class="sf-card-head"><i class="ti ti-clipboard-data"></i>Status</div><div class="sf-card-body">
             ${fieldRow('Stage', `<span>${h(contact.stage)}</span>`)}
-            ${fieldRow('Est. Value', `<span class="sf-money">$<span class="sf-edit mono" data-contact-edit="value" data-contact-id="${h(contact.id)}" title="Click to edit">${money(contact.value || 0)}</span></span>`)}
+            ${fieldRow('Est. Value', `<span class="sf-money"><span class="sf-edit mono" data-contact-edit="value" data-contact-id="${h(contact.id)}" title="Click to edit">${money(contact.value || 0)}</span></span>`)}
             ${fieldRow('Temperature', `<span class="sf-edit" data-contact-edit="temperature" data-contact-id="${h(contact.id)}" style="color:${tempColor}" title="Click to edit">${h(contact.temperature)}</span>`)}
             ${fieldRow('Pay Type', ed('pay_type'))}
             ${fieldRow('Roof System', ed('roof_system'))}
@@ -2885,7 +3541,7 @@ function renderContactRecord(companyId, contact) {
         <div class="sf-col">
           <div class="sf-card"><div class="sf-card-head"><i class="ti ti-bolt"></i>Quick Create</div>
             <div class="sf-quick-grid">${quickTiles.map(([label, ico]) => `<button class="sf-quick-tile" type="button" data-action="contact-quick" data-kind="${h(label)}" data-contact-id="${h(contact.id)}"><i class="ti ${ico}"></i><span>${label}</span></button>`).join('')}</div>
-            <button class="sf-convert-btn" type="button" data-action="contact-convert-job" data-contact-id="${h(contact.id)}"><i class="ti ti-arrow-right"></i>Convert to Job</button>
+            <button class="sf-convert-btn" type="button" data-action="contact-convert-quote" data-contact-id="${h(contact.id)}"><i class="ti ti-arrow-right"></i>Convert to Quote</button>
           </div>
           <div class="sf-card"><div class="sf-card-head"><i class="ti ti-checkbox"></i>Open Tasks<span class="sf-connect"><i class="ti ti-plug"></i>Connect</span></div>
             <div class="sf-tasks">
@@ -2920,6 +3576,7 @@ function patchContactField(contactId, key, raw) {
   if (!contact) return;
   let value;
   if (key === 'value') value = Number(String(raw).replace(/[^0-9.]/g, '')) || 0;
+  else if (key === 'phone') value = formatPhoneNumber(raw);
   else if (key === 'temperature') value = resolveTemperature(raw);
   else value = String(raw).trim();
   if (contact[key] === value) { render(); return; }
@@ -2997,41 +3654,43 @@ async function postContactNote(form) {
   await logContactActivity(contactId, typeMap[tab] || 'note', '', text);
 }
 
-async function convertContactToJob(contactId) {
+async function convertContactToQuote(contactId) {
   const contact = contactById(contactId);
   if (!contact) return;
   const companyId = contact.company_id;
-  if (!requirePermission('jobs.manage', companyId, 'Your role cannot create jobs.', 'Jobs')) return;
-  const account = accountById(contact.account_id);
-  const job = normalizeJob({
-    id: '',
+  if (!requirePermission('crm.view', companyId, 'Your role cannot create quotes.', 'Quotes')) return;
+  const deal = normalizeDeal({
+    id: `deal-${crypto.randomUUID()}`,
     company_id: companyId,
-    name: `${contact.name}${contact.title ? ' — ' + contact.title : ''}`,
-    client_name: account?.name || contact.name,
-    contact_name: contact.name,
-    site_address: contact.location || account?.address || '',
-    owner_name: contact.owner_name,
-    estimate_total: contact.value,
-    stage: jobStageNames()[0],
     account_id: contact.account_id,
-    scope: contact.notes,
+    primary_contact_id: contact.id,
+    name: `${contact.name}${contact.title ? ' - ' + contact.title : ''}`,
+    stage: pipelineStages('deals', companyId)[0]?.name || dealStageNames()[0],
+    status: 'open',
+    value: contact.value,
+    owner_name: contact.owner_name,
+    source: contact.source,
+    notes: contact.notes,
   });
-  job.id = crypto.randomUUID();
-  job.updated_at = new Date().toISOString();
-  const jobRow = supabaseRow(job, ['id', 'company_id', 'name', 'client_name', 'contact_name', 'site_address', 'job_type', 'stage', 'priority', 'owner_name', 'scope', 'notes', 'estimate_total', 'invoice_total', 'account_id', 'deal_id', 'updated_at']);
-  emptyToNull(jobRow, ['account_id', 'deal_id']);
-  const { ok, data } = await supabaseWrite('jobs', jobRow);
-  upsertJob(ok && data ? normalizeJob(data) : job);
-  const wonStage = contactStageNames().find((name) => /win|won/i.test(name)) || contact.stage;
-  await persistContact({ ...contact, stage: wonStage });
-  await logActivity({ type: 'system', subject: 'Contact won → Job created', body: contact.name, related_type: 'contact', related_id: contact.id, account_id: contact.account_id });
-  state.selectedJobId = job.id;
-  showToast('Contact won — job created.', ok ? 'live' : 'local', 'Contacts');
-  navigate(companyPath('jobs', { tab: 'profile', job_id: job.id }, companyId));
+  deal.updated_at = new Date().toISOString();
+  const row = emptyToNull(supabaseRow(deal, DEAL_COLS), ['account_id', 'primary_contact_id', 'close_date', 'job_id']);
+  const { ok, data } = await supabaseWrite('deals', row);
+  upsertDeal(ok && data ? normalizeDeal(data) : deal);
+  await logActivity({ type: 'system', subject: 'Contact graduated -> Quote created', body: deal.name, related_type: 'contact', related_id: contact.id, account_id: contact.account_id });
+  state.selectedDealId = deal.id;
+  showToast('Contact graduated to quote.', ok ? 'live' : 'local', 'Contacts');
+  navigate(companyPath('deals', { tab: 'profile', deal_id: deal.id }, companyId));
+  return;
 }
-
 function tasksForContact(contactId) {
   return companyTasks().filter((task) => task.contact_id === contactId)
+    .sort((a, b) => (a.status === 'done' ? 1 : 0) - (b.status === 'done' ? 1 : 0) || String(a.due).localeCompare(String(b.due)));
+}
+
+function tasksForDeal(deal) {
+  if (!deal) return [];
+  return companyTasks(deal.company_id)
+    .filter((task) => task.contact_id === deal.primary_contact_id || task.account_id === deal.account_id)
     .sort((a, b) => (a.status === 'done' ? 1 : 0) - (b.status === 'done' ? 1 : 0) || String(a.due).localeCompare(String(b.due)));
 }
 
@@ -3085,27 +3744,157 @@ async function toggleContactTask(taskId) {
   }
 }
 
+function jobSupabaseRow(job) {
+  return emptyToNull(supabaseRow(job, ['id', 'company_id', 'name', 'client_name', 'contact_name', 'site_address', 'job_type', 'stage', 'priority', 'owner_name', 'scope', 'notes', 'estimate_total', 'invoice_total', 'account_id', 'deal_id', 'updated_at']), ['account_id', 'deal_id']);
+}
+
+async function persistJob(job, label = 'Job saved locally') {
+  const payload = normalizeJob({ ...job, updated_at: new Date().toISOString() });
+  upsertJob(payload);
+  state.sync = { label, mode: 'local' };
+  render();
+  const { ok, data } = await supabaseWrite('jobs', jobSupabaseRow(payload));
+  if (ok && data) {
+    upsertJob(normalizeJob(data));
+    state.sync = { label: 'Quest Supabase live', mode: 'live' };
+    render();
+  }
+  return payload;
+}
+
+async function setJobStage(jobId, stage) {
+  const job = jobById(jobId);
+  if (!job || !jobStageNames().includes(stage)) return;
+  if (!requirePermission('jobs.manage', job.company_id, 'Your role cannot update jobs.', 'Jobs')) return;
+  if (job.stage === stage) { render(); return; }
+  await persistJob({ ...job, stage }, 'Job stage saved locally');
+  await logJobActivity(job.id, 'stage_change', `Stage -> ${stage}`);
+}
+
+function markJobNextStage(jobId) {
+  const job = jobById(jobId);
+  const names = jobStageNames();
+  const idx = job ? names.indexOf(job.stage) : -1;
+  if (!job || idx < 0 || idx >= names.length - 1) return;
+  setJobStage(job.id, names[idx + 1]);
+}
+
+async function logJobActivity(jobId, type, subject, body = '') {
+  const job = jobById(jobId);
+  if (!job) return;
+  await logActivity({ type, subject, body, related_type: 'job', related_id: jobId, account_id: job.account_id });
+  render();
+}
+
+async function createJobTask(jobId, title) {
+  const job = jobById(jobId);
+  const clean = String(title || '').trim();
+  if (!job || !clean) return;
+  if (!requirePermission('tasks.manage', job.company_id, 'Your role cannot create tasks.', 'Tasks')) return;
+  const payload = normalizeTask({
+    id: `task-${crypto.randomUUID()}`,
+    company_id: job.company_id,
+    project_id: job.id,
+    title: clean,
+    type: 'lead',
+    status: 'todo',
+    priority: job.priority === 'Urgent' ? 'urgent' : 'medium',
+    due: isoDate(1),
+    creator_id: activeSession().profile.member_id || companyMembers(job.company_id)[0]?.id || 'abraham',
+  });
+  upsertTask(payload);
+  render();
+  const client = createSupabaseClient();
+  if (client) {
+    try {
+      const result = await client.from('tasks').insert(taskPayload(payload)).select().single();
+      if (!result.error && result.data) { upsertTask(normalizeTask(result.data)); render(); }
+    } catch (error) { console.warn('Job task sync failed', error); }
+  }
+}
+
+function jobQuickCreate(jobId, kind) {
+  const job = jobById(jobId);
+  if (!job) return;
+  if (kind === 'Task' || kind === 'New Task') return createJobTask(jobId, 'New job task');
+  if (kind === 'Note' || kind === 'Add Note') return logJobActivity(jobId, 'note', 'Note added');
+  if (kind === 'Log a Call') return logJobActivity(jobId, 'call', 'Logged a call');
+  if (kind === 'New Event') return logJobActivity(jobId, 'meeting', 'Meeting scheduled');
+  if (['Files', 'Open Files'].includes(kind) && !can('files.view', job.company_id)) return showToast('Files is not available for this workspace.', 'local', 'Plugins');
+  if (kind === 'Form' && !can('forms.view', job.company_id)) return showToast('Forms is not available for this workspace.', 'local', 'Plugins');
+  if (kind === 'Invoice' && !can('finance.view', job.company_id)) return showToast('Finance is not available for this workspace.', 'local', 'Plugins');
+  if (kind === 'Analytics' && !can('team.view', job.company_id)) return showToast('Reporting is not available for this workspace.', 'local', 'Plugins');
+  if (kind === 'Files' || kind === 'Open Files') return navigate(companyPath('files', { folder: 'jobs', job_id: job.id }, job.company_id));
+  if (kind === 'Form') return navigate(companyPath('forms', { job_id: job.id }, job.company_id));
+  if (kind === 'Invoice') return navigate(companyPath('finance', {}, job.company_id));
+  if (kind === 'Analytics') return navigate(companyPath('analytics', { job_id: job.id }, job.company_id));
+  return showToast(`${kind} isn't set up yet.`, 'local', 'Jobs');
+}
+
+async function postJobNote(form) {
+  const data = Object.fromEntries(new FormData(form).entries());
+  const text = String(data.body || '').trim();
+  const jobId = String(data.job_id || '');
+  if (!text) return;
+  const tab = state.jobActivityTab || 'Note';
+  if (tab === 'New Task') return createJobTask(jobId, text);
+  const typeMap = { Note: 'note', 'Log a Call': 'call', 'New Event': 'meeting' };
+  await logJobActivity(jobId, typeMap[tab] || 'note', tab === 'Note' ? '' : tab, text);
+}
+
+function patchJobField(jobId, key, raw) {
+  const job = jobById(jobId);
+  if (!job) return;
+  let value;
+  if (key === 'estimate_total' || key === 'invoice_total') value = Number(String(raw).replace(/[^0-9.]/g, '')) || 0;
+  else value = String(raw).trim();
+  if (job[key] === value) { render(); return; }
+  persistJob({ ...job, [key]: value }, 'Job field saved locally');
+}
+
+function beginJobInlineEdit(span) {
+  const key = span.dataset.jobEdit;
+  const jobId = span.dataset.jobId;
+  const job = jobById(jobId);
+  if (!job) return;
+  const input = document.createElement('input');
+  input.className = 'sf-edit-input';
+  input.value = (key === 'estimate_total' || key === 'invoice_total') ? (job[key] || 0) : (job[key] || '');
+  span.replaceWith(input);
+  input.focus();
+  input.select();
+  let done = false;
+  const commit = () => { if (done) return; done = true; patchJobField(jobId, key, input.value); };
+  input.addEventListener('blur', commit);
+  input.addEventListener('keydown', (ev) => {
+    if (ev.key === 'Enter') { ev.preventDefault(); commit(); }
+    if (ev.key === 'Escape') { done = true; render(); }
+  });
+}
+
 function renderContactFormModal(companyId, contact) {
   return renderModalShell('Contacts', contact ? 'Edit contact' : 'Add contact', renderContactEditor(companyId, contact), 'wide-modal');
 }
 
 function renderContactEditor(companyId, contact) {
   const edit = contact || blankContact(companyId);
+  const addressOptions = contactAddressOptions(companyId);
   return `
     <form class="job-editor" data-contact-form>
       <input type="hidden" name="id" value="${h(edit.id || '')}" />
       <div class="section-head span-2">
-        <div><h2>${contact ? 'Edit contact' : 'New contact'}</h2><p>Contacts move through your customizable sales pipeline stages.</p></div>
+        <div><h2>${contact ? 'Edit contact' : 'New contact'}</h2><p>Contacts move through Prospects, Leads, and Nurturing before quote handoff.</p></div>
       </div>
       ${field('Name', 'name', edit.name, true)}
       ${selectField('Company', 'company_id', companyId, allowedCompanies().map((company) => [company.id, companyLabel(company)]))}
       ${selectField('Account', 'account_id', edit.account_id, [['', '— None —']].concat(companyAccounts(companyId).map((account) => [account.id, account.name])))}
       ${field('Title', 'title', edit.title)}
-      ${field('Phone', 'phone', edit.phone)}
+      ${field('Phone', 'phone', edit.phone, false, 'tel', '', 'autocomplete="tel" inputmode="tel" data-phone-format')}
       ${field('Email', 'email', edit.email, false, 'email')}
-      ${field('Location', 'location', edit.location, false, 'text', 'span-2')}
+      ${field('Location', 'location', edit.location, false, 'text', 'span-2', 'autocomplete="street-address" list="contact-address-options"')}
+      <datalist id="contact-address-options">${addressOptions.map((address) => `<option value="${h(address)}"></option>`).join('')}</datalist>
       ${selectField('Stage', 'stage', edit.stage || contactStageNames()[0], contactStageNames().map((stage) => [stage, stage]))}
-      ${field('Owner', 'owner_name', edit.owner_name)}
+      ${selectField('Owner', 'owner_name', edit.owner_name, contactOwnerOptions(companyId, edit.owner_name))}
       ${field('Estimated value', 'value', edit.value || 0, false, 'number')}
       ${selectField('Temperature', 'temperature', edit.temperature || 'Warm', TEMPERATURES.map((t) => [t, t]))}
       ${field('Pay type', 'pay_type', edit.pay_type)}
@@ -3173,8 +3962,8 @@ async function deleteContact(id) {
 
 // ---- Stage manager (create / rename / recolor / delete) -------------------
 function renderStageManagerModal(kind) {
-  const stages = pipelineStages(kind);
-  const title = kind === 'contacts' ? 'Contact pipeline stages' : kind === 'deals' ? 'Deal pipeline stages' : 'Job pipeline stages';
+  const stages = pipelineStages(kind, activeCompanyId());
+  const title = kind === 'contacts' ? 'Contact pipeline stages' : kind === 'deals' ? 'Quote pipeline stages' : 'Job pipeline stages';
   const body = `
     <form class="stage-manager" data-stage-form data-kind="${kind}">
       <p class="stage-manager-hint">Stages are your pipeline columns - the placeholder groups your team can shape. Rename or recolor any stage and your records keep their place; add new stages for any workflow.</p>
@@ -3273,7 +4062,7 @@ function applyPipelineStagesForCompany(companyId) {
     return rows.length ? rows : fallback.map((stage) => ({ ...stage }));
   };
   JOB_STAGES = forKind('jobs', DEFAULT_JOB_STAGES);
-  CONTACT_STAGES = forKind('contacts', DEFAULT_CONTACT_STAGES);
+  CONTACT_STAGES = normalizeContactStageList(forKind('contacts', DEFAULT_CONTACT_STAGES), DEFAULT_CONTACT_STAGES);
   DEAL_STAGES = forKind('deals', DEFAULT_DEAL_STAGES);
   // Clamp active stage filters to the current company's stage names.
   if (state.stageFilter !== 'all' && !jobStageNames().includes(state.stageFilter)) state.stageFilter = 'all';
@@ -3364,9 +4153,10 @@ function renderJobsPage(route, companyId) {
   const stageParam = route.params.get('stage');
   if (stageParam) state.stageFilter = jobStageNames().includes(stageParam) ? stageParam : 'all';
   const job = selectedJob();
+  const showFiles = can('files.view', companyId);
   return `
     ${workspaceHeader('Jobs', 'Production pipeline - every job type, from intake to paid.', `
-      <a class="btn" href="${appHref(companyPath('files', job ? { job_id: job.id } : {}, companyId))}" data-router><i class="ti ti-folder"></i>Drive</a>
+      ${showFiles ? `<a class="btn" href="${appHref(companyPath('files', job ? { job_id: job.id } : {}, companyId))}" data-router><i class="ti ti-folder"></i>Drive</a>` : ''}
       <button class="btn" type="button" data-action="open-stage-manager" data-module="jobs"><i class="ti ti-adjustments-horizontal"></i>Manage stages</button>
       <button class="btn btn-primary" type="button" data-action="open-job-form" data-mode="new"><i class="ti ti-plus"></i>Add job</button>
     `)}
@@ -3380,7 +4170,7 @@ function renderJobsPage(route, companyId) {
 function renderJobPanel(tab, companyId, job) {
   if (tab === 'pipeline') return renderPipeline(companyId);
   if (tab === 'list') return renderJobList(companyId);
-  if (tab === 'profile') return renderJobProfile(companyId, job);
+  if (tab === 'profile') return renderJobRecord(companyId, job);
   return renderPipeline(companyId);
 }
 
@@ -3394,11 +4184,11 @@ function renderPipeline(companyId) {
 function renderJobBoard(companyId) {
   const rows = filteredJobs(companyId, true);
   const filter = state.stageFilter;
-  const lanes = filter === 'all' ? jobStages() : jobStages().filter((stage) => stage.name === filter);
+  const lanes = filter === 'all' ? pipelineStages('jobs', companyId) : pipelineStages('jobs', companyId).filter((stage) => stage.name === filter);
   return `
     <section class="pipe-board">
       ${lanes.map((stage) => {
-        const cards = rows.filter((job) => job.stage === stage.name);
+        const cards = rows.filter((job) => resolvePipelineStage('jobs', job.stage, companyId) === stage.name);
         return `
           <article class="pipe-lane">
             <header class="pipe-lane-head">${pipelineDot(stage.color)}<span>${h(stage.name)}</span><b>${cards.length}</b></header>
@@ -3421,9 +4211,9 @@ function renderJobList(companyId) {
         <div class="table-head"><span>Job</span><span>Type</span><span>Stage</span><span>Priority</span><span>Owner</span><span>Value</span></div>
         ${rows.map((job) => `
           <button class="table-row ${job.id === state.selectedJobId ? 'active' : ''}" type="button" data-select-job="${h(job.id)}">
-            <span class="cell-lead">${pipelineDot(jobStageColor(job.stage))}<span><strong>${h(job.name)}</strong><small>${h(job.client_name || 'No client')} - ${h(job.site_address || 'No address')}</small></span></span>
+            <span class="cell-lead">${pipelineDot(pipelineStageColor('jobs', resolvePipelineStage('jobs', job.stage, companyId), companyId))}<span><strong>${h(job.name)}</strong><small>${h(job.client_name || 'No client')} - ${h(job.site_address || 'No address')}</small></span></span>
             <span>${h(job.job_type || '—')}</span>
-            <span>${stageTagPipe('jobs', job.stage)}</span>
+            <span>${stageTagPipe('jobs', job.stage, companyId)}</span>
             <span>${priorityPill(job.priority)}</span>
             <span>${h(job.owner_name || 'Unassigned')}</span>
             <span>${money(job.estimate_total)}</span>
@@ -3465,12 +4255,156 @@ function renderJobProfile(companyId, job) {
         <div class="section-head"><div><h2>Linked workspace</h2><p>Native Quest modules scoped to this job.</p></div></div>
         <div class="linked-grid">
           ${miniLink(companyPath('tasks', { job_id: job.id }, companyId), 'ti-list-check', 'Tasks', `${taskCountForJob(job.id)} linked tasks`)}
-          ${miniLink(companyPath('files', { job_id: job.id }, companyId), 'ti-folder', 'Files', `${fileCountForJob(job.id)} files`)}
-          ${miniLink(companyPath('forms', { job_id: job.id }, companyId), 'ti-clipboard-list', 'Forms', 'Inspections and surveys')}
-          ${miniLink(companyPath('analytics', { job_id: job.id }, companyId), 'ti-chart-bar', 'Dashboard', 'Job health')}
+          ${can('files.view', companyId) ? miniLink(companyPath('files', { job_id: job.id }, companyId), 'ti-folder', 'Files', `${fileCountForJob(job.id)} files`) : ''}
+          ${can('forms.view', companyId) ? miniLink(companyPath('forms', { job_id: job.id }, companyId), 'ti-clipboard-list', 'Forms', 'Inspections and surveys') : ''}
+          ${can('team.view', companyId) ? miniLink(companyPath('analytics', { job_id: job.id }, companyId), 'ti-chart-bar', 'Dashboard', 'Job health') : ''}
         </div>
       </article>
     </section>
+  `;
+}
+
+function guidanceForJobStage(name) {
+  const stage = String(name || '').toLowerCase();
+  if (/unscheduled|lead|intake/.test(stage)) return { t: 'Get the job ready to schedule.', b: ['Confirm scope, address, and decision maker.', 'Assign an owner for the next move.', 'Add missing tasks before this sits idle.'] };
+  if (/scheduled|site|review/.test(stage)) return { t: 'Lock the field plan.', b: ['Confirm date, crew, and customer availability.', 'Make sure photos and measurements are attached.', 'Check permit or access constraints.'] };
+  if (/material|order/.test(stage)) return { t: 'Protect the production date.', b: ['Confirm material list and vendor status.', 'Attach purchase details or delivery notes.', 'Flag shortages before the crew is blocked.'] };
+  if (/production|active|install/.test(stage)) return { t: 'Run the work cleanly.', b: ['Keep crew tasks current.', 'Log field notes, photos, and blockers.', 'Watch cost, schedule, and customer updates.'] };
+  if (/qc|punch|quality/.test(stage)) return { t: 'Close the field loop.', b: ['Capture punch list items.', 'Confirm cleanup and customer walkthrough.', 'Prepare invoice and closeout docs.'] };
+  if (/invoice/.test(stage)) return { t: 'Move from work complete to paid.', b: ['Confirm invoice total and job scope.', 'Send the invoice and record due date.', 'Follow up on payment status.'] };
+  if (/paid|closed|complete/.test(stage)) return { t: 'Archive the win.', b: ['Confirm payment is recorded.', 'Make sure files and forms are complete.', 'Capture lessons learned for the next job.'] };
+  if (/hold/.test(stage)) return { t: 'Unblock or document the hold.', b: ['Write the blocker clearly.', 'Assign an owner for the next decision.', 'Set a follow-up date.'] };
+  return { t: 'Move the job forward.', b: ['Confirm the next operational step.', 'Assign the responsible person.', 'Log the latest customer or field update.'] };
+}
+
+function renderJobRecord(companyId, job) {
+  if (!job) return emptyState('Create a job to see the record workspace.');
+  const stages = pipelineStages('jobs', companyId);
+  const currentStage = resolvePipelineStage('jobs', job.stage, companyId);
+  const ci = stages.findIndex((stage) => stage.name === currentStage);
+  const currentIndex = ci >= 0 ? ci : 0;
+  const g = guidanceForJobStage(currentStage);
+  const activeTab = state.jobActivityTab || 'Note';
+  const feed = activitiesFor('job', job.id);
+  const tasks = state.tasks
+    .filter((task) => task.project_id === job.id)
+    .sort((a, b) => (a.status === 'done' ? 1 : 0) - (b.status === 'done' ? 1 : 0) || String(a.due).localeCompare(String(b.due)));
+  const account = accountById(job.account_id);
+  const deal = dealById(job.deal_id);
+  const showCrm = can('crm.view', companyId);
+  const fieldRow = (label, content) => `<div class="sf-field"><div class="sf-field-label">${h(label)}<i class="ti ti-pencil sf-pencil"></i></div><div class="sf-field-value">${content}</div></div>`;
+  const ed = (key, opts = {}) => {
+    const display = (job[key] === '' || job[key] == null) ? '-' : job[key];
+    const cls = ['sf-edit', opts.blue ? 'blue' : '', opts.mono ? 'mono' : ''].filter(Boolean).join(' ');
+    return `<span class="${cls}" data-job-edit="${h(key)}" data-job-id="${h(job.id)}" title="Click to edit">${h(String(display))}</span>`;
+  };
+  const headerActions = [
+    ['New Task', 'ti-checkbox'],
+    ['Log a Call', 'ti-phone'],
+    ['Add Note', 'ti-note'],
+    ...(can('files.view', companyId) ? [['Open Files', 'ti-folder']] : []),
+    ['Edit', 'ti-pencil'],
+  ];
+  const activityTabs = [['Note', 'ti-note'], ['New Task', 'ti-checkbox'], ['New Event', 'ti-calendar'], ['Log a Call', 'ti-phone']];
+  const quickTiles = [
+    ['Task', 'ti-checkbox'],
+    ...(can('files.view', companyId) ? [['Files', 'ti-folder']] : []),
+    ...(can('forms.view', companyId) ? [['Form', 'ti-clipboard-list']] : []),
+    ...(can('finance.view', companyId) ? [['Invoice', 'ti-receipt-dollar']] : []),
+    ['Note', 'ti-note'],
+    ...(can('team.view', companyId) ? [['Analytics', 'ti-chart-bar']] : []),
+  ];
+
+  return `
+    <div class="sf-record job-record">
+      <div class="sf-object-tabs">
+        <a class="sf-object-tab" href="${appHref(companyPath('home', {}, companyId))}" data-router>Home</a>
+        <a class="sf-object-tab" href="${appHref(companyPath('jobs', {}, companyId))}" data-router>All Jobs <span class="sf-tab-kind">| Jobs</span></a>
+        <span class="sf-object-tab on">${h(job.name)} <span class="sf-tab-kind">| Job</span></span>
+      </div>
+
+      <div class="sf-record-head">
+        <span class="sf-record-icon"><i class="ti ti-briefcase"></i></span>
+        <div><div class="sf-record-label">Job</div><div class="sf-record-name">${h(job.name)}</div></div>
+        <div class="sf-actions">
+          ${headerActions.map(([label, ico]) => label === 'Edit'
+            ? `<button class="sf-btn" type="button" data-action="open-job-form" data-mode="edit" data-job-id="${h(job.id)}"><i class="ti ${ico}"></i>${label}</button>`
+            : `<button class="sf-btn" type="button" data-action="job-quick" data-kind="${h(label)}" data-job-id="${h(job.id)}"><i class="ti ${ico}"></i>${label}</button>`).join('')}
+        </div>
+      </div>
+
+      <div class="sf-path-wrap">
+        <div class="sf-path-row">
+          <div class="sf-stage-track">
+            ${stages.map((stage, i) => {
+              const cls = i < currentIndex ? 'done' : i === currentIndex ? 'current' : 'future';
+              return `<button class="sf-stage ${cls}" type="button" data-action="set-job-stage" data-job-id="${h(job.id)}" data-stage="${h(stage.name)}" title="Move to ${h(stage.name)}">${i < currentIndex ? '<i class="ti ti-check"></i>' : h(stage.name)}</button>`;
+            }).join('')}
+          </div>
+          <button class="sf-mark-btn" type="button" data-action="job-mark-next" data-job-id="${h(job.id)}">Mark as Current Stage</button>
+        </div>
+        <div class="sf-guidance">
+          <div class="sf-guidance-label">Guidance for Success</div>
+          <div class="sf-guidance-title">${h(g.t)}</div>
+          <div class="sf-guidance-lines">${g.b.map((line) => `<div>- ${h(line)}</div>`).join('')}</div>
+        </div>
+      </div>
+
+      <div class="sf-three-col">
+        <div class="sf-col">
+          <div class="sf-card"><div class="sf-card-head"><i class="ti ti-id-badge-2"></i>Job Details</div><div class="sf-card-body">
+            ${fieldRow('Client', ed('client_name', { blue: true }))}
+            ${fieldRow('Contact', ed('contact_name', { blue: true }))}
+            ${fieldRow('Site Address', ed('site_address'))}
+            ${fieldRow('Job Type', `<span class="sf-pill">${h(job.job_type || '-')}</span>`)}
+            ${fieldRow('Owner', ed('owner_name', { blue: true }))}
+            ${fieldRow('Priority', `<span class="sf-pill">${h(job.priority || 'Medium')}</span>`)}
+          </div></div>
+          <div class="sf-card"><div class="sf-card-head"><i class="ti ti-clipboard-data"></i>Status</div><div class="sf-card-body">
+            ${fieldRow('Stage', `<span>${h(job.stage)}</span>`)}
+            ${fieldRow('Estimate Total', `<span class="sf-money"><span class="sf-edit mono" data-job-edit="estimate_total" data-job-id="${h(job.id)}" title="Click to edit">${money(job.estimate_total || 0)}</span></span>`)}
+            ${fieldRow('Invoice Total', `<span class="sf-money"><span class="sf-edit mono" data-job-edit="invoice_total" data-job-id="${h(job.id)}" title="Click to edit">${money(job.invoice_total || 0)}</span></span>`)}
+            ${fieldRow('Account', account ? (showCrm ? `<button class="link-button" type="button" data-action="open-account" data-account-id="${h(account.id)}">${h(account.name)}</button>` : `<span>${h(account.name)}</span>`) : '<span>-</span>')}
+            ${fieldRow('Deal', deal ? (showCrm ? `<button class="link-button" type="button" data-action="open-deal" data-deal-id="${h(deal.id)}">${h(deal.name)}</button>` : `<span>${h(deal.name)}</span>`) : '<span>-</span>')}
+          </div></div>
+        </div>
+
+        <div class="sf-col">
+          <div class="sf-card">
+            <div class="sf-activity-tabs">${activityTabs.map(([label, ico]) => `<button class="sf-activity-tab ${activeTab === label ? 'active' : ''}" type="button" data-action="job-activity-tab" data-tab="${h(label)}"><i class="ti ${ico}"></i>${label}</button>`).join('')}</div>
+            <form class="sf-note-box" data-job-note-form autocomplete="off">
+              <input type="hidden" name="job_id" value="${h(job.id)}" />
+              <input name="body" placeholder="Write a note or @mention..." />
+              <span class="sf-note-tools"><i class="ti ti-paperclip"></i><i class="ti ti-at"></i></span>
+              <button class="sf-btn" type="submit">Post</button>
+            </form>
+            <div class="sf-filters">Filters: This job - All activities - All types</div>
+            <div class="sf-feed">
+              ${feed.length ? feed.map((a) => sfFeedItem(a)).join('') : '<div class="sf-feed-empty">No job activity yet. Log a note, call, or meeting.</div>'}
+            </div>
+          </div>
+        </div>
+
+        <div class="sf-col">
+          <div class="sf-card"><div class="sf-card-head"><i class="ti ti-bolt"></i>Quick Create</div>
+            <div class="sf-quick-grid">${quickTiles.map(([label, ico]) => `<button class="sf-quick-tile" type="button" data-action="job-quick" data-kind="${h(label)}" data-job-id="${h(job.id)}"><i class="ti ${ico}"></i><span>${h(label)}</span></button>`).join('')}</div>
+          </div>
+          <div class="sf-card"><div class="sf-card-head"><i class="ti ti-apps"></i>Linked Workspace</div>
+            <div class="sf-quick-grid">
+              <a class="sf-quick-tile" href="${appHref(companyPath('tasks', { job_id: job.id }, companyId))}" data-router><i class="ti ti-checkbox"></i><span>Open Tasks</span></a>
+              ${can('files.view', companyId) ? `<a class="sf-quick-tile" href="${appHref(companyPath('files', { folder: 'jobs', job_id: job.id }, companyId))}" data-router><i class="ti ti-folder"></i><span>Files</span></a>` : ''}
+              ${can('forms.view', companyId) ? `<a class="sf-quick-tile" href="${appHref(companyPath('forms', { job_id: job.id }, companyId))}" data-router><i class="ti ti-clipboard-list"></i><span>Forms</span></a>` : ''}
+              ${can('team.view', companyId) ? `<a class="sf-quick-tile" href="${appHref(companyPath('analytics', { job_id: job.id }, companyId))}" data-router><i class="ti ti-chart-bar"></i><span>Analytics</span></a>` : ''}
+            </div>
+          </div>
+          <div class="sf-card"><div class="sf-card-head"><i class="ti ti-checkbox"></i>Open Tasks<span class="sf-connect"><i class="ti ti-plug"></i>Connect</span></div>
+            <div class="sf-tasks">
+              ${tasks.map((task) => `<div class="sf-task-row ${task.status === 'done' ? 'done' : ''}"><button class="sf-check" type="button" data-select-task="${h(task.id)}" aria-label="Open task">${task.status === 'done' ? '<i class="ti ti-check"></i>' : ''}</button><span class="sf-task-title">${h(task.title)}</span>${task.due ? `<span class="sf-due">${h(formatDate(task.due))}</span>` : ''}</div>`).join('') || '<div class="sf-task-empty">No tasks yet.</div>'}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
   `;
 }
 
@@ -4125,29 +5059,24 @@ function renderTeamNode(companyId, member, members, depth = 0) {
 
 function renderSettingsPage(route, companyId) {
   const company = companyById(companyId);
-  const tab = ['company', 'billing', 'roles', 'access', 'team'].includes(route.params.get('tab')) ? route.params.get('tab') : 'company';
+  const settingsTabs = [
+    [companyPath('settings', { tab: 'company' }, companyId), 'Company', 'company'],
+    [companyPath('settings', { tab: 'billing' }, companyId), 'Billing', 'billing'],
+    [companyPath('settings', { tab: 'plugins' }, companyId), 'Plugins', 'plugins'],
+    [companyPath('settings', { tab: 'roles' }, companyId), 'Roles', 'roles'],
+    [companyPath('settings', { tab: 'access' }, companyId), 'Access', 'access'],
+    [companyPath('settings', { tab: 'team' }, companyId), 'Workers', 'team'],
+  ];
+  if (isQuestDeveloper()) settingsTabs.push([companyPath('settings', { tab: 'master' }, companyId), 'Master', 'master']);
+  const allowedTabs = settingsTabs.map((item) => item[2]);
+  const tab = allowedTabs.includes(route.params.get('tab')) ? route.params.get('tab') : 'company';
   return `
     ${workspaceHeader('Settings', 'Company settings, roles, approvals, and admin controls.', '')}
-    ${compactTabs('Settings sections', [
-      [companyPath('settings', { tab: 'company' }, companyId), 'Company', tab === 'company'],
-      [companyPath('settings', { tab: 'billing' }, companyId), 'Billing', tab === 'billing'],
-      [companyPath('settings', { tab: 'roles' }, companyId), 'Roles', tab === 'roles'],
-      [companyPath('settings', { tab: 'access' }, companyId), 'Access', tab === 'access'],
-      [companyPath('settings', { tab: 'team' }, companyId), 'Workers', tab === 'team'],
-    ])}
+    ${compactTabs('Settings sections', settingsTabs.map(([href, label, id]) => [href, label, tab === id]))}
     <section class="dashboard-grid compact-settings-grid">
-      ${tab === 'company' ? `
-      <article class="panel">
-        <div class="section-head"><div><h2>Company</h2><p>Workspace identity.</p></div></div>
-        ${contractRows([
-          ['Name', companyName(companyId)],
-          ['Company ID', companyId],
-          ['Color', company?.color || companyColor(companyId)],
-          ['Visible jobs', companyJobs(companyId).length],
-        ])}
-      </article>
-      ` : ''}
+      ${tab === 'company' ? renderWorkspaceSettings(companyId) : ''}
       ${tab === 'billing' ? renderBillingSettings(companyId) : ''}
+      ${tab === 'plugins' ? renderPluginsSettings(companyId) : ''}
       ${tab === 'roles' ? renderRolesSettings(companyId) : ''}
       ${tab === 'access' ? `
       <article class="panel">
@@ -4182,24 +5111,375 @@ function renderSettingsPage(route, companyId) {
         </div>
       </article>
       ` : ''}
+      ${tab === 'master' && isQuestDeveloper() ? renderPlatformMasterPanel(companyId) : ''}
     </section>
   `;
+}
+
+function renderClientPortalPublicPage(route) {
+  const portal = state.clientPortalPublic;
+  const token = route.token || '';
+  if (!portal?.session || portal.token !== token) {
+    return `
+      <main class="client-portal-public">
+        <section class="client-portal-gate">
+          <div class="client-portal-brand"><span class="side-mark">Q</span><span><strong>Quest Client Portal</strong><small>Plan review</small></span></div>
+          <h1>Open plan portal</h1>
+          <p>Enter your name and the portal password if one was provided. You can view plans, add comments, and export a marked PDF.</p>
+          <form data-client-portal-open-form>
+            <input type="hidden" name="token" value="${h(token)}" />
+            <label><span>Your name</span><input name="guest_name" autocomplete="name" placeholder="Your name" required /></label>
+            <label><span>Password</span><input name="password" type="password" autocomplete="current-password" placeholder="Optional unless required" /></label>
+            <button class="btn btn-primary full" type="submit">Open portal</button>
+            ${portal?.error ? `<div class="form-message error">${h(portal.error)}</div>` : ''}
+          </form>
+        </section>
+      </main>
+    `;
+  }
+  const documents = portal.documents || [];
+  const selectedDoc = documents.find((doc) => doc.id === portal.documentId) || documents[0] || null;
+  return `
+    <main class="client-portal-public open">
+      <header class="client-portal-public-top">
+        <div class="client-portal-brand"><span class="side-mark">Q</span><span><strong>${h(portal.portal?.title || 'Client Portal')}</strong><small>${h(portal.portal?.client_name || portal.guestName || 'Plan review')}</small></span></div>
+        <button class="btn" type="button" data-action="client-portal-export"><i class="ti ti-download"></i>Export marked PDF</button>
+      </header>
+      <section class="client-portal-workbench">
+        <aside class="client-portal-docs">
+          <strong>Plan set</strong>
+          ${documents.map((doc) => `
+            <button class="${selectedDoc?.id === doc.id ? 'active' : ''}" type="button" data-action="client-portal-doc" data-document-id="${h(doc.id)}">
+              <i class="ti ${doc.mime_type?.includes('pdf') ? 'ti-file-type-pdf' : 'ti-photo'}"></i>
+              <span>${h(doc.file_name)}<small>${formatBytes(doc.size_bytes)}</small></span>
+            </button>
+          `).join('') || emptyState('No documents are available.')}
+          <div class="client-portal-help">DWG files should be exported to PDF before upload.</div>
+        </aside>
+        <section class="client-portal-viewer">
+          <div class="client-portal-toolbar">
+            ${[
+              { id: 'pan', attr: 'data-portal-tool="pan"', label: 'Pan' },
+              { id: 'pen', attr: 'data-portal-tool="pen"', label: 'Pen' },
+              { id: 'line', attr: 'data-portal-tool="line"', label: '/' },
+              { id: 'rect', attr: 'data-portal-tool="rect"', label: 'Box' },
+              { id: 'circle', attr: 'data-portal-tool="circle"', label: 'Oval' },
+              { id: 'arrow', attr: 'data-portal-tool="arrow"', label: 'Arrow' },
+              { id: 'text', attr: 'data-portal-tool="text"', label: 'T' },
+              { id: 'comment', attr: 'data-portal-tool="comment"', label: 'Pin' },
+              { id: 'measure', attr: 'data-portal-tool="measure"', label: 'Ft' },
+              { id: 'stamp', attr: 'data-portal-tool="stamp"', label: 'OK' },
+            ].map((tool) => `
+              <button class="client-portal-tool ${state.clientPortalTool === tool.id ? 'active' : ''}" type="button" data-action="client-portal-tool" ${tool.attr} title="${h(titleCase(tool.id))}">${h(tool.label)}</button>
+            `).join('')}
+            <input type="color" value="${h(state.clientPortalColor)}" data-action="client-portal-color" title="Markup color" />
+            <button class="btn" type="button" data-action="client-portal-save-annotations"><i class="ti ti-device-floppy"></i>Save markups</button>
+          </div>
+          <div class="client-portal-stage" data-client-portal-stage>
+            ${selectedDoc ? `
+              <div class="client-portal-canvas-wrap">
+                <canvas id="client-portal-doc-canvas"></canvas>
+                <canvas id="client-portal-draw-canvas"></canvas>
+              </div>
+            ` : emptyState('Choose a document.')}
+          </div>
+        </section>
+        <aside class="client-portal-comments">
+          <strong>Comments</strong>
+          ${(portal.annotations || []).filter((annotation) => !selectedDoc || annotation.document_id === selectedDoc.id).map((annotation) => `
+            <div class="client-portal-comment">
+              <b>${h(annotation.guest_name || portal.guestName || 'Guest')}</b>
+              <span>${h(annotation.payload?.text || annotation.payload?.label || annotation.annotation_type || 'Markup')}</span>
+              <small>Page ${h(annotation.page_number || 1)}</small>
+            </div>
+          `).join('') || emptyState('No comments yet.')}
+        </aside>
+      </section>
+    </main>
+  `;
+}
+
+function renderClientPortalFormModal(companyId, portal = null) {
+  return renderModalShell('Client Portal', portal ? 'Edit portal' : 'New portal link', `
+    <form class="compact-tool-form client-portal-editor" data-client-portal-form>
+      <input type="hidden" name="id" value="${h(portal?.id || '')}" />
+      ${field('Portal title', 'title', portal?.title || '', true)}
+      ${field('Client name', 'client_name', portal?.client_name || '')}
+      ${field('Client email', 'client_email', portal?.client_email || '', false, 'email')}
+      ${selectField('Linked job', 'job_id', portal?.job_id || '', [['', 'No linked job']].concat(companyJobs(companyId).map((job) => [job.id, job.name])))}
+      <label><span>${portal ? 'New password' : 'Password'} (optional)</span><input name="password" type="password" autocomplete="new-password" placeholder="${portal?.password_hash ? 'Leave blank to keep current password' : 'Leave blank for link-only access'}" /></label>
+      <div class="file-policy-note">
+        <strong>Security</strong>
+        <span>Quest stores only token and password hashes. The raw link is shown after creation and can be copied from the portal detail.</span>
+      </div>
+      <div class="form-actions">
+        <button class="btn btn-primary" type="submit">${portal ? 'Save portal' : 'Create portal'}</button>
+        <button class="btn" type="button" data-action="close-modal">Cancel</button>
+      </div>
+    </form>
+  `, 'task-modal');
+}
+
+function renderClientPortalDocumentModal(companyId, portal) {
+  if (!portal) return renderModalShell('Client Portal', 'Upload plan set', emptyState('Choose a portal first.'));
+  return renderModalShell('Client Portal', 'Upload plan set', `
+    <form class="file-upload-panel" data-client-portal-document-form>
+      <input type="hidden" name="portal_id" value="${h(portal.id)}" />
+      <div class="file-policy-note span-2">
+        <strong>${h(portal.title)}</strong>
+        <span>Upload PDF, PNG, or JPG. DWG files should be exported to PDF first.</span>
+      </div>
+      <label class="span-2"><span>Plan documents</span><input name="files" type="file" accept=".pdf,.png,.jpg,.jpeg,application/pdf,image/png,image/jpeg" multiple required /></label>
+      <div class="form-actions span-2">
+        <button class="btn btn-primary" type="submit">Upload documents</button>
+        <button class="btn" type="button" data-action="close-modal">Cancel</button>
+      </div>
+    </form>
+  `, 'file-modal-panel');
+}
+
+function renderClientPortalsPage(route, companyId) {
+  const portals = filteredClientPortals(companyId);
+  const selectedId = route.params.get('portal_id') || portals[0]?.id || '';
+  const selected = clientPortalById(selectedId);
+  const canManagePortals = can('client_portals.manage', companyId);
+  return `
+    <section class="tool-page client-portals-page">
+      ${workspaceHeader('Client portals', 'Share plan sets with password-protected markup links.', `
+        ${canManagePortals ? `<button class="btn btn-primary" type="button" data-action="open-client-portal-form"><i class="ti ti-world-plus"></i>New portal</button>` : ''}
+      `)}
+      <section class="client-portal-layout">
+        <aside class="panel client-portal-list-panel">
+          <label class="crm-search"><i class="ti ti-search"></i><input data-client-portal-search value="${h(state.clientPortalQuery)}" placeholder="Search portals" /></label>
+          <div class="client-portal-list">
+            ${portals.map((portal) => renderClientPortalListItem(portal, portal.id === selectedId)).join('') || emptyState('No client portals yet.')}
+          </div>
+        </aside>
+        <section class="panel client-portal-detail-panel">
+          ${selected ? renderClientPortalDetail(selected, canManagePortals) : emptyState('Create a portal to share PDF plans and markups.')}
+        </section>
+      </section>
+    </section>
+  `;
+}
+
+function renderClientPortalListItem(portal, active) {
+  const docs = clientPortalDocumentsForPortal(portal.id);
+  const annotations = clientPortalAnnotationsForPortal(portal.id);
+  return `
+    <a class="client-portal-row ${active ? 'active' : ''}" href="${appHref(companyPath('client-portals', { portal_id: portal.id }, portal.company_id))}" data-router>
+      <span><i class="ti ti-world-upload"></i></span>
+      <strong>${h(portal.title)}</strong>
+      <small>${h(portal.client_name || portal.client_email || companyName(portal.company_id))}</small>
+      <em>${docs.length} docs / ${annotations.length} marks</em>
+      <b>${h(titleCase(portal.status))}</b>
+    </a>
+  `;
+}
+
+function renderClientPortalDetail(portal, canManagePortals) {
+  const docs = clientPortalDocumentsForPortal(portal.id);
+  const annotations = clientPortalAnnotationsForPortal(portal.id);
+  const events = clientPortalEventsForPortal(portal.id);
+  const link = clientPortalPublicLink(portal);
+  return `
+    <div class="client-portal-head">
+      <div>
+        <div class="eyebrow">Client Portal</div>
+        <h2>${h(portal.title)}</h2>
+        <p>${h(portal.client_name || 'External reviewer')} / ${h(portal.client_email || 'No email saved')}</p>
+      </div>
+      <span class="status-pill ${h(portal.status)}">${h(titleCase(portal.status))}</span>
+    </div>
+    <div class="forms-summary-share compact">
+      <strong>Portal link</strong>
+      <input readonly value="${h(link)}" />
+      <button class="btn" type="button" data-action="copy-client-portal-link" data-portal-id="${h(portal.id)}"><i class="ti ti-copy"></i>Copy link</button>
+      ${canManagePortals ? `<button class="btn" type="button" data-action="regenerate-client-portal-link" data-portal-id="${h(portal.id)}"><i class="ti ti-refresh"></i>Regenerate</button>` : ''}
+      ${canManagePortals ? `<button class="btn danger" type="button" data-action="revoke-client-portal" data-portal-id="${h(portal.id)}"><i class="ti ti-ban"></i>Revoke</button>` : ''}
+    </div>
+    ${canManagePortals ? `
+      <div class="client-portal-actionbar">
+        <button class="btn btn-primary" type="button" data-action="open-client-portal-document-form" data-portal-id="${h(portal.id)}"><i class="ti ti-upload"></i>Upload plan set</button>
+        <button class="btn" type="button" data-action="open-client-portal-form" data-portal-id="${h(portal.id)}"><i class="ti ti-key"></i>Edit password/details</button>
+      </div>
+    ` : ''}
+    <div class="client-portal-detail-grid">
+      <article>
+        <div class="section-head"><div><h2>Documents</h2><p>PDF, PNG, and JPG plan sets. DWG should be exported to PDF first.</p></div></div>
+        <div class="client-portal-doc-list">
+          ${docs.map((doc) => `
+            <div class="client-portal-doc-row">
+              ${fileTypeBadge({ file_name: doc.file_name, mime_type: doc.mime_type })}
+              <span><strong>${h(doc.file_name)}</strong><small>${formatBytes(doc.size_bytes)} / ${formatDate(doc.created_at)}</small></span>
+            </div>
+          `).join('') || emptyState('No plan documents uploaded.')}
+        </div>
+      </article>
+      <article>
+        <div class="section-head"><div><h2>Guest markups</h2><p>${annotations.length} saved annotation${annotations.length === 1 ? '' : 's'}.</p></div></div>
+        <div class="client-portal-annotation-list">
+          ${annotations.slice(0, 12).map((annotation) => `
+            <div class="client-portal-annotation-row">
+              <strong>${h(annotation.guest_name || 'Guest')}</strong>
+              <span>${h(annotation.annotation_type)} / page ${h(annotation.page_number)}</span>
+              <small>${h(annotation.payload?.text || annotation.payload?.label || annotation.payload?.type || 'Markup saved')}</small>
+            </div>
+          `).join('') || emptyState('No guest markups yet.')}
+        </div>
+      </article>
+    </div>
+    <section class="client-portal-events">
+      <div class="section-head"><div><h2>Activity</h2><p>${events.length} portal event${events.length === 1 ? '' : 's'}.</p></div></div>
+      ${events.slice(0, 6).map((event) => `<div class="activity-line"><b>${h(event.event_type)}</b><span>${h(event.guest_name || 'Guest')} / ${formatDateTime(event.created_at)}</span></div>`).join('') || emptyState('No portal activity yet.')}
+    </section>
+  `;
+}
+
+function renderWorkspaceSettings(companyId) {
+  const company = companyById(companyId) || normalizeCompany({ id: companyId });
+  const canManage = can('settings.manage', companyId) || ['owner', 'admin'].includes(String(membershipForProfile(companyId, activeSession().profile.id)?.role || '').toLowerCase()) || isQuestDeveloper();
+  const canCreate = canCreateAnotherWorkspace();
+  return `
+    <article class="panel span-2">
+      <div class="section-head"><div><h2>Workspace identity</h2><p>Rename this workspace and choose the icon your team sees in navigation.</p></div></div>
+      <form class="workspace-settings-form" data-workspace-settings-form>
+        <input type="hidden" name="company_id" value="${h(companyId)}" />
+        ${field('Workspace name', 'workspace_name', companyName(companyId), true, 'text', 'workspace-name-field')}
+        <div class="workspace-icon-section">
+          <span>Workspace icon</span>
+        <div class="workspace-icon-picker">
+          ${WORKSPACE_ICON_OPTIONS.map((item) => `
+            <label class="workspace-icon-choice ${item.key === company.icon_key ? 'active' : ''}" data-workspace-icon-choice>
+              <input type="radio" name="icon_key" value="${h(item.key)}" ${item.key === company.icon_key ? 'checked' : ''} ${canManage ? '' : 'disabled'} />
+              <i class="ti ${h(item.icon)}"></i>
+              <span>${h(item.label)}</span>
+            </label>
+          `).join('')}
+        </div>
+        </div>
+        <div class="form-actions">
+          <button class="btn btn-primary" type="submit" ${canManage ? '' : 'disabled'}><i class="ti ti-device-floppy"></i>Save workspace</button>
+        </div>
+      </form>
+    </article>
+    <article class="panel">
+      <div class="section-head"><div><h2>Create another workspace</h2><p>${h(isQuestDeveloper() ? 'Platform owners can create unlimited workspaces.' : workspaceLimitMessage())}</p></div></div>
+      <form class="workspace-create-mini" data-company-create-form>
+        <label>Workspace name<input name="company_name" placeholder="New company workspace" required ${canCreate ? '' : 'disabled'} /></label>
+        ${workspacePresetSelect()}
+        ${workspaceIconSelect()}
+        <button class="btn btn-primary full" type="submit" ${canCreate ? '' : 'disabled'}><i class="ti ti-plus"></i>Create workspace</button>
+      </form>
+    </article>
+    <article class="panel">
+      <div class="section-head"><div><h2>Workspace data</h2><p>Setup, data, and plugins are isolated by workspace.</p></div></div>
+      ${contractRows([
+        ['Workspace ID', companyId],
+        ['Owned workspaces', isQuestDeveloper() ? 'Unlimited' : `${ownedWorkspaceCount()} / ${WORKSPACE_SELF_CREATE_LIMIT}`],
+        ['Visible jobs', companyJobs(companyId).length],
+        ['Installed plugins', availableWorkspacePlugins().filter((plugin) => isPluginInstalled(companyId, plugin.id)).length],
+      ])}
+    </article>
+  `;
+}
+
+function renderPluginsSettings(companyId) {
+  const canManagePlugins = can('plugins.manage', companyId);
+  const installedCount = availableWorkspacePlugins().filter((plugin) => isPluginInstalled(companyId, plugin.id)).length;
+  return `
+    <article class="panel span-3 plugins-settings-panel">
+      <div class="section-head">
+        <div><h2>Workspace plugins</h2><p>${installedCount} active plugin${installedCount === 1 ? '' : 's'} for ${h(companyName(companyId))}. Core work modules stay on for every company.</p></div>
+      </div>
+      <div class="plugin-preset-row">
+        ${Object.entries(WORKSPACE_PLUGIN_PRESETS).map(([presetCode, pluginIds]) => `
+          <button class="btn" type="button" data-action="apply-plugin-preset" data-preset-code="${h(presetCode)}" ${canManagePlugins ? '' : 'disabled'}>
+            <i class="ti ti-layout-grid-add"></i>${h(WORKSPACE_PLUGIN_PRESET_LABELS[presetCode] || titleCase(presetCode))}
+            <small>${pluginIds.length} plugins</small>
+          </button>
+        `).join('')}
+      </div>
+      <div class="plugin-card-grid">
+        ${WORKSPACE_PLUGIN_REGISTRY.map((plugin) => renderPluginCard(companyId, plugin, canManagePlugins)).join('')}
+      </div>
+    </article>
+  `;
+}
+
+function renderPluginCard(companyId, plugin, canManagePlugins) {
+  const status = companyPluginStatus(companyId, plugin.id);
+  const installed = status === 'installed';
+  const disabled = status === 'disabled';
+  const available = status === 'available';
+  const comingSoon = status === 'coming_soon';
+  const prerequisiteNote = pluginPrerequisiteNote(companyId, plugin);
+  const conflictIds = conflictingPluginIds(companyId, plugin.id, 'installed');
+  const conflictLabels = conflictIds.map((conflictId) => pluginById(conflictId)?.label || conflictId).join(', ');
+  const moduleLabels = plugin.module_ids
+    .map((moduleId) => MODULE_REGISTRY.find((module) => module.id === moduleId)?.label || titleCase(moduleId))
+    .join(', ');
+  return `
+    <article class="plugin-card ${installed ? 'installed' : disabled ? 'disabled' : comingSoon ? 'coming-soon' : 'available'}">
+      <div class="plugin-card-icon"><i class="ti ${h(plugin.icon)}"></i></div>
+      <div class="plugin-card-copy">
+        <strong>${h(plugin.label)}</strong>
+        <span>${h(plugin.summary)}</span>
+        <small>${h(moduleLabels)}</small>
+        ${prerequisiteNote ? `<small class="plugin-card-note">${h(prerequisiteNote)}</small>` : ''}
+        ${conflictLabels && !installed ? `<small class="plugin-card-note warning">Installing ${h(plugin.label)} disables ${h(conflictLabels)}.</small>` : ''}
+      </div>
+      <b class="status-pill ${installed ? 'active' : comingSoon ? 'muted' : disabled ? 'pending' : ''}">${h(pluginStatusLabel(status))}</b>
+      <div class="plugin-card-actions">
+        ${installed ? `<button class="btn" type="button" data-action="set-company-plugin" data-plugin-id="${h(plugin.id)}" data-status="disabled" ${canManagePlugins ? '' : 'disabled'}><i class="ti ti-power"></i>Disable</button>` : ''}
+        ${available || disabled ? `<button class="btn btn-primary" type="button" data-action="set-company-plugin" data-plugin-id="${h(plugin.id)}" data-status="installed" ${canManagePlugins ? '' : 'disabled'}><i class="ti ti-download"></i>${disabled ? 'Reinstall' : 'Install'}</button>` : ''}
+        ${comingSoon ? '<button class="btn" type="button" disabled><i class="ti ti-clock"></i>Coming soon</button>' : ''}
+      </div>
+    </article>
+  `;
+}
+
+function conflictingPluginIds(companyId, pluginId, nextStatus) {
+  const plugin = pluginById(pluginId);
+  if (nextStatus !== 'installed' || !plugin?.exclusiveGroup) return [];
+  return availableWorkspacePlugins()
+    .filter((item) => item.id !== plugin.id && item.exclusiveGroup === plugin.exclusiveGroup && isPluginInstalled(companyId, item.id))
+    .map((item) => item.id);
+}
+
+function pluginPrerequisiteNote(companyId, plugin) {
+  if (plugin.id === 'underwriter' && !isPluginInstalled(companyId, 'crm_2')) return 'Underwriter connects best when CRM 2 is installed.';
+  if (!plugin.recommendedWith?.length) return '';
+  const recommended = plugin.recommendedWith
+    .filter((pluginId) => !isPluginInstalled(companyId, pluginId))
+    .map((pluginId) => pluginById(pluginId)?.label || pluginId);
+  return recommended.length ? `${plugin.label} works best with ${recommended.join(', ')}.` : '';
+}
+
+function pluginStatusLabel(status) {
+  if (status === 'installed') return 'Installed';
+  if (status === 'disabled') return 'Disabled';
+  if (status === 'coming_soon') return 'Coming soon';
+  return 'Available';
 }
 
 function renderBillingSettings(companyId) {
   const subscription = companySubscription(companyId);
   const pendingReview = subscriptionNeedsReview(companyId);
+  const manualBilling = CONFIG.billingMode === 'manual';
+  const buttonLabel = manualBilling ? 'Manual approval' : pendingReview ? 'Billing pending' : 'Start subscription';
   return `
     <article class="panel">
       <div class="section-head">
-        <div><h2>${pendingReview ? 'Workspace awaiting approval' : 'Subscription'}</h2><p>${pendingReview ? 'Quest needs to approve billing/access before live company data opens.' : '$300/month company workspace billing gate.'}</p></div>
-        <button class="btn btn-primary" type="button" data-action="start-checkout" ${pendingReview ? 'disabled' : ''}><i class="ti ti-credit-card"></i>${pendingReview ? 'Billing pending' : 'Start subscription'}</button>
+        <div><h2>${pendingReview ? 'Workspace awaiting approval' : 'Subscription'}</h2><p>${manualBilling ? 'Manual approval is active for launch week. Lumen activates workspaces after review.' : pendingReview ? 'Quest needs to approve billing/access before live company data opens.' : '$300/month company workspace billing gate.'}</p></div>
+        <button class="btn btn-primary" type="button" data-action="start-checkout" ${pendingReview || manualBilling ? 'disabled' : ''}><i class="ti ti-credit-card"></i>${buttonLabel}</button>
       </div>
       ${contractRows([
         ['Plan', '$300/month company workspace'],
         ['Status', subscriptionLabel(companyId)],
+        ['Billing mode', manualBilling ? 'Manual approval' : 'Stripe checkout'],
         ['Stripe customer', subscription?.stripe_customer_id || 'Not connected'],
-        ['Approval', pendingReview ? 'Waiting for Quest review' : 'Ready'],
+        ['Approval', pendingReview || manualBilling ? 'Waiting for Lumen review' : 'Ready'],
         ['Renewal / trial', subscription?.current_period_end || subscription?.trial_ends_at ? formatDate(subscription.current_period_end || subscription.trial_ends_at) : 'Pending'],
       ])}
     </article>
@@ -4250,6 +5530,119 @@ function renderWorkspaceReviewRow(review, currentCompanyId) {
   `;
 }
 
+function renderPlatformMasterPanel(currentCompanyId) {
+  const companies = platformCompanyRows();
+  const totals = companies.reduce((acc, company) => {
+    acc.members += number(company.member_count);
+    acc.pending += company.status === 'pending_review' ? 1 : 0;
+    acc.active += ['active', 'trialing', 'past_due', 'grace'].includes(company.status) ? 1 : 0;
+    acc.suspended += ['suspended', 'canceled'].includes(company.status) ? 1 : 0;
+    return acc;
+  }, { members: 0, pending: 0, active: 0, suspended: 0 });
+  return `
+    <article class="panel span-3 platform-master-panel">
+      <div class="section-head">
+        <div>
+          <h2>Master panel</h2>
+          <p>Platform-owner view of companies, members, and workspace access.</p>
+        </div>
+        <button class="btn" type="button" data-action="refresh-data"><i class="ti ti-refresh"></i>Refresh</button>
+      </div>
+      <section class="metric-grid platform-master-metrics">
+        ${metricCard('Companies', companies.length)}
+        ${metricCard('Active', totals.active)}
+        ${metricCard('Pending', totals.pending)}
+        ${metricCard('Members', totals.members)}
+      </section>
+      <form class="platform-workspace-create" data-platform-workspace-create-form>
+        <strong>Create workspace</strong>
+        <label>Workspace name<input name="company_name" placeholder="Customer workspace" required /></label>
+        <label>Owner email<input name="owner_email" type="email" placeholder="owner@company.com" /></label>
+        ${workspacePresetSelect()}
+        ${workspaceIconSelect()}
+        <button class="btn btn-primary" type="submit"><i class="ti ti-plus"></i>Create</button>
+      </form>
+      <div class="platform-company-list">
+        ${companies.map((company) => renderPlatformCompanyRow(company, currentCompanyId)).join('') || emptyState('No companies found for platform review.')}
+      </div>
+    </article>
+  `;
+}
+
+function renderPlatformCompanyRow(company, currentCompanyId) {
+  const active = ['active', 'trialing', 'past_due', 'grace'].includes(company.status);
+  const pending = company.status === 'pending_review';
+  const suspended = ['suspended', 'canceled'].includes(company.status);
+  const isPlatformCompany = company.company_id === 'lumen';
+  const members = platformMembersForCompany(company.company_id);
+  const statusClass = active ? 'active' : pending ? 'pending' : suspended ? 'muted' : 'hold';
+  return `
+    <article class="platform-company-card ${pending ? 'pending' : suspended ? 'suspended' : ''}">
+      <div class="platform-company-main">
+        <span class="company-dot" style="--company-color:${h(company.color || companyColor(company.company_id))}"></span>
+        <div>
+          <strong>${h(company.company_name || companyName(company.company_id))}${company.company_id === currentCompanyId ? ' / current' : ''}</strong>
+          <small>${h(company.company_id)} / Owner: ${h(company.owner_email || company.owner_name || 'No owner yet')}</small>
+        </div>
+      </div>
+      <div class="platform-company-stats">
+        <b class="status-pill ${statusClass}">${h(subscriptionLabelForStatus(company.status, company))}</b>
+        <span>${h(String(number(company.active_member_count)))} active</span>
+        <span>${h(String(number(company.pending_member_count)))} pending</span>
+        <span>${h(String(number(company.disabled_member_count)))} disabled</span>
+      </div>
+      ${renderPlatformPluginStrip(company.company_id)}
+      <div class="platform-company-actions">
+        <button class="btn btn-primary" type="button" data-action="platform-company-action" data-company-id="${h(company.company_id)}" data-platform-action="approve" ${active ? 'disabled' : ''}>Approve</button>
+        <button class="btn" type="button" data-action="platform-company-action" data-company-id="${h(company.company_id)}" data-platform-action="suspend" ${suspended || isPlatformCompany ? 'disabled' : ''}>Suspend</button>
+        <button class="btn" type="button" data-action="platform-company-action" data-company-id="${h(company.company_id)}" data-platform-action="reactivate" ${active ? 'disabled' : ''}>Reactivate</button>
+        <button class="btn danger" type="button" data-action="platform-company-action" data-company-id="${h(company.company_id)}" data-platform-action="archive" ${isPlatformCompany || company.status === 'canceled' ? 'disabled' : ''}>Archive</button>
+      </div>
+      <details class="platform-members" ${pending ? 'open' : ''}>
+        <summary>${members.length} member${members.length === 1 ? '' : 's'}</summary>
+        <div class="platform-member-list">
+          ${members.map(renderPlatformMemberRow).join('') || emptyState('No members found for this company.')}
+        </div>
+      </details>
+    </article>
+  `;
+}
+
+function renderPlatformPluginStrip(companyId) {
+  const installed = availableWorkspacePlugins().filter((plugin) => isPluginInstalled(companyId, plugin.id));
+  return `
+    <details class="platform-plugins">
+      <summary>${installed.length}/${availableWorkspacePlugins().length} plugins installed</summary>
+      <div class="platform-plugin-list">
+        ${availableWorkspacePlugins().map((plugin) => {
+          const active = isPluginInstalled(companyId, plugin.id);
+          return `
+            <span class="${active ? 'active' : 'muted'}">
+              <b>${h(plugin.label)}</b>
+              <button class="btn" type="button" data-action="set-company-plugin" data-company-id="${h(companyId)}" data-plugin-id="${h(plugin.id)}" data-status="${active ? 'disabled' : 'installed'}">
+                ${active ? 'Disable' : 'Install'}
+              </button>
+            </span>
+          `;
+        }).join('')}
+      </div>
+    </details>
+  `;
+}
+
+function renderPlatformMemberRow(member) {
+  return `
+    <article class="platform-member-row ${member.status !== 'active' ? 'muted' : ''}">
+      ${renderAvatar({ full_name: member.name, email: member.email }, 'avatar small')}
+      <span>
+        <strong>${h(member.name || member.email || shortUserId(member.profile_id))}</strong>
+        <small>${h(member.email || member.profile_id)} / ${h(member.role_label)} / ${h(titleCase(member.status))}</small>
+      </span>
+      <b class="status-pill ${member.status === 'active' ? 'active' : member.status === 'pending' ? 'pending' : 'muted'}">${h(titleCase(member.status))}</b>
+    </article>
+  `;
+}
+
 function renderRolesSettings(companyId) {
   const roles = companyRoles(companyId);
   const previewRole = rolePreviewForCompany(companyId);
@@ -4295,7 +5688,7 @@ function renderRolesSettings(companyId) {
 }
 
 function renderRoleAccessPreview(companyId, role) {
-  const liveModules = MODULE_REGISTRY.filter((module) => module.status === 'live');
+  const liveModules = installedLiveModules(companyId);
   const allowedModules = liveModules.filter((module) => roleAllowsPermission(role, module.permission || `${module.id}.view`));
   const deniedModules = liveModules.filter((module) => !roleAllowsPermission(role, module.permission || `${module.id}.view`));
   return `
@@ -4318,7 +5711,7 @@ function renderRoleFormModal(companyId) {
       ${field('Color', 'color', '#f0b23b', false, 'color')}
       ${field('Priority', 'priority', '100', false, 'number')}
       <div class="permission-grid span-2">
-        ${PERMISSION_KEYS.map(([key, label]) => `
+        ${PERMISSION_KEYS.filter(([key]) => permissionAvailableForCompany(key, companyId)).map(([key, label]) => `
           <label><input type="checkbox" name="permissions" value="${h(key)}" /> <span>${h(label)}</span></label>
         `).join('')}
       </div>
@@ -4338,7 +5731,7 @@ function renderInviteFormModal(companyId) {
       <input type="hidden" name="company_id" value="${h(companyId)}" />
       ${field('Email', 'email', '', true, 'email')}
       ${selectField('Role', 'role_id', defaultInviteRoleId(companyId), options)}
-      <div class="form-message span-2">Quest creates an invite code you can copy now. Email invite delivery will use this same record after SMTP/Resend is configured.</div>
+      <div class="form-message span-2">Quest creates an invite code and link for you to copy. Automatic invite email delivery is not active in v1.</div>
       <div class="form-actions span-2">
         <button class="btn btn-primary" type="submit">Create invite code</button>
         <button class="btn" type="button" data-action="close-modal">Cancel</button>
@@ -4684,14 +6077,14 @@ function renderAccountList(companyId) {
   const all = companyAccounts(companyId);
   const openDeals = companyDeals(companyId).filter((deal) => deal.status === 'open');
   return `
-    ${workspaceHeader('Accounts', 'Organizations and customers - the hub for contacts, deals, and jobs.', `
+    ${workspaceHeader('Accounts', 'Organizations and customers - the hub for contacts, quotes, and jobs.', `
       <button class="btn btn-primary" type="button" data-action="open-account-form" data-mode="new"><i class="ti ti-plus"></i>Add account</button>
     `)}
     <section class="metric-grid crm-metrics">
       ${metricCard('Accounts', all.length)}
       ${metricCard('Contacts', companyContacts(companyId).length)}
-      ${metricCard('Open deals', openDeals.length)}
-      ${metricCard('Open pipeline', money(sum(openDeals, 'value')))}
+      ${metricCard('Open quotes', openDeals.length)}
+      ${metricCard('Quote pipeline', money(sum(openDeals, 'value')))}
     </section>
     <section class="pipe-toolbar">
       <label class="crm-search"><i class="ti ti-search"></i><input data-account-search value="${h(state.accountQuery)}" placeholder="Search accounts" /></label>
@@ -4703,7 +6096,7 @@ function renderAccountList(companyId) {
     <section class="panel">
       <div class="section-head"><div><h2>Accounts</h2><p>${rows.length} visible</p></div></div>
       <div class="data-table accounts-table">
-        <div class="table-head"><span>Account</span><span>Type</span><span>Owner</span><span>Contacts</span><span>Open deals</span><span>Pipeline</span></div>
+        <div class="table-head"><span>Account</span><span>Type</span><span>Owner</span><span>Contacts</span><span>Open quotes</span><span>Pipeline</span></div>
         ${rows.map((account) => {
           const deals = dealsForAccount(account.id).filter((deal) => deal.status === 'open');
           return `
@@ -4730,7 +6123,7 @@ function renderAccountDetail(companyId, account) {
   const tabs = [
     ['overview', 'Overview', ''],
     ['contacts', 'Contacts', contacts.length],
-    ['deals', 'Deals', deals.length],
+    ['deals', 'Quotes', deals.length],
     ['jobs', 'Jobs', jobs.length],
     ['activity', 'Activity', activitiesForAccount(account.id).length],
   ];
@@ -4738,12 +6131,12 @@ function renderAccountDetail(companyId, account) {
     ${workspaceHeader(account.name, `${account.type}${account.industry ? ' - ' + account.industry : ''}`, `
       <a class="btn" href="${appHref(companyPath('crm', {}, companyId))}" data-router><i class="ti ti-arrow-left"></i>Accounts</a>
       <button class="btn" type="button" data-action="open-activity-form" data-related-type="account" data-related-id="${h(account.id)}" data-account-id="${h(account.id)}"><i class="ti ti-note"></i>Log activity</button>
-      <button class="btn" type="button" data-action="open-deal-form" data-mode="new" data-account-id="${h(account.id)}"><i class="ti ti-plus"></i>New deal</button>
+      <button class="btn" type="button" data-action="open-deal-form" data-mode="new" data-account-id="${h(account.id)}"><i class="ti ti-plus"></i>New quote</button>
       <button class="btn" type="button" data-action="open-account-form" data-mode="edit" data-account-id="${h(account.id)}"><i class="ti ti-pencil"></i>Edit</button>
     `)}
     <section class="metric-grid crm-metrics">
-      ${metricCard('Open deals', openDeals.length)}
-      ${metricCard('Open pipeline', money(sum(openDeals, 'value')))}
+      ${metricCard('Open quotes', openDeals.length)}
+      ${metricCard('Quote pipeline', money(sum(openDeals, 'value')))}
       ${metricCard('Won', money(sum(deals.filter((deal) => deal.status === 'won'), 'value')))}
       ${metricCard('Jobs', jobs.length)}
     </section>
@@ -4774,10 +6167,10 @@ function renderAccountTab(companyId, account, tab, data) {
   }
   if (tab === 'deals') {
     return `<section class="panel">
-      <div class="section-head"><div><h2>Deals</h2><p>Opportunities for ${h(account.name)}</p></div><button class="btn" type="button" data-action="open-deal-form" data-mode="new" data-account-id="${h(account.id)}"><i class="ti ti-plus"></i>New deal</button></div>
+      <div class="section-head"><div><h2>Quotes</h2><p>Bottom-of-funnel opportunities for ${h(account.name)}</p></div><button class="btn" type="button" data-action="open-deal-form" data-mode="new" data-account-id="${h(account.id)}"><i class="ti ti-plus"></i>New quote</button></div>
       <div class="data-table deals-table">
         <div class="table-head"><span>Deal</span><span>Stage</span><span>Status</span><span>Value</span><span>Owner</span><span>Close</span></div>
-        ${data.deals.map((deal) => dealRow(deal)).join('') || emptyState('No deals for this account yet.')}
+        ${data.deals.map((deal) => dealRow(deal)).join('') || emptyState('No quotes for this account yet.')}
       </div>
     </section>`;
   }
@@ -4788,9 +6181,9 @@ function renderAccountTab(companyId, account, tab, data) {
         <div class="table-head"><span>Job</span><span>Type</span><span>Stage</span><span>Priority</span><span>Owner</span><span>Value</span></div>
         ${data.jobs.map((job) => `
           <a class="table-row" href="${appHref(companyPath('jobs', { tab: 'profile', job_id: job.id }, companyId))}" data-router>
-            <span class="cell-lead">${pipelineDot(jobStageColor(job.stage))}<span><strong>${h(job.name)}</strong><small>${h(job.site_address || 'No address')}</small></span></span>
+            <span class="cell-lead">${pipelineDot(pipelineStageColor('jobs', resolvePipelineStage('jobs', job.stage, companyId), companyId))}<span><strong>${h(job.name)}</strong><small>${h(job.site_address || 'No address')}</small></span></span>
             <span>${h(job.job_type || '—')}</span>
-            <span>${stageTagPipe('jobs', job.stage)}</span>
+            <span>${stageTagPipe('jobs', job.stage, companyId)}</span>
             <span>${priorityPill(job.priority)}</span>
             <span>${h(job.owner_name || 'Unassigned')}</span>
             <span>${money(job.estimate_total)}</span>
@@ -4840,7 +6233,7 @@ function renderAccountEditor(companyId, account) {
   return `
     <form class="job-editor" data-account-form>
       <input type="hidden" name="id" value="${h(edit.id || '')}" />
-      <div class="section-head span-2"><div><h2>${account ? 'Edit account' : 'New account'}</h2><p>Accounts group the contacts, deals, and jobs for one organization.</p></div></div>
+      <div class="section-head span-2"><div><h2>${account ? 'Edit account' : 'New account'}</h2><p>Accounts group the contacts, quotes, and jobs for one organization.</p></div></div>
       ${field('Account name', 'name', edit.name, true)}
       ${selectField('Company', 'company_id', companyId, allowedCompanies().map((company) => [company.id, companyLabel(company)]))}
       ${selectField('Type', 'type', edit.type, ACCOUNT_TYPES.map((type) => [type, type]))}
@@ -4861,11 +6254,11 @@ function renderAccountEditor(companyId, account) {
 }
 
 // ---- Deals (pipeline) -----------------------------------------------------
-function dealRow(deal) {
+function dealRow(deal, companyId = activeCompanyId()) {
   return `
     <button class="table-row ${deal.id === state.selectedDealId ? 'active' : ''}" type="button" data-action="open-deal" data-deal-id="${h(deal.id)}">
-      <span class="cell-lead">${pipelineDot(dealStageColor(deal.stage))}<span><strong>${h(deal.name)}</strong><small>${h(accountName(deal.account_id) || 'No account')}</small></span></span>
-      <span>${stageTagPipe('deals', deal.stage)}</span>
+      <span class="cell-lead">${pipelineDot(pipelineStageColor('deals', resolvePipelineStage('deals', deal.stage, companyId), companyId))}<span><strong>${h(deal.name)}</strong><small>${h(accountName(deal.account_id) || 'No account')}</small></span></span>
+      <span>${stageTagPipe('deals', deal.stage, companyId)}</span>
       <span>${dealStatusPill(deal.status)}</span>
       <span class="cell-mono">${money(deal.value)}</span>
       <span>${h(deal.owner_name || 'Unassigned')}</span>
@@ -4880,7 +6273,7 @@ function dealKpiRow(companyId) {
   const won = deals.filter((deal) => deal.status === 'won');
   return `
     <section class="metric-grid crm-metrics">
-      ${metricCard('Open deals', open.length)}
+      ${metricCard('Open quotes', open.length)}
       ${metricCard('Open value', money(sum(open, 'value')))}
       ${metricCard('Weighted', money(Math.round(weighted)))}
       ${metricCard('Won value', money(sum(won, 'value')))}
@@ -4896,13 +6289,13 @@ function renderDealsPage(route, companyId) {
   const stageParam = route.params.get('stage');
   if (stageParam) state.stageFilterDeals = dealStageNames().includes(stageParam) ? stageParam : 'all';
   return `
-    ${workspaceHeader('Deals', 'Your sales pipeline - opportunities from prospect to won.', `
+    ${workspaceHeader('Quotes', 'Bottom-of-funnel estimates and contracts moving to won work.', `
       <button class="btn" type="button" data-action="open-stage-manager" data-module="deals"><i class="ti ti-adjustments-horizontal"></i>Manage stages</button>
-      <button class="btn btn-primary" type="button" data-action="open-deal-form" data-mode="new"><i class="ti ti-plus"></i>New deal</button>
+      <button class="btn btn-primary" type="button" data-action="open-deal-form" data-mode="new"><i class="ti ti-plus"></i>New quote</button>
     `)}
     ${dealKpiRow(companyId)}
     <section class="pipe-toolbar deals-search-row">
-      <label class="crm-search"><i class="ti ti-search"></i><input data-deal-search value="${h(state.dealQuery)}" placeholder="Search deals" /></label>
+      <label class="crm-search"><i class="ti ti-search"></i><input data-deal-search value="${h(state.dealQuery)}" placeholder="Search quotes" /></label>
     </section>
     ${pipelineToolbar('deals', companyId)}
     ${state.dealBoardView === 'board' ? renderDealBoard(companyId) : renderDealTable(companyId)}
@@ -4912,17 +6305,17 @@ function renderDealsPage(route, companyId) {
 function renderDealBoard(companyId) {
   const rows = filteredDeals(companyId, true);
   const filter = state.stageFilterDeals;
-  const lanes = filter === 'all' ? dealStages() : dealStages().filter((stage) => stage.name === filter);
+  const lanes = filter === 'all' ? pipelineStages('deals', companyId) : pipelineStages('deals', companyId).filter((stage) => stage.name === filter);
   return `
     <section class="pipe-board">
       ${lanes.map((stage) => {
-        const cards = rows.filter((deal) => deal.stage === stage.name);
+        const cards = rows.filter((deal) => resolvePipelineStage('deals', deal.stage, companyId) === stage.name);
         return `
           <article class="pipe-lane">
             <header class="pipe-lane-head">${pipelineDot(stage.color)}<span>${h(stage.name)}</span><b>${cards.length}</b></header>
             <div class="pipe-lane-sub">${money(sum(cards, 'value'))}</div>
             <div class="pipe-lane-body">
-              ${cards.map((deal) => dealCard(deal)).join('') || '<div class="lane-empty">No deals</div>'}
+              ${cards.map((deal) => dealCard(deal)).join('') || '<div class="lane-empty">No quotes</div>'}
             </div>
           </article>`;
       }).join('')}
@@ -4942,10 +6335,10 @@ function renderDealTable(companyId) {
   const rows = filteredDeals(companyId);
   return `
     <section class="panel">
-      <div class="section-head"><div><h2>Deals</h2><p>${rows.length} visible</p></div></div>
+      <div class="section-head"><div><h2>Quotes</h2><p>${rows.length} visible</p></div></div>
       <div class="data-table deals-table">
-        <div class="table-head"><span>Deal</span><span>Stage</span><span>Status</span><span>Value</span><span>Owner</span><span>Close</span></div>
-        ${rows.map((deal) => dealRow(deal)).join('') || emptyState('No deals match this view.')}
+        <div class="table-head"><span>Quote</span><span>Stage</span><span>Status</span><span>Value</span><span>Owner</span><span>Close</span></div>
+        ${rows.map((deal) => dealRow(deal, companyId)).join('') || emptyState('No quotes match this view.')}
       </div>
     </section>`;
 }
@@ -4954,47 +6347,113 @@ function renderDealDetail(companyId, deal) {
   const account = accountById(deal.account_id);
   const contact = contactById(deal.primary_contact_id);
   const job = deal.job_id ? jobById(deal.job_id) : null;
+  const stages = pipelineStages('deals', companyId);
+  const currentStage = resolvePipelineStage('deals', deal.stage, companyId);
+  const ci = stages.findIndex((s) => s.name === currentStage);
+  const g = guidanceForStage(currentStage);
+  const activeTab = state.dealActivityTab || 'Email';
+  const feed = activitiesFor('deal', deal.id);
+  const tasks = tasksForDeal(deal);
+  const ed = (key, opts = {}) => {
+    const display = (deal[key] === '' || deal[key] == null) ? '—' : deal[key];
+    const cls = ['sf-edit', opts.blue ? 'blue' : '', opts.mono ? 'mono' : ''].filter(Boolean).join(' ');
+    return `<span class="${cls}" data-deal-edit="${h(key)}" data-deal-id="${h(deal.id)}" title="Click to edit">${h(String(display))}</span>`;
+  };
+  const fieldRow = (label, content) => `<div class="sf-field"><div class="sf-field-label">${h(label)}<i class="ti ti-pencil sf-pencil"></i></div><div class="sf-field-value">${content}</div></div>`;
+  const headerActions = [['Follow', 'ti-plus'], ['New Task', 'ti-checkbox'], ['Log a Call', 'ti-phone'], ['New Estimate', 'ti-calculator'], ['Edit', 'ti-pencil']];
+  const quickTiles = [['Task', 'ti-checkbox'], ['Meeting', 'ti-calendar'], ['Estimate', 'ti-calculator'], ['Proposal', 'ti-file-text'], ['Note', 'ti-note'], ['Call Log', 'ti-phone']];
+  const activityTabs = [['Email', 'ti-mail'], ['New Task', 'ti-checkbox'], ['New Event', 'ti-calendar'], ['Log a Call', 'ti-phone']];
   return `
-    ${workspaceHeader(deal.name, `${money(deal.value)} - ${deal.stage}`, `
-      <a class="btn" href="${appHref(companyPath('deals', {}, companyId))}" data-router><i class="ti ti-arrow-left"></i>Deals</a>
-      <button class="btn" type="button" data-action="open-activity-form" data-related-type="deal" data-related-id="${h(deal.id)}" data-account-id="${h(deal.account_id)}"><i class="ti ti-note"></i>Log activity</button>
-      ${deal.status !== 'won' ? `<button class="btn btn-primary" type="button" data-action="convert-deal" data-deal-id="${h(deal.id)}"><i class="ti ti-briefcase"></i>Mark won + create job</button>` : ''}
-      <button class="btn" type="button" data-action="open-deal-form" data-mode="edit" data-deal-id="${h(deal.id)}"><i class="ti ti-pencil"></i>Edit</button>
-    `)}
-    <section class="crm-detail-grid">
-      <article class="panel">
-        <div class="section-head"><div><h2>Details</h2></div>${dealStatusPill(deal.status)}</div>
-        ${contractRows([
-          ['Account', account ? account.name : 'No account'],
-          ['Primary contact', contact ? contact.name : 'None'],
-          ['Stage', deal.stage],
-          ['Value', money(deal.value)],
-          ['Probability', `${deal.probability}%`],
-          ['Expected close', deal.close_date ? formatDate(deal.close_date) : '—'],
-          ['Owner', deal.owner_name || 'Unassigned'],
-          ['Source', deal.source || '—'],
-          ['Linked job', job ? job.name : '—'],
-        ])}
-        ${deal.notes ? `<p class="crm-notes">${h(deal.notes)}</p>` : ''}
-        <div class="button-grid">
-          ${account ? `<button class="btn" type="button" data-action="open-account" data-account-id="${h(account.id)}"><i class="ti ti-building-community"></i>Open account</button>` : ''}
-          ${job ? `<a class="btn" href="${appHref(companyPath('jobs', { tab: 'profile', job_id: job.id }, companyId))}" data-router><i class="ti ti-briefcase"></i>Open job</a>` : ''}
+    <div class="sf-record">
+      <div class="sf-object-tabs">
+        <a class="sf-object-tab" href="${appHref(companyPath('home', {}, companyId))}" data-router>Home</a>
+        <a class="sf-object-tab" href="${appHref(companyPath('deals', {}, companyId))}" data-router>All Quotes <span class="sf-tab-kind">| Quotes</span></a>
+        <span class="sf-object-tab on">${h(deal.name)} <span class="sf-tab-kind">| Quote</span></span>
+      </div>
+
+      <div class="sf-record-head">
+        <span class="sf-record-icon"><i class="ti ti-briefcase"></i></span>
+        <div><div class="sf-record-label">Quote</div><div class="sf-record-name">${h(deal.name)}</div></div>
+        <div class="sf-actions">
+          ${headerActions.map(([label, ico]) => label === 'Edit'
+            ? `<button class="sf-btn" type="button" data-action="open-deal-form" data-mode="edit" data-deal-id="${h(deal.id)}"><i class="ti ${ico}"></i>${label}</button>`
+            : `<button class="sf-btn" type="button" data-action="deal-quick" data-kind="${h(label)}" data-deal-id="${h(deal.id)}"><i class="ti ${ico}"></i>${label}</button>`).join('')}
         </div>
-      </article>
-      <article class="panel">
-        <div class="section-head"><div><h2>Activity</h2></div><button class="btn" type="button" data-action="open-activity-form" data-related-type="deal" data-related-id="${h(deal.id)}" data-account-id="${h(deal.account_id)}"><i class="ti ti-plus"></i>Log</button></div>
-        ${renderActivityTimeline('deal', deal.id, deal.account_id)}
-      </article>
-    </section>
+      </div>
+
+      <div class="sf-path-wrap">
+        <div class="sf-path-row">
+          <div class="sf-stage-track">
+            ${stages.map((s, i) => {
+              const cls = i < ci ? 'done' : i === ci ? 'current' : 'future';
+              return `<button class="sf-stage ${cls}" type="button" data-action="set-deal-stage" data-deal-id="${h(deal.id)}" data-stage="${h(s.name)}" title="Move to ${h(s.name)}">${i < ci ? '<i class="ti ti-check"></i>' : h(s.name)}</button>`;
+            }).join('')}
+          </div>
+          <button class="sf-mark-btn" type="button" data-action="deal-mark-next" data-deal-id="${h(deal.id)}">Mark as Current Stage</button>
+        </div>
+        <div class="sf-guidance">
+          <div class="sf-guidance-label">Guidance for Success</div>
+          <div class="sf-guidance-title">${h(g.t)}</div>
+          <div class="sf-guidance-lines">${g.b.map((x) => `<div>— ${h(x)}</div>`).join('')}</div>
+        </div>
+      </div>
+
+      <div class="sf-three-col">
+        <div class="sf-col">
+          <div class="sf-card"><div class="sf-card-head"><i class="ti ti-id-badge-2"></i>About</div><div class="sf-card-body">
+            ${fieldRow('Phone', contact?.phone ? h(contact.phone) : '<span class="muted-dash">—</span>')}
+            ${fieldRow('Email', contact?.email ? `<span class="sf-edit blue">${h(contact.email)}</span>` : '<span class="muted-dash">—</span>')}
+            ${fieldRow('Location', account?.address ? h(account.address) : '<span class="muted-dash">—</span>')}
+            ${fieldRow('Job Type', `<span class="sf-pill">${h(deal.source || 'Re-roof')}</span>`)}
+            ${fieldRow('Owner', ed('owner_name', { blue: true }))}
+            ${fieldRow('Account', account ? `<button class="link-button" type="button" data-action="open-account" data-account-id="${h(account.id)}">${h(account.name)}</button>` : '<span class="muted-dash">—</span>')}
+          </div></div>
+          <div class="sf-card"><div class="sf-card-head"><i class="ti ti-clipboard-data"></i>Status</div><div class="sf-card-body">
+            ${fieldRow('Funnel', '<span>Quotes (bottom of funnel)</span>')}
+            ${fieldRow('Stage', `<span>${h(deal.stage)}</span>`)}
+            ${fieldRow('Est. Value', `<span class="sf-money"><span class="sf-edit mono" data-deal-edit="value" data-deal-id="${h(deal.id)}" title="Click to edit">${money(deal.value || 0)}</span></span>`)}
+            ${fieldRow('Probability', `<span class="sf-edit mono" data-deal-edit="probability" data-deal-id="${h(deal.id)}" title="Click to edit">${h(String(deal.probability || 0))}</span>%`)}
+            ${fieldRow('Pay Type', `<span>${h(deal.status === 'won' ? 'Won' : 'Retail')}</span>`)}
+            ${fieldRow('Linked Job', job ? `<a class="link-button" href="${appHref(companyPath('jobs', { tab: 'profile', job_id: job.id }, companyId))}" data-router>${h(job.name)}</a>` : '<span class="muted-dash">—</span>')}
+          </div></div>
+        </div>
+
+        <div class="sf-col">
+          <div class="sf-card">
+            <div class="sf-activity-tabs">${activityTabs.map(([label, ico]) => `<button class="sf-activity-tab ${activeTab === label ? 'active' : ''}" type="button" data-action="deal-activity-tab" data-tab="${h(label)}"><i class="ti ${ico}"></i>${label}</button>`).join('')}</div>
+            <form class="sf-note-box" data-deal-note-form autocomplete="off">
+              <input type="hidden" name="deal_id" value="${h(deal.id)}" />
+              <input name="body" placeholder="Write a note or @mention..." />
+              <span class="sf-note-tools"><i class="ti ti-paperclip"></i><i class="ti ti-at"></i></span>
+            </form>
+            <div class="sf-filters">Filters: Within 2 months · All activities · All types</div>
+            <div class="sf-feed">
+              ${feed.length ? feed.map((a) => sfFeedItem(a)).join('') : '<div class="sf-feed-empty">No activity yet. Log a note, call, or meeting.</div>'}
+            </div>
+          </div>
+        </div>
+
+        <div class="sf-col">
+          <div class="sf-card"><div class="sf-card-head"><i class="ti ti-bolt"></i>Quick Create</div>
+            <div class="sf-quick-grid">${quickTiles.map(([label, ico]) => `<button class="sf-quick-tile" type="button" data-action="deal-quick" data-kind="${h(label)}" data-deal-id="${h(deal.id)}"><i class="ti ${ico}"></i><span>${label}</span></button>`).join('')}</div>
+            <button class="sf-convert-btn" type="button" data-action="convert-deal" data-deal-id="${h(deal.id)}"><i class="ti ti-arrow-right"></i>Convert to Job</button>
+          </div>
+          <div class="sf-card"><div class="sf-card-head"><i class="ti ti-checkbox"></i>Open Tasks<span class="sf-connect"><i class="ti ti-plug"></i>Connect</span></div>
+            <div class="sf-tasks">
+              ${tasks.map((t) => `<div class="sf-task-row ${t.status === 'done' ? 'done' : ''}"><button class="sf-check" type="button" data-action="toggle-contact-task" data-task-id="${h(t.id)}" aria-label="Toggle task">${t.status === 'done' ? '<i class="ti ti-check"></i>' : ''}</button><span class="sf-task-title">${h(t.title)}</span>${t.due ? `<span class="sf-due">${h(formatDate(t.due))}</span>` : ''}</div>`).join('') || '<div class="sf-task-empty">No tasks yet.</div>'}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
   `;
 }
-
 function blankDeal(companyId = activeCompanyId()) {
   const pf = state.dealPrefill || {};
   return normalizeDeal({ id: '', company_id: companyId, name: '', stage: pf.stage || dealStageNames()[0], account_id: pf.account_id || '', primary_contact_id: pf.primary_contact_id || '' });
 }
 function renderDealFormModal(companyId, deal) {
-  return renderModalShell('Deals', deal ? 'Edit deal' : 'New deal', renderDealEditor(companyId, deal), 'wide-modal');
+  return renderModalShell('Quotes', deal ? 'Edit quote' : 'New quote', renderDealEditor(companyId, deal), 'wide-modal');
 }
 function renderDealEditor(companyId, deal) {
   const edit = deal || blankDeal(companyId);
@@ -5003,8 +6462,8 @@ function renderDealEditor(companyId, deal) {
   return `
     <form class="job-editor" data-deal-form>
       <input type="hidden" name="id" value="${h(edit.id || '')}" />
-      <div class="section-head span-2"><div><h2>${deal ? 'Edit deal' : 'New deal'}</h2><p>An opportunity moving through your sales pipeline.</p></div></div>
-      ${field('Deal name', 'name', edit.name, true)}
+      <div class="section-head span-2"><div><h2>${deal ? 'Edit quote' : 'New quote'}</h2><p>A priced opportunity moving through the bottom-of-funnel quote path.</p></div></div>
+      ${field('Quote name', 'name', edit.name, true)}
       ${selectField('Company', 'company_id', companyId, allowedCompanies().map((company) => [company.id, companyLabel(company)]))}
       ${selectField('Account', 'account_id', edit.account_id, [['', '— None —']].concat(accounts.map((account) => [account.id, account.name])))}
       ${selectField('Primary contact', 'primary_contact_id', edit.primary_contact_id, [['', '— None —']].concat(contacts.map((contact) => [contact.id, contact.name])))}
@@ -5017,8 +6476,8 @@ function renderDealEditor(companyId, deal) {
       ${field('Source', 'source', edit.source)}
       ${textareaField('Notes', 'notes', edit.notes, 'span-2')}
       <div class="form-actions span-2">
-        <button class="btn btn-primary" type="submit">Save deal</button>
-        ${deal && deal.status !== 'won' ? `<button class="btn" type="button" data-action="convert-deal" data-deal-id="${h(deal.id)}"><i class="ti ti-briefcase"></i>Win + create job</button>` : ''}
+        <button class="btn btn-primary" type="submit">Save quote</button>
+        ${deal && deal.status !== 'won' ? `<button class="btn" type="button" data-action="convert-deal" data-deal-id="${h(deal.id)}"><i class="ti ti-briefcase"></i>Convert to job</button>` : ''}
         ${deal ? `<button class="btn danger" type="button" data-action="delete-deal" data-deal-id="${h(deal.id)}">Delete</button>` : ''}
         <button class="btn" type="button" data-action="close-modal">Cancel</button>
       </div>
@@ -5089,14 +6548,14 @@ function renderCrmAccountModal(companyId, accountKey) {
       </section>
       <section class="crm-rollup-grid">
         ${metricCard('Jobs', account.jobs.length)}
-        ${metricCard('Files', account.fileCount)}
-        ${metricCard('Forms', account.formCount)}
+        ${can('files.view', companyId) ? metricCard('Files', account.fileCount) : ''}
+        ${can('forms.view', companyId) ? metricCard('Forms', account.formCount) : ''}
         ${metricCard('Tasks', account.tasks.length)}
       </section>
       <section class="crm-modal-actions">
         ${latestJob ? `<a class="btn btn-primary" href="${appHref(companyPath('jobs', { tab: 'profile', job_id: latestJob.id }, companyId))}" data-router><i class="ti ti-briefcase"></i>Open job</a>` : ''}
         ${latestJob ? `<a class="btn" href="${appHref(companyPath('tasks', { job_id: latestJob.id }, companyId))}" data-router><i class="ti ti-list-check"></i>Tasks</a>` : ''}
-        ${latestJob ? `<a class="btn" href="${appHref(companyPath('files', { job_id: latestJob.id }, companyId))}" data-router><i class="ti ti-folder"></i>Files</a>` : ''}
+        ${latestJob && can('files.view', companyId) ? `<a class="btn" href="${appHref(companyPath('files', { job_id: latestJob.id }, companyId))}" data-router><i class="ti ti-folder"></i>Files</a>` : ''}
         ${latestJob ? `<button class="btn" type="button" data-action="open-job-form" data-mode="edit" data-job-id="${h(latestJob.id)}"><i class="ti ti-pencil"></i>Edit latest job</button>` : ''}
         <button class="btn" type="button" data-action="open-job-form" data-mode="new"><i class="ti ti-plus"></i>Add job</button>
       </section>
@@ -5129,7 +6588,6 @@ function renderMessagesPage(route, companyId) {
   const selected = selectedConversation(companyId);
   if (selected && state.selectedConversationId !== selected.id) state.selectedConversationId = selected.id;
   const mobileThread = Boolean(selected && route.params.get('conversation'));
-  const stats = messageInboxStats(companyId, conversations);
   subscribeToMessageRealtime(companyId, selected?.id || '');
   if (selected) markConversationRead(selected.id, false);
   return `
@@ -5138,16 +6596,16 @@ function renderMessagesPage(route, companyId) {
         <button class="btn btn-primary" type="button" data-action="new-message-group"><i class="ti ti-message-plus"></i>New group</button>
         <button class="btn" type="button" data-action="new-direct-message"><i class="ti ti-user-plus"></i>Direct message</button>
       `)}
-      <section class="message-kpi-row" aria-label="Message inbox summary">
-        ${messageKpiCard('ti-message-circle', 'Unread', stats.unread, stats.unreadDelta)}
-        ${messageKpiCard('ti-at', 'Mentions', stats.mentions, stats.mentionsDelta)}
-        ${messageKpiCard('ti-paperclip', 'Files shared', stats.files, stats.filesDelta)}
-        ${messageKpiCard('ti-clock', 'Waiting on you', stats.waiting, stats.waitingDelta)}
-        ${messageKpiCard('ti-users-group', 'Group chats', stats.groups, 'Active conversations')}
-      </section>
       <section class="messages-shell">
         <aside class="messages-list-panel panel">
           <div class="messages-tools">
+            <div class="messenger-list-head">
+              <div><h2>Chats</h2><p>${h(String(conversations.length))} conversations</p></div>
+              <div>
+                <button class="icon-button" type="button" data-action="new-message-group" title="New group"><i class="ti ti-message-plus"></i></button>
+                <button class="icon-button" type="button" data-action="new-direct-message" title="Direct message"><i class="ti ti-user-plus"></i></button>
+              </div>
+            </div>
             <div class="message-list-top">
               <label class="message-search-field">
                 <i class="ti ti-search"></i>
@@ -5165,7 +6623,10 @@ function renderMessagesPage(route, companyId) {
             ${conversations.map((conversation) => renderConversationRow(conversation, companyId, selected?.id === conversation.id)).join('') || emptyState('No conversations match this view.')}
           </div>
         </aside>
-        ${selected ? renderMessageContextRail(companyId, selected) : ''}
+        <section class="messages-thread-panel panel">
+          ${selected ? renderMessageThread(companyId, selected) : renderNoConversationState(companyId)}
+        </section>
+        ${selected ? renderMessageDetailsRail(companyId, selected) : ''}
       </section>
       ${state.session?.auth === 'local-basic' ? renderMessageScenarioButton(companyId) : ''}
     </section>
@@ -5227,6 +6688,26 @@ function renderMessageContextRail(companyId, conversation) {
     <aside class="message-context-rail messages-thread-panel">
       <section class="message-preview-card panel">
         ${renderMessageThread(companyId, conversation)}
+      </section>
+      ${renderChatAccessCard(companyId, conversation)}
+      ${renderSharedFilesCard(conversation)}
+      ${renderMessageActionItemsCard(companyId, conversation)}
+    </aside>
+  `;
+}
+
+function renderMessageDetailsRail(companyId, conversation) {
+  return `
+    <aside class="message-details-rail">
+      <section class="messenger-profile-card panel">
+        ${renderAvatar({ full_name: conversation.title }, 'avatar messenger-profile-avatar')}
+        <h3>${h(conversation.title)}</h3>
+        <p>${h(accessSummary(conversation))}</p>
+        <div class="messenger-profile-actions">
+          <button class="icon-button" type="button" data-action="message-search-results" title="Search chat"><i class="ti ti-search"></i></button>
+          <button class="icon-button" type="button" data-action="message-details" data-conversation-id="${h(conversation.id)}" title="Chat details"><i class="ti ti-info-circle"></i></button>
+          <button class="icon-button" type="button" data-action="manage-message-chat" data-conversation-id="${h(conversation.id)}" title="Manage access" ${can('messages.manage_groups', companyId) || can('messages.manage', companyId) ? '' : 'disabled'}><i class="ti ti-users"></i></button>
+        </div>
       </section>
       ${renderChatAccessCard(companyId, conversation)}
       ${renderSharedFilesCard(conversation)}
@@ -5328,12 +6809,12 @@ function renderMessageAttachment(attachment) {
 function renderMessageComposer(conversation) {
   return `
     <form class="message-composer" data-message-form data-conversation-id="${h(conversation.id)}">
-      <input name="body" placeholder="Message ${h(conversation.title)}" autocomplete="off" />
       <label class="icon-button message-attach-button" title="Attach file">
         <i class="ti ti-paperclip"></i>
         <input name="attachments" type="file" multiple ${can('messages.attach_files', conversation.company_id) ? '' : 'disabled'} />
       </label>
-      <button class="btn btn-primary" type="submit"><i class="ti ti-send"></i>Send</button>
+      <input name="body" placeholder="Message ${h(conversation.title)}" autocomplete="off" />
+      <button class="icon-button btn-primary" type="submit" title="Send"><i class="ti ti-send"></i></button>
     </form>
   `;
 }
@@ -5686,7 +7167,7 @@ function renderExpenseDetailModal(companyId, id) {
       ])}
       <div class="finance-modal-actions">
         ${can('finance.manage', companyId) ? `<button class="btn btn-primary" type="button" data-action="edit-finance-expense" data-expense-id="${h(expense.id)}"><i class="ti ti-pencil"></i>Edit expense</button>` : ''}
-        ${job ? `<a class="btn" href="${appHref(companyPath('files', { job_id: job.id }, companyId))}" data-router><i class="ti ti-folder"></i>Job files</a>` : ''}
+        ${job && can('files.view', companyId) ? `<a class="btn" href="${appHref(companyPath('files', { job_id: job.id }, companyId))}" data-router><i class="ti ti-folder"></i>Job files</a>` : ''}
       </div>
       ${expense.notes ? `<p class="finance-note">${h(expense.notes)}</p>` : ''}
     </div>
@@ -5832,13 +7313,14 @@ function renderOperationsPage(route, companyId) {
 }
 
 function renderOperationsTabs(companyId, active) {
+  const tabs = [
+    can('time.track', companyId) ? [companyPath('time', {}, companyId), 'My time', active === 'time'] : null,
+    can('calendar.view', companyId) ? [companyPath('calendar', {}, companyId), 'Calendar', active === 'calendar'] : null,
+    can('approvals.view', companyId) ? [companyPath('approvals', {}, companyId), 'Approvals', active === 'approvals'] : null,
+    can('clock.manage', companyId) ? [companyPath('clock', {}, companyId), 'Clock dashboard', active === 'clock'] : null,
+  ].filter(Boolean);
   return `
-    ${compactTabs('Operations sections', [
-      [companyPath('time', {}, companyId), 'My time', active === 'time'],
-      [companyPath('calendar', {}, companyId), 'Calendar', active === 'calendar'],
-      [companyPath('approvals', {}, companyId), 'Approvals', active === 'approvals'],
-      [companyPath('clock', {}, companyId), 'Clock dashboard', active === 'clock'],
-    ])}
+    ${tabs.length > 1 ? compactTabs('Operations sections', tabs) : ''}
   `;
 }
 
@@ -6337,10 +7819,7 @@ function renderAuthModal(returnUrl, inviteToken, authEnabled) {
             ${renderAuthLanePicker(inviteToken)}
             ${renderSupabaseAuthForm(returnUrl)}
           ` : ''}
-          <details class="demo-mode-details">
-            <summary>Demo mode</summary>
-            ${renderDemoModeLauncher(returnUrl)}
-          </details>
+          ${renderDemoModeLauncher(returnUrl)}
           ${CONFIG.localLoginEnabled && authEnabled ? `
             <details class="demo-login-details">
               <summary>Legacy demo credentials</summary>
@@ -6384,14 +7863,18 @@ function renderAuthLanePicker(inviteToken = '') {
 }
 
 function renderDemoModeLauncher(returnUrl) {
+  if (!CONFIG.demoModeEnabled) return '';
   return `
-    <section class="demo-mode-box">
-      <div>
-        <strong>Demo mode</strong>
-        <span>Local-only sample workspace. No Supabase database reads or writes.</span>
-      </div>
-      <button class="btn full" type="button" data-action="start-demo-mode" data-return-url="${h(returnUrl)}">Open demo mode</button>
-    </section>
+    <details class="demo-mode-details">
+      <summary>Demo mode</summary>
+      <section class="demo-mode-box">
+        <div>
+          <strong>Read-only sample workspace</strong>
+          <span>Explore sample contacts, quotes, jobs, files, forms, approvals, and billing without saving changes.</span>
+        </div>
+        <button class="btn full" type="button" data-action="start-demo-mode" data-return-url="${h(returnUrl)}">Open read-only demo</button>
+      </section>
+    </details>
   `;
 }
 
@@ -6407,7 +7890,7 @@ function renderSupabaseAuthForm(returnUrl) {
         <label>${inviteToken ? 'Display name / username' : 'Full name'}<input name="full_name" autocomplete="name" required /></label>
         <label>Email<input name="email" type="email" autocomplete="email" required /></label>
         <label>Password<input name="password" type="password" autocomplete="new-password" minlength="8" required /></label>
-        ${inviteToken ? '' : '<label>Company workspace<input name="company_name" placeholder="Example Roofing LLC" required /></label>'}
+        ${inviteToken ? '' : `<label>Company workspace<input name="company_name" placeholder="Example Roofing LLC" required /></label>${workspacePresetSelect()}`}
         <input type="hidden" name="invite_token" value="${h(inviteToken)}" />
         <input type="hidden" name="return_url" value="${h(returnUrl)}" />
         <button class="btn btn-primary full" type="submit">${inviteToken ? 'Create account and join' : 'Create secure workspace'}</button>
@@ -6471,7 +7954,7 @@ function renderLocalLoginForm(returnUrl) {
       <label>Password<input name="password" type="password" autocomplete="current-password" /></label>
       <input type="hidden" name="return_url" value="${h(returnUrl)}" />
       <button class="btn btn-primary full" type="submit">Sign in to demo</button>
-      ${state.loginError ? `<div class="form-message error">${h(state.loginError)}</div>` : `<div class="form-message">Temporary demo credentials: lumen123 / lumen123</div>`}
+      ${state.loginError ? `<div class="form-message error">${h(state.loginError)}</div>` : `<div class="form-message">Use the configured local demo credentials.</div>`}
     </form>
   `;
 }
@@ -6491,16 +7974,27 @@ function renderProfileModal(profile) {
         </div>
         <form class="profile-form" data-profile-form>
           <div class="profile-preview">
-            ${renderAvatar(profile, 'avatar large')}
+            ${renderAvatar(profile, 'avatar large', { id: 'profile-avatar-preview' })}
             <div><strong>${h(profile.full_name)}</strong><span>${h(profile.email)}</span></div>
           </div>
           <label>Display name<input name="full_name" value="${h(profile.full_name)}" /></label>
           <input type="hidden" name="avatar_url" value="${h(profile.avatar_url || '')}" />
+          <input type="hidden" name="avatar_cropped_url" value="" data-profile-cropped-avatar />
           <label class="profile-upload-field">
             <span>Profile picture</span>
-            <input name="avatar_file" type="file" accept="image/png,image/jpeg,image/webp" />
+            <input name="avatar_file" type="file" accept="image/png,image/jpeg,image/webp" data-profile-avatar-file />
             <small>PNG, JPG, or WebP. Live accounts support up to 2 MB.</small>
           </label>
+          <section class="profile-cropper" data-profile-cropper hidden>
+            <div class="profile-crop-frame">
+              <canvas width="256" height="256" data-profile-crop-canvas aria-label="Profile picture crop preview"></canvas>
+            </div>
+            <div class="profile-crop-controls">
+              <label>Zoom<input type="range" min="1" max="3" step="0.01" value="1" data-profile-crop-zoom /></label>
+              <label>Horizontal<input type="range" min="-100" max="100" step="1" value="0" data-profile-crop-x /></label>
+              <label>Vertical<input type="range" min="-100" max="100" step="1" value="0" data-profile-crop-y /></label>
+            </div>
+          </section>
           <div class="form-actions">
             <button class="btn btn-primary" type="submit">Save profile</button>
             <button class="btn" type="button" data-action="close-modal">Cancel</button>
@@ -6514,6 +8008,8 @@ function renderProfileModal(profile) {
 function renderActiveModal(route, session) {
   if (state.modal === 'profile') return renderProfileModal(session.profile);
   if (state.modal === 'file-upload') return renderFileUploadModal();
+  if (state.modal === 'client-portal-form') return renderClientPortalFormModal(activeCompanyId(), clientPortalById(state.selectedClientPortalId));
+  if (state.modal === 'client-portal-document') return renderClientPortalDocumentModal(activeCompanyId(), clientPortalById(state.selectedClientPortalId));
   if (state.modal === 'folder-new') return renderNewFolderModal();
   if (state.modal === 'file-detail') return renderFileDetailModal(activeCompanyId());
   if (state.modal === 'forms-tools') return renderFormsToolsModal(activeCompanyId());
@@ -6824,8 +8320,10 @@ function renderFormActionsModal(companyId, form) {
 function onDocumentClick(event) {
   const closeAccountMenu = state.accountMenuOpen && !event.target.closest('.account-menu');
   const closeNotificationMenu = state.notificationMenuOpen && !event.target.closest('.notification-center');
+  const closeWorkspaceMenu = state.workspaceMenuOpen && !event.target.closest('.workspace-menu');
   if (closeAccountMenu) state.accountMenuOpen = false;
   if (closeNotificationMenu) state.notificationMenuOpen = false;
+  if (closeWorkspaceMenu) state.workspaceMenuOpen = false;
 
   const action = event.target.closest('[data-action]');
   if (action) {
@@ -6854,9 +8352,23 @@ function onDocumentClick(event) {
     return;
   }
 
+  const jobEditSpan = event.target.closest('[data-job-edit]');
+  if (jobEditSpan) {
+    event.preventDefault();
+    beginJobInlineEdit(jobEditSpan);
+    return;
+  }
+
+  const dealEditSpan = event.target.closest('[data-deal-edit]');
+  if (dealEditSpan) {
+    event.preventDefault();
+    beginDealInlineEdit(dealEditSpan);
+    return;
+  }
+
   const link = event.target.closest('a[href][data-router]');
   if (!link) {
-    if (closeAccountMenu || closeNotificationMenu) render();
+    if (closeAccountMenu || closeNotificationMenu || closeWorkspaceMenu) render();
     return;
   }
   if (link.target || link.hasAttribute('download')) return;
@@ -6867,6 +8379,11 @@ function onDocumentClick(event) {
 
 function handleAction(event, node) {
   const action = node.dataset.action;
+  if (isReadOnlyDemo() && isMutableAction(action)) {
+    event.preventDefault();
+    requireMutableWorkspace();
+    return;
+  }
   if (action === 'refresh-data') {
     event.preventDefault();
     state.dataLoaded = false;
@@ -6884,14 +8401,61 @@ function handleAction(event, node) {
     event.preventDefault();
     state.accountMenuOpen = !state.accountMenuOpen;
     state.notificationMenuOpen = false;
+    state.workspaceMenuOpen = false;
     render();
+    return;
+  }
+  if (action === 'client-portal-tool') {
+    event.preventDefault();
+    state.clientPortalTool = node.dataset.portalTool || 'pan';
+    render();
+    return;
+  }
+  if (action === 'client-portal-color') {
+    state.clientPortalColor = node.value || node.getAttribute('value') || '#E8611A';
+    return;
+  }
+  if (action === 'client-portal-doc') {
+    event.preventDefault();
+    if (state.clientPortalPublic) {
+      state.clientPortalPublic.documentId = node.dataset.documentId || '';
+      state.clientPortalPublic.documentUrl = '';
+      state.clientPortalPublic.annotations = [];
+      writeJson(CLIENT_PORTAL_SESSION_KEY, state.clientPortalPublic);
+      render();
+    }
+    return;
+  }
+  if (action === 'client-portal-save-annotations') {
+    event.preventDefault();
+    saveClientPortalAnnotations().catch((error) => showToast(error.message || 'Could not save markups.', 'local', 'Client Portal'));
+    return;
+  }
+  if (action === 'client-portal-export') {
+    event.preventDefault();
+    exportClientPortalMarkedPdf().catch((error) => showToast(error.message || 'Could not export marked PDF.', 'local', 'Client Portal'));
     return;
   }
   if (action === 'toggle-notifications') {
     event.preventDefault();
     state.notificationMenuOpen = !state.notificationMenuOpen;
     state.accountMenuOpen = false;
+    state.workspaceMenuOpen = false;
     render();
+    return;
+  }
+  if (action === 'toggle-workspace-menu') {
+    event.preventDefault();
+    state.workspaceMenuOpen = !state.workspaceMenuOpen;
+    state.accountMenuOpen = false;
+    state.notificationMenuOpen = false;
+    render();
+    return;
+  }
+  if (action === 'select-workspace') {
+    event.preventDefault();
+    state.workspaceMenuOpen = false;
+    setActiveCompany(node.dataset.companyId || defaultCompanyId());
     return;
   }
   if (action === 'toggle-mobile-menu') {
@@ -6899,6 +8463,7 @@ function handleAction(event, node) {
     state.mobileMenuOpen = !state.mobileMenuOpen;
     state.accountMenuOpen = false;
     state.notificationMenuOpen = false;
+    state.workspaceMenuOpen = false;
     render();
     return;
   }
@@ -7039,6 +8604,26 @@ function handleAction(event, node) {
     if (!requirePermission('users.manage', activeCompanyId(), 'Your role cannot invite or manage users.', 'Users')) return;
     state.modal = 'invite-new';
     render();
+    return;
+  }
+  if (action === 'set-company-plugin') {
+    event.preventDefault();
+    const targetCompanyId = canonicalCompanyId(node.dataset.companyId || activeCompanyId());
+    if (!isQuestDeveloper() && !requirePermission('plugins.manage', targetCompanyId, 'Your role cannot manage workspace plugins.', 'Plugins')) return;
+    setCompanyPlugin(targetCompanyId, node.dataset.pluginId, node.dataset.status).catch((error) => {
+      state.sync = { label: error.message || 'Plugin update failed', mode: 'local' };
+      render();
+    });
+    return;
+  }
+  if (action === 'apply-plugin-preset') {
+    event.preventDefault();
+    const targetCompanyId = canonicalCompanyId(node.dataset.companyId || activeCompanyId());
+    if (!isQuestDeveloper() && !requirePermission('plugins.manage', targetCompanyId, 'Your role cannot manage workspace plugins.', 'Plugins')) return;
+    applyCompanyPluginPreset(targetCompanyId, node.dataset.presetCode).catch((error) => {
+      state.sync = { label: error.message || 'Plugin preset failed', mode: 'local' };
+      render();
+    });
     return;
   }
   if (action === 'new-message-group') {
@@ -7207,11 +8792,47 @@ function handleAction(event, node) {
     reviewWorkspace(node.dataset.companyId, node.dataset.status);
     return;
   }
+  if (action === 'platform-company-action') {
+    event.preventDefault();
+    managePlatformCompany(node.dataset.companyId, node.dataset.platformAction);
+    return;
+  }
   if (action === 'open-file-upload') {
     event.preventDefault();
     if (!requirePermission('files.manage', activeCompanyId(), 'Your role can view files but cannot upload.', 'Files')) return;
     state.modal = 'file-upload';
     render();
+    return;
+  }
+  if (action === 'open-client-portal-form') {
+    event.preventDefault();
+    if (!requirePermission('client_portals.manage', activeCompanyId(), 'Your role cannot manage client portals.', 'Client Portal')) return;
+    state.selectedClientPortalId = node.dataset.portalId || '';
+    state.modal = 'client-portal-form';
+    render();
+    return;
+  }
+  if (action === 'open-client-portal-document-form') {
+    event.preventDefault();
+    if (!requirePermission('client_portals.manage', activeCompanyId(), 'Your role cannot upload portal documents.', 'Client Portal')) return;
+    state.selectedClientPortalId = node.dataset.portalId || '';
+    state.modal = 'client-portal-document';
+    render();
+    return;
+  }
+  if (action === 'copy-client-portal-link') {
+    event.preventDefault();
+    copyClientPortalLink(node.dataset.portalId);
+    return;
+  }
+  if (action === 'regenerate-client-portal-link') {
+    event.preventDefault();
+    regenerateClientPortalLink(node.dataset.portalId).catch((error) => showToast(error.message || 'Could not regenerate portal link.', 'local', 'Client Portal'));
+    return;
+  }
+  if (action === 'revoke-client-portal') {
+    event.preventDefault();
+    revokeClientPortal(node.dataset.portalId);
     return;
   }
   if (action === 'open-folder-form') {
@@ -7294,6 +8915,27 @@ function handleAction(event, node) {
     navigate(companyPath('deals', { deal_id: node.dataset.dealId }, activeCompanyId()));
     return;
   }
+  if (action === 'set-deal-stage') {
+    event.preventDefault();
+    setDealStage(node.dataset.dealId, node.dataset.stage);
+    return;
+  }
+  if (action === 'deal-mark-next') {
+    event.preventDefault();
+    markDealNextStage(node.dataset.dealId);
+    return;
+  }
+  if (action === 'deal-quick') {
+    event.preventDefault();
+    dealQuickCreate(node.dataset.dealId, node.dataset.kind);
+    return;
+  }
+  if (action === 'deal-activity-tab') {
+    event.preventDefault();
+    state.dealActivityTab = node.dataset.tab || 'Email';
+    render();
+    return;
+  }
   if (action === 'open-contact') {
     event.preventDefault();
     state.selectedContactId = node.dataset.contactId || '';
@@ -7336,9 +8978,30 @@ function handleAction(event, node) {
     render();
     return;
   }
-  if (action === 'contact-convert-job') {
+  if (action === 'contact-convert-quote') {
     event.preventDefault();
-    convertContactToJob(node.dataset.contactId);
+    convertContactToQuote(node.dataset.contactId);
+    return;
+  }
+  if (action === 'set-job-stage') {
+    event.preventDefault();
+    setJobStage(node.dataset.jobId, node.dataset.stage);
+    return;
+  }
+  if (action === 'job-mark-next') {
+    event.preventDefault();
+    markJobNextStage(node.dataset.jobId);
+    return;
+  }
+  if (action === 'job-quick') {
+    event.preventDefault();
+    jobQuickCreate(node.dataset.jobId, node.dataset.kind);
+    return;
+  }
+  if (action === 'job-activity-tab') {
+    event.preventDefault();
+    state.jobActivityTab = node.dataset.tab || 'Note';
+    render();
     return;
   }
   if (action === 'convert-deal') {
@@ -7680,6 +9343,13 @@ function closeActiveModal() {
   state.selectedFinanceInvoiceId = '';
   state.selectedFinanceExpenseId = '';
   state.selectedFinanceVendorId = '';
+  if (route.params?.get('account') === 'profile') {
+    const params = new URLSearchParams(route.params);
+    params.delete('account');
+    const search = params.toString();
+    navigate(`${route.path}${search ? `?${search}` : ''}`, { replace: true });
+    return;
+  }
   if (route.name === 'company' && route.section === 'tasks' && (route.params.get('new') || route.params.get('edit') || route.params.get('task_id'))) {
     navigate(companyPath('tasks', route.jobId ? { job_id: route.jobId } : {}, route.companyId), { replace: true });
     return;
@@ -7701,6 +9371,18 @@ function closeActiveModal() {
 }
 
 function onDocumentSubmit(event) {
+  if (isReadOnlyDemo() && isMutableFormSubmit(event.target)) {
+    event.preventDefault();
+    requireMutableWorkspace();
+    return;
+  }
+
+  if (event.target.matches('[data-client-portal-open-form]')) {
+    event.preventDefault();
+    openClientPortal(event.target);
+    return;
+  }
+
   if (event.target.matches('[data-login-form]')) {
     event.preventDefault();
     const form = Object.fromEntries(new FormData(event.target).entries());
@@ -7742,7 +9424,11 @@ function onDocumentSubmit(event) {
       render();
       return;
     }
-    acceptCompanyInvite(inviteCode);
+    acceptCompanyInvite(inviteCode).catch((error) => {
+      state.loginError = error.message || 'Unable to accept invite.';
+      state.authMessage = '';
+      render();
+    });
     return;
   }
 
@@ -7754,7 +9440,27 @@ function onDocumentSubmit(event) {
 
   if (event.target.matches('[data-company-create-form]')) {
     event.preventDefault();
-    createWorkspaceForCurrentUser(event.target);
+    createWorkspaceForCurrentUser(event.target).catch((error) => {
+      state.loginError = error.message || 'Workspace setup failed.';
+      state.authMessage = '';
+      render();
+    });
+    return;
+  }
+
+  if (event.target.matches('[data-platform-workspace-create-form]')) {
+    event.preventDefault();
+    createPlatformWorkspace(event.target).catch((error) => {
+      showToast(error.message || 'Platform workspace creation failed.', 'local', 'Master panel');
+    });
+    return;
+  }
+
+  if (event.target.matches('[data-workspace-settings-form]')) {
+    event.preventDefault();
+    saveWorkspaceSettings(event.target).catch((error) => {
+      showToast(error.message || 'Workspace settings failed.', 'local', 'Settings');
+    });
     return;
   }
 
@@ -7787,6 +9493,18 @@ function onDocumentSubmit(event) {
   if (event.target.matches('[data-contact-note-form]')) {
     event.preventDefault();
     postContactNote(event.target);
+    return;
+  }
+
+  if (event.target.matches('[data-job-note-form]')) {
+    event.preventDefault();
+    postJobNote(event.target);
+    return;
+  }
+
+  if (event.target.matches('[data-deal-note-form]')) {
+    event.preventDefault();
+    postDealNote(event.target);
     return;
   }
 
@@ -7829,6 +9547,18 @@ function onDocumentSubmit(event) {
   if (event.target.matches('[data-file-form]')) {
     event.preventDefault();
     saveFileRecord(event.target);
+    return;
+  }
+
+  if (event.target.matches('[data-client-portal-form]')) {
+    event.preventDefault();
+    saveClientPortal(event.target);
+    return;
+  }
+
+  if (event.target.matches('[data-client-portal-document-form]')) {
+    event.preventDefault();
+    saveClientPortalDocuments(event.target);
     return;
   }
 
@@ -7930,7 +9660,7 @@ async function signOut() {
 function startDemoMode(returnUrl = '') {
   state.loginError = '';
   state.authMessage = '';
-  state.session = buildLocalSession();
+  state.session = buildDemoSession();
   resetDemoWorkspaceData();
   state.activeCompanyId = activeCompanyId();
   localStorage.setItem(COMPANY_KEY, state.activeCompanyId);
@@ -7944,8 +9674,14 @@ async function saveProfile(formNode) {
   const data = new FormData(formNode);
   const current = activeSession().profile;
   const file = formNode.elements.avatar_file?.files?.[0] || null;
+  const croppedUrl = String(data.get('avatar_cropped_url') || '').trim();
   let avatarUrl = String(data.get('avatar_url') || current.avatar_url || '').trim();
-  if (file && file.size) {
+  if (croppedUrl.startsWith('data:image/')) {
+    const croppedFile = dataUrlToFile(croppedUrl, `avatar-${Date.now()}.png`);
+    const uploadResult = await saveProfileAvatar(croppedFile);
+    if (!uploadResult.ok) return;
+    avatarUrl = uploadResult.url;
+  } else if (file && file.size) {
     const uploadResult = await saveProfileAvatar(file);
     if (!uploadResult.ok) return;
     avatarUrl = uploadResult.url;
@@ -7989,6 +9725,56 @@ async function saveProfile(formNode) {
   showToast('Profile saved.', state.session?.auth === 'supabase' ? 'live' : 'local', 'Profile');
 }
 
+async function prepareProfileAvatarCrop(formNode) {
+  if (!formNode) return;
+  const file = formNode.elements.avatar_file?.files?.[0] || null;
+  const hidden = formNode.querySelector('[data-profile-cropped-avatar]');
+  if (hidden) hidden.value = '';
+  if (!file) return;
+  const allowed = ['image/jpeg', 'image/png', 'image/webp'];
+  if (!allowed.includes(file.type)) throw new Error('Use a PNG, JPG, or WebP image for your profile picture.');
+  if (file.size > 2 * 1024 * 1024) throw new Error('Profile pictures must be 2 MB or smaller.');
+  const dataUrl = await fileToDataUrl(file);
+  if (!dataUrl) throw new Error('Could not read that image file.');
+  const image = await loadImage(dataUrl);
+  const cropper = formNode.querySelector('[data-profile-cropper]');
+  if (cropper) cropper.hidden = false;
+  formNode._profileCropImage = image;
+  formNode.querySelector('[data-profile-crop-zoom]').value = '1';
+  formNode.querySelector('[data-profile-crop-x]').value = '0';
+  formNode.querySelector('[data-profile-crop-y]').value = '0';
+  updateProfileAvatarCrop(formNode);
+}
+
+function updateProfileAvatarCrop(formNode) {
+  if (!formNode?._profileCropImage) return;
+  const canvas = formNode.querySelector('[data-profile-crop-canvas]');
+  const hidden = formNode.querySelector('[data-profile-cropped-avatar]');
+  if (!canvas || !hidden) return;
+  const ctx = canvas.getContext('2d');
+  const size = canvas.width;
+  const image = formNode._profileCropImage;
+  const zoom = Math.max(1, Number(formNode.querySelector('[data-profile-crop-zoom]')?.value || 1));
+  const offsetX = Number(formNode.querySelector('[data-profile-crop-x]')?.value || 0) / 100;
+  const offsetY = Number(formNode.querySelector('[data-profile-crop-y]')?.value || 0) / 100;
+  const baseScale = Math.max(size / image.naturalWidth, size / image.naturalHeight);
+  const scale = baseScale * zoom;
+  const drawWidth = image.naturalWidth * scale;
+  const drawHeight = image.naturalHeight * scale;
+  const maxOffsetX = Math.max(0, (drawWidth - size) / 2);
+  const maxOffsetY = Math.max(0, (drawHeight - size) / 2);
+  const drawX = (size - drawWidth) / 2 + offsetX * maxOffsetX;
+  const drawY = (size - drawHeight) / 2 + offsetY * maxOffsetY;
+  ctx.clearRect(0, 0, size, size);
+  ctx.fillStyle = '#fff';
+  ctx.fillRect(0, 0, size, size);
+  ctx.drawImage(image, drawX, drawY, drawWidth, drawHeight);
+  hidden.value = canvas.toDataURL('image/png');
+  const preview = formNode.querySelector('#profile-avatar-preview');
+  if (preview) preview.innerHTML = `<img src="${h(hidden.value)}" alt="" />`;
+  if (preview) preview.classList.add('has-image');
+}
+
 async function saveProfileAvatar(file) {
   const allowed = ['image/jpeg', 'image/png', 'image/webp'];
   if (!allowed.includes(file.type)) {
@@ -8025,6 +9811,24 @@ async function saveProfileAvatar(file) {
     return { ok: false, url: '' };
   }
   return { ok: true, url: publicUrl };
+}
+
+function loadImage(src) {
+  return new Promise((resolve, reject) => {
+    const image = new Image();
+    image.onload = () => resolve(image);
+    image.onerror = () => reject(new Error('Could not load that image.'));
+    image.src = src;
+  });
+}
+
+function dataUrlToFile(dataUrl, fileName) {
+  const [header, payload] = String(dataUrl || '').split(',');
+  const mime = header.match(/data:([^;]+)/)?.[1] || 'image/png';
+  const binary = atob(payload || '');
+  const bytes = new Uint8Array(binary.length);
+  for (let index = 0; index < binary.length; index += 1) bytes[index] = binary.charCodeAt(index);
+  return new File([bytes], fileName, { type: mime });
 }
 
 async function signInWithSupabase(formNode) {
@@ -8109,7 +9913,7 @@ async function lookupInviteCode(inviteCode) {
   const token = String(inviteCode || '').trim();
   const client = createSupabaseClient();
   if (!token || !client) return null;
-  const result = await client.rpc('lookup_company_invite', { invite_token: token }).catch((error) => ({ error }));
+  const result = await safeSupabaseQuery(client.rpc('lookup_company_invite', { invite_token: token }));
   if (result.error) return null;
   const row = Array.isArray(result.data) ? result.data[0] : result.data;
   if (!row) return { missing: true };
@@ -8136,6 +9940,8 @@ async function registerWorkspace(formNode) {
   const fullName = String(form.full_name || '').trim();
   const inviteToken = String(form.invite_token || '').trim();
   const companyName = String(form.company_name || '').trim();
+  const presetCode = WORKSPACE_PLUGIN_PRESETS[form.preset_code] ? form.preset_code : 'generic';
+  const iconKey = workspaceIconOption(form.icon_key).key;
   if (!email || !password || !fullName || (!inviteToken && !companyName)) {
     state.loginError = inviteToken ? 'Name, email, and password are required.' : 'Name, email, password, and company workspace are required.';
     render();
@@ -8176,17 +9982,15 @@ async function registerWorkspace(formNode) {
     await acceptCompanyInvite(inviteToken, form.return_url);
     return;
   }
-  const workspace = await client.rpc('create_company_workspace', { company_name: companyName });
+  const workspace = await client.rpc('create_company_workspace', { company_name: companyName, preset_code: presetCode, icon_key: iconKey });
   if (workspace.error) {
     state.loginError = workspace.error.message || 'Account created, but workspace setup failed.';
     state.authMessage = '';
     render();
     return;
   }
-  state.activeCompanyId = canonicalCompanyId(workspace.data || defaultCompanyId());
-  markWorkspacePendingReview(state.activeCompanyId);
-  localStorage.setItem(COMPANY_KEY, state.activeCompanyId);
-  state.dataLoaded = false;
+  applyCreatedWorkspace(workspace.data, companyName, iconKey);
+  applyPluginPresetLocal(state.activeCompanyId, presetCode);
   state.authMessage = '';
   navigate(companyPath('settings', { tab: 'billing' }, state.activeCompanyId), { replace: true });
 }
@@ -8195,22 +9999,226 @@ async function createWorkspaceForCurrentUser(formNode) {
   const form = Object.fromEntries(new FormData(formNode).entries());
   const client = createSupabaseClient();
   const companyName = String(form.company_name || '').trim();
+  const presetCode = WORKSPACE_PLUGIN_PRESETS[form.preset_code] ? form.preset_code : 'generic';
+  const iconKey = workspaceIconOption(form.icon_key).key;
   if (!client || !companyName) {
     state.loginError = 'Company workspace name is required.';
+    state.authMessage = '';
     render();
     return;
   }
-  const workspace = await client.rpc('create_company_workspace', { company_name: companyName });
+  if (!canCreateAnotherWorkspace()) {
+    state.loginError = workspaceLimitMessage();
+    state.authMessage = '';
+    render();
+    return;
+  }
+  state.loginError = '';
+  state.authMessage = 'Creating workspace...';
+  render();
+  const workspace = await safeSupabaseQuery(client.rpc('create_company_workspace', { company_name: companyName, preset_code: presetCode, icon_key: iconKey }));
   if (workspace.error) {
     state.loginError = workspace.error.message || 'Workspace setup failed.';
+    state.authMessage = '';
     render();
     return;
   }
-  state.activeCompanyId = canonicalCompanyId(workspace.data || defaultCompanyId());
-  markWorkspacePendingReview(state.activeCompanyId);
-  localStorage.setItem(COMPANY_KEY, state.activeCompanyId);
-  state.dataLoaded = false;
+  applyCreatedWorkspace(workspace.data, companyName, iconKey);
+  applyPluginPresetLocal(state.activeCompanyId, presetCode);
+  state.authMessage = 'Opening workspace...';
   navigate(companyPath('settings', { tab: 'billing' }, state.activeCompanyId), { replace: true });
+}
+
+async function createPlatformWorkspace(formNode) {
+  if (!isQuestDeveloper()) {
+    showToast('Platform owner access is required to create workspaces for others.', 'local', 'Master panel');
+    return;
+  }
+  const form = Object.fromEntries(new FormData(formNode).entries());
+  const client = createSupabaseClient();
+  const companyName = String(form.company_name || '').trim();
+  const ownerEmail = String(form.owner_email || '').trim();
+  const presetCode = WORKSPACE_PLUGIN_PRESETS[form.preset_code] ? form.preset_code : 'generic';
+  const iconKey = workspaceIconOption(form.icon_key).key;
+  if (!client || !companyName) {
+    showToast('Workspace name is required.', 'local', 'Master panel');
+    return;
+  }
+  const workspace = await safeSupabaseQuery(client.rpc('create_company_workspace', { company_name: companyName, preset_code: presetCode, icon_key: iconKey, owner_email: ownerEmail }));
+  if (workspace.error) {
+    showToast(workspace.error.message || 'Workspace creation failed.', 'local', 'Master panel');
+    return;
+  }
+  if (ownerEmail) applyPlatformCreatedWorkspace(workspace.data, companyName, iconKey);
+  else applyCreatedWorkspace(workspace.data, companyName, iconKey);
+  showToast(`${companyName} workspace created.`, 'live', 'Master panel');
+  navigate(companyPath('settings', { tab: 'master' }, state.activeCompanyId), { replace: true });
+}
+
+async function saveWorkspaceSettings(formNode) {
+  const form = Object.fromEntries(new FormData(formNode).entries());
+  const companyId = canonicalCompanyId(form.company_id || activeCompanyId());
+  const workspaceName = String(form.workspace_name || '').trim();
+  const iconKey = workspaceIconOption(form.icon_key).key;
+  if (!workspaceName) {
+    showToast('Workspace name is required.', 'local', 'Settings');
+    return;
+  }
+  const client = createSupabaseClient();
+  let live = false;
+  if (client && state.session?.auth === 'supabase') {
+    const result = await safeSupabaseQuery(client.rpc('update_company_workspace', { target_company_id: companyId, workspace_name: workspaceName, icon_key: iconKey }));
+    if (result.error) {
+      showToast(result.error.message || 'Workspace update failed.', 'local', 'Settings');
+      return;
+    }
+    live = true;
+  }
+  state.companies = mergeCompanies(state.companies
+    .filter((company) => company.id !== companyId)
+    .concat(normalizeCompany({
+      ...(companyById(companyId) || {}),
+      id: companyId,
+      name: workspaceName,
+      short_name: workspaceName,
+      label: workspaceName,
+      icon_key: iconKey,
+    })));
+  showToast('Workspace settings saved.', live ? 'live' : 'local', 'Settings');
+  render();
+}
+
+function applyCreatedWorkspace(workspaceId, requestedName = '', iconKey = 'home') {
+  const companyId = canonicalCompanyId(workspaceId || defaultCompanyId());
+  const cleanName = String(requestedName || companyName(companyId) || companyId).trim();
+  const existingSubscription = companySubscription(companyId);
+  state.activeCompanyId = companyId;
+  state.companies = mergeCompanies(state.companies.concat(normalizeCompany({
+    id: companyId,
+    name: cleanName,
+    short_name: cleanName,
+    color: companyColor(companyId),
+    icon_key: iconKey,
+  })));
+  state.memberships = state.memberships
+    .filter((membership) => !(membership.company_id === companyId && membership.profile_id === activeSession().profile.id))
+    .concat(normalizeMembership({
+      company_id: companyId,
+      profile_id: activeSession().profile.id,
+      member_id: activeSession().profile.member_id,
+      role: 'owner',
+      status: 'active',
+    }));
+  state.subscriptions = mergeSubscriptions(state.subscriptions.concat(normalizeSubscription({
+    ...(existingSubscription || {}),
+    company_id: companyId,
+    status: existingSubscription?.status || 'pending_review',
+  })));
+  const profile = normalizeProfile({
+    ...activeSession().profile,
+    company_ids: compactUnique((activeSession().profile.company_ids || []).concat(companyId)),
+    approved: true,
+    role: activeSession().profile.role === 'member' ? 'admin' : activeSession().profile.role,
+  });
+  state.session = { ...activeSession(), profile };
+  writeJson(SESSION_KEY, state.session);
+  const subscription = companySubscription(companyId);
+  if (subscription?.status === 'pending_review') markWorkspacePendingReview(companyId);
+  else clearWorkspacePendingReview(companyId);
+  localStorage.setItem(COMPANY_KEY, companyId);
+  state.dataLoaded = false;
+}
+
+function applyPlatformCreatedWorkspace(workspaceId, requestedName = '', iconKey = 'home') {
+  const companyId = canonicalCompanyId(workspaceId || '');
+  if (!companyId) return;
+  const cleanName = String(requestedName || companyId).trim();
+  state.companies = mergeCompanies(state.companies.concat(normalizeCompany({
+    id: companyId,
+    name: cleanName,
+    short_name: cleanName,
+    label: cleanName,
+    color: companyColor(companyId),
+    icon_key: iconKey,
+  })));
+  state.subscriptions = mergeSubscriptions(state.subscriptions.concat(normalizeSubscription({
+    company_id: companyId,
+    status: 'pending_review',
+  })));
+  markWorkspacePendingReview(companyId);
+  state.dataLoaded = false;
+}
+
+function applyPluginPresetLocal(companyId, presetCode) {
+  const cleanPreset = WORKSPACE_PLUGIN_PRESETS[presetCode] ? presetCode : 'generic';
+  const pluginIds = WORKSPACE_PLUGIN_PRESETS[cleanPreset];
+  availableWorkspacePlugins().forEach((plugin) => {
+    upsertCompanyPluginLocal(companyId, plugin.id, pluginIds.includes(plugin.id) ? 'installed' : 'disabled');
+  });
+}
+
+function upsertCompanyPluginLocal(companyId, pluginId, status) {
+  const row = normalizeCompanyPlugin({
+    company_id: companyId,
+    plugin_id: pluginId,
+    status,
+    installed_by: status === 'installed' ? activeSession().profile.id : '',
+    installed_at: status === 'installed' ? new Date().toISOString() : '',
+    disabled_at: status === 'disabled' ? new Date().toISOString() : '',
+    updated_at: new Date().toISOString(),
+  });
+  state.companyPlugins = mergeCompanyPlugins(state.companyPlugins
+    .filter((item) => !(item.company_id === row.company_id && item.plugin_id === row.plugin_id))
+    .concat(row));
+}
+
+async function setCompanyPlugin(companyId, pluginId, status) {
+  const plugin = pluginById(pluginId);
+  const nextStatus = status === 'disabled' ? 'disabled' : 'installed';
+  if (!plugin || plugin.comingSoon) {
+    showToast('That plugin is not available yet.', 'local', 'Plugins');
+    return;
+  }
+  const conflictIds = conflictingPluginIds(companyId, plugin.id, nextStatus);
+  if (conflictIds.length) {
+    const conflictLabels = conflictIds.map((conflictId) => pluginById(conflictId)?.label || conflictId).join(', ');
+    if (!window.confirm(`Installing ${plugin.label} will disable ${conflictLabels}. Continue?`)) return;
+  }
+  state.sync = { label: 'Updating plugin...', mode: 'loading' };
+  render();
+  const client = createSupabaseClient();
+  if (state.session?.auth === 'supabase' && client) {
+    const result = await safeSupabaseQuery(client.rpc('set_company_plugin', {
+      target_company_id: companyId,
+      target_plugin_id: plugin.id,
+      next_status: nextStatus,
+    }));
+    if (result.error) throw new Error(result.error.message || 'Plugin update failed.');
+  }
+  conflictIds.forEach((conflictId) => upsertCompanyPluginLocal(companyId, conflictId, 'disabled'));
+  upsertCompanyPluginLocal(companyId, plugin.id, nextStatus);
+  state.sync = { label: `${plugin.label} ${nextStatus === 'installed' ? 'installed' : 'disabled'}`, mode: state.session?.auth === 'supabase' ? 'live' : 'local' };
+  showToast(`${plugin.label} ${nextStatus === 'installed' ? 'installed' : 'disabled'}.`, state.session?.auth === 'supabase' ? 'live' : 'local', 'Plugins');
+  render();
+}
+
+async function applyCompanyPluginPreset(companyId, presetCode) {
+  const cleanPreset = WORKSPACE_PLUGIN_PRESETS[presetCode] ? presetCode : 'generic';
+  const pluginIds = WORKSPACE_PLUGIN_PRESETS[cleanPreset];
+  state.sync = { label: 'Applying plugin preset...', mode: 'loading' };
+  render();
+  const client = createSupabaseClient();
+  if (state.session?.auth === 'supabase' && client) {
+    const result = await safeSupabaseQuery(client.rpc('apply_company_plugin_preset', {
+      target_company_id: companyId,
+      preset_code: cleanPreset,
+    }));
+    if (result.error) throw new Error(result.error.message || 'Plugin preset failed.');
+  }
+  applyPluginPresetLocal(companyId, cleanPreset);
+  state.sync = { label: `${WORKSPACE_PLUGIN_PRESET_LABELS[cleanPreset]} plugins applied`, mode: state.session?.auth === 'supabase' ? 'live' : 'local' };
+  showToast(`${WORKSPACE_PLUGIN_PRESET_LABELS[cleanPreset]} plugin preset applied.`, state.session?.auth === 'supabase' ? 'live' : 'local', 'Plugins');
+  render();
 }
 
 async function requestCompanyAccess(formNode) {
@@ -8253,6 +10261,12 @@ async function requestCompanyAccess(formNode) {
 
 async function startCheckout() {
   const companyId = activeCompanyId();
+  if (CONFIG.billingMode === 'manual') {
+    state.sync = { label: 'Manual approval active', mode: 'local' };
+    showToast('Manual approval is active for launch week. Lumen will activate billing after review.', 'local', 'Billing');
+    render();
+    return;
+  }
   state.sync = { label: 'Opening billing...', mode: 'loading' };
   render();
   try {
@@ -8280,7 +10294,7 @@ async function reviewWorkspace(companyId, status) {
   const targetCompanyId = canonicalCompanyId(companyId);
   const nextStatus = normalizeSubscriptionStatus(status);
   if (!targetCompanyId || !nextStatus || !isQuestDeveloper()) {
-    showToast('Quest developer access is required to review workspaces.', 'local', 'Workspace review');
+    showToast('Platform owner access is required to review workspaces.', 'local', 'Workspace review');
     return;
   }
   const client = createSupabaseClient();
@@ -8306,6 +10320,42 @@ async function reviewWorkspace(companyId, status) {
   render();
 }
 
+async function managePlatformCompany(companyId, platformAction) {
+  const targetCompanyId = canonicalCompanyId(companyId);
+  const action = String(platformAction || '').toLowerCase().trim();
+  const nextStatus = platformActionStatus(action);
+  if (!targetCompanyId || !nextStatus || !isQuestDeveloper()) {
+    showToast('Platform owner access is required to manage companies.', 'local', 'Master panel');
+    return;
+  }
+  if (targetCompanyId === 'lumen' && ['suspend', 'archive', 'delete', 'cancel'].includes(action)) {
+    showToast('The Lumen platform workspace cannot be suspended or archived from the panel.', 'local', 'Master panel');
+    return;
+  }
+  const client = createSupabaseClient();
+  state.sync = { label: 'Updating company access...', mode: 'loading' };
+  render();
+  if (state.session?.auth === 'supabase' && client) {
+    const result = await client.rpc('manage_platform_company', {
+      target_company_id: targetCompanyId,
+      platform_action: action,
+      review_note: `Platform master panel marked ${targetCompanyId} as ${nextStatus}`,
+    });
+    if (result.error) {
+      state.sync = { label: result.error.message || 'Company update failed', mode: 'local' };
+      showToast(result.error.message || 'Company update failed.', 'local', 'Master panel');
+      render();
+      return;
+    }
+  }
+  applyPlatformCompanyStatus(targetCompanyId, nextStatus);
+  await recordAuditEvent(targetCompanyId, `platform.company.${action}`, 'company', targetCompanyId, { action, status: nextStatus }, state.session?.auth === 'supabase');
+  state.sync = { label: `${companyName(targetCompanyId)} marked ${subscriptionLabelForStatus(nextStatus).toLowerCase()}`, mode: state.session?.auth === 'supabase' ? 'live' : 'local' };
+  showToast(`${companyName(targetCompanyId)} marked ${subscriptionLabelForStatus(nextStatus).toLowerCase()}.`, state.session?.auth === 'supabase' ? 'live' : 'local', 'Master panel');
+  if (state.session?.auth === 'supabase') state.dataLoaded = false;
+  render();
+}
+
 function applyWorkspaceReviewStatus(companyId, status) {
   const subscription = normalizeSubscription({
     ...(companySubscription(companyId) || {}),
@@ -8326,6 +10376,22 @@ function applyWorkspaceReviewStatus(companyId, status) {
   state.workspaceReviews = state.workspaceReviews.filter((item) => item.company_id !== companyId).concat(review);
   if (status === 'pending_review') markWorkspacePendingReview(companyId);
   else clearWorkspacePendingReview(companyId);
+}
+
+function applyPlatformCompanyStatus(companyId, status) {
+  applyWorkspaceReviewStatus(companyId, status);
+  const index = state.platformCompanies.findIndex((company) => company.company_id === companyId);
+  const current = index >= 0 ? state.platformCompanies[index] : platformCompanyRows().find((company) => company.company_id === companyId) || normalizePlatformCompany({
+    company_id: companyId,
+    company_name: companyName(companyId),
+  });
+  const next = normalizePlatformCompany({
+    ...current,
+    status,
+    updated_at: new Date().toISOString(),
+  });
+  if (index >= 0) state.platformCompanies[index] = next;
+  else state.platformCompanies.push(next);
 }
 
 async function saveRole(formNode) {
@@ -8949,6 +11015,11 @@ async function openMessageAttachment(attachmentId) {
 }
 
 function onDocumentInput(event) {
+  if (event.target.matches('[data-phone-format]')) {
+    const formatted = formatPhoneNumber(event.target.value);
+    if (formatted !== event.target.value) event.target.value = formatted;
+    return;
+  }
   if (event.target.matches('[data-global-search]')) {
     state.query = event.target.value;
     updateWorkspaceOnly();
@@ -8961,6 +11032,11 @@ function onDocumentInput(event) {
   }
   if (event.target.matches('[data-form-search]')) {
     state.formQuery = event.target.value;
+    updateWorkspaceOnly();
+    return;
+  }
+  if (event.target.matches('[data-client-portal-search]')) {
+    state.clientPortalQuery = event.target.value;
     updateWorkspaceOnly();
     return;
   }
@@ -8991,6 +11067,10 @@ function onDocumentInput(event) {
   }
   if (event.target.matches('[data-message-access-filter]')) {
     filterMessagePeopleList(event.target);
+    return;
+  }
+  if (event.target.matches('[data-profile-crop-zoom], [data-profile-crop-x], [data-profile-crop-y]')) {
+    updateProfileAvatarCrop(event.target.closest('[data-profile-form]'));
     return;
   }
   if (event.target.matches('[data-form-field]')) {
@@ -9067,6 +11147,12 @@ function onDocumentChange(event) {
   if (event.target.matches('[data-form-type-filter]')) {
     state.formTypeFilter = event.target.value || 'all';
     render();
+    return;
+  }
+  if (event.target.matches('[data-profile-avatar-file]')) {
+    prepareProfileAvatarCrop(event.target.closest('[data-profile-form]')).catch((error) => {
+      showToast(error.message || 'Could not preview that profile picture.', 'local', 'Profile');
+    });
     return;
   }
   if (event.target.matches('[data-form-field]')) {
@@ -9247,6 +11333,452 @@ async function saveFileRecord(form) {
   );
   state.modal = '';
   navigate(companyPath('files', { folder: fields.folder || 'shared', ...(fields.job_id ? { job_id: fields.job_id } : {}) }, companyId), { replace: true });
+}
+
+async function saveClientPortal(form) {
+  const companyId = activeCompanyId();
+  if (!requirePermission('client_portals.manage', companyId, 'Your role cannot manage client portals.', 'Client Portal')) return;
+  const fields = Object.fromEntries(new FormData(form).entries());
+  const existing = fields.id ? clientPortalById(String(fields.id)) : null;
+  const rawToken = existing ? cachedClientPortalToken(existing.id) || existing.raw_token || '' : randomPortalToken();
+  const tokenHash = existing?.token_hash || await digestHex(rawToken);
+  const password = String(fields.password || '');
+  const passwordSalt = password ? randomPortalToken(18) : existing?.password_salt || '';
+  const passwordHash = password ? await pbkdf2Hex(password, passwordSalt) : existing?.password_hash || '';
+  let portal = normalizeClientPortal({
+    ...(existing || {}),
+    id: existing?.id || crypto.randomUUID(),
+    company_id: companyId,
+    job_id: fields.job_id || '',
+    title: String(fields.title || '').trim() || 'Client plan portal',
+    client_name: fields.client_name || '',
+    client_email: fields.client_email || '',
+    token_hash: tokenHash,
+    raw_token: rawToken,
+    password_hash: passwordHash,
+    password_salt: passwordSalt,
+    status: existing?.status || 'active',
+    created_by: existing?.created_by || activeSession().profile.id,
+    created_at: existing?.created_at || new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  });
+  const client = createSupabaseClient();
+  if (state.session?.auth === 'supabase' && client) {
+    const payload = clientPortalPayload(portal);
+    const result = existing
+      ? await client.from('client_portals').update(payload).eq('id', existing.id).select().single()
+      : await client.from('client_portals').insert(payload).select().single();
+    if (result.error) {
+      showToast(result.error.message || 'Portal save failed.', 'local', 'Client Portal');
+      return;
+    }
+    portal = normalizeClientPortal({ ...result.data, raw_token: rawToken });
+  }
+  upsertClientPortal(portal);
+  cacheClientPortalToken(portal.id, rawToken);
+  state.modal = '';
+  showToast(existing ? 'Portal saved.' : 'Portal created. Copy the link from the detail panel.', state.session?.auth === 'supabase' ? 'live' : 'local', 'Client Portal');
+  navigate(companyPath('client-portals', { portal_id: portal.id }, companyId), { replace: true });
+}
+
+async function saveClientPortalDocuments(form) {
+  const companyId = activeCompanyId();
+  if (!requirePermission('client_portals.manage', companyId, 'Your role cannot upload portal documents.', 'Client Portal')) return;
+  const fields = Object.fromEntries(new FormData(form).entries());
+  const portal = clientPortalById(String(fields.portal_id || ''));
+  if (!portal) {
+    showToast('Choose a portal first.', 'local', 'Client Portal');
+    return;
+  }
+  const files = Array.from(form.elements.files?.files || []);
+  if (!files.length) {
+    showToast('Choose at least one PDF, PNG, or JPG.', 'local', 'Client Portal');
+    return;
+  }
+  const client = createSupabaseClient();
+  let savedCount = 0;
+  for (const file of files) {
+    const id = crypto.randomUUID();
+    const objectPath = `${companyId}/portals/${portal.id}/${id}-${slugify(file.name || 'plan-set')}`;
+    let uploaded = false;
+    if (state.session?.auth === 'supabase' && client) {
+      const upload = await client.storage
+        .from('quest-client-portal-documents')
+        .upload(objectPath, file, { cacheControl: '3600', upsert: false, contentType: file.type || 'application/octet-stream' });
+      if (upload.error) {
+        showToast(upload.error.message || 'Plan upload failed.', 'local', 'Client Portal');
+        continue;
+      }
+      uploaded = true;
+    }
+    let doc = normalizeClientPortalDocument({
+      id,
+      company_id: companyId,
+      portal_id: portal.id,
+      bucket_id: 'quest-client-portal-documents',
+      object_path: uploaded ? objectPath : '',
+      file_name: file.name || 'Plan set',
+      mime_type: file.type || 'application/octet-stream',
+      size_bytes: file.size || 0,
+      uploaded_by: activeSession().profile.id,
+    });
+    if (state.session?.auth === 'supabase' && client) {
+      const result = await client.from('client_portal_documents').insert(clientPortalDocumentPayload(doc)).select().single();
+      if (result.error) {
+        if (uploaded) await client.storage.from('quest-client-portal-documents').remove([objectPath]);
+        showToast(result.error.message || 'Document record failed.', 'local', 'Client Portal');
+        continue;
+      }
+      doc = normalizeClientPortalDocument(result.data);
+    }
+    upsertClientPortalDocument(doc);
+    savedCount += 1;
+  }
+  state.modal = '';
+  persistAll();
+  showToast(`${savedCount} document${savedCount === 1 ? '' : 's'} uploaded.`, state.session?.auth === 'supabase' ? 'live' : 'local', 'Client Portal');
+  navigate(companyPath('client-portals', { portal_id: portal.id }, companyId), { replace: true });
+}
+
+function copyClientPortalLink(portalId) {
+  const portal = clientPortalById(portalId);
+  if (!portal) return;
+  const token = cachedClientPortalToken(portal.id) || portal.raw_token;
+  if (!token) {
+    showToast('Use Regenerate to issue a new copyable portal link.', 'local', 'Client Portal');
+    return;
+  }
+  const link = `${window.location.origin}${appHref(`/portal/${encodeURIComponent(token)}`)}`;
+  navigator.clipboard?.writeText(link).then(
+    () => showToast('Portal link copied.', 'live', 'Client Portal'),
+    () => showToast(link, 'local', 'Copy this portal link'),
+  );
+}
+
+async function regenerateClientPortalLink(portalId) {
+  const portal = clientPortalById(portalId);
+  if (!portal || !requirePermission('client_portals.manage', portal.company_id, 'Your role cannot regenerate portal links.', 'Client Portal')) return;
+  if (!window.confirm(`Regenerate the public link for ${portal.title}? The old link will stop opening.`)) return;
+  const rawToken = randomPortalToken();
+  const tokenHash = await digestHex(rawToken);
+  const next = normalizeClientPortal({ ...portal, token_hash: tokenHash, status: 'active', revoked_at: null, updated_at: new Date().toISOString(), raw_token: rawToken });
+  const client = createSupabaseClient();
+  if (state.session?.auth === 'supabase' && client) {
+    const result = await client
+      .from('client_portals')
+      .update({ token_hash: tokenHash, status: 'active', revoked_at: null, updated_at: next.updated_at })
+      .eq('id', portal.id)
+      .select()
+      .single();
+    if (result.error) throw new Error(result.error.message || 'Portal link regenerate failed.');
+  }
+  cacheClientPortalToken(portal.id, rawToken);
+  upsertClientPortal(next);
+  persistAll();
+  copyClientPortalLink(portal.id);
+  render();
+}
+
+async function revokeClientPortal(portalId) {
+  const portal = clientPortalById(portalId);
+  if (!portal || !requirePermission('client_portals.manage', portal.company_id, 'Your role cannot revoke portals.', 'Client Portal')) return;
+  if (!window.confirm(`Revoke ${portal.title}? Existing guests will lose access.`)) return;
+  const next = normalizeClientPortal({ ...portal, status: 'revoked', revoked_at: new Date().toISOString(), updated_at: new Date().toISOString() });
+  const client = createSupabaseClient();
+  if (state.session?.auth === 'supabase' && client) {
+    const result = await client.from('client_portals').update({ status: 'revoked', revoked_at: next.revoked_at, updated_at: next.updated_at }).eq('id', portal.id).select().single();
+    if (result.error) {
+      showToast(result.error.message || 'Portal revoke failed.', 'local', 'Client Portal');
+      return;
+    }
+  }
+  upsertClientPortal(next);
+  showToast('Portal revoked.', state.session?.auth === 'supabase' ? 'live' : 'local', 'Client Portal');
+  render();
+}
+
+async function openClientPortal(form) {
+  const fields = Object.fromEntries(new FormData(form).entries());
+  const token = String(fields.token || '').trim();
+  const guestName = String(fields.guest_name || '').trim() || 'Guest';
+  const response = await fetch('/api/client-portal-open', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ token, guest_name: guestName, password: fields.password || '' }),
+  });
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    state.clientPortalPublic = { token, error: payload.error || 'Could not open portal.' };
+    render();
+    return;
+  }
+  state.clientPortalPublic = {
+    token,
+    guestName,
+    session: payload.session,
+    portal: payload.portal,
+    documents: payload.documents || [],
+    documentId: payload.documents?.[0]?.id || '',
+    documentUrl: '',
+    annotations: [],
+  };
+  writeJson(CLIENT_PORTAL_SESSION_KEY, state.clientPortalPublic);
+  render();
+}
+
+async function ensureClientPortalDocumentUrl() {
+  const portal = state.clientPortalPublic;
+  if (!portal?.session || portal.documentUrl) return portal?.documentUrl || '';
+  const documentId = portal.documentId || portal.documents?.[0]?.id || '';
+  if (!documentId) return '';
+  const response = await fetch('/api/client-portal-document-url', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ session: portal.session, document_id: documentId }),
+  });
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(payload.error || 'Document unavailable.');
+  state.clientPortalPublic.documentUrl = payload.url;
+  state.clientPortalPublic.documentId = documentId;
+  writeJson(CLIENT_PORTAL_SESSION_KEY, state.clientPortalPublic);
+  return payload.url;
+}
+
+async function loadClientPortalAnnotations() {
+  const portal = state.clientPortalPublic;
+  if (!portal?.session || !portal.documentId) return [];
+  const url = `/api/client-portal-annotations?session=${encodeURIComponent(portal.session)}&document_id=${encodeURIComponent(portal.documentId)}`;
+  const response = await fetch(url);
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) return [];
+  state.clientPortalPublic.annotations = (payload.annotations || []).map(normalizeClientPortalAnnotation);
+  writeJson(CLIENT_PORTAL_SESSION_KEY, state.clientPortalPublic);
+  return state.clientPortalPublic.annotations;
+}
+
+async function saveClientPortalAnnotations() {
+  const portal = state.clientPortalPublic;
+  if (!portal?.session || !portal.documentId) throw new Error('Open a document first.');
+  const annotations = (portal.annotations || []).filter((annotation) => annotation.document_id === portal.documentId);
+  const response = await fetch('/api/client-portal-annotations', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ session: portal.session, document_id: portal.documentId, annotations }),
+  });
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(payload.error || 'Markup save failed.');
+  showToast('Markups saved.', 'live', 'Client Portal');
+}
+
+async function mountClientPortalViewer() {
+  const portal = state.clientPortalPublic;
+  const base = document.getElementById('client-portal-doc-canvas');
+  const overlay = document.getElementById('client-portal-draw-canvas');
+  if (!portal?.session || !base || !overlay) return;
+  const doc = (portal.documents || []).find((item) => item.id === portal.documentId) || portal.documents?.[0];
+  if (!doc) return;
+  const url = await ensureClientPortalDocumentUrl();
+  if (!url) return;
+  if (!portal.annotations?.length) await loadClientPortalAnnotations();
+  await renderClientPortalDocumentCanvas(doc, url, base, overlay);
+  attachClientPortalDrawing(base, overlay, doc);
+}
+
+async function renderClientPortalDocumentCanvas(doc, url, base, overlay) {
+  const ctx = base.getContext('2d');
+  if (doc.mime_type?.includes('pdf') || /\.pdf($|\?)/i.test(doc.file_name || '')) {
+    await loadExternalScript('https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js', 'pdfjsLib');
+    window.pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+    const pdf = await window.pdfjsLib.getDocument(url).promise;
+    const page = await pdf.getPage(1);
+    const viewport = page.getViewport({ scale: Math.min(1.35, Math.max(0.8, (document.querySelector('.client-portal-stage')?.clientWidth || 900) / page.getViewport({ scale: 1 }).width)) });
+    base.width = viewport.width;
+    base.height = viewport.height;
+    overlay.width = viewport.width;
+    overlay.height = viewport.height;
+    await page.render({ canvasContext: ctx, viewport }).promise;
+  } else {
+    const image = await loadClientPortalImage(url);
+    const maxWidth = Math.min(1200, document.querySelector('.client-portal-stage')?.clientWidth || 900);
+    const scale = Math.min(1, maxWidth / image.width);
+    base.width = image.width * scale;
+    base.height = image.height * scale;
+    overlay.width = base.width;
+    overlay.height = base.height;
+    ctx.drawImage(image, 0, 0, base.width, base.height);
+  }
+  redrawClientPortalAnnotations(overlay);
+}
+
+function attachClientPortalDrawing(_base, overlay, doc) {
+  let start = null;
+  let drawing = false;
+  const point = (event) => {
+    const rect = overlay.getBoundingClientRect();
+    const touch = event.touches?.[0] || event.changedTouches?.[0];
+    const src = touch || event;
+    return { x: src.clientX - rect.left, y: src.clientY - rect.top };
+  };
+  const begin = (event) => {
+    if (state.clientPortalTool === 'pan') return;
+    event.preventDefault();
+    start = point(event);
+    drawing = true;
+    if (['text', 'comment', 'stamp'].includes(state.clientPortalTool)) {
+      const text = state.clientPortalTool === 'stamp' ? 'APPROVED' : window.prompt(state.clientPortalTool === 'text' ? 'Text' : 'Comment') || '';
+      if (text) addClientPortalAnnotation(doc, state.clientPortalTool, { ...start, text, label: text });
+      drawing = false;
+      start = null;
+      redrawClientPortalAnnotations(overlay);
+    }
+  };
+  const move = (event) => {
+    if (!drawing || !start || state.clientPortalTool === 'pan') return;
+    event.preventDefault();
+    const current = point(event);
+    redrawClientPortalAnnotations(overlay);
+    drawClientPortalShape(overlay.getContext('2d'), { type: state.clientPortalTool, x: start.x, y: start.y, x2: current.x, y2: current.y, color: state.clientPortalColor, sw: state.clientPortalStroke });
+  };
+  const end = (event) => {
+    if (!drawing || !start || state.clientPortalTool === 'pan') return;
+    event.preventDefault();
+    const current = point(event);
+    addClientPortalAnnotation(doc, state.clientPortalTool, { x: start.x, y: start.y, x2: current.x, y2: current.y });
+    drawing = false;
+    start = null;
+    redrawClientPortalAnnotations(overlay);
+  };
+  overlay.onmousedown = begin;
+  overlay.onmousemove = move;
+  overlay.onmouseup = end;
+  overlay.onmouseleave = end;
+  overlay.ontouchstart = begin;
+  overlay.ontouchmove = move;
+  overlay.ontouchend = end;
+}
+
+function addClientPortalAnnotation(doc, type, points) {
+  const annotation = normalizeClientPortalAnnotation({
+    id: crypto.randomUUID(),
+    company_id: state.clientPortalPublic.portal?.company_id,
+    portal_id: state.clientPortalPublic.portal?.id,
+    document_id: doc.id,
+    page_number: 1,
+    guest_name: state.clientPortalPublic.guestName || 'Guest',
+    annotation_type: type,
+    payload: { type, ...points, color: state.clientPortalColor, sw: state.clientPortalStroke },
+  });
+  state.clientPortalPublic.annotations = (state.clientPortalPublic.annotations || []).concat(annotation);
+  writeJson(CLIENT_PORTAL_SESSION_KEY, state.clientPortalPublic);
+}
+
+function redrawClientPortalAnnotations(overlay) {
+  const ctx = overlay.getContext('2d');
+  ctx.clearRect(0, 0, overlay.width, overlay.height);
+  (state.clientPortalPublic?.annotations || [])
+    .filter((annotation) => annotation.document_id === state.clientPortalPublic.documentId)
+    .forEach((annotation) => drawClientPortalShape(ctx, annotation.payload || {}));
+}
+
+function drawClientPortalShape(ctx, item) {
+  const color = item.color || '#E8611A';
+  const sw = Number(item.sw || 2);
+  ctx.save();
+  ctx.strokeStyle = color;
+  ctx.fillStyle = color;
+  ctx.lineWidth = sw;
+  ctx.lineCap = 'round';
+  const x = Number(item.x || 0);
+  const y = Number(item.y || 0);
+  const x2 = Number(item.x2 || x);
+  const y2 = Number(item.y2 || y);
+  if (item.type === 'rect') ctx.strokeRect(x, y, x2 - x, y2 - y);
+  else if (item.type === 'circle') {
+    ctx.beginPath();
+    ctx.ellipse(x + (x2 - x) / 2, y + (y2 - y) / 2, Math.abs(x2 - x) / 2, Math.abs(y2 - y) / 2, 0, 0, Math.PI * 2);
+    ctx.stroke();
+  } else if (item.type === 'text' || item.type === 'comment' || item.type === 'stamp') {
+    ctx.font = item.type === 'stamp' ? '700 14px Inter, sans-serif' : '600 14px Inter, sans-serif';
+    const text = item.text || item.label || 'Comment';
+    const width = ctx.measureText(text).width + 16;
+    ctx.fillStyle = item.type === 'stamp' ? color : 'rgba(255,255,255,.94)';
+    ctx.strokeStyle = color;
+    ctx.beginPath();
+    if (typeof ctx.roundRect === 'function') ctx.roundRect(x, y - 22, width, 28, 6);
+    else ctx.rect(x, y - 22, width, 28);
+    item.type === 'stamp' ? ctx.fill() : (ctx.fill(), ctx.stroke());
+    ctx.fillStyle = item.type === 'stamp' ? '#fff' : color;
+    ctx.fillText(text, x + 8, y - 4);
+  } else {
+    ctx.beginPath();
+    ctx.moveTo(x, y);
+    ctx.lineTo(x2, y2);
+    ctx.stroke();
+    if (item.type === 'arrow') {
+      const angle = Math.atan2(y2 - y, x2 - x);
+      const head = 12 + sw;
+      ctx.beginPath();
+      ctx.moveTo(x2, y2);
+      ctx.lineTo(x2 - head * Math.cos(angle - Math.PI / 6), y2 - head * Math.sin(angle - Math.PI / 6));
+      ctx.lineTo(x2 - head * Math.cos(angle + Math.PI / 6), y2 - head * Math.sin(angle + Math.PI / 6));
+      ctx.closePath();
+      ctx.fill();
+    }
+    if (item.type === 'measure') {
+      const dist = Math.sqrt((x2 - x) ** 2 + (y2 - y) ** 2);
+      ctx.font = '600 12px JetBrains Mono, monospace';
+      ctx.fillText(`${Math.round(dist)} px`, (x + x2) / 2 + 6, (y + y2) / 2 - 6);
+    }
+  }
+  ctx.restore();
+}
+
+async function exportClientPortalMarkedPdf() {
+  const base = document.getElementById('client-portal-doc-canvas');
+  const overlay = document.getElementById('client-portal-draw-canvas');
+  if (!base || !overlay) throw new Error('Open a document first.');
+  await loadExternalScript('https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js', 'jspdf');
+  const merged = document.createElement('canvas');
+  merged.width = base.width;
+  merged.height = base.height;
+  const ctx = merged.getContext('2d');
+  ctx.drawImage(base, 0, 0);
+  ctx.drawImage(overlay, 0, 0);
+  const pdf = new window.jspdf.jsPDF({ orientation: merged.width > merged.height ? 'l' : 'p', unit: 'px', format: [merged.width, merged.height], compress: true });
+  pdf.addImage(merged.toDataURL('image/jpeg', 0.92), 'JPEG', 0, 0, merged.width, merged.height);
+  pdf.save(`Quest-Portal-Markups-${new Date().toISOString().slice(0, 10)}.pdf`);
+  await fetch('/api/client-portal-export-event', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ session: state.clientPortalPublic?.session, details: { document_id: state.clientPortalPublic?.documentId } }),
+  }).catch(() => null);
+}
+
+function loadExternalScript(src, globalName) {
+  if (window[globalName]) return Promise.resolve();
+  return new Promise((resolve, reject) => {
+    const existing = [...document.scripts].find((script) => script.src === src);
+    if (existing) {
+      existing.addEventListener('load', resolve, { once: true });
+      existing.addEventListener('error', reject, { once: true });
+      return;
+    }
+    const script = document.createElement('script');
+    script.src = src;
+    script.onload = resolve;
+    script.onerror = reject;
+    document.head.appendChild(script);
+  });
+}
+
+function loadClientPortalImage(src) {
+  return new Promise((resolve, reject) => {
+    const image = new Image();
+    image.crossOrigin = 'anonymous';
+    image.onload = () => resolve(image);
+    image.onerror = reject;
+    image.src = src;
+  });
 }
 
 function createDriveFolder(form) {
@@ -9574,6 +12106,7 @@ function updateWorkspaceOnly() {
 function getRoute() {
   const path = appPathname();
   const params = new URLSearchParams(window.location.search);
+  if (path.startsWith('/portal/')) return { name: 'client-portal', path, params, section: 'client-portal', companyId: '', token: decodeURIComponent(path.replace(/^\/portal\//, '')), jobId: '' };
   if (path === '/login') return { name: 'login', path, params, section: '', companyId: '', jobId: '' };
   if (path === '/') return { name: 'home', path, params, section: '', companyId: '', jobId: '' };
   if (path === '/command') return { name: 'command', path, params, section: 'dashboard', companyId: activeCompanyId(), jobId: params.get('job_id') || '' };
@@ -9616,6 +12149,7 @@ function normalizeLegacyLocation() {
   if (path === '/forms') target = companyPath('forms', copyParams(params, ['job_id']), companyId);
   if (path === '/analytics') target = companyPath('analytics', copyParams(params, ['job_id']), companyId);
   if (path === '/crm') target = companyPath('crm', copyParams(params, ['account']), companyId);
+  if (path === '/underwriter') target = companyPath('underwriter', copyParams(params, ['stage']), companyId);
   if (path === '/finance') target = companyPath('finance', copyParams(params, ['invoice', 'expense', 'vendor', 'report']), companyId);
   if (path === '/messages') target = companyPath('messages', copyParams(params, ['conversation']), companyId);
   if (path === '/calendar') target = companyPath('calendar', {}, companyId);
@@ -10229,19 +12763,21 @@ function companyMembers(companyId = activeCompanyId()) {
 
 function companyAccessUsers(companyId = activeCompanyId()) {
   const byId = new Map();
-  companyMembers(companyId).forEach((member) => {
-    byId.set(member.id, {
-      profile_id: '',
-      member_id: member.id,
-      name: member.full_name || member.name,
-      email: member.email,
-      avatar_url: member.avatar_url,
-      role: roleForMember(companyId, member.id).toLowerCase(),
-      role_label: roleForMember(companyId, member.id),
-      role_id: '',
-      status: member.active ? 'active' : 'disabled',
+  if (state.session?.auth !== 'supabase') {
+    companyMembers(companyId).forEach((member) => {
+      byId.set(member.id, {
+        profile_id: '',
+        member_id: member.id,
+        name: member.full_name || member.name,
+        email: member.email,
+        avatar_url: member.avatar_url,
+        role: roleForMember(companyId, member.id).toLowerCase(),
+        role_label: roleForMember(companyId, member.id),
+        role_id: '',
+        status: member.active ? 'active' : 'disabled',
+      });
     });
-  });
+  }
   state.memberships
     .filter((membership) => membership.company_id === companyId)
     .forEach((membership) => {
@@ -10382,7 +12918,7 @@ function profileById(profileId) {
 function filteredJobs(companyId = activeCompanyId(), ignoreStage = false) {
   const q = state.query.trim().toLowerCase();
   return companyJobs(companyId).filter((job) => {
-    if (!ignoreStage && state.stageFilter !== 'all' && job.stage !== state.stageFilter) return false;
+    if (!ignoreStage && state.stageFilter !== 'all' && resolvePipelineStage('jobs', job.stage, companyId) !== state.stageFilter) return false;
     if (!q) return true;
     return [job.name, job.client_name, job.contact_name, job.owner_name, job.site_address, job.job_type, companyName(job.company_id)]
       .some((value) => String(value || '').toLowerCase().includes(q));
@@ -10396,7 +12932,7 @@ function companyContacts(companyId = activeCompanyId()) {
 function filteredContacts(companyId = activeCompanyId(), ignoreStage = false) {
   const q = state.contactQuery.trim().toLowerCase();
   return companyContacts(companyId).filter((contact) => {
-    if (!ignoreStage && state.contactStageFilter !== 'all' && contact.stage !== state.contactStageFilter) return false;
+    if (!ignoreStage && state.contactStageFilter !== 'all' && resolvePipelineStage('contacts', contact.stage, companyId) !== state.contactStageFilter) return false;
     if (!q) return true;
     return [contact.name, contact.phone, contact.email, contact.location, contact.owner_name, contact.stage]
       .some((value) => String(value || '').toLowerCase().includes(q));
@@ -10422,15 +12958,26 @@ function upsertContact(contact) {
   persistContacts();
 }
 
+function pipelineStageRouteParams(stage) {
+  return stage && stage !== 'all' ? { stage } : {};
+}
+
+function isPipelineDetailRoute(route, kind) {
+  if (!route || route.name !== 'company' || route.section !== kind) return false;
+  if (kind === 'contacts') return route.params.has('contact_id');
+  if (kind === 'deals') return route.params.has('deal_id');
+  if (kind === 'jobs') return route.params.has('job_id');
+  return false;
+}
+
 function setPipelineStage(kind, stage, forceNav) {
   if (!['contacts', 'jobs', 'deals'].includes(kind)) return;
-  if (kind === 'contacts') state.contactStageFilter = stage;
-  else if (kind === 'deals') state.stageFilterDeals = stage;
-  else state.stageFilter = stage;
-  const route = state.route;
-  const onSection = route?.name === 'company' && route.section === kind;
-  if (forceNav || !onSection) navigate(companyPath(kind, {}, activeCompanyId()));
-  else render();
+  const nextStage = stage || 'all';
+  if (kind === 'contacts') state.contactStageFilter = nextStage;
+  else if (kind === 'deals') state.stageFilterDeals = nextStage;
+  else state.stageFilter = nextStage;
+  const nextPath = companyPath(kind, pipelineStageRouteParams(nextStage), activeCompanyId());
+  navigate(nextPath, { replace: !forceNav && currentAppUrl() === nextPath });
 }
 
 // ---- CRM getters + CRUD: accounts / deals / activities --------------------
@@ -10468,7 +13015,7 @@ function selectedDeal() {
 function filteredDeals(companyId = activeCompanyId(), ignoreStage = false) {
   const q = state.dealQuery.trim().toLowerCase();
   return companyDeals(companyId).filter((deal) => {
-    if (!ignoreStage && state.stageFilterDeals !== 'all' && deal.stage !== state.stageFilterDeals) return false;
+    if (!ignoreStage && state.stageFilterDeals !== 'all' && resolvePipelineStage('deals', deal.stage, companyId) !== state.stageFilterDeals) return false;
     if (!q) return true;
     return [deal.name, deal.owner_name, deal.source, deal.stage, accountName(deal.account_id), contactById(deal.primary_contact_id)?.name]
       .some((value) => String(value || '').toLowerCase().includes(q));
@@ -10603,8 +13150,117 @@ async function saveDeal(form) {
   }
   state.selectedDealId = payload.id;
   state.modal = '';
-  showToast(`${payload.name} saved.`, ok ? 'live' : 'local', 'Deals');
+  showToast(`${payload.name} saved.`, ok ? 'live' : 'local', 'Quotes');
   render();
+}
+
+async function persistDeal(deal, label = 'Quote saved.') {
+  const payload = normalizeDeal({ ...deal, updated_at: new Date().toISOString() });
+  if (/^won/i.test(payload.stage)) payload.status = 'won';
+  else if (/^lost/i.test(payload.stage)) payload.status = 'lost';
+  else if (payload.status !== 'open' && !/^won|^lost/i.test(payload.stage)) payload.status = 'open';
+  const row = emptyToNull(supabaseRow(payload, DEAL_COLS), ['account_id', 'primary_contact_id', 'close_date', 'job_id']);
+  const { ok, data } = await supabaseWrite('deals', row);
+  upsertDeal(ok && data ? normalizeDeal(data) : payload);
+  showToast(label, ok ? 'live' : 'local', 'Quotes');
+  render();
+  return payload;
+}
+
+async function setDealStage(dealId, stage) {
+  const deal = dealById(dealId);
+  if (!deal || !stage || deal.stage === stage) return;
+  await persistDeal({ ...deal, stage }, 'Quote stage saved.');
+  await logActivity({ type: 'stage_change', subject: `Stage → ${stage}`, related_type: 'deal', related_id: dealId, account_id: deal.account_id });
+}
+
+function markDealNextStage(dealId) {
+  const deal = dealById(dealId);
+  const names = dealStageNames();
+  const idx = deal ? names.indexOf(deal.stage) : -1;
+  if (!deal || idx < 0 || idx >= names.length - 1) return;
+  setDealStage(deal.id, names[idx + 1]);
+}
+
+function patchDealField(dealId, key, raw) {
+  const deal = dealById(dealId);
+  if (!deal) return;
+  let value;
+  if (key === 'value' || key === 'probability') value = Number(String(raw).replace(/[^0-9.]/g, '')) || 0;
+  else value = String(raw).trim();
+  if (deal[key] === value) { render(); return; }
+  persistDeal({ ...deal, [key]: value }, 'Quote field saved.');
+}
+
+function beginDealInlineEdit(span) {
+  const key = span.dataset.dealEdit;
+  const dealId = span.dataset.dealId;
+  const deal = dealById(dealId);
+  if (!deal) return;
+  const input = document.createElement('input');
+  input.className = 'sf-edit-input';
+  input.value = (key === 'value' || key === 'probability') ? (deal[key] || 0) : (deal[key] || '');
+  span.replaceWith(input);
+  input.focus();
+  input.select();
+  let done = false;
+  const commit = () => { if (done) return; done = true; patchDealField(dealId, key, input.value); };
+  input.addEventListener('blur', commit);
+  input.addEventListener('keydown', (ev) => {
+    if (ev.key === 'Enter') { ev.preventDefault(); commit(); }
+    if (ev.key === 'Escape') { done = true; render(); }
+  });
+}
+
+async function createDealTask(dealId, title) {
+  const deal = dealById(dealId);
+  const clean = String(title || '').trim();
+  if (!deal || !clean) return;
+  const payload = normalizeTask({
+    id: `task-${crypto.randomUUID()}`,
+    company_id: deal.company_id,
+    title: clean,
+    contact_id: deal.primary_contact_id,
+    creator_id: activeSession().profile.member_id || companyMembers(deal.company_id)[0]?.id || 'abraham',
+    status: 'todo',
+    due: isoDate(1),
+  });
+  upsertTask(payload);
+  render();
+  const client = createSupabaseClient();
+  if (client) {
+    try {
+      const result = await client.from('tasks').insert(taskPayload(payload)).select().single();
+      if (!result.error && result.data) { upsertTask(normalizeTask(result.data)); render(); }
+    } catch (error) { console.warn('Quote task sync failed', error); }
+  }
+}
+
+async function logDealActivity(dealId, type, subject, body = '') {
+  const deal = dealById(dealId);
+  if (!deal) return;
+  await logActivity({ type, subject, body, related_type: 'deal', related_id: dealId, account_id: deal.account_id });
+  render();
+}
+
+function dealQuickCreate(dealId, kind) {
+  if (kind === 'Task' || kind === 'New Task') return createDealTask(dealId, 'New quote task');
+  if (kind === 'Note') return logDealActivity(dealId, 'note', 'Note added');
+  if (kind === 'Call Log' || kind === 'Log a Call') return logDealActivity(dealId, 'call', 'Logged a call');
+  if (kind === 'Meeting' || kind === 'New Event') return logDealActivity(dealId, 'meeting', 'Meeting scheduled');
+  if (kind === 'Follow') return showToast('Following this quote.', 'local', 'Quotes');
+  return showToast(`${kind} isn't set up yet.`, 'local', 'Quotes');
+}
+
+async function postDealNote(form) {
+  const data = Object.fromEntries(new FormData(form).entries());
+  const text = String(data.body || '').trim();
+  const dealId = String(data.deal_id || '');
+  if (!text) return;
+  const tab = state.dealActivityTab || 'Email';
+  if (tab === 'New Task') return createDealTask(dealId, text);
+  const typeMap = { Email: 'email', 'Log a Call': 'call', 'New Event': 'meeting' };
+  await logDealActivity(dealId, typeMap[tab] || 'note', '', text);
 }
 
 async function deleteDeal(id) {
@@ -10624,6 +13280,7 @@ async function logActivity(input) {
     if (input.related_type === 'account') accountId = input.related_id;
     else if (input.related_type === 'deal') accountId = dealById(input.related_id)?.account_id || '';
     else if (input.related_type === 'contact') accountId = contactById(input.related_id)?.account_id || '';
+    else if (input.related_type === 'job') accountId = jobById(input.related_id)?.account_id || '';
   }
   if (!accountById(accountId)) accountId = '';
   const payload = normalizeActivity({
@@ -10690,7 +13347,7 @@ async function convertDealToJob(dealId) {
     site_address: account?.address || '',
     owner_name: deal.owner_name,
     estimate_total: deal.value,
-    stage: jobStageNames()[0],
+    stage: pipelineStages('jobs', companyId)[0]?.name || jobStageNames()[0],
     account_id: deal.account_id,
     deal_id: deal.id,
     scope: deal.notes,
@@ -10706,11 +13363,11 @@ async function convertDealToJob(dealId) {
   const updatedDeal = normalizeDeal({ ...deal, status: 'won', stage: wonStage, job_id: job.id, updated_at: new Date().toISOString() });
   const dealRes = await supabaseWrite('deals', emptyToNull(supabaseRow(updatedDeal, DEAL_COLS), ['account_id', 'primary_contact_id', 'close_date', 'job_id']));
   upsertDeal(updatedDeal);
-  logActivity({ type: 'system', subject: 'Deal won → Job created', body: deal.name, related_type: 'deal', related_id: deal.id, account_id: deal.account_id });
+  logActivity({ type: 'system', subject: 'Quote converted → Job created', body: deal.name, related_type: 'deal', related_id: deal.id, account_id: deal.account_id });
   state.selectedJobId = job.id;
   state.modal = '';
   const live = ok && dealRes.ok;
-  showToast('Deal won — job created.', live ? 'live' : 'local', 'Deals');
+  showToast('Quote converted to job.', live ? 'live' : 'local', 'Quotes');
   navigate(companyPath('jobs', { tab: 'profile', job_id: job.id }, companyId));
 }
 
@@ -11025,12 +13682,15 @@ function allowedCompanies() {
 
 function can(permission, companyId = activeCompanyId()) {
   if (!permission) return true;
+  if (!permissionAvailableForCompany(permission, companyId)) return false;
   const previewRole = rolePreviewForCompany(companyId);
   if (previewRole) return roleAllowsPermission(previewRole, permission);
   const variants = permissionVariants(permission);
   const profile = activeSession().profile;
   if (state.session?.auth === 'supabase') {
     const membership = membershipForProfile(companyId, profile.id);
+    const trustedProfileCompany = (profile.company_ids || []).map(canonicalCompanyId).includes(canonicalCompanyId(companyId));
+    if (!membership && trustedProfileCompany && ['owner', 'admin', 'developer'].includes(String(profile.role || '').toLowerCase())) return true;
     if (!membership || membership.status !== 'active') return false;
     if (['owner', 'developer'].includes(String(membership.role).toLowerCase())) return true;
     const assignedRoleIds = state.roleAssignments
@@ -11051,14 +13711,124 @@ function requirePermission(permission, companyId = activeCompanyId(), message = 
   return false;
 }
 
+function isReadOnlyDemo() {
+  return state.session?.auth === 'demo-readonly' && CONFIG.demoReadonly;
+}
+
+function requireMutableWorkspace(message = 'Demo is read-only. Create a workspace to save changes.', title = 'Read-only demo') {
+  if (!isReadOnlyDemo()) return true;
+  showToast(message, 'local', title);
+  return false;
+}
+
+function isMutableAction(action = '') {
+  const clean = String(action || '');
+  if (!clean) return false;
+  const safeActions = new Set([
+    'refresh-data',
+    'sign-out',
+    'toggle-account-menu',
+    'toggle-notifications',
+    'toggle-workspace-menu',
+    'select-workspace',
+    'toggle-mobile-menu',
+    'toggle-sidebar',
+    'toggle-nav-group',
+    'toggle-nav-expand',
+    'pipeline-open',
+    'pipeline-stage',
+    'open-notification',
+    'verify-email',
+    'start-demo-mode',
+    'open-auth-modal',
+    'close-auth-modal',
+    'set-auth-mode',
+    'open-profile',
+    'view-as-role',
+    'exit-role-preview',
+    'message-details',
+    'message-search-results',
+    'set-message-filter',
+    'set-calendar-scope',
+    'set-calendar-view',
+    'calendar-prev',
+    'calendar-next',
+    'calendar-today',
+    'open-calendar-event',
+    'copy-invite-link',
+    'copy-invite-code',
+    'open-account',
+    'set-account-tab',
+    'account-type',
+    'open-deal',
+    'open-contact',
+    'contact-activity-tab',
+    'job-activity-tab',
+    'set-pipeline-view',
+    'open-form-actions',
+    'open-form-preview',
+    'set-form-start-tab',
+    'select-form-start-template',
+    'close-modal',
+    'set-task-view',
+    'set-drive-view',
+    'select-file',
+    'download-file',
+    'set-forms-tab',
+    'set-form-editor-tab',
+    'select-form',
+    'toggle-form-card',
+    'copy-form-link',
+    'copy-client-portal-link',
+    'export-forms',
+  ]);
+  if (safeActions.has(clean)) return false;
+  if (/^(new|edit|delete|save|publish|archive|duplicate|revoke|approve|reject)-/.test(clean)) return true;
+  if (/^open-/.test(clean) && /(form|upload|tools|stage-manager)/.test(clean)) return true;
+  return [
+    'mark-all-notifications-read',
+    'delete-message',
+    'run-message-scenario',
+    'reset-message-demo',
+    'manage-message-chat',
+    'set-company-plugin',
+    'apply-plugin-preset',
+    'start-checkout',
+    'review-workspace',
+    'platform-company-action',
+    'set-contact-stage',
+    'set-contact-temp',
+    'toggle-contact-task',
+    'contact-quick',
+    'contact-mark-next',
+    'contact-convert-quote',
+    'set-job-stage',
+    'job-mark-next',
+    'job-quick',
+    'convert-deal',
+    'add-stage',
+    'delete-stage',
+    'clock-in',
+    'clock-out',
+  ].includes(clean);
+}
+
+function isMutableFormSubmit(formNode) {
+  if (!formNode || !formNode.matches('form')) return false;
+  if (formNode.matches('[data-login-form], [data-auth-sign-in-form], [data-auth-register-form], [data-auth-invite-code-form], [data-auth-request-form]')) return false;
+  return Object.keys(formNode.dataset || {}).some((key) => key.toLowerCase().includes('form'));
+}
+
 function allowedCompanyIds() {
   const profile = activeSession().profile;
   const allIds = state.companies.map((company) => company.id);
+  const fallbackIds = companiesFallback.map((company) => canonicalCompanyId(company.id));
   if (state.session?.auth === 'supabase') {
     const membershipIds = state.memberships
       .filter((item) => item.profile_id === profile.id && item.status === 'active')
       .map((item) => canonicalCompanyId(item.company_id));
-    return compactUnique(membershipIds).filter((id) => allIds.includes(id));
+    const profileIds = Array.isArray(profile.company_ids) ? profile.company_ids.map(canonicalCompanyId) : [];
+    return compactUnique(membershipIds.concat(profileIds)).filter((id) => allIds.includes(id) || fallbackIds.includes(id));
   }
   if (['developer', 'admin'].includes(profile.role)) return compactUnique(allIds.length ? allIds : companiesFallback.map((company) => canonicalCompanyId(company.id)));
   const membershipIds = state.memberships
@@ -11083,6 +13853,23 @@ function companyById(id) {
   return state.companies.find((item) => item.id === canonical) || companiesFallback.map(normalizeCompany).find((item) => item.id === canonical) || null;
 }
 
+function ownedWorkspaceCount(profileId = activeSession().profile.id) {
+  const ownerId = String(profileId || '').trim();
+  if (!ownerId) return 0;
+  return compactUnique(state.memberships
+    .filter((membership) => membership.profile_id === ownerId && membership.role === 'owner' && membership.status === 'active')
+    .map((membership) => membership.company_id)).length;
+}
+
+function canCreateAnotherWorkspace() {
+  return isQuestDeveloper() || ownedWorkspaceCount() < WORKSPACE_SELF_CREATE_LIMIT;
+}
+
+function workspaceLimitMessage() {
+  if (canCreateAnotherWorkspace()) return `${ownedWorkspaceCount()} of ${WORKSPACE_SELF_CREATE_LIMIT} owner workspaces used.`;
+  return `Workspace limit reached. You can own up to ${WORKSPACE_SELF_CREATE_LIMIT} workspaces.`;
+}
+
 function companyName(id) {
   const company = companyById(id);
   return company ? companyLabel(company) : id || 'Company';
@@ -11094,6 +13881,16 @@ function companyLabel(company) {
 
 function companyColor(id) {
   return companyById(id)?.color || '#f0b23b';
+}
+
+function workspaceIconOption(key) {
+  return WORKSPACE_ICON_OPTIONS.find((item) => item.key === String(key || '').trim()) || WORKSPACE_ICON_OPTIONS[0];
+}
+
+function workspaceIconMarkup(companyOrId, className = '') {
+  const company = typeof companyOrId === 'object' ? normalizeCompany(companyOrId) : companyById(companyOrId);
+  const icon = workspaceIconOption(company?.icon_key);
+  return `<span class="workspace-icon ${h(className)}" style="--company-accent:${h(company?.color || companyColor(company?.id))}"><i class="ti ${h(icon.icon)}"></i></span>`;
 }
 
 function companyIdForJob(jobId) {
@@ -11178,6 +13975,79 @@ function workspaceReviewRows() {
   });
 }
 
+function platformCompanyRows() {
+  const fromPlatform = state.platformCompanies.map(normalizePlatformCompany);
+  const fromCompanies = state.companies.map((company) => {
+    const subscription = companySubscription(company.id);
+    const members = companyAccessUsers(company.id);
+    return normalizePlatformCompany({
+      company_id: company.id,
+      company_name: company.name,
+      short_name: company.short_name,
+      color: company.color,
+      label: company.label,
+      pill: company.pill,
+      icon_key: company.icon_key,
+      status: subscription?.status || (pendingReviewCompanyIds().includes(company.id) ? 'pending_review' : 'active'),
+      plan_code: subscription?.plan_code || (company.id === 'lumen' ? 'manual_platform' : 'manual'),
+      amount_cents: subscription?.amount_cents || 0,
+      currency: subscription?.currency || 'usd',
+      owner_email: members.find((member) => member.role === 'owner')?.email || '',
+      owner_name: members.find((member) => member.role === 'owner')?.name || '',
+      member_count: members.length,
+      active_member_count: members.filter((member) => member.status === 'active').length,
+      pending_member_count: members.filter((member) => member.status === 'pending').length,
+      disabled_member_count: members.filter((member) => ['disabled', 'left'].includes(member.status)).length,
+      created_at: subscription?.created_at || '',
+    });
+  });
+  const byCompany = new Map();
+  fromCompanies.concat(fromPlatform).forEach((company) => {
+    if (!company.company_id) return;
+    byCompany.set(company.company_id, { ...(byCompany.get(company.company_id) || {}), ...company });
+  });
+  return Array.from(byCompany.values()).sort(platformCompanySort);
+}
+
+function platformCompanySort(a, b) {
+  const weight = { pending_review: 0, active: 1, trialing: 2, suspended: 3, canceled: 4 };
+  return (weight[a.status] ?? 5) - (weight[b.status] ?? 5) || String(a.company_name).localeCompare(String(b.company_name));
+}
+
+function platformMembersForCompany(companyId) {
+  const liveMembers = state.platformCompanyMembers.filter((member) => member.company_id === companyId);
+  if (liveMembers.length) return liveMembers.sort(platformMemberSort);
+  return companyAccessUsers(companyId).map((member) => normalizePlatformCompanyMember({
+    company_id: companyId,
+    profile_id: member.profile_id,
+    member_id: member.member_id,
+    full_name: member.name,
+    email: member.email,
+    role: member.role,
+    role_label: member.role_label,
+    role_id: member.role_id,
+    status: member.status,
+  })).sort(platformMemberSort);
+}
+
+function platformMemberSort(a, b) {
+  return (a.status === 'active' ? 0 : 1) - (b.status === 'active' ? 0 : 1) || String(a.name).localeCompare(String(b.name));
+}
+
+function platformActionStatus(action) {
+  return {
+    approve: 'active',
+    activate: 'active',
+    reactivate: 'active',
+    suspend: 'suspended',
+    disable: 'suspended',
+    archive: 'canceled',
+    delete: 'canceled',
+    cancel: 'canceled',
+    pending: 'pending_review',
+  }[String(action || '').toLowerCase().trim()] || '';
+}
+
 function subscriptionAllowsCompany(companyId = activeCompanyId()) {
   if (state.session?.auth !== 'supabase') return true;
   if (subscriptionNeedsReview(companyId)) return false;
@@ -11242,12 +14112,41 @@ function normalizeSubscriptionStatus(status) {
 }
 
 function isQuestDeveloper() {
+  if (state.session?.auth === 'supabase') return state.platformAdmin === true;
   return String(activeSession().profile?.role || '').toLowerCase() === 'developer';
 }
 
 function memberName(id) {
   const member = state.teamMembers.find((item) => item.id === id);
   return member?.full_name || member?.name || id || 'Unassigned';
+}
+
+function formatPhoneNumber(value) {
+  const raw = String(value || '').trim();
+  const digits = raw.replace(/\D/g, '');
+  if (digits.length === 10) return `${digits.slice(0, 3)}-${digits.slice(3, 6)}-${digits.slice(6)}`;
+  if (digits.length === 11 && digits[0] === '1') return `${digits.slice(1, 4)}-${digits.slice(4, 7)}-${digits.slice(7)}`;
+  return raw;
+}
+
+function mapsSearchUrl(address) {
+  const clean = String(address || '').trim();
+  return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(clean)}`;
+}
+
+function contactAddressOptions(companyId) {
+  return compactUnique([
+    ...companyContacts(companyId).map((contact) => contact.location),
+    ...companyAccounts(companyId).map((account) => account.address),
+    ...companyJobs(companyId).map((job) => job.site_address),
+  ]).sort((a, b) => a.localeCompare(b));
+}
+
+function contactOwnerOptions(companyId, selectedOwner = '') {
+  const owners = companyAccessUsers(companyId)
+    .filter((user) => user.status !== 'disabled')
+    .map((user) => user.name || user.email);
+  return [['', 'Unassigned']].concat(compactUnique([selectedOwner, ...owners]).map((name) => [name, name]));
 }
 
 function profileName(id) {
@@ -11288,6 +14187,24 @@ function mergeSubscriptions(subscriptions) {
   return Array.from(seen.values());
 }
 
+function mergeRoles(roles) {
+  const seen = new Map();
+  roles.map(normalizeRole).forEach((role) => {
+    if (!role.id) return;
+    seen.set(role.id, { ...(seen.get(role.id) || {}), ...role });
+  });
+  return Array.from(seen.values());
+}
+
+function mergeCompanyPlugins(rows) {
+  const seen = new Map();
+  rows.map(normalizeCompanyPlugin).forEach((row) => {
+    if (!row.company_id || !row.plugin_id) return;
+    seen.set(`${row.company_id}:${row.plugin_id}`, { ...(seen.get(`${row.company_id}:${row.plugin_id}`) || {}), ...row });
+  });
+  return Array.from(seen.values());
+}
+
 function normalizeCompany(input) {
   const id = canonicalCompanyId(input.id || '');
   return {
@@ -11296,6 +14213,23 @@ function normalizeCompany(input) {
     short_name: String(input.short_name || input.label || input.name || input.id || '').trim(),
     color: String(input.color || '#f0b23b'),
     label: String(input.label || input.short_name || input.name || input.id || '').trim(),
+    pill: String(input.pill || ''),
+    icon_key: workspaceIconOption(input.icon_key).key,
+  };
+}
+
+function normalizeCompanyPlugin(input) {
+  const pluginId = String(input.plugin_id || input.id || '').trim();
+  const status = String(input.status || 'installed').toLowerCase() === 'disabled' ? 'disabled' : 'installed';
+  return {
+    company_id: canonicalCompanyId(input.company_id || defaultCompanyId()),
+    plugin_id: pluginId,
+    status,
+    installed_by: String(input.installed_by || ''),
+    installed_at: input.installed_at || '',
+    disabled_at: input.disabled_at || '',
+    updated_at: input.updated_at || input.installed_at || input.disabled_at || new Date().toISOString(),
+    config: input.config || {},
   };
 }
 
@@ -11329,7 +14263,7 @@ function normalizeContact(input) {
     id: String(input.id || ''),
     company_id: canonicalCompanyId(input.company_id || defaultCompanyId()),
     name: String(input.name || '').trim() || 'Untitled contact',
-    phone: String(input.phone || '').trim(),
+    phone: formatPhoneNumber(input.phone),
     email: String(input.email || '').trim(),
     location: String(input.location || '').trim(),
     stage: resolveContactStage(input.stage),
@@ -11525,6 +14459,73 @@ function normalizeFormResponse(input) {
   };
 }
 
+function normalizeClientPortal(input) {
+  return {
+    id: String(input.id || crypto.randomUUID()),
+    company_id: canonicalCompanyId(input.company_id || defaultCompanyId()),
+    job_id: String(input.job_id || ''),
+    title: String(input.title || 'Client plan portal').trim() || 'Client plan portal',
+    client_name: String(input.client_name || '').trim(),
+    client_email: String(input.client_email || '').trim(),
+    token_hash: String(input.token_hash || ''),
+    raw_token: String(input.raw_token || ''),
+    password_hash: String(input.password_hash || ''),
+    password_salt: String(input.password_salt || ''),
+    status: ['active', 'revoked', 'archived'].includes(input.status) ? input.status : 'active',
+    created_by: String(input.created_by || ''),
+    last_opened_at: input.last_opened_at || '',
+    revoked_at: input.revoked_at || '',
+    archived_at: input.archived_at || '',
+    created_at: input.created_at || new Date().toISOString(),
+    updated_at: input.updated_at || input.created_at || new Date().toISOString(),
+  };
+}
+
+function normalizeClientPortalDocument(input) {
+  return {
+    id: String(input.id || crypto.randomUUID()),
+    company_id: canonicalCompanyId(input.company_id || defaultCompanyId()),
+    portal_id: String(input.portal_id || ''),
+    bucket_id: String(input.bucket_id || 'quest-client-portal-documents'),
+    object_path: String(input.object_path || ''),
+    file_name: String(input.file_name || 'Plan set.pdf'),
+    mime_type: String(input.mime_type || 'application/octet-stream'),
+    size_bytes: Number(input.size_bytes || 0),
+    page_count: Number(input.page_count || 0) || null,
+    uploaded_by: String(input.uploaded_by || ''),
+    created_at: input.created_at || new Date().toISOString(),
+    updated_at: input.updated_at || input.created_at || new Date().toISOString(),
+  };
+}
+
+function normalizeClientPortalAnnotation(input) {
+  return {
+    id: String(input.id || crypto.randomUUID()),
+    company_id: canonicalCompanyId(input.company_id || defaultCompanyId()),
+    portal_id: String(input.portal_id || ''),
+    document_id: String(input.document_id || ''),
+    page_number: Number(input.page_number || input.page || 1) || 1,
+    guest_name: String(input.guest_name || 'Guest'),
+    annotation_type: String(input.annotation_type || input.type || 'markup'),
+    payload: input.payload && typeof input.payload === 'object' ? input.payload : {},
+    resolved_at: input.resolved_at || '',
+    created_at: input.created_at || new Date().toISOString(),
+    updated_at: input.updated_at || input.created_at || new Date().toISOString(),
+  };
+}
+
+function normalizeClientPortalEvent(input) {
+  return {
+    id: String(input.id || crypto.randomUUID()),
+    company_id: canonicalCompanyId(input.company_id || defaultCompanyId()),
+    portal_id: String(input.portal_id || ''),
+    event_type: String(input.event_type || 'portal.event'),
+    guest_name: String(input.guest_name || ''),
+    details: input.details && typeof input.details === 'object' ? input.details : {},
+    created_at: input.created_at || new Date().toISOString(),
+  };
+}
+
 function normalizeFinanceInvoice(input) {
   const subtotal = number(input.subtotal);
   const tax = number(input.tax);
@@ -11642,6 +14643,11 @@ function normalizeWorkspaceReview(input) {
   return {
     company_id: canonicalCompanyId(input.company_id || ''),
     company_name: String(input.company_name || input.name || input.short_name || input.company_id || '').trim(),
+    short_name: String(input.short_name || input.company_name || input.name || input.company_id || '').trim(),
+    color: String(input.color || '#f0b23b'),
+    label: String(input.label || input.short_name || input.company_name || input.name || input.company_id || '').trim(),
+    pill: String(input.pill || ''),
+    icon_key: workspaceIconOption(input.icon_key).key,
     status: normalizeSubscriptionStatus(input.status) || 'pending_review',
     plan_code: String(input.plan_code || 'quest_company_300'),
     amount_cents: number(input.amount_cents || 30000),
@@ -11649,11 +14655,38 @@ function normalizeWorkspaceReview(input) {
     owner_profile_id: String(input.owner_profile_id || ''),
     owner_name: String(input.owner_name || ''),
     owner_email: String(input.owner_email || ''),
+    member_count: number(input.member_count),
+    active_member_count: number(input.active_member_count),
+    pending_member_count: number(input.pending_member_count),
+    disabled_member_count: number(input.disabled_member_count),
     current_period_end: input.current_period_end || '',
     trial_ends_at: input.trial_ends_at || '',
     grace_ends_at: input.grace_ends_at || '',
     created_at: input.created_at || '',
     updated_at: input.updated_at || '',
+  };
+}
+
+function normalizePlatformCompany(input) {
+  return normalizeWorkspaceReview(input);
+}
+
+function normalizePlatformCompanyMember(input) {
+  return {
+    company_id: canonicalCompanyId(input.company_id || ''),
+    profile_id: String(input.profile_id || ''),
+    member_id: String(input.member_id || ''),
+    name: String(input.full_name || input.name || input.email || input.profile_id || '').trim(),
+    email: String(input.email || '').trim(),
+    role: String(input.role || 'member'),
+    role_label: String(input.role_label || titleCase(input.role || 'member')),
+    role_id: String(input.role_id || ''),
+    status: ['active', 'pending', 'disabled', 'left'].includes(String(input.status)) ? String(input.status) : 'active',
+    created_at: input.created_at || '',
+    updated_at: input.updated_at || '',
+    disabled_at: input.disabled_at || '',
+    left_at: input.left_at || '',
+    last_active_at: input.last_active_at || '',
   };
 }
 
@@ -12091,7 +15124,7 @@ function buildSupabaseSession(session, profile) {
 function buildLocalSession() {
   const profile = {
     id: 'basic-quest-user',
-    email: 'lumen123@quest-hq.local',
+    email: 'local-demo@quest-hq.local',
     full_name: 'Quest Basic Mode',
     role: 'developer',
     role_label: 'Developer',
@@ -12104,6 +15137,25 @@ function buildLocalSession() {
   return {
     auth: 'local-basic',
     user: { id: profile.id, username: CONFIG.localUsername, email: profile.email },
+    profile,
+  };
+}
+
+function buildDemoSession() {
+  const profile = {
+    id: 'demo-readonly-user',
+    email: 'demo@quest-hq.local',
+    full_name: 'Demo Visitor',
+    role: 'owner',
+    role_label: 'Demo',
+    member_id: 'demo-visitor',
+    company_ids: ['roofing'],
+    avatar_url: '',
+    email_verified: true,
+  };
+  return {
+    auth: 'demo-readonly',
+    user: { id: profile.id, username: 'demo', email: profile.email },
     profile,
   };
 }
@@ -12153,7 +15205,23 @@ function isSessionEmailVerified(session = activeSession()) {
   return session.user?.email_verified === true || !!session.user?.email_confirmed_at || session.profile?.email_verified === true;
 }
 
+function isNoticeWorkspaceHeader(title, summary) {
+  return [
+    'Access denied',
+    'Company access denied',
+    'Subscription required',
+    'Workspace awaiting approval',
+  ].includes(title) || String(summary || '').startsWith('This module will use');
+}
+
 function workspaceHeader(title, summary, actions = '') {
+  if (!isNoticeWorkspaceHeader(title, summary)) {
+    return actions ? `
+      <section class="workspace-head workspace-head-actions-only">
+        <div class="head-actions">${actions}</div>
+      </section>
+    ` : '';
+  }
   const symbol = moduleSymbol();
   return `
     <section class="workspace-head">
@@ -12218,8 +15286,8 @@ function contractRows(rows) {
   return `<div class="contract-rows">${rows.map(([label, value]) => `<div><span>${h(label)}</span><strong>${h(value)}</strong></div>`).join('')}</div>`;
 }
 
-function field(label, name, value = '', required = false, type = 'text', className = '') {
-  return `<label class="${h(className)}"><span>${h(label)}</span><input name="${h(name)}" type="${h(type)}" value="${h(value)}" ${required ? 'required' : ''} /></label>`;
+function field(label, name, value = '', required = false, type = 'text', className = '', attrs = '') {
+  return `<label class="${h(className)}"><span>${h(label)}</span><input name="${h(name)}" type="${h(type)}" value="${h(value)}" ${required ? 'required' : ''} ${attrs} /></label>`;
 }
 
 function textareaField(label, name, value = '', className = '') {
@@ -12250,10 +15318,14 @@ function financeStatusPill(status) {
   return `<span class="finance-status ${h(slugify(status))}">${h(status)}</span>`;
 }
 
-function renderAvatar(profile, className) {
-  if (profile.avatar_url) return `<span class="${h(className)}"><img src="${h(profile.avatar_url)}" alt="" /></span>`;
+function renderAvatar(profile, className, attrs = {}) {
+  const attrText = Object.entries(attrs)
+    .filter(([, value]) => value !== undefined && value !== null && value !== '')
+    .map(([key, value]) => `${h(key)}="${h(String(value))}"`)
+    .join(' ');
+  if (profile.avatar_url) return `<span class="${h(`${className} has-image`)}" ${attrText}><img src="${h(profile.avatar_url)}" alt="" /></span>`;
   const initials = String(profile.full_name || profile.email || 'QB').trim().split(/\s+/).map((part) => part[0]).join('').slice(0, 2).toUpperCase() || 'QB';
-  return `<span class="${h(className)}">${h(initials)}</span>`;
+  return `<span class="${h(className)}" ${attrText}>${h(initials)}</span>`;
 }
 
 function calendarAssigneeOptions(companyId = activeCompanyId()) {
@@ -12284,6 +15356,76 @@ function emptyState(text) {
   return `<div class="empty-state">${svgIcon('q-empty', 'empty-symbol')}<span>${h(text)}</span></div>`;
 }
 
+function randomPortalToken(bytes = 24) {
+  const values = new Uint8Array(bytes);
+  crypto.getRandomValues(values);
+  return btoa(String.fromCharCode(...values)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
+
+async function digestHex(value) {
+  const data = new TextEncoder().encode(String(value || ''));
+  const hash = await crypto.subtle.digest('SHA-256', data);
+  return [...new Uint8Array(hash)].map((byte) => byte.toString(16).padStart(2, '0')).join('');
+}
+
+async function pbkdf2Hex(password, salt) {
+  const key = await crypto.subtle.importKey('raw', new TextEncoder().encode(String(password || '')), 'PBKDF2', false, ['deriveBits']);
+  const bits = await crypto.subtle.deriveBits({ name: 'PBKDF2', salt: new TextEncoder().encode(String(salt || '')), iterations: 120000, hash: 'SHA-256' }, key, 256);
+  return [...new Uint8Array(bits)].map((byte) => byte.toString(16).padStart(2, '0')).join('');
+}
+
+function cachedClientPortalToken(portalId) {
+  return String(readJson(CLIENT_PORTAL_TOKEN_CACHE_KEY, {})[portalId] || '');
+}
+
+function cacheClientPortalToken(portalId, token) {
+  if (!portalId || !token) return;
+  const cache = readJson(CLIENT_PORTAL_TOKEN_CACHE_KEY, {});
+  cache[portalId] = token;
+  writeJson(CLIENT_PORTAL_TOKEN_CACHE_KEY, cache);
+}
+
+function clientPortalPayload(portal) {
+  return {
+    id: portal.id,
+    company_id: portal.company_id,
+    job_id: portal.job_id || null,
+    title: portal.title,
+    client_name: portal.client_name || null,
+    client_email: portal.client_email || null,
+    token_hash: portal.token_hash,
+    password_hash: portal.password_hash || null,
+    password_salt: portal.password_salt || null,
+    status: portal.status,
+    created_by: portal.created_by || activeSession().profile.id,
+  };
+}
+
+function clientPortalDocumentPayload(doc) {
+  return {
+    id: doc.id,
+    company_id: doc.company_id,
+    portal_id: doc.portal_id,
+    bucket_id: doc.bucket_id,
+    object_path: doc.object_path,
+    file_name: doc.file_name,
+    mime_type: doc.mime_type,
+    size_bytes: doc.size_bytes,
+    page_count: doc.page_count,
+    uploaded_by: doc.uploaded_by || activeSession().profile.id,
+  };
+}
+
+function upsertClientPortal(portal) {
+  state.clientPortals = [portal].concat(state.clientPortals.filter((item) => item.id !== portal.id));
+  persistAll();
+}
+
+function upsertClientPortalDocument(doc) {
+  state.clientPortalDocuments = [doc].concat(state.clientPortalDocuments.filter((item) => item.id !== doc.id));
+  persistAll();
+}
+
 function copyParams(params, keys) {
   const next = {};
   keys.forEach((key) => {
@@ -12294,6 +15436,7 @@ function copyParams(params, keys) {
 }
 
 function persistAll() {
+  if (isReadOnlyDemo()) return;
   if (state.session?.auth === 'supabase') return;
   writeJson(JOB_CACHE_KEY, state.jobs);
   writeJson(CONTACT_CACHE_KEY, state.contacts);
@@ -12320,25 +15463,33 @@ function persistAll() {
   writeJson(MESSAGE_READ_CACHE_KEY, state.messageReads);
   writeJson(MESSAGE_ATTACHMENT_CACHE_KEY, state.messageAttachments);
   writeJson(CALENDAR_EVENT_CACHE_KEY, state.calendarEvents);
+  writeJson(CLIENT_PORTAL_CACHE_KEY, state.clientPortals);
+  writeJson(CLIENT_PORTAL_DOCUMENT_CACHE_KEY, state.clientPortalDocuments);
+  writeJson(CLIENT_PORTAL_ANNOTATION_CACHE_KEY, state.clientPortalAnnotations);
+  writeJson(CLIENT_PORTAL_EVENT_CACHE_KEY, state.clientPortalEvents);
 }
 
 function persistTimeState() {
+  if (isReadOnlyDemo()) return;
   if (state.session?.auth === 'supabase') return;
   writeJson(TIME_ENTRY_CACHE_KEY, state.timeEntries);
   writeJson(ACTIVE_TIMER_KEY, state.activeTimer);
 }
 
 function persistNotifications() {
+  if (isReadOnlyDemo()) return;
   if (state.session?.auth === 'supabase') return;
   writeJson(NOTIFICATION_CACHE_KEY, state.notifications);
 }
 
 function persistCalendarEvents() {
+  if (isReadOnlyDemo()) return;
   if (state.session?.auth === 'supabase') return;
   writeJson(CALENDAR_EVENT_CACHE_KEY, state.calendarEvents);
 }
 
 function persistMessages() {
+  if (isReadOnlyDemo()) return;
   if (state.session?.auth === 'supabase') return;
   writeJson(MESSAGE_CONVERSATION_CACHE_KEY, state.messageConversations);
   writeJson(MESSAGE_ACCESS_CACHE_KEY, state.messageAccess);
@@ -13064,6 +16215,41 @@ function filteredDriveFiles(companyId = activeCompanyId(), folder = 'home', jobI
       .some((value) => String(value || '').toLowerCase().includes(query)));
   }
   return files.sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0));
+}
+
+function companyClientPortals(companyId = activeCompanyId()) {
+  return state.clientPortals.filter((portal) => portal.company_id === companyId);
+}
+
+function filteredClientPortals(companyId = activeCompanyId()) {
+  const query = String(state.clientPortalQuery || '').trim().toLowerCase();
+  let portals = companyClientPortals(companyId);
+  if (query) {
+    portals = portals.filter((portal) => [portal.title, portal.client_name, portal.client_email, jobById(portal.job_id)?.name]
+      .some((value) => String(value || '').toLowerCase().includes(query)));
+  }
+  return portals.sort((a, b) => new Date(b.updated_at || 0) - new Date(a.updated_at || 0));
+}
+
+function clientPortalById(id) {
+  return state.clientPortals.find((portal) => portal.id === id) || null;
+}
+
+function clientPortalDocumentsForPortal(portalId) {
+  return state.clientPortalDocuments.filter((doc) => doc.portal_id === portalId).sort((a, b) => new Date(a.created_at || 0) - new Date(b.created_at || 0));
+}
+
+function clientPortalAnnotationsForPortal(portalId) {
+  return state.clientPortalAnnotations.filter((annotation) => annotation.portal_id === portalId).sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0));
+}
+
+function clientPortalEventsForPortal(portalId) {
+  return state.clientPortalEvents.filter((event) => event.portal_id === portalId).sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0));
+}
+
+function clientPortalPublicLink(portal) {
+  const raw = cachedClientPortalToken(portal?.id) || portal?.raw_token || '';
+  return raw ? `${window.location.origin}${appHref(`/portal/${encodeURIComponent(raw)}`)}` : 'Link token unavailable in this browser';
 }
 
 function fileTypeLabel(file) {
@@ -13902,6 +17088,7 @@ function readSeededList(key, fallback) {
 }
 
 function writeJson(key, value) {
+  if (isReadOnlyDemo() && key !== SESSION_KEY) return;
   try {
     localStorage.setItem(key, JSON.stringify(value));
   } catch {
