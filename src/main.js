@@ -113,8 +113,9 @@ const PERMISSION_ALIASES = {
 
 const CORE_MODULE_IDS = new Set(['home', 'jobs', 'tasks', 'users', 'settings']);
 const WORKSPACE_PLUGIN_REGISTRY = [
-  { id: 'crm', label: 'CRM', summary: 'Accounts, contacts, quotes, and customer activity.', icon: 'ti-building-community', module_ids: ['crm', 'contacts', 'deals'], permissions: ['crm.view'] },
-  { id: 'crm_2', label: 'CRM 2', summary: 'Underwriter workspace for qualification, scope, pricing, and handoff readiness.', icon: 'ti-clipboard-search', module_ids: ['underwriter'], permissions: ['underwriter.view', 'underwriter.manage'] },
+  { id: 'crm', label: 'CRM', summary: 'Accounts, contacts, quotes, and customer activity.', icon: 'ti-building-community', module_ids: ['crm', 'contacts', 'deals'], permissions: ['crm.view'], exclusiveGroup: 'crm' },
+  { id: 'crm_2', label: 'CRM 2', summary: 'Alternate contact and quote workflow from the standalone command center record.', icon: 'ti-id-badge-2', module_ids: ['crm', 'contacts', 'deals'], permissions: ['crm.view'], exclusiveGroup: 'crm' },
+  { id: 'underwriter', label: 'Underwriter', summary: 'Qualification, scope, pricing, and handoff readiness queue.', icon: 'ti-clipboard-search', module_ids: ['underwriter'], permissions: ['underwriter.view', 'underwriter.manage'], recommendedWith: ['crm_2'] },
   { id: 'files', label: 'Files', summary: 'Shared files, job folders, and document storage.', icon: 'ti-folder', module_ids: ['files'], permissions: ['files.view', 'files.manage'] },
   { id: 'forms', label: 'Forms', summary: 'Internal forms, templates, and response capture.', icon: 'ti-clipboard-list', module_ids: ['forms'], permissions: ['forms.view', 'forms.manage'] },
   { id: 'finance', label: 'Finance', summary: 'Invoices, payments, expenses, vendors, and AR.', icon: 'ti-receipt-dollar', module_ids: ['finance'], permissions: ['finance.view', 'finance.manage'] },
@@ -130,7 +131,7 @@ const WORKSPACE_PLUGIN_REGISTRY = [
   { id: 'team_workload', label: 'Team workload', summary: 'Future workload planning board.', icon: 'ti-users', module_ids: ['team-workload'], permissions: [], comingSoon: true },
 ];
 const WORKSPACE_PLUGIN_PRESETS = {
-  roofing: ['crm', 'crm_2', 'files', 'forms', 'finance', 'messages', 'calendar', 'approvals', 'reporting'],
+  roofing: ['crm_2', 'underwriter', 'files', 'forms', 'finance', 'messages', 'calendar', 'approvals', 'reporting'],
   construction: ['files', 'forms', 'finance', 'messages', 'calendar', 'time_clock', 'approvals', 'reporting'],
   generic: ['crm', 'files', 'messages'],
 };
@@ -2522,8 +2523,12 @@ function demoCompanyPluginRows() {
   })));
 }
 
+function pluginsForModule(moduleId) {
+  return WORKSPACE_PLUGIN_REGISTRY.filter((plugin) => plugin.module_ids.includes(moduleId));
+}
+
 function pluginForModule(moduleId) {
-  return WORKSPACE_PLUGIN_REGISTRY.find((plugin) => plugin.module_ids.includes(moduleId)) || null;
+  return pluginsForModule(moduleId)[0] || null;
 }
 
 function moduleById(moduleId) {
@@ -2550,9 +2555,9 @@ function isPluginInstalled(companyId, pluginId) {
 
 function isModuleInstalled(moduleId, companyId = activeCompanyId()) {
   if (CORE_MODULE_IDS.has(moduleId)) return true;
-  const plugin = pluginForModule(moduleId);
-  if (!plugin) return true;
-  return isPluginInstalled(companyId, plugin.id);
+  const plugins = pluginsForModule(moduleId);
+  if (!plugins.length) return true;
+  return plugins.some((plugin) => isPluginInstalled(companyId, plugin.id));
 }
 
 function installedLiveModules(companyId) {
@@ -2564,24 +2569,28 @@ function installedModulesForMobileWork(companyId) {
     .filter((moduleId) => isModuleInstalled(moduleId, companyId));
 }
 
-function permissionPluginId(permission) {
+function permissionPluginIds(permission) {
   const clean = String(permission || '');
-  if (clean.startsWith('crm.')) return 'crm';
-  if (clean.startsWith('underwriter.')) return 'crm_2';
-  if (clean.startsWith('files.')) return 'files';
-  if (clean.startsWith('forms.')) return 'forms';
-  if (clean.startsWith('finance.')) return 'finance';
-  if (clean.startsWith('messages.')) return 'messages';
-  if (clean.startsWith('calendar.')) return 'calendar';
-  if (['time.track', 'clock.manage'].includes(clean)) return 'time_clock';
-  if (clean.startsWith('approvals.')) return 'approvals';
-  if (clean === 'team.view') return 'reporting';
-  return '';
+  if (clean.startsWith('crm.')) return ['crm', 'crm_2'];
+  if (clean.startsWith('underwriter.')) return ['underwriter'];
+  if (clean.startsWith('files.')) return ['files'];
+  if (clean.startsWith('forms.')) return ['forms'];
+  if (clean.startsWith('finance.')) return ['finance'];
+  if (clean.startsWith('messages.')) return ['messages'];
+  if (clean.startsWith('calendar.')) return ['calendar'];
+  if (['time.track', 'clock.manage'].includes(clean)) return ['time_clock'];
+  if (clean.startsWith('approvals.')) return ['approvals'];
+  if (clean === 'team.view') return ['reporting'];
+  return [];
+}
+
+function permissionPluginId(permission) {
+  return permissionPluginIds(permission)[0] || '';
 }
 
 function permissionAvailableForCompany(permission, companyId = activeCompanyId()) {
-  const pluginId = permissionPluginId(permission);
-  return !pluginId || isPluginInstalled(companyId, pluginId);
+  const pluginIds = permissionPluginIds(permission);
+  return !pluginIds.length || pluginIds.some((pluginId) => isPluginInstalled(companyId, pluginId));
 }
 
 function canViewModule(module, companyId = activeCompanyId()) {
@@ -2673,19 +2682,21 @@ function renderSubscriptionBlockedPage(companyId) {
 }
 
 function renderPluginBlockedPage(companyId, moduleMeta) {
-  const plugin = pluginForModule(moduleMeta?.id || '');
+  const plugins = pluginsForModule(moduleMeta?.id || '');
+  const plugin = plugins[0] || null;
   const canManagePlugins = can('plugins.manage', companyId);
+  const installablePlugins = plugins.filter((item) => !item.comingSoon);
   return `
     ${workspaceHeader(`${plugin?.label || moduleMeta?.label || 'Plugin'} not installed`, 'This workspace has not enabled the plugin required for this module.', `
       <a class="btn" href="${appHref(companyPath('settings', { tab: 'plugins' }, companyId))}" data-router><i class="ti ti-plug"></i>${canManagePlugins ? 'Manage plugins' : 'View plugins'}</a>
-      ${canManagePlugins && plugin && !plugin.comingSoon ? `<button class="btn btn-primary" type="button" data-action="set-company-plugin" data-plugin-id="${h(plugin.id)}" data-status="installed"><i class="ti ti-download"></i>Install ${h(plugin.label)}</button>` : ''}
+      ${canManagePlugins ? installablePlugins.map((item) => `<button class="btn btn-primary" type="button" data-action="set-company-plugin" data-plugin-id="${h(item.id)}" data-status="installed"><i class="ti ti-download"></i>Install ${h(item.label)}</button>`).join('') : ''}
     `)}
     <section class="panel">
       ${contractRows([
         ['Company', companyName(companyId)],
         ['Requested module', moduleMeta?.label || moduleMeta?.id || 'Unknown'],
-        ['Required plugin', plugin?.label || 'Unknown'],
-        ['Current status', plugin ? titleCase(companyPluginStatus(companyId, plugin.id).replace('_', ' ')) : 'Unavailable'],
+        ['Required plugin', plugins.length ? plugins.map((item) => item.label).join(' or ') : 'Unknown'],
+        ['Current status', plugins.length ? plugins.map((item) => `${item.label}: ${titleCase(companyPluginStatus(companyId, item.id).replace('_', ' '))}`).join(' / ') : 'Unavailable'],
         ['Data policy', 'Existing plugin data is preserved while the plugin is disabled'],
       ])}
     </section>
@@ -4989,6 +5000,9 @@ function renderPluginCard(companyId, plugin, canManagePlugins) {
   const disabled = status === 'disabled';
   const available = status === 'available';
   const comingSoon = status === 'coming_soon';
+  const prerequisiteNote = pluginPrerequisiteNote(companyId, plugin);
+  const conflictIds = conflictingPluginIds(companyId, plugin.id, 'installed');
+  const conflictLabels = conflictIds.map((conflictId) => pluginById(conflictId)?.label || conflictId).join(', ');
   const moduleLabels = plugin.module_ids
     .map((moduleId) => MODULE_REGISTRY.find((module) => module.id === moduleId)?.label || titleCase(moduleId))
     .join(', ');
@@ -4999,6 +5013,8 @@ function renderPluginCard(companyId, plugin, canManagePlugins) {
         <strong>${h(plugin.label)}</strong>
         <span>${h(plugin.summary)}</span>
         <small>${h(moduleLabels)}</small>
+        ${prerequisiteNote ? `<small class="plugin-card-note">${h(prerequisiteNote)}</small>` : ''}
+        ${conflictLabels && !installed ? `<small class="plugin-card-note warning">Installing ${h(plugin.label)} disables ${h(conflictLabels)}.</small>` : ''}
       </div>
       <b class="status-pill ${installed ? 'active' : comingSoon ? 'muted' : disabled ? 'pending' : ''}">${h(pluginStatusLabel(status))}</b>
       <div class="plugin-card-actions">
@@ -5008,6 +5024,23 @@ function renderPluginCard(companyId, plugin, canManagePlugins) {
       </div>
     </article>
   `;
+}
+
+function conflictingPluginIds(companyId, pluginId, nextStatus) {
+  const plugin = pluginById(pluginId);
+  if (nextStatus !== 'installed' || !plugin?.exclusiveGroup) return [];
+  return availableWorkspacePlugins()
+    .filter((item) => item.id !== plugin.id && item.exclusiveGroup === plugin.exclusiveGroup && isPluginInstalled(companyId, item.id))
+    .map((item) => item.id);
+}
+
+function pluginPrerequisiteNote(companyId, plugin) {
+  if (plugin.id === 'underwriter' && !isPluginInstalled(companyId, 'crm_2')) return 'Underwriter connects best when CRM 2 is installed.';
+  if (!plugin.recommendedWith?.length) return '';
+  const recommended = plugin.recommendedWith
+    .filter((pluginId) => !isPluginInstalled(companyId, pluginId))
+    .map((pluginId) => pluginById(pluginId)?.label || pluginId);
+  return recommended.length ? `${plugin.label} works best with ${recommended.join(', ')}.` : '';
 }
 
 function pluginStatusLabel(status) {
@@ -9519,6 +9552,11 @@ async function setCompanyPlugin(companyId, pluginId, status) {
     showToast('That plugin is not available yet.', 'local', 'Plugins');
     return;
   }
+  const conflictIds = conflictingPluginIds(companyId, plugin.id, nextStatus);
+  if (conflictIds.length) {
+    const conflictLabels = conflictIds.map((conflictId) => pluginById(conflictId)?.label || conflictId).join(', ');
+    if (!window.confirm(`Installing ${plugin.label} will disable ${conflictLabels}. Continue?`)) return;
+  }
   state.sync = { label: 'Updating plugin...', mode: 'loading' };
   render();
   const client = createSupabaseClient();
@@ -9530,6 +9568,7 @@ async function setCompanyPlugin(companyId, pluginId, status) {
     }));
     if (result.error) throw new Error(result.error.message || 'Plugin update failed.');
   }
+  conflictIds.forEach((conflictId) => upsertCompanyPluginLocal(companyId, conflictId, 'disabled'));
   upsertCompanyPluginLocal(companyId, plugin.id, nextStatus);
   state.sync = { label: `${plugin.label} ${nextStatus === 'installed' ? 'installed' : 'disabled'}`, mode: state.session?.auth === 'supabase' ? 'live' : 'local' };
   showToast(`${plugin.label} ${nextStatus === 'installed' ? 'installed' : 'disabled'}.`, state.session?.auth === 'supabase' ? 'live' : 'local', 'Plugins');

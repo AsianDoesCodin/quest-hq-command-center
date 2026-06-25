@@ -2550,6 +2550,15 @@ textarea:focus {
   font-weight: 800;
 }
 
+.plugin-card-copy .plugin-card-note {
+  color: var(--ink-2);
+  white-space: normal;
+}
+
+.plugin-card-copy .plugin-card-note.warning {
+  color: var(--orange-strong);
+}
+
 .plugin-card-actions {
   grid-column: 2 / -1;
   display: flex;

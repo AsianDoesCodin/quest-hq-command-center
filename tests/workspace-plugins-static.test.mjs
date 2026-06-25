@@ -16,22 +16,28 @@ const crm2MigrationName = migrationFiles.find((name) => {
   return /crm_2/.test(sql) && /underwriter/.test(sql) && /company_plugins_known_plugin_check/.test(sql);
 });
 const crm2Migration = crm2MigrationName ? readFileSync(new URL(`../supabase/migrations/${crm2MigrationName}`, import.meta.url), 'utf8') : '';
+const crmVariantMigrationName = migrationFiles.find((name) => {
+  const sql = readFileSync(new URL(`../supabase/migrations/${name}`, import.meta.url), 'utf8');
+  return /crm_plugin_variants/.test(sql) && /underwriter/.test(sql);
+});
+const crmVariantMigration = crmVariantMigrationName ? readFileSync(new URL(`../supabase/migrations/${crmVariantMigrationName}`, import.meta.url), 'utf8') : '';
 
 test('plugin registry maps every non-core route to a workspace plugin', () => {
   assert.match(source, /const CORE_MODULE_IDS = new Set\(\['home', 'jobs', 'tasks', 'users', 'settings'\]\);/);
   assert.match(source, /const WORKSPACE_PLUGIN_REGISTRY = \[/);
   assert.match(source, /id: 'crm'[\s\S]*module_ids: \['crm', 'contacts', 'deals'\]/);
-  assert.match(source, /id: 'crm_2'[\s\S]*module_ids: \['underwriter'\]/);
+  assert.match(source, /id: 'crm_2'[\s\S]*module_ids: \['crm', 'contacts', 'deals'\]/);
+  assert.match(source, /id: 'underwriter'[\s\S]*module_ids: \['underwriter'\]/);
   assert.match(source, /id: 'time_clock'[\s\S]*module_ids: \['time', 'clock'\]/);
   assert.match(source, /id: 'reporting'[\s\S]*module_ids: \['analytics', 'team-chart'\]/);
   assert.match(source, /\{ id: 'underwriter'[\s\S]*label: 'Underwriter'[\s\S]*permission: 'underwriter\.view'/);
-  assert.match(source, /function pluginForModule\(moduleId\)/);
+  assert.match(source, /function pluginsForModule\(moduleId\)/);
   assert.match(source, /function isModuleInstalled\(moduleId, companyId = activeCompanyId\(\)\)/);
 });
 
 test('workspace presets install industry plugin bundles', () => {
   assert.match(source, /const WORKSPACE_PLUGIN_PRESETS = \{/);
-  assert.match(source, /roofing: \['crm', 'crm_2', 'files', 'forms', 'finance', 'messages', 'calendar', 'approvals', 'reporting'\]/);
+  assert.match(source, /roofing: \['crm_2', 'underwriter', 'files', 'forms', 'finance', 'messages', 'calendar', 'approvals', 'reporting'\]/);
   assert.match(source, /construction: \['files', 'forms', 'finance', 'messages', 'calendar', 'time_clock', 'approvals', 'reporting'\]/);
   assert.match(source, /generic: \['crm', 'files', 'messages'\]/);
   assert.match(source, /name="preset_code"/);
@@ -72,16 +78,28 @@ test('plugin migration creates tenant plugin records, RPCs, grants, RLS, and Lum
   assert.match(pluginMigration, /app_private\.company_has_plugin/);
 });
 
-test('crm 2 plugin adds the underwriter workspace module and migration support', () => {
-  assert.ok(crm2MigrationName, 'Expected a migration that adds crm_2 / underwriter plugin support');
+test('crm 2 and underwriter plugins are separate in the registry', () => {
   assert.match(source, /\['underwriter\.view', 'View underwriter'\]/);
   assert.match(source, /\['underwriter\.manage', 'Manage underwriter'\]/);
-  assert.match(source, /if \(clean\.startsWith\('underwriter\.'\)\) return 'crm_2';/);
-  assert.match(source, /'underwriter'\]/);
-  assert.match(crm2Migration, /plugin_id in \('crm', 'crm_2', 'files', 'forms', 'finance', 'messages', 'calendar', 'time_clock', 'approvals', 'reporting'\)/);
-  assert.match(crm2Migration, /when 'roofing' then array\['crm', 'crm_2', 'files', 'forms', 'finance', 'messages', 'calendar', 'approvals', 'reporting'\]::text\[\]/);
-  assert.match(crm2Migration, /when permission like 'underwriter\.%' then 'crm_2'/);
-  assert.match(crm2Migration, /select 'lumen', 'crm_2', 'installed'/);
+  assert.match(source, /if \(clean\.startsWith\('underwriter\.'\)\) return \['underwriter'\];/);
+  assert.match(source, /recommendedWith: \['crm_2'\]/);
+  assert.match(source, /Underwriter connects best when CRM 2 is installed/);
+  assert.doesNotMatch(source, /if \(clean\.startsWith\('underwriter\.'\)\) return 'crm_2';/);
+});
+
+test('crm plugins are mutually exclusive and migrated separately from underwriter', () => {
+  assert.match(source, /exclusiveGroup: 'crm'/);
+  assert.match(source, /function conflictingPluginIds\(companyId, pluginId, nextStatus\)/);
+  assert.match(source, /window\.confirm\(`Installing \$\{plugin\.label\} will disable \$\{conflictLabels\}\. Continue\?`\)/);
+  assert.match(source, /upsertCompanyPluginLocal\(companyId, conflictId, 'disabled'\)/);
+  assert.match(source, /function pluginPrerequisiteNote\(companyId, plugin\)/);
+  assert.ok(crmVariantMigrationName, 'Expected a migration separating CRM variants from underwriter');
+  assert.match(crmVariantMigration, /crm_plugin_variants/);
+  assert.match(crmVariantMigration, /plugin_id in \('crm', 'crm_2', 'underwriter'/);
+  assert.match(crmVariantMigration, /if clean_status = 'installed' and clean_plugin_id in \('crm', 'crm_2'\)/);
+  assert.match(crmVariantMigration, /where company_id = clean_company_id[\s\S]*and plugin_id in \('crm', 'crm_2'\)/);
+  assert.match(crmVariantMigration, /when permission like 'crm\.%' then array\['crm', 'crm_2'\]/);
+  assert.match(crmVariantMigration, /when permission like 'underwriter\.%' then array\['underwriter'\]/);
 });
 
 test('underwriter queue uses contact language and a dedicated table layout', () => {
