@@ -5064,7 +5064,9 @@ function renderWorkspaceSettings(companyId) {
       <div class="section-head"><div><h2>Workspace identity</h2><p>Rename this workspace and choose the icon your team sees in navigation.</p></div></div>
       <form class="workspace-settings-form" data-workspace-settings-form>
         <input type="hidden" name="company_id" value="${h(companyId)}" />
-        ${field('Workspace name', 'workspace_name', companyName(companyId), true)}
+        ${field('Workspace name', 'workspace_name', companyName(companyId), true, 'text', 'workspace-name-field')}
+        <div class="workspace-icon-section">
+          <span>Workspace icon</span>
         <div class="workspace-icon-picker">
           ${WORKSPACE_ICON_OPTIONS.map((item) => `
             <label class="workspace-icon-choice ${item.key === company.icon_key ? 'active' : ''}" data-workspace-icon-choice>
@@ -5074,7 +5076,8 @@ function renderWorkspaceSettings(companyId) {
             </label>
           `).join('')}
         </div>
-        <div class="form-actions span-2">
+        </div>
+        <div class="form-actions">
           <button class="btn btn-primary" type="submit" ${canManage ? '' : 'disabled'}><i class="ti ti-device-floppy"></i>Save workspace</button>
         </div>
       </form>
