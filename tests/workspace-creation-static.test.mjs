@@ -6,6 +6,8 @@ const source = readFileSync(new URL('../src/main.js', import.meta.url), 'utf8');
 const migration = readFileSync(new URL('../supabase/migrations/202606251230_idempotent_workspace_creation.sql', import.meta.url), 'utf8');
 const quotaMigrationUrl = new URL('../supabase/migrations/202606260900_workspace_quota_icons.sql', import.meta.url);
 const quotaMigration = existsSync(quotaMigrationUrl) ? readFileSync(quotaMigrationUrl, 'utf8') : '';
+const iconExpansionMigrationUrl = new URL('../supabase/migrations/202606261130_workspace_icon_expansion.sql', import.meta.url);
+const iconExpansionMigration = existsSync(iconExpansionMigrationUrl) ? readFileSync(iconExpansionMigrationUrl, 'utf8') : '';
 
 test('no-company workspace creation shows progress and errors', () => {
   assert.match(source, /const busy = \/creating\|joining\|opening\/i\.test\(state\.authMessage \|\| ''\);/);
@@ -71,10 +73,13 @@ test('workspace creation allows three self-owned workspaces and platform owner o
   assert.match(quotaMigration, /grant execute on function public\.create_company_workspace\(text, text, text, text\) to authenticated;/);
 });
 
-test('workspace settings can rename and change one of fifteen icons', () => {
+test('workspace settings can rename and change one of many filled icons', () => {
   const iconEntryCount = (source.match(/\{ key: '[^']+', icon: 'ti-[^']+', label: '[^']+' \}/g) || []).length;
-  assert.ok(iconEntryCount >= 15, `expected at least 15 workspace icon choices, got ${iconEntryCount}`);
+  assert.ok(iconEntryCount >= 45, `expected at least 45 workspace icon choices, got ${iconEntryCount}`);
   assert.match(source, /const WORKSPACE_ICON_OPTIONS = \[/);
+  assert.match(source, /icon: 'ti-home-filled'/);
+  assert.match(source, /icon: 'ti-tools-filled'/);
+  assert.match(source, /icon: 'ti-building-warehouse-filled'/);
   assert.match(source, /function workspaceIconOption\(key\)/);
   assert.match(source, /function workspaceIconMarkup\(companyOrId, className = ''\)/);
   assert.match(source, /icon_key: workspaceIconOption\(input\.icon_key\)\.key/);
@@ -90,6 +95,11 @@ test('workspace settings can rename and change one of fifteen icons', () => {
   assert.match(quotaMigration, /if not \(app_private\.is_company_admin\(clean_company_id\) or app_private\.is_quest_admin\(\)\) then/);
   assert.match(quotaMigration, /update public\.companies c\s+set name = clean_name,\s+short_name = clean_name,\s+label = clean_name,\s+icon_key = clean_icon/);
   assert.match(quotaMigration, /grant execute on function public\.update_company_workspace\(text, text, text\) to authenticated;/);
+  assert.ok(iconExpansionMigration, 'Expected workspace icon expansion migration');
+  assert.match(iconExpansionMigration, /create or replace function app_private\.workspace_icon_keys\(\)/);
+  assert.match(iconExpansionMigration, /'warehouse'/);
+  assert.match(iconExpansionMigration, /'headset'/);
+  assert.match(iconExpansionMigration, /clean_icon text := app_private\.normalize_workspace_icon_key\(icon_key\);/);
 });
 
 test('workspace switcher lives in the sidebar workspace card, not the top nav', () => {
