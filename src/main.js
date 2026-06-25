@@ -11945,12 +11945,8 @@ function setPipelineStage(kind, stage, forceNav) {
   if (kind === 'contacts') state.contactStageFilter = nextStage;
   else if (kind === 'deals') state.stageFilterDeals = nextStage;
   else state.stageFilter = nextStage;
-  const route = state.route;
-  const onSection = route?.name === 'company' && route.section === kind;
-  if (forceNav || !onSection || isPipelineDetailRoute(route, kind)) {
-    navigate(companyPath(kind, pipelineStageRouteParams(nextStage), activeCompanyId()));
-  }
-  else render();
+  const nextPath = companyPath(kind, pipelineStageRouteParams(nextStage), activeCompanyId());
+  navigate(nextPath, { replace: !forceNav && currentAppUrl() === nextPath });
 }
 
 // ---- CRM getters + CRUD: accounts / deals / activities --------------------
