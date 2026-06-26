@@ -2646,11 +2646,6 @@ function renderDeck(route) {
       }).join('')}
     </div>
     <div class="deck-footer">
-      <a class="deck-company-switch" href="${appHref(companyPath('settings', { tab: 'company' }, companyId))}" data-router>
-        ${workspaceIconMarkup(companyId)}
-        <span><strong>${h(companyName(companyId))}</strong><small>Workspace</small></span>
-        <i class="ti ti-settings"></i>
-      </a>
       <button class="deck-user-card" type="button" data-action="open-profile">
         ${renderAvatar(session.profile, 'avatar small')}
         <span><strong>${h(session.profile.full_name)}</strong><small>${h(roleForCompany(companyId))}</small></span>
@@ -7045,48 +7040,55 @@ function renderMessagesPage(route, companyId) {
   const selected = selectedConversation(companyId);
   if (selected && state.selectedConversationId !== selected.id) state.selectedConversationId = selected.id;
   const mobileThread = Boolean(selected && route.params.get('conversation'));
+  const visibleCount = conversations.length;
   subscribeToMessageRealtime(companyId, selected?.id || '');
   if (selected) markConversationRead(selected.id, false);
   return `
-    <section class="tool-page messages-page ${mobileThread ? 'thread-open' : ''}">
-      ${workspaceHeader('Messages', 'Company chats, role rooms, direct messages, and file sharing.', `
-        <button class="btn btn-primary" type="button" data-action="new-message-group"><i class="ti ti-message-plus"></i>New group</button>
-        <button class="btn" type="button" data-action="new-direct-message"><i class="ti ti-user-plus"></i>Direct message</button>
-      `)}
-      <section class="messages-shell">
-        <aside class="messages-list-panel panel">
-          <div class="messages-tools">
-            <div class="messenger-list-head">
-              <div><h2>Chats</h2><p>${h(String(conversations.length))} conversations</p></div>
-              <div>
-                <button class="icon-button" type="button" data-action="new-message-group" title="New group"><i class="ti ti-message-plus"></i></button>
-                <button class="icon-button" type="button" data-action="new-direct-message" title="Direct message"><i class="ti ti-user-plus"></i></button>
-              </div>
-            </div>
-            <div class="message-list-top">
-              <label class="message-search-field">
-                <i class="ti ti-search"></i>
-                <input data-message-search value="${h(state.messageQuery)}" placeholder="Find chats or messages" />
-              </label>
-              <button class="btn btn-compact" type="button" data-action="message-search-results"><i class="ti ti-adjustments-horizontal"></i>Filter</button>
-            </div>
-            <div class="segmented message-filter" role="group" aria-label="Message filters">
-              ${['all', 'unread', 'company', 'role', 'custom', 'direct'].map((filter) => `
-                <button type="button" data-action="set-message-filter" data-filter="${h(filter)}" class="${state.messageFilter === filter ? 'active' : ''}">${h(filter === 'all' ? 'All' : titleCase(filter))}</button>
-              `).join('')}
-            </div>
+    <section class="tool-page messages-page message-simple-page ${mobileThread ? 'thread-open' : ''}">
+      <header class="message-command-bar">
+        <div class="message-command-brand"><span>${h((companyName(companyId) || 'Lumen').slice(0, 1).toUpperCase())}</span><strong>${h(companyName(companyId))} Messages</strong></div>
+        <div class="message-command-actions">
+          <button class="btn btn-ghost" type="button" data-action="new-direct-message"><i class="ti ti-user-plus"></i>Direct message</button>
+          <button class="btn btn-primary" type="button" data-action="new-message-group"><i class="ti ti-message-plus"></i>New group</button>
+        </div>
+      </header>
+      <section class="message-simple-workspace">
+        <aside class="message-simple-sidebar card">
+          <h1>Chats</h1>
+          <p class="count">${h(String(visibleCount))} conversation${visibleCount === 1 ? '' : 's'}</p>
+          <label class="message-search-field">
+            <i class="ti ti-search"></i>
+            <input data-message-search value="${h(state.messageQuery)}" placeholder="Find a chat or person" />
+          </label>
+          <div class="message-filter" role="group" aria-label="Message filters">
+            ${['all', 'unread', 'groups', 'direct'].map((filter) => `
+              <button type="button" data-action="set-message-filter" data-filter="${h(filter)}" class="${messageFilterActive(filter) ? 'active' : ''}">${h(filter === 'all' ? 'All' : titleCase(filter))}</button>
+            `).join('')}
           </div>
-          <div class="conversation-list">
-            ${conversations.map((conversation) => renderConversationRow(conversation, companyId, selected?.id === conversation.id)).join('') || emptyState('No conversations match this view.')}
+          <div class="conversation-list message-simple-list">
+            ${conversations.map((conversation) => renderConversationRow(conversation, companyId, selected?.id === conversation.id)).join('') || renderEmptyChatList()}
           </div>
         </aside>
-        <section class="messages-thread-panel panel">
+        <main class="message-simple-main card">
           ${selected ? renderMessageThread(companyId, selected) : renderNoConversationState(companyId)}
-        </section>
-        ${selected ? renderMessageDetailsRail(companyId, selected) : ''}
+        </main>
       </section>
       ${state.session?.auth === 'local-basic' ? renderMessageScenarioButton(companyId) : ''}
     </section>
+  `;
+}
+
+function messageFilterActive(filter) {
+  if (filter === 'groups') return ['company', 'role', 'custom'].includes(state.messageFilter);
+  return state.messageFilter === filter;
+}
+
+function renderEmptyChatList() {
+  return `
+    <div class="message-empty-list">
+      ${svgIcon('q-empty')}
+      <span>No chats yet.<br>Start one to see it here.</span>
+    </div>
   `;
 }
 
@@ -7278,13 +7280,13 @@ function renderMessageComposer(conversation) {
 
 function renderNoConversationState(companyId) {
   return `
-    <div class="messages-empty-panel">
+    <div class="messages-empty-panel message-simple-empty">
       ${svgIcon('q-symbol-messages')}
       <h2>No chat selected</h2>
-      <p>Create a group chat, direct message a teammate, or pick a conversation from the list.</p>
-      <div class="head-actions">
+      <p>Start a group, send a direct message, or pick a conversation from the list.</p>
+      <div class="message-empty-actions">
         <button class="btn btn-primary" type="button" data-action="new-message-group"><i class="ti ti-message-plus"></i>New group</button>
-        <button class="btn" type="button" data-action="new-direct-message"><i class="ti ti-user-plus"></i>Direct message</button>
+        <button class="btn btn-ghost" type="button" data-action="new-direct-message"><i class="ti ti-user-plus"></i>Direct message</button>
       </div>
     </div>
   `;
@@ -7348,18 +7350,44 @@ function renderMessageScenarioButton(companyId) {
 
 function renderMessageGroupModal(companyId) {
   const users = companyAccessUsers(companyId);
+  const activeProfileId = activeSession().profile.id;
+  const teammates = users.filter((user) => (user.profile_id || user.member_id) !== activeProfileId && user.status !== 'disabled');
+  if (!teammates.length) {
+    return renderModalShell('Messages', 'New group chat', `
+      <section class="message-modal-solo">
+        <span class="message-solo-badge"><i class="ti ti-user-minus"></i></span>
+        <h3>It's just you so far</h3>
+        <p>A group needs at least one other person. Invite a teammate, then start the chat.</p>
+        <div class="message-you-row">
+          ${renderAvatar(activeSession().profile, 'avatar message-person-avatar')}
+          <span><strong>${h(activeSession().profile.full_name || 'Lumen Marketing')} <b>You</b></strong><small>${h(activeSession().profile.email || '')}</small></span>
+        </div>
+        <button class="btn btn-primary full" type="button" data-action="new-invite-from-message"><i class="ti ti-user-plus"></i>Invite a teammate</button>
+        <button class="btn btn-ghost full" type="button" data-action="message-self"><i class="ti ti-notes"></i>Message myself instead</button>
+      </section>
+    `, 'message-modal message-create-modal');
+  }
   return renderModalShell('Messages', 'New group chat', `
-    <form class="message-modal-form" data-message-group-form>
-      ${field('Chat name', 'title', '', true)}
-      ${selectField('Type', 'type', 'custom', [['company', 'Company-wide'], ['role', 'Role-based'], ['custom', 'Custom group']])}
-      ${renderMessageRolePicker(companyId, [])}
-      ${renderMessagePeoplePicker(users, [])}
-      <div class="form-actions">
-        <button class="btn btn-primary" type="submit">Create group</button>
-        <button class="btn" type="button" data-action="close-modal">Cancel</button>
-      </div>
-    </form>
-  `, 'message-modal');
+    <div class="message-modal-team">
+      <form class="message-modal-form" data-message-group-form>
+        <label class="message-field">
+          <span>Chat name <small>(optional)</small></span>
+          <input name="title" placeholder="e.g. Roof crew - Maple St." />
+        </label>
+        <input type="hidden" name="type" value="custom" />
+        ${renderMessagePeoplePicker(teammates, [])}
+        <details class="message-role-disclosure">
+          <summary data-message-role-toggle>Adding a whole team? Pick by role instead <i class="ti ti-chevron-down"></i></summary>
+          ${renderMessageRolePicker(companyId, [])}
+        </details>
+        <div class="message-modal-foot">
+          <span class="foot-note">Add a name and 1 person to start</span>
+          <button class="btn btn-ghost" type="button" data-action="close-modal">Cancel</button>
+          <button class="btn btn-primary" type="submit">Create group</button>
+        </div>
+      </form>
+    </div>
+  `, 'message-modal message-create-modal');
 }
 
 function renderDirectMessageModal(companyId) {
@@ -9152,6 +9180,19 @@ function handleAction(event, node) {
     render();
     return;
   }
+  if (action === 'new-invite-from-message') {
+    event.preventDefault();
+    if (!requirePermission('users.manage', activeCompanyId(), 'Your role cannot invite teammates.', 'Messages')) return;
+    state.modal = 'invite-new';
+    render();
+    return;
+  }
+  if (action === 'message-self') {
+    event.preventDefault();
+    if (!requirePermission('messages.send', activeCompanyId(), 'Your role cannot start messages.', 'Messages')) return;
+    startSelfMessage(activeCompanyId()).catch((error) => showToast(error.message || 'Unable to start private notes.', 'local', 'Messages'));
+    return;
+  }
   if (action === 'manage-message-chat') {
     event.preventDefault();
     if (!requirePermission('messages.manage_groups', activeCompanyId(), 'Your role cannot manage chat access.', 'Messages')) return;
@@ -9175,7 +9216,7 @@ function handleAction(event, node) {
   }
   if (action === 'set-message-filter') {
     event.preventDefault();
-    state.messageFilter = ['all', 'unread', ...MESSAGE_TYPES].includes(node.dataset.filter) ? node.dataset.filter : 'all';
+    state.messageFilter = ['all', 'unread', 'groups', ...MESSAGE_TYPES].includes(node.dataset.filter) ? node.dataset.filter : 'all';
     render();
     return;
   }
@@ -11263,6 +11304,40 @@ async function saveDirectMessage(form) {
   navigate(companyPath('messages', { conversation: conversation.id }, companyId), { replace: true });
 }
 
+async function startSelfMessage(companyId) {
+  const profile = activeSession().profile;
+  const existing = companyMessageConversations(companyId).find((conversation) => {
+    if (conversation.type !== 'direct') return false;
+    const rows = conversationAccessRows(conversation.id).filter((row) => row.target_type === 'profile');
+    return rows.length === 1 && rows[0].target_id === profile.id;
+  });
+  if (existing) {
+    state.selectedConversationId = existing.id;
+    state.modal = '';
+    navigate(companyPath('messages', { conversation: existing.id }, companyId), { replace: true });
+    return;
+  }
+  const now = new Date().toISOString();
+  const conversation = normalizeMessageConversation({
+    id: crypto.randomUUID(),
+    company_id: companyId,
+    title: 'Notes to self',
+    type: 'direct',
+    created_by: profile.id,
+    last_message_at: now,
+    created_at: now,
+    updated_at: now,
+  });
+  const accessRows = [
+    normalizeMessageAccess({ id: `msg-access-${crypto.randomUUID()}`, company_id: companyId, conversation_id: conversation.id, target_type: 'profile', target_id: profile.id }),
+  ];
+  const saved = await persistConversation(conversation, accessRows);
+  if (!saved) return;
+  state.selectedConversationId = conversation.id;
+  state.modal = '';
+  navigate(companyPath('messages', { conversation: conversation.id }, companyId), { replace: true });
+}
+
 async function saveMessageAccess(form) {
   const companyId = activeCompanyId();
   if (!can('messages.manage_groups', companyId) && !can('messages.manage', companyId)) {
@@ -12917,7 +12992,7 @@ function companyMessageConversations(companyId = activeCompanyId()) {
   const filter = state.messageFilter || 'all';
   return state.messageConversations
     .filter((conversation) => conversation.company_id === companyId && canAccessConversation(conversation))
-    .filter((conversation) => filter === 'all' || conversation.type === filter || (filter === 'unread' && conversationUnreadCount(conversation.id) > 0))
+    .filter((conversation) => filter === 'all' || conversation.type === filter || (filter === 'groups' && conversation.type !== 'direct') || (filter === 'unread' && conversationUnreadCount(conversation.id) > 0))
     .filter((conversation) => {
       if (!query) return true;
       const messageMatch = conversationMessages(conversation.id).some((message) => message.body.toLowerCase().includes(query));
