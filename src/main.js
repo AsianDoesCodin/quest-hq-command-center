@@ -3551,7 +3551,17 @@ function renderContactRecord(companyId, contact) {
     const cls = ['sf-edit', opts.blue ? 'blue' : '', opts.mono ? 'mono' : ''].filter(Boolean).join(' ');
     return `<span class="${cls}" data-contact-edit="${h(key)}" data-contact-id="${h(contact.id)}" title="Click to edit">${h(String(display))}</span>`;
   };
-  const fieldRow = (label, content) => `<div class="sf-field"><div class="sf-field-label">${h(label)}<i class="ti ti-pencil sf-pencil"></i></div><div class="sf-field-value">${content}</div></div>`;
+  const fieldRow = (label, content, editKey = '') => `
+    <div class="sf-field">
+      <div class="sf-field-label">
+        ${h(label)}
+        ${editKey
+          ? `<button class="sf-pencil" type="button" data-contact-edit="${h(editKey)}" data-contact-id="${h(contact.id)}" aria-label="Edit ${h(label)}"><i class="ti ti-pencil"></i></button>`
+          : `<button class="sf-pencil" type="button" data-action="open-contact-form" data-mode="edit" data-contact-id="${h(contact.id)}" aria-label="Edit ${h(label)}"><i class="ti ti-pencil"></i></button>`}
+      </div>
+      <div class="sf-field-value">${content}</div>
+    </div>
+  `;
 
   const headerActions = [['Follow', 'ti-plus'], ['New Task', 'ti-checkbox'], ['Log a Call', 'ti-phone'], ['New Estimate', 'ti-calculator'], ['Edit', 'ti-pencil']];
   const quickTiles = [['Task', 'ti-checkbox'], ['Meeting', 'ti-calendar'], ['Estimate', 'ti-calculator'], ['Proposal', 'ti-file-text'], ['Note', 'ti-note'], ['Call Log', 'ti-phone']];
@@ -4381,7 +4391,17 @@ function renderJobRecord(companyId, job) {
   const account = accountById(job.account_id);
   const deal = dealById(job.deal_id);
   const showCrm = can('crm.view', companyId);
-  const fieldRow = (label, content) => `<div class="sf-field"><div class="sf-field-label">${h(label)}<i class="ti ti-pencil sf-pencil"></i></div><div class="sf-field-value">${content}</div></div>`;
+  const fieldRow = (label, content, editKey = '') => `
+    <div class="sf-field">
+      <div class="sf-field-label">
+        ${h(label)}
+        ${editKey
+          ? `<button class="sf-pencil" type="button" data-job-edit="${h(editKey)}" data-job-id="${h(job.id)}" aria-label="Edit ${h(label)}"><i class="ti ti-pencil"></i></button>`
+          : `<button class="sf-pencil" type="button" data-action="open-job-form" data-mode="edit" data-job-id="${h(job.id)}" aria-label="Edit ${h(label)}"><i class="ti ti-pencil"></i></button>`}
+      </div>
+      <div class="sf-field-value">${content}</div>
+    </div>
+  `;
   const ed = (key, opts = {}) => {
     const display = (job[key] === '' || job[key] == null) ? '-' : job[key];
     const cls = ['sf-edit', opts.blue ? 'blue' : '', opts.mono ? 'mono' : ''].filter(Boolean).join(' ');
@@ -4442,17 +4462,17 @@ function renderJobRecord(companyId, job) {
       <div class="sf-three-col">
         <div class="sf-col">
           <div class="sf-card"><div class="sf-card-head"><i class="ti ti-id-badge-2"></i>Job Details</div><div class="sf-card-body">
-            ${fieldRow('Client', ed('client_name', { blue: true }))}
-            ${fieldRow('Contact', ed('contact_name', { blue: true }))}
-            ${fieldRow('Site Address', ed('site_address'))}
-            ${fieldRow('Job Type', `<span class="sf-pill">${h(job.job_type || '-')}</span>`)}
-            ${fieldRow('Owner', ed('owner_name', { blue: true }))}
-            ${fieldRow('Priority', `<span class="sf-pill">${h(job.priority || 'Medium')}</span>`)}
+            ${fieldRow('Client', ed('client_name', { blue: true }), 'client_name')}
+            ${fieldRow('Contact', ed('contact_name', { blue: true }), 'contact_name')}
+            ${fieldRow('Site Address', ed('site_address'), 'site_address')}
+            ${fieldRow('Job Type', `<span class="sf-pill">${h(job.job_type || '-')}</span>`, 'job_type')}
+            ${fieldRow('Owner', ed('owner_name', { blue: true }), 'owner_name')}
+            ${fieldRow('Priority', `<span class="sf-pill">${h(job.priority || 'Medium')}</span>`, 'priority')}
           </div></div>
           <div class="sf-card"><div class="sf-card-head"><i class="ti ti-clipboard-data"></i>Status</div><div class="sf-card-body">
-            ${fieldRow('Stage', `<span>${h(job.stage)}</span>`)}
-            ${fieldRow('Estimate Total', `<span class="sf-money"><span class="sf-edit mono" data-job-edit="estimate_total" data-job-id="${h(job.id)}" title="Click to edit">${money(job.estimate_total || 0)}</span></span>`)}
-            ${fieldRow('Invoice Total', `<span class="sf-money"><span class="sf-edit mono" data-job-edit="invoice_total" data-job-id="${h(job.id)}" title="Click to edit">${money(job.invoice_total || 0)}</span></span>`)}
+            ${fieldRow('Stage', `<span>${h(job.stage)}</span>`, 'stage')}
+            ${fieldRow('Estimate Total', `<span class="sf-money"><span class="sf-edit mono" data-job-edit="estimate_total" data-job-id="${h(job.id)}" title="Click to edit">${money(job.estimate_total || 0)}</span></span>`, 'estimate_total')}
+            ${fieldRow('Invoice Total', `<span class="sf-money"><span class="sf-edit mono" data-job-edit="invoice_total" data-job-id="${h(job.id)}" title="Click to edit">${money(job.invoice_total || 0)}</span></span>`, 'invoice_total')}
             ${fieldRow('Account', account ? (showCrm ? `<button class="link-button" type="button" data-action="open-account" data-account-id="${h(account.id)}">${h(account.name)}</button>` : `<span>${h(account.name)}</span>`) : '<span>-</span>')}
             ${fieldRow('Deal', deal ? (showCrm ? `<button class="link-button" type="button" data-action="open-deal" data-deal-id="${h(deal.id)}">${h(deal.name)}</button>` : `<span>${h(deal.name)}</span>`) : '<span>-</span>')}
           </div></div>
@@ -6812,7 +6832,17 @@ function renderDealDetail(companyId, deal) {
     const cls = ['sf-edit', opts.blue ? 'blue' : '', opts.mono ? 'mono' : ''].filter(Boolean).join(' ');
     return `<span class="${cls}" data-deal-edit="${h(key)}" data-deal-id="${h(deal.id)}" title="Click to edit">${h(String(display))}</span>`;
   };
-  const fieldRow = (label, content) => `<div class="sf-field"><div class="sf-field-label">${h(label)}<i class="ti ti-pencil sf-pencil"></i></div><div class="sf-field-value">${content}</div></div>`;
+  const fieldRow = (label, content, editKey = '') => `
+    <div class="sf-field">
+      <div class="sf-field-label">
+        ${h(label)}
+        ${editKey
+          ? `<button class="sf-pencil" type="button" data-deal-edit="${h(editKey)}" data-deal-id="${h(deal.id)}" aria-label="Edit ${h(label)}"><i class="ti ti-pencil"></i></button>`
+          : `<button class="sf-pencil" type="button" data-action="open-deal-form" data-mode="edit" data-deal-id="${h(deal.id)}" aria-label="Edit ${h(label)}"><i class="ti ti-pencil"></i></button>`}
+      </div>
+      <div class="sf-field-value">${content}</div>
+    </div>
+  `;
   const headerActions = [['Follow', 'ti-plus'], ['New Task', 'ti-checkbox'], ['Log a Call', 'ti-phone'], ['New Estimate', 'ti-calculator'], ['Edit', 'ti-pencil']];
   const quickTiles = [['Task', 'ti-checkbox'], ['Meeting', 'ti-calendar'], ['Estimate', 'ti-calculator'], ['Proposal', 'ti-file-text'], ['Note', 'ti-note'], ['Call Log', 'ti-phone']];
   const activityTabs = [['Email', 'ti-mail'], ['New Task', 'ti-checkbox'], ['New Event', 'ti-calendar'], ['Log a Call', 'ti-phone']];
@@ -6858,14 +6888,14 @@ function renderDealDetail(companyId, deal) {
             ${fieldRow('Email', contact?.email ? `<span class="sf-edit blue">${h(contact.email)}</span>` : '<span class="muted-dash">—</span>')}
             ${fieldRow('Location', account?.address ? h(account.address) : '<span class="muted-dash">—</span>')}
             ${fieldRow('Job Type', `<span class="sf-pill">${h(deal.source || 'Re-roof')}</span>`)}
-            ${fieldRow('Owner', ed('owner_name', { blue: true }))}
+            ${fieldRow('Owner', ed('owner_name', { blue: true }), 'owner_name')}
             ${fieldRow('Account', account ? `<button class="link-button" type="button" data-action="open-account" data-account-id="${h(account.id)}">${h(account.name)}</button>` : '<span class="muted-dash">—</span>')}
           </div></div>
           <div class="sf-card"><div class="sf-card-head"><i class="ti ti-clipboard-data"></i>Status</div><div class="sf-card-body">
             ${fieldRow('Funnel', '<span>Quotes (bottom of funnel)</span>')}
-            ${fieldRow('Stage', `<span>${h(deal.stage)}</span>`)}
-            ${fieldRow('Est. Value', `<span class="sf-money"><span class="sf-edit mono" data-deal-edit="value" data-deal-id="${h(deal.id)}" title="Click to edit">${money(deal.value || 0)}</span></span>`)}
-            ${fieldRow('Probability', `<span class="sf-edit mono" data-deal-edit="probability" data-deal-id="${h(deal.id)}" title="Click to edit">${h(String(deal.probability || 0))}</span>%`)}
+            ${fieldRow('Stage', `<span>${h(deal.stage)}</span>`, 'stage')}
+            ${fieldRow('Est. Value', `<span class="sf-money"><span class="sf-edit mono" data-deal-edit="value" data-deal-id="${h(deal.id)}" title="Click to edit">${money(deal.value || 0)}</span></span>`, 'value')}
+            ${fieldRow('Probability', `<span class="sf-edit mono" data-deal-edit="probability" data-deal-id="${h(deal.id)}" title="Click to edit">${h(String(deal.probability || 0))}</span>%`, 'probability')}
             ${fieldRow('Pay Type', `<span>${h(deal.status === 'won' ? 'Won' : 'Retail')}</span>`)}
             ${fieldRow('Linked Job', job ? `<a class="link-button" href="${appHref(companyPath('jobs', { tab: 'profile', job_id: job.id }, companyId))}" data-router>${h(job.name)}</a>` : '<span class="muted-dash">—</span>')}
           </div></div>

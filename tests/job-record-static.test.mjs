@@ -14,3 +14,13 @@ test('jobs profile route renders a Salesforce-style job record workspace', () =>
   assert.match(source, /data-action="job-quick"/);
   assert.match(source, /data-job-edit=/);
 });
+
+test('job record pencil controls trigger inline editing for editable fields', () => {
+  assert.match(source, /const fieldRow = \(label, content, editKey = ''\) =>/);
+  assert.match(source, /data-job-edit="\$\{h\(editKey\)\}"/);
+  assert.match(source, /aria-label="Edit \$\{h\(label\)\}"/);
+  assert.match(source, /fieldRow\('Site Address', ed\('site_address'\), 'site_address'\)/);
+  assert.match(source, /fieldRow\('Owner', ed\('owner_name'/);
+  assert.match(source, /fieldRow\('Stage', `<span>\$\{h\(job.stage\)\}<\/span>`, 'stage'\)/);
+  assert.doesNotMatch(source, /<i class="ti ti-pencil sf-pencil"><\/i>/);
+});
