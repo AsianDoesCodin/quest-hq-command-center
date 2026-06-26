@@ -201,6 +201,20 @@ test('docked activity composers use distinct salesforce-style forms by action', 
   assert.match(styles, /\.activity-dock-checkbox/);
 });
 
+test('record open task rows expose an inline delete action', () => {
+  assert.match(source, /function renderSfTaskRow\(task, options = \{\}\)/);
+  assert.match(source, /data-action="delete-task"/);
+  assert.match(source, /data-task-return="\$\{h\(returnMode\)\}"/);
+  assert.match(source, /aria-label="Delete task"/);
+  assert.match(source, /deleteTask\(node\.dataset\.taskId, \{ stayOnPage: node\.dataset\.taskReturn === 'record' \}\)/);
+  assert.match(source, /async function deleteTask\(id, options = \{\}\)/);
+  assert.match(source, /if \(options\.stayOnPage\) render\(\);/);
+  assert.match(source, /renderSfTaskRow\(t/);
+  assert.match(source, /renderSfTaskRow\(task/);
+  assert.match(styles, /\.sf-task-delete/);
+  assert.match(styles, /\.sf-task-row:hover \.sf-task-delete/);
+});
+
 test('account record tabs use contacts and quotes language', () => {
   assert.doesNotMatch(source, /\['deals', 'Deals'/);
   assert.match(source, /\['contacts', 'Contacts', contacts\.length\]/);

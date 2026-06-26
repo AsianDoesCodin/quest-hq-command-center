@@ -9,6 +9,16 @@ const json = (response, status, payload) => {
 const env = (key) => process.env[key] || '';
 const baseUrl = () => env('SUPABASE_URL') || env('VITE_SUPABASE_URL');
 const serviceKey = () => env('SUPABASE_SERVICE_ROLE_KEY') || env('SUPABASE_SECRET_KEY');
+function isSupabaseSecretKey() {
+  return serviceKey().startsWith('sb_secret_');
+}
+function supabaseHeaders(hasBody = false) {
+  return {
+    apikey: serviceKey(),
+    ...(isSupabaseSecretKey() ? {} : { Authorization: `Bearer ${serviceKey()}` }),
+    ...(hasBody ? { 'Content-Type': 'application/json' } : {}),
+  };
+}
 
 function sha256(value) {
   return crypto.createHash('sha256').update(String(value || '')).digest('hex');
@@ -28,9 +38,7 @@ async function supabaseFetch(path, options = {}) {
   return fetch(`${baseUrl()}${path}`, {
     ...options,
     headers: {
-      apikey: serviceKey(),
-      Authorization: `Bearer ${serviceKey()}`,
-      ...(options.body ? { 'Content-Type': 'application/json' } : {}),
+      ...supabaseHeaders(!!options.body),
       ...(options.headers || {}),
     },
   });

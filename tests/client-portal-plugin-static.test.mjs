@@ -74,6 +74,9 @@ test('client portal Vercel APIs exist and do not expose raw token or password fi
     assert.ok(existsSync(new URL(name, apiDir)), `${name} should exist`);
     const api = readFileSync(new URL(name, apiDir), 'utf8');
     assert.match(api, /SUPABASE_SERVICE_ROLE_KEY/);
+    assert.match(api, /function isSupabaseSecretKey/);
+    assert.match(api, /function supabaseHeaders/);
+    assert.match(api, /isSupabaseSecretKey\(\) \? \{\} : \{ Authorization: `Bearer \$\{serviceKey\(\)\}` \}/);
     assert.match(api, /sha256/);
     assert.doesNotMatch(api, /select=token/);
     assert.doesNotMatch(api, /select=password/);

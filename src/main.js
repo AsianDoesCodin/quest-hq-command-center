@@ -3779,7 +3779,7 @@ function renderContactRecord(companyId, contact) {
           </div>
           <div class="sf-card"><div class="sf-card-head"><i class="ti ti-checkbox"></i>Open Tasks<span class="sf-connect"><i class="ti ti-plug"></i>Connect</span></div>
             <div class="sf-tasks">
-              ${tasks.map((t) => `<div class="sf-task-row ${t.status === 'done' ? 'done' : ''}"><button class="sf-check" type="button" data-action="toggle-contact-task" data-task-id="${h(t.id)}" aria-label="Toggle task">${t.status === 'done' ? '<i class="ti ti-check"></i>' : ''}</button><span class="sf-task-title">${h(t.title)}</span>${t.due ? `<span class="sf-due">${h(formatDate(t.due))}</span>` : ''}</div>`).join('') || '<div class="sf-task-empty">No tasks yet.</div>'}
+              ${tasks.map((t) => renderSfTaskRow(t)).join('') || '<div class="sf-task-empty">No tasks yet.</div>'}
             </div>
             <form class="sf-task-add" data-contact-task-form autocomplete="off"><input type="hidden" name="contact_id" value="${h(contact.id)}" /><i class="ti ti-plus"></i><input name="title" placeholder="Add a task…" /></form>
           </div>
@@ -3948,6 +3948,21 @@ function tasksForDeal(deal) {
   return companyTasks(deal.company_id)
     .filter((task) => task.contact_id === deal.primary_contact_id || task.account_id === deal.account_id)
     .sort((a, b) => (a.status === 'done' ? 1 : 0) - (b.status === 'done' ? 1 : 0) || String(a.due).localeCompare(String(b.due)));
+}
+
+function renderSfTaskRow(task, options = {}) {
+  const returnMode = options.returnMode || 'record';
+  const checkControl = options.checkMode === 'open'
+    ? `<button class="sf-check" type="button" data-select-task="${h(task.id)}" aria-label="Open task">${task.status === 'done' ? '<i class="ti ti-check"></i>' : ''}</button>`
+    : `<button class="sf-check" type="button" data-action="toggle-contact-task" data-task-id="${h(task.id)}" aria-label="Toggle task">${task.status === 'done' ? '<i class="ti ti-check"></i>' : ''}</button>`;
+  return `
+    <div class="sf-task-row ${task.status === 'done' ? 'done' : ''}">
+      ${checkControl}
+      <span class="sf-task-title">${h(task.title)}</span>
+      ${task.due ? `<span class="sf-due">${h(formatDate(task.due))}</span>` : ''}
+      <button class="sf-task-delete" type="button" data-action="delete-task" data-task-id="${h(task.id)}" data-task-return="${h(returnMode)}" aria-label="Delete task" title="Delete task"><i class="ti ti-trash"></i></button>
+    </div>
+  `;
 }
 
 async function persistContact(contact) {
@@ -4666,7 +4681,7 @@ function renderJobRecord(companyId, job) {
           </div>
           <div class="sf-card"><div class="sf-card-head"><i class="ti ti-checkbox"></i>Open Tasks<span class="sf-connect"><i class="ti ti-plug"></i>Connect</span></div>
             <div class="sf-tasks">
-              ${tasks.map((task) => `<div class="sf-task-row ${task.status === 'done' ? 'done' : ''}"><button class="sf-check" type="button" data-select-task="${h(task.id)}" aria-label="Open task">${task.status === 'done' ? '<i class="ti ti-check"></i>' : ''}</button><span class="sf-task-title">${h(task.title)}</span>${task.due ? `<span class="sf-due">${h(formatDate(task.due))}</span>` : ''}</div>`).join('') || '<div class="sf-task-empty">No tasks yet.</div>'}
+              ${tasks.map((task) => renderSfTaskRow(task, { checkMode: 'open' })).join('') || '<div class="sf-task-empty">No tasks yet.</div>'}
             </div>
           </div>
         </div>
@@ -7082,7 +7097,7 @@ function renderDealDetail(companyId, deal) {
           </div>
           <div class="sf-card"><div class="sf-card-head"><i class="ti ti-checkbox"></i>Open Tasks<span class="sf-connect"><i class="ti ti-plug"></i>Connect</span></div>
             <div class="sf-tasks">
-              ${tasks.map((t) => `<div class="sf-task-row ${t.status === 'done' ? 'done' : ''}"><button class="sf-check" type="button" data-action="toggle-contact-task" data-task-id="${h(t.id)}" aria-label="Toggle task">${t.status === 'done' ? '<i class="ti ti-check"></i>' : ''}</button><span class="sf-task-title">${h(t.title)}</span>${t.due ? `<span class="sf-due">${h(formatDate(t.due))}</span>` : ''}</div>`).join('') || '<div class="sf-task-empty">No tasks yet.</div>'}
+              ${tasks.map((t) => renderSfTaskRow(t)).join('') || '<div class="sf-task-empty">No tasks yet.</div>'}
             </div>
           </div>
         </div>
@@ -10160,7 +10175,8 @@ function handleAction(event, node) {
   if (action === 'delete-task') {
     event.preventDefault();
     if (!requirePermission('tasks.manage', activeCompanyId(), 'Your role cannot delete tasks.', 'Tasks')) return;
-    deleteTask(node.dataset.taskId);
+    deleteTask(node.dataset.taskId, { stayOnPage: node.dataset.taskReturn === 'record' });
+    return;
   }
 }
 
@@ -12199,7 +12215,7 @@ async function saveTask(form) {
   navigate(companyPath('tasks', { ...(payload.project_id ? { job_id: payload.project_id } : {}), task_id: payload.id }, companyId), { replace: true });
 }
 
-async function deleteTask(id) {
+async function deleteTask(id, options = {}) {
   if (!id) return;
   const companyId = activeCompanyId();
   if (!requirePermission('tasks.manage', companyId, 'Your role cannot delete tasks.', 'Tasks')) return;
@@ -12209,6 +12225,8 @@ async function deleteTask(id) {
   state.selectedTaskId = '';
   state.modal = '';
   persistAll();
+  if (options.stayOnPage) render();
+  if (options.stayOnPage) return;
   navigate(companyPath('tasks', {}, companyId), { replace: true });
 }
 

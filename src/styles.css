@@ -14744,6 +14744,10 @@ button {
 .sf-task-title { flex: 1; }
 .sf-task-row.done .sf-task-title { color: var(--sf-mut); text-decoration: line-through; }
 .sf-due { font-family: var(--font-mono); font-size: 10.5px; color: #888; background: #f1f1f1; border-radius: 4px; padding: 2px 7px; }
+.sf-task-delete { display: grid; place-items: center; width: 24px; height: 24px; flex: none; border: 0; border-radius: 6px; background: transparent; color: #a1aab8; opacity: 0; cursor: pointer; }
+.sf-task-row:hover .sf-task-delete,
+.sf-task-delete:focus-visible { opacity: 1; }
+.sf-task-delete:hover { background: rgba(220, 38, 38, .08); color: #dc2626; }
 .sf-task-empty { padding: 14px 15px; color: var(--sf-mut); font-size: 12.5px; }
 .sf-task-add { display: flex; align-items: center; gap: 8px; padding: 10px 15px; border-top: 1px solid #f0f0f0; color: var(--sf-mut); }
 .sf-task-add input[name="title"] { flex: 1; border: 0; outline: none; font-size: 12.5px; background: transparent; }
