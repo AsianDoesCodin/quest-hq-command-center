@@ -2081,6 +2081,7 @@ async function loadSupabaseBootstrapData() {
 }
 
 function createSupabaseClient() {
+  if (isReadOnlyDemo()) return null;
   if (!window.supabase || typeof window.supabase.createClient !== 'function') return null;
   if (!supabaseClientCache) {
     supabaseClientCache = window.supabase.createClient(CONFIG.supabaseUrl, CONFIG.supabaseKey);
@@ -10258,7 +10259,7 @@ function onDocumentSubmit(event) {
 }
 
 async function signOut() {
-  if (state.session?.auth === 'supabase') {
+  if (isLiveSupabaseSession()) {
     const client = createSupabaseClient();
     if (CONFIG.questAuthEnabled && client?.auth) await client.auth.signOut();
   }
@@ -10302,7 +10303,7 @@ async function saveProfile(formNode) {
     full_name: String(data.get('full_name') || '').trim() || current.full_name || 'Quest user',
     avatar_url: avatarUrl,
   }, current);
-  if (state.session?.auth === 'supabase') {
+  if (isLiveSupabaseSession()) {
     const client = createSupabaseClient();
     if (!client) {
       showToast('Profile upload needs Supabase to be available.', 'local', 'Profile');
@@ -10333,7 +10334,7 @@ async function saveProfile(formNode) {
   state.session = { ...activeSession(), profile: next };
   writeJson(SESSION_KEY, state.session);
   state.modal = '';
-  showToast('Profile saved.', state.session?.auth === 'supabase' ? 'live' : 'local', 'Profile');
+  showToast('Profile saved.', isLiveSupabaseSession() ? 'live' : 'local', 'Profile');
 }
 
 async function prepareProfileAvatarCrop(formNode) {
@@ -10678,7 +10679,7 @@ async function saveWorkspaceSettings(formNode) {
   }
   const client = createSupabaseClient();
   let live = false;
-  if (client && state.session?.auth === 'supabase') {
+  if (client && isLiveSupabaseSession()) {
     const result = await safeSupabaseQuery(client.rpc('update_company_workspace', { target_company_id: companyId, workspace_name: workspaceName, icon_key: iconKey, icon_image: iconImage }));
     if (result.error) {
       showToast(result.error.message || 'Workspace update failed.', 'local', 'Settings');
@@ -10815,7 +10816,7 @@ async function setCompanyPlugin(companyId, pluginId, status) {
   state.sync = { label: 'Updating plugin...', mode: 'loading' };
   render();
   const client = createSupabaseClient();
-  if (state.session?.auth === 'supabase' && client) {
+  if (isLiveSupabaseSession() && client) {
     const result = await safeSupabaseQuery(client.rpc('set_company_plugin', {
       target_company_id: companyId,
       target_plugin_id: plugin.id,
@@ -10837,7 +10838,7 @@ async function applyCompanyPluginPreset(companyId, presetCode) {
   state.sync = { label: 'Applying plugin preset...', mode: 'loading' };
   render();
   const client = createSupabaseClient();
-  if (state.session?.auth === 'supabase' && client) {
+  if (isLiveSupabaseSession() && client) {
     const result = await safeSupabaseQuery(client.rpc('apply_company_plugin_preset', {
       target_company_id: companyId,
       preset_code: cleanPreset,
@@ -10929,7 +10930,7 @@ async function reviewWorkspace(companyId, status) {
   const client = createSupabaseClient();
   state.sync = { label: 'Updating workspace review...', mode: 'loading' };
   render();
-  if (state.session?.auth === 'supabase' && client) {
+  if (isLiveSupabaseSession() && client) {
     const result = await client.rpc('review_company_workspace', {
       target_company_id: targetCompanyId,
       next_status: nextStatus,
@@ -10964,7 +10965,7 @@ async function managePlatformCompany(companyId, platformAction) {
   const client = createSupabaseClient();
   state.sync = { label: 'Updating company access...', mode: 'loading' };
   render();
-  if (state.session?.auth === 'supabase' && client) {
+  if (isLiveSupabaseSession() && client) {
     const result = await client.rpc('manage_platform_company', {
       target_company_id: targetCompanyId,
       platform_action: action,
@@ -11038,7 +11039,7 @@ async function saveRole(formNode) {
   });
   const permissions = data.getAll('permissions').map((permission) => String(permission || '')).filter(Boolean);
   const client = createSupabaseClient();
-  if (state.session?.auth === 'supabase' && client) {
+  if (isLiveSupabaseSession() && client) {
     const roleResult = await client.from('roles').insert(role).select().single();
     if (roleResult.error) {
       state.sync = { label: roleResult.error.message || 'Role save failed', mode: 'local' };
@@ -11085,7 +11086,7 @@ async function saveInvite(formNode) {
   });
   const client = createSupabaseClient();
 
-  if (state.session?.auth === 'supabase' && client) {
+  if (isLiveSupabaseSession() && client) {
     const payload = {
       company_id: invite.company_id,
       email: invite.email,
@@ -11180,7 +11181,7 @@ async function revokeInvite(inviteId) {
   if (!invite) return;
   if (!requirePermission('users.manage', invite.company_id, 'Your role cannot revoke invites.', 'Users')) return;
   const client = createSupabaseClient();
-  if (state.session?.auth === 'supabase' && client) {
+  if (isLiveSupabaseSession() && client) {
     const result = await client.rpc('revoke_company_invite', { target_invite_id: invite.id });
     if (result.error) {
       state.sync = { label: result.error.message || 'Invite revoke failed', mode: 'local' };
@@ -11233,7 +11234,7 @@ async function saveUserAccess(formNode) {
   });
   const client = createSupabaseClient();
 
-  if (state.session?.auth === 'supabase' && client) {
+  if (isLiveSupabaseSession() && client) {
     const canPersistRoleAssignment = isUuid(role.id);
     const membershipResult = await client.rpc('update_company_member_access', {
       target_company_id: companyId,
@@ -11274,7 +11275,7 @@ async function updateJoinRequest(requestId, status) {
     status: status === 'approved' ? 'active' : 'disabled',
   });
 
-  if (state.session?.auth === 'supabase' && client) {
+  if (isLiveSupabaseSession() && client) {
     const requestResult = await client.rpc('review_company_join_request', {
       target_request_id: request.id,
       decision: status,
@@ -11532,7 +11533,7 @@ async function saveCalendarEvent(form) {
     updated_at: now,
   });
   const client = createSupabaseClient();
-  if (state.session?.auth === 'supabase' && client) {
+  if (isLiveSupabaseSession() && client) {
     const payload = calendarEventPayload(eventRecord);
     if (existing) delete payload.id;
     const result = existing
@@ -11559,7 +11560,7 @@ async function deleteCalendarEvent(eventId) {
     return;
   }
   const client = createSupabaseClient();
-  if (state.session?.auth === 'supabase' && client) {
+  if (isLiveSupabaseSession() && client) {
     const result = await client.from('calendar_events').delete().eq('id', eventRecord.id);
     if (result.error) {
       showToast(result.error.message || 'Calendar event delete failed.', 'local', 'Calendar');
@@ -11588,7 +11589,7 @@ async function createMessageRecord(conversation, body, files) {
   });
   const client = createSupabaseClient();
   let savedMessage = message;
-  if (state.session?.auth === 'supabase' && client) {
+  if (isLiveSupabaseSession() && client) {
     const result = await client.from('messages').insert(messagePayload(message)).select().single();
     if (result.error) {
       showToast(result.error.message || 'Message send failed.', 'local', 'Messages');
@@ -11600,7 +11601,7 @@ async function createMessageRecord(conversation, body, files) {
   const attachments = await saveMessageAttachments(savedMessage, files);
   const updatedConversation = { ...conversation, last_message_at: savedMessage.created_at, updated_at: savedMessage.created_at };
   state.messageConversations = state.messageConversations.map((item) => (item.id === conversation.id ? updatedConversation : item));
-  if (state.session?.auth === 'supabase' && client) {
+  if (isLiveSupabaseSession() && client) {
     await client.from('message_conversations').update({ last_message_at: savedMessage.created_at, updated_at: savedMessage.created_at }).eq('id', conversation.id);
   }
   markConversationRead(conversation.id, false);
@@ -11617,7 +11618,7 @@ async function saveMessageAttachments(message, files) {
     const objectPath = `${message.company_id}/${message.conversation_id}/${id}-${slugify(file.name || 'attachment')}`;
     let previewUrl = '';
     let objectSaved = '';
-    if (state.session?.auth === 'supabase' && client) {
+    if (isLiveSupabaseSession() && client) {
       const upload = await client.storage
         .from('quest-message-attachments')
         .upload(objectPath, file, { cacheControl: '3600', upsert: false, contentType: file.type || 'application/octet-stream' });
@@ -11642,7 +11643,7 @@ async function saveMessageAttachments(message, files) {
       preview_url: previewUrl,
       created_at: new Date().toISOString(),
     });
-    if (state.session?.auth === 'supabase' && client) {
+    if (isLiveSupabaseSession() && client) {
       const result = await client.from('message_attachments').insert(messageAttachmentPayload(attachment)).select().single();
       if (result.error) {
         showToast(result.error.message || 'Attachment record failed.', 'local', 'Messages');
@@ -11660,7 +11661,7 @@ async function saveMessageAttachments(message, files) {
 
 async function persistConversation(conversation, accessRows, update = false) {
   const client = createSupabaseClient();
-  if (state.session?.auth === 'supabase' && client) {
+  if (isLiveSupabaseSession() && client) {
     const conversationResult = update
       ? await client.from('message_conversations').update(messageConversationPayload(conversation)).eq('id', conversation.id).select().single()
       : await client.from('message_conversations').insert(messageConversationPayload(conversation)).select().single();
@@ -11696,7 +11697,7 @@ async function deleteMessage(messageId) {
   }
   const deletedAt = new Date().toISOString();
   const client = createSupabaseClient();
-  if (state.session?.auth === 'supabase' && client) {
+  if (isLiveSupabaseSession() && client) {
     const result = await client.from('messages').update({ deleted_at: deletedAt, updated_at: deletedAt }).eq('id', message.id);
     if (result.error) {
       showToast(result.error.message || 'Message delete failed.', 'local', 'Messages');
@@ -11716,7 +11717,7 @@ async function openMessageAttachment(attachmentId) {
     return;
   }
   const client = createSupabaseClient();
-  if (state.session?.auth === 'supabase' && client && attachment.object_path) {
+  if (isLiveSupabaseSession() && client && attachment.object_path) {
     const result = await client.storage.from(attachment.bucket_id || 'quest-message-attachments').createSignedUrl(attachment.object_path, 900, { download: attachment.file_name });
     if (!result.error && result.data?.signedUrl) {
       window.open(result.data.signedUrl, '_blank', 'noopener,noreferrer');
@@ -12081,7 +12082,7 @@ async function saveClientPortal(form) {
     updated_at: new Date().toISOString(),
   });
   const client = createSupabaseClient();
-  if (state.session?.auth === 'supabase' && client) {
+  if (isLiveSupabaseSession() && client) {
     const payload = clientPortalPayload(portal);
     const result = existing
       ? await client.from('client_portals').update(payload).eq('id', existing.id).select().single()
@@ -12119,7 +12120,7 @@ async function saveClientPortalDocuments(form) {
     const id = crypto.randomUUID();
     const objectPath = `${companyId}/portals/${portal.id}/${id}-${slugify(file.name || 'plan-set')}`;
     let uploaded = false;
-    if (state.session?.auth === 'supabase' && client) {
+    if (isLiveSupabaseSession() && client) {
       const upload = await client.storage
         .from('quest-client-portal-documents')
         .upload(objectPath, file, { cacheControl: '3600', upsert: false, contentType: file.type || 'application/octet-stream' });
@@ -12140,7 +12141,7 @@ async function saveClientPortalDocuments(form) {
       size_bytes: file.size || 0,
       uploaded_by: activeSession().profile.id,
     });
-    if (state.session?.auth === 'supabase' && client) {
+    if (isLiveSupabaseSession() && client) {
       const result = await client.from('client_portal_documents').insert(clientPortalDocumentPayload(doc)).select().single();
       if (result.error) {
         if (uploaded) await client.storage.from('quest-client-portal-documents').remove([objectPath]);
@@ -12181,7 +12182,7 @@ async function regenerateClientPortalLink(portalId) {
   const tokenHash = await digestHex(rawToken);
   const next = normalizeClientPortal({ ...portal, token_hash: tokenHash, status: 'active', revoked_at: null, updated_at: new Date().toISOString(), raw_token: rawToken });
   const client = createSupabaseClient();
-  if (state.session?.auth === 'supabase' && client) {
+  if (isLiveSupabaseSession() && client) {
     const result = await client
       .from('client_portals')
       .update({ token_hash: tokenHash, status: 'active', revoked_at: null, updated_at: next.updated_at })
@@ -12203,7 +12204,7 @@ async function revokeClientPortal(portalId) {
   if (!window.confirm(`Revoke ${portal.title}? Existing guests will lose access.`)) return;
   const next = normalizeClientPortal({ ...portal, status: 'revoked', revoked_at: new Date().toISOString(), updated_at: new Date().toISOString() });
   const client = createSupabaseClient();
-  if (state.session?.auth === 'supabase' && client) {
+  if (isLiveSupabaseSession() && client) {
     const result = await client.from('client_portals').update({ status: 'revoked', revoked_at: next.revoked_at, updated_at: next.updated_at }).eq('id', portal.id).select().single();
     if (result.error) {
       showToast(result.error.message || 'Portal revoke failed.', 'local', 'Client Portal');
@@ -14433,6 +14434,10 @@ function isReadOnlyDemo() {
   return state.session?.auth === 'demo-readonly' && CONFIG.demoReadonly;
 }
 
+function isLiveSupabaseSession() {
+  return state.session?.auth === 'supabase' && !isReadOnlyDemo();
+}
+
 function requireMutableWorkspace(message = 'Demo is read-only. Create a workspace to save changes.', title = 'Read-only demo') {
   if (!isReadOnlyDemo()) return true;
   showToast(message, 'local', title);
@@ -16313,7 +16318,7 @@ function markConversationRead(conversationId, sync = true) {
   const read = normalizeMessageRead({ conversation_id: conversationId, company_id: conversation.company_id, profile_id: profileId, last_read_at: now });
   state.messageReads = [read].concat(state.messageReads.filter((item) => item.conversation_id !== conversationId || item.profile_id !== profileId));
   persistMessages();
-  if (sync && state.session?.auth === 'supabase') {
+  if (sync && isLiveSupabaseSession()) {
     const client = createSupabaseClient();
     if (client) client.from('message_reads').upsert(messageReadPayload(read), { onConflict: 'conversation_id,profile_id' });
   }
@@ -16574,7 +16579,7 @@ async function notifyEvent(input) {
     created_at: now,
   }));
 
-  if (state.session?.auth === 'supabase') {
+  if (isLiveSupabaseSession()) {
     const client = createSupabaseClient();
     if (!client) return [];
     const result = await client.from('notifications').insert(rows.map(notificationPayload)).select();
@@ -16751,7 +16756,7 @@ async function markAllNotificationsRead(companyId = activeCompanyId()) {
   ));
   persistNotifications();
   render();
-  if (state.session?.auth === 'supabase') {
+  if (isLiveSupabaseSession()) {
     const client = createSupabaseClient();
     if (client) await client.from('notifications').update({ read_at: now }).in('id', ids).eq('recipient_profile_id', profileId);
   }
@@ -16767,7 +16772,7 @@ async function openNotification(notificationId) {
   state.notificationMenuOpen = false;
   persistNotifications();
   render();
-  if (state.session?.auth === 'supabase' && !notification.read_at) {
+  if (isLiveSupabaseSession() && !notification.read_at) {
     const client = createSupabaseClient();
     if (client) await client.from('notifications').update({ read_at: now }).eq('id', notification.id).eq('recipient_profile_id', activeSession().profile.id);
   }
@@ -16855,7 +16860,7 @@ async function recordAuditEvent(companyId, eventType, targetType, targetId, deta
     created_at: new Date().toISOString(),
   };
   state.auditEvents.unshift(event);
-  if (persistLive && state.session?.auth === 'supabase') {
+  if (persistLive && isLiveSupabaseSession()) {
     const client = createSupabaseClient();
     if (client) {
       try {

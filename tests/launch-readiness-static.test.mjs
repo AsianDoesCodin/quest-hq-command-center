@@ -29,3 +29,12 @@ test('production docs no longer describe legacy local login or three demo compan
   assert.doesNotMatch(readme, /lumen123/);
   assert.match(readme, /read-only demo/i);
 });
+
+test('read-only demo cannot create a Supabase client or persist live writes', () => {
+  assert.match(source, /function isLiveSupabaseSession\s*\(\)\s*\{\s*return state\.session\?\.auth === 'supabase' && !isReadOnlyDemo\(\);/);
+  assert.match(source, /function createSupabaseClient\s*\(\)\s*\{\s*if \(isReadOnlyDemo\(\)\) return null;/);
+  assert.match(source, /if \(sync && isLiveSupabaseSession\(\)\) \{/);
+  assert.match(source, /if \(isLiveSupabaseSession\(\)\) \{\s*const client = createSupabaseClient\(\);/);
+  assert.doesNotMatch(source, /if \(sync && state\.session\?\.auth === 'supabase'\) \{/);
+  assert.doesNotMatch(source, /if \(state\.session\?\.auth === 'supabase'\) \{\s*const client = createSupabaseClient\(\);/);
+});
