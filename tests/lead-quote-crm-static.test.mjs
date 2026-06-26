@@ -111,6 +111,19 @@ test('contact record pencils edit only the clicked field value', () => {
   assert.match(inlineSource, /\.sf-field-value \[data-contact-edit\]/);
 });
 
+test('contact inline editor uses selects for constrained fields', () => {
+  const helperSource = source.match(/function contactInlineOptions\(contact, key\) \{[\s\S]*?\n\}/)?.[0] || '';
+  const inlineSource = source.match(/function beginContactInlineEdit\(span\) \{[\s\S]*?\n\}/)?.[0] || '';
+  assert.match(source, /function contactInlineOptions\(contact, key\)/);
+  assert.match(helperSource, /if \(key === 'stage'\) return contactStageNames\(\)\.map/);
+  assert.match(helperSource, /if \(key === 'temperature'\) return TEMPERATURES\.map/);
+  assert.match(helperSource, /if \(key === 'owner_name'\) return contactOwnerOptions\(contact\.company_id, contact\.owner_name\)/);
+  assert.match(inlineSource, /const options = contactInlineOptions\(contact, key\)/);
+  assert.match(inlineSource, /document\.createElement\(options\.length \? 'select' : 'input'\)/);
+  assert.match(inlineSource, /option\.value = value/);
+  assert.match(inlineSource, /input\.addEventListener\('change', commit\)/);
+});
+
 test('contacts list uses a Salesforce-style searchable sortable table view', () => {
   const tableSource = source.match(/function renderContactTable\(companyId\) \{[\s\S]*?\n\}/)?.[0] || '';
   assert.match(source, /contactSort: 'name'/);

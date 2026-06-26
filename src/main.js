@@ -3777,6 +3777,13 @@ function patchContactField(contactId, key, raw) {
   persistContact({ ...contact, [key]: value });
 }
 
+function contactInlineOptions(contact, key) {
+  if (key === 'stage') return contactStageNames().map((stage) => [stage, stage]);
+  if (key === 'temperature') return TEMPERATURES.map((temperature) => [temperature, temperature]);
+  if (key === 'owner_name') return contactOwnerOptions(contact.company_id, contact.owner_name);
+  return [];
+}
+
 function beginContactInlineEdit(span) {
   const key = span.dataset.contactEdit;
   const contactId = span.dataset.contactId;
@@ -3788,15 +3795,24 @@ function beginContactInlineEdit(span) {
     beginContactInlineEdit(rowValueTarget);
     return;
   }
-  const input = document.createElement('input');
+  const options = contactInlineOptions(contact, key);
+  const input = document.createElement(options.length ? 'select' : 'input');
   input.className = 'sf-edit-input';
+  input.value = key === 'value' ? (contact.value || 0) : (contact[key] || '');
+  options.forEach(([value, label]) => {
+    const option = document.createElement('option');
+    option.value = value;
+    option.textContent = label;
+    input.appendChild(option);
+  });
   input.value = key === 'value' ? (contact.value || 0) : (contact[key] || '');
   span.replaceWith(input);
   input.focus();
-  input.select();
+  if (typeof input.select === 'function') input.select();
   let done = false;
   const commit = () => { if (done) return; done = true; patchContactField(contactId, key, input.value); };
   input.addEventListener('blur', commit);
+  input.addEventListener('change', commit);
   input.addEventListener('keydown', (ev) => {
     if (ev.key === 'Enter') { ev.preventDefault(); commit(); }
     if (ev.key === 'Escape') { done = true; render(); }
