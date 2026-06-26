@@ -14038,8 +14038,23 @@ function activityRelatedLabel(record) {
   return record?.name || record?.client_name || record?.title || 'Record';
 }
 
+function activityRelatedEmail(relatedType, record) {
+  if (relatedType === 'contact') return record?.email || '';
+  if (relatedType === 'deal') return contactById(record?.primary_contact_id)?.email || '';
+  if (relatedType === 'job') return contactById(record?.contact_id)?.email || '';
+  return '';
+}
+
 function activityComposerId(relatedType, relatedId, kind) {
   return `${relatedType}:${relatedId}:${normalizeActivityComposerKind(kind)}`;
+}
+
+function activityDockComposerClass(config) {
+  if (config.type === 'email') return 'activity-dock-email';
+  if (config.type === 'task') return 'activity-dock-task';
+  if (config.type === 'meeting') return 'activity-dock-event';
+  if (config.type === 'call') return 'activity-dock-call';
+  return 'activity-dock-note';
 }
 
 function openDockedActivityComposer(relatedType, relatedId, kind) {
@@ -14089,9 +14104,9 @@ function renderDockedActivityComposers() {
     if (!record) return '';
     const config = ACTIVITY_COMPOSER_CONFIG[composer.kind] || ACTIVITY_COMPOSER_CONFIG.Note;
     const label = activityRelatedLabel(record);
-    const defaultSubject = `${config.subject}: ${label}`;
+    const composerClass = activityDockComposerClass(config);
     return `
-      <section class="activity-dock-window ${composer.minimized ? 'minimized' : ''}" aria-label="${h(composer.kind)} composer for ${h(label)}">
+      <section class="activity-dock-window ${h(composerClass)} ${composer.minimized ? 'minimized' : ''}" aria-label="${h(composer.kind)} composer for ${h(label)}">
         <div class="activity-dock-head">
           <div>
             <span class="activity-dock-kind"><i class="ti ${h(config.icon)}"></i>${h(composer.kind)}</span>
@@ -14105,8 +14120,7 @@ function renderDockedActivityComposers() {
         ${composer.minimized ? '' : `
           <form class="activity-dock-body" data-docked-activity-form autocomplete="off">
             <input type="hidden" name="composer_id" value="${h(composer.id)}" />
-            <input name="subject" value="${h(defaultSubject)}" aria-label="Subject" />
-            <textarea name="body" rows="5" placeholder="${h(config.placeholder)}" aria-label="Message"></textarea>
+            ${renderDockedActivityFields(composer, record, config)}
             <div class="activity-dock-foot">
               <button class="btn" type="button" data-action="close-docked-activity" data-composer-id="${h(composer.id)}">Cancel</button>
               <button class="btn-primary" type="submit">${h(config.action)}</button>
@@ -14119,6 +14133,160 @@ function renderDockedActivityComposers() {
   return `<div class="activity-dock" aria-live="polite">${items}</div>`;
 }
 
+function renderDockedActivityFields(composer, record, config) {
+  const label = activityRelatedLabel(record);
+  const subject = `${config.subject}: ${label}`;
+  if (config.type === 'email') {
+    return `
+      <label class="activity-dock-field">
+        <span>To</span>
+        <input name="email_to" value="${h(activityRelatedEmail(composer.related_type, record))}" placeholder="name@example.com" aria-label="Email to" />
+      </label>
+      <label class="activity-dock-field">
+        <span>Subject</span>
+        <input name="subject" value="${h(subject)}" aria-label="Subject" />
+      </label>
+      <label class="activity-dock-field">
+        <span>Email body</span>
+        <textarea name="email_body" rows="7" placeholder="Write the email message..." aria-label="Email body"></textarea>
+      </label>
+      <div class="activity-dock-toolbar" aria-label="Email tools">
+        <button type="button" title="Attach file"><i class="ti ti-paperclip"></i></button>
+        <button type="button" title="Insert template"><i class="ti ti-template"></i></button>
+        <button type="button" title="Add merge field"><i class="ti ti-braces"></i></button>
+      </div>
+    `;
+  }
+  if (config.type === 'task') {
+    return `
+      <label class="activity-dock-field">
+        <span>Subject</span>
+        <input name="subject" value="${h(subject)}" aria-label="Subject" />
+      </label>
+      <div class="activity-dock-grid">
+        <label class="activity-dock-field">
+          <span>Due date</span>
+          <input name="due_date" type="date" value="${h(isoDate(1))}" aria-label="Due date" />
+        </label>
+        <label class="activity-dock-field">
+          <span>Priority</span>
+          <select name="priority" aria-label="Priority">
+            <option>Normal</option>
+            <option>High</option>
+            <option>Low</option>
+          </select>
+        </label>
+      </div>
+      <label class="activity-dock-field">
+        <span>Task details</span>
+        <textarea name="task_notes" rows="5" placeholder="Add task details..." aria-label="Task details"></textarea>
+      </label>
+    `;
+  }
+  if (config.type === 'meeting') {
+    return `
+      <label class="activity-dock-field">
+        <span>Subject</span>
+        <input name="subject" value="${h(subject)}" aria-label="Subject" />
+      </label>
+      <div class="activity-dock-grid">
+        <label class="activity-dock-field">
+          <span>Date</span>
+          <input name="event_date" type="date" value="${h(isoDate(1))}" aria-label="Event date" />
+        </label>
+        <label class="activity-dock-field">
+          <span>Start</span>
+          <input name="start_time" type="time" value="09:00" aria-label="Start time" />
+        </label>
+        <label class="activity-dock-field">
+          <span>End</span>
+          <input name="end_time" type="time" value="09:30" aria-label="End time" />
+        </label>
+      </div>
+      <label class="activity-dock-field">
+        <span>Location</span>
+        <input name="event_location" value="${h(record.location || record.site_address || '')}" placeholder="Address or call link" aria-label="Event location" />
+      </label>
+      <label class="activity-dock-field">
+        <span>Event notes</span>
+        <textarea name="event_notes" rows="4" placeholder="Add meeting details..." aria-label="Event notes"></textarea>
+      </label>
+    `;
+  }
+  if (config.type === 'call') {
+    return `
+      <label class="activity-dock-field">
+        <span>Subject</span>
+        <input name="subject" value="${h(subject)}" aria-label="Subject" />
+      </label>
+      <div class="activity-dock-grid">
+        <label class="activity-dock-field">
+          <span>Outcome</span>
+          <select name="call_outcome" aria-label="Call outcome">
+            <option>Connected</option>
+            <option>Left voicemail</option>
+            <option>No answer</option>
+            <option>Bad number</option>
+          </select>
+        </label>
+        <label class="activity-dock-field">
+          <span>Next step</span>
+          <select name="follow_up" aria-label="Follow up">
+            <option>None</option>
+            <option>Follow up tomorrow</option>
+            <option>Schedule meeting</option>
+            <option>Send quote</option>
+          </select>
+        </label>
+      </div>
+      <label class="activity-dock-field">
+        <span>Call notes</span>
+        <textarea name="call_notes" rows="5" placeholder="Summarize the call..." aria-label="Call notes"></textarea>
+      </label>
+    `;
+  }
+  return `
+    <label class="activity-dock-field">
+      <span>Subject</span>
+      <input name="subject" value="${h(subject)}" aria-label="Subject" />
+    </label>
+    <label class="activity-dock-field">
+      <span>Note</span>
+      <textarea name="body" rows="6" placeholder="${h(config.placeholder)}" aria-label="Note"></textarea>
+    </label>
+  `;
+}
+
+function serializeDockedActivityBody(composer, formData) {
+  const config = ACTIVITY_COMPOSER_CONFIG[composer.kind] || ACTIVITY_COMPOSER_CONFIG.Note;
+  const pairs = [];
+  const push = (label, key) => {
+    const value = String(formData[key] || '').trim();
+    if (value) pairs.push(`${label}: ${value}`);
+  };
+  if (config.type === 'email') {
+    push('To', 'email_to');
+    push('Body', 'email_body');
+  } else if (config.type === 'task') {
+    push('Due', 'due_date');
+    push('Priority', 'priority');
+    push('Details', 'task_notes');
+  } else if (config.type === 'meeting') {
+    push('Date', 'event_date');
+    push('Start', 'start_time');
+    push('End', 'end_time');
+    push('Location', 'event_location');
+    push('Notes', 'event_notes');
+  } else if (config.type === 'call') {
+    push('Outcome', 'call_outcome');
+    push('Follow-up', 'follow_up');
+    push('Notes', 'call_notes');
+  } else {
+    push('Note', 'body');
+  }
+  return pairs.join('\n');
+}
+
 async function submitDockedActivityComposer(form) {
   const formData = Object.fromEntries(new FormData(form).entries());
   const composerId = String(formData.composer_id || '');
@@ -14126,7 +14294,7 @@ async function submitDockedActivityComposer(form) {
   if (!composer) return;
   const config = ACTIVITY_COMPOSER_CONFIG[composer.kind] || ACTIVITY_COMPOSER_CONFIG.Note;
   const subject = String(formData.subject || config.subject).trim() || config.subject;
-  const body = String(formData.body || '').trim();
+  const body = serializeDockedActivityBody(composer, formData);
   state.dockedActivityComposers = state.dockedActivityComposers.filter((item) => item.id !== composerId);
 
   if (config.type === 'task') {

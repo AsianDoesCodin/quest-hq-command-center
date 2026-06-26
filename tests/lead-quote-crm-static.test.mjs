@@ -177,6 +177,30 @@ test('record activity buttons open docked Salesforce-style composer windows', ()
   assert.match(styles, /\.activity-dock-window/);
 });
 
+test('docked activity composers use distinct salesforce-style forms by action', () => {
+  assert.match(source, /function renderDockedActivityFields\(composer, record, config\)/);
+  assert.match(source, /function serializeDockedActivityBody\(composer, formData\)/);
+  assert.match(source, /activity-dock-email/);
+  assert.match(source, /activity-dock-task/);
+  assert.match(source, /activity-dock-event/);
+  assert.match(source, /activity-dock-call/);
+  assert.match(source, /name="email_to"/);
+  assert.match(source, /name="email_body"/);
+  assert.match(source, /name="due_date"/);
+  assert.match(source, /name="priority"/);
+  assert.match(source, /name="event_date"/);
+  assert.match(source, /name="start_time"/);
+  assert.match(source, /name="call_outcome"/);
+  assert.match(source, /name="follow_up"/);
+  assert.match(source, /Email body/);
+  assert.match(source, /Task details/);
+  assert.match(source, /Event notes/);
+  assert.match(source, /Call notes/);
+  assert.match(styles, /\.activity-dock-grid/);
+  assert.match(styles, /\.activity-dock-toolbar/);
+  assert.match(styles, /\.activity-dock-checkbox/);
+});
+
 test('account record tabs use contacts and quotes language', () => {
   assert.doesNotMatch(source, /\['deals', 'Deals'/);
   assert.match(source, /\['contacts', 'Contacts', contacts\.length\]/);

@@ -14555,8 +14555,29 @@ button {
   gap: 10px;
   padding: 12px;
 }
+.activity-dock-field {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+}
+.activity-dock-field span {
+  color: #5f6f86;
+  font-size: 10.5px;
+  font-weight: 850;
+  letter-spacing: .05em;
+  text-transform: uppercase;
+}
+.activity-dock-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+.activity-dock-event .activity-dock-grid {
+  grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr) minmax(0, 1fr);
+}
 .activity-dock-body input,
-.activity-dock-body textarea {
+.activity-dock-body textarea,
+.activity-dock-body select {
   width: 100%;
   border: 1px solid #d8dde6;
   border-radius: 6px;
@@ -14566,20 +14587,68 @@ button {
   font-size: 13px;
   outline: none;
 }
-.activity-dock-body input {
+.activity-dock-body input,
+.activity-dock-body select {
   height: 38px;
   padding: 0 10px;
   font-weight: 750;
+}
+.activity-dock-body select {
+  cursor: pointer;
 }
 .activity-dock-body textarea {
   min-height: 124px;
   resize: vertical;
   padding: 10px;
 }
+.activity-dock-email textarea {
+  min-height: 150px;
+}
+.activity-dock-task textarea,
+.activity-dock-call textarea {
+  min-height: 110px;
+}
+.activity-dock-event textarea {
+  min-height: 86px;
+}
 .activity-dock-body input:focus,
-.activity-dock-body textarea:focus {
+.activity-dock-body textarea:focus,
+.activity-dock-body select:focus {
   border-color: #0176d3;
   box-shadow: 0 0 0 3px rgba(1, 118, 211, .14);
+}
+.activity-dock-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 32px;
+  padding: 5px;
+  border: 1px solid #e5e8ee;
+  border-radius: 6px;
+  background: #f8fafc;
+}
+.activity-dock-toolbar button {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 26px;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  color: #52657c;
+  cursor: pointer;
+}
+.activity-dock-toolbar button:hover {
+  background: #eaf1f8;
+  color: #0176d3;
+}
+.activity-dock-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  color: #334155;
+  font-size: 12px;
+  font-weight: 750;
 }
 .activity-dock-foot {
   display: flex;
@@ -14597,6 +14666,10 @@ button {
   .activity-dock-window,
   .activity-dock-window.minimized {
     width: calc(100vw - 20px);
+  }
+  .activity-dock-grid,
+  .activity-dock-event .activity-dock-grid {
+    grid-template-columns: 1fr;
   }
 }
 .sf-note-box { display: flex; align-items: center; gap: 8px; margin: 13px 15px; padding: 9px 12px; border: 1px solid var(--sf-bd); border-radius: 4px; }
