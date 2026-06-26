@@ -14474,6 +14474,131 @@ button {
 .sf-activity-tabs { display: flex; border-bottom: 1px solid var(--sf-bd); }
 .sf-activity-tab { flex: 1; display: flex; align-items: center; justify-content: center; gap: 6px; padding: 10px 0; border: 0; background: transparent; font-size: 13px; color: var(--sf-mut); font-weight: 500; cursor: pointer; border-bottom: 2px solid transparent; }
 .sf-activity-tab.active { color: var(--sf-blue); font-weight: 800; border-bottom-color: var(--sf-blue); }
+.activity-dock {
+  position: fixed;
+  right: 18px;
+  bottom: 18px;
+  z-index: 1200;
+  display: flex;
+  flex-direction: row-reverse;
+  align-items: flex-end;
+  gap: 12px;
+  max-width: calc(100vw - 36px);
+  pointer-events: none;
+}
+.activity-dock-window {
+  width: min(360px, calc(100vw - 36px));
+  overflow: hidden;
+  border: 1px solid rgba(15, 23, 42, .16);
+  border-radius: 8px 8px 0 0;
+  background: #fff;
+  box-shadow: 0 18px 46px rgba(15, 23, 42, .24);
+  pointer-events: auto;
+}
+.activity-dock-window.minimized {
+  width: 260px;
+}
+.activity-dock-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 54px;
+  padding: 10px 12px;
+  background: #14345c;
+  color: #fff;
+}
+.activity-dock-head > div:first-child {
+  min-width: 0;
+}
+.activity-dock-head strong {
+  display: block;
+  overflow: hidden;
+  color: #fff;
+  font-size: 14px;
+  line-height: 1.2;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.activity-dock-kind {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 2px;
+  color: rgba(255, 255, 255, .75);
+  font-size: 11px;
+  font-weight: 850;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+}
+.activity-dock-controls {
+  display: flex;
+  gap: 4px;
+  flex: 0 0 auto;
+}
+.activity-dock-controls button {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border: 1px solid rgba(255, 255, 255, .18);
+  border-radius: 6px;
+  background: rgba(255, 255, 255, .08);
+  color: #fff;
+  cursor: pointer;
+}
+.activity-dock-controls button:hover {
+  background: rgba(255, 255, 255, .18);
+}
+.activity-dock-body {
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+}
+.activity-dock-body input,
+.activity-dock-body textarea {
+  width: 100%;
+  border: 1px solid #d8dde6;
+  border-radius: 6px;
+  background: #fff;
+  color: #111827;
+  font: inherit;
+  font-size: 13px;
+  outline: none;
+}
+.activity-dock-body input {
+  height: 38px;
+  padding: 0 10px;
+  font-weight: 750;
+}
+.activity-dock-body textarea {
+  min-height: 124px;
+  resize: vertical;
+  padding: 10px;
+}
+.activity-dock-body input:focus,
+.activity-dock-body textarea:focus {
+  border-color: #0176d3;
+  box-shadow: 0 0 0 3px rgba(1, 118, 211, .14);
+}
+.activity-dock-foot {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+@media (max-width: 760px) {
+  .activity-dock {
+    right: 10px;
+    bottom: 10px;
+    flex-direction: column-reverse;
+    align-items: stretch;
+    max-width: calc(100vw - 20px);
+  }
+  .activity-dock-window,
+  .activity-dock-window.minimized {
+    width: calc(100vw - 20px);
+  }
+}
 .sf-note-box { display: flex; align-items: center; gap: 8px; margin: 13px 15px; padding: 9px 12px; border: 1px solid var(--sf-bd); border-radius: 4px; }
 .sf-note-box input[name="body"] { flex: 1; border: 0; outline: none; font-size: 12.5px; background: transparent; }
 .sf-note-tools { display: flex; gap: 11px; color: #b6bbc2; }

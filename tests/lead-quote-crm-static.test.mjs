@@ -158,6 +158,25 @@ test('record activity feeds expose a usable filter bar', () => {
   assert.doesNotMatch(source, /Filters: This job - All activities - All types/);
 });
 
+test('record activity buttons open docked Salesforce-style composer windows', () => {
+  assert.match(source, /dockedActivityComposers: \[\]/);
+  assert.match(source, /ACTIVITY_COMPOSER_CONFIG/);
+  assert.match(source, /function openDockedActivityComposer\(relatedType, relatedId, kind\)/);
+  assert.match(source, /function renderDockedActivityComposers\(\)/);
+  assert.match(source, /renderDockedActivityComposers\(\)/);
+  assert.match(source, /data-action="open-docked-activity"/);
+  assert.match(source, /data-action="minimize-docked-activity"/);
+  assert.match(source, /data-action="close-docked-activity"/);
+  assert.match(source, /data-docked-activity-form/);
+  assert.match(source, /submitDockedActivityComposer\(event\.target\)/);
+  assert.match(source, /openDockedActivityComposer\(node\.dataset\.relatedType, node\.dataset\.relatedId, node\.dataset\.kind \|\| node\.dataset\.tab\)/);
+  assert.match(source, /data-related-type="contact" data-related-id="\$\{h\(contact\.id\)\}"/);
+  assert.match(source, /data-related-type="job" data-related-id="\$\{h\(job\.id\)\}"/);
+  assert.match(source, /data-related-type="deal" data-related-id="\$\{h\(deal\.id\)\}"/);
+  assert.match(styles, /\.activity-dock \{/);
+  assert.match(styles, /\.activity-dock-window/);
+});
+
 test('account record tabs use contacts and quotes language', () => {
   assert.doesNotMatch(source, /\['deals', 'Deals'/);
   assert.match(source, /\['contacts', 'Contacts', contacts\.length\]/);

@@ -130,6 +130,44 @@ const ACTIVITY_FILTER_OPTIONS = [
   { id: 'meetings', label: 'Meetings', types: ['meeting'] },
 ];
 
+const ACTIVITY_COMPOSER_CONFIG = {
+  Email: {
+    icon: 'ti-mail',
+    type: 'email',
+    action: 'Send email',
+    subject: 'Email',
+    placeholder: 'Write the email message...',
+  },
+  Note: {
+    icon: 'ti-note',
+    type: 'note',
+    action: 'Save note',
+    subject: 'Note',
+    placeholder: 'Write a note or @mention...',
+  },
+  'New Task': {
+    icon: 'ti-checkbox',
+    type: 'task',
+    action: 'Create task',
+    subject: 'Task',
+    placeholder: 'Add task details...',
+  },
+  'New Event': {
+    icon: 'ti-calendar',
+    type: 'meeting',
+    action: 'Save event',
+    subject: 'Meeting',
+    placeholder: 'Add meeting details...',
+  },
+  'Log a Call': {
+    icon: 'ti-phone',
+    type: 'call',
+    action: 'Log call',
+    subject: 'Call',
+    placeholder: 'Summarize the call...',
+  },
+};
+
 const CONTACT_SORT_OPTIONS = [
   { id: 'name', label: 'Name', field: 'name', dir: 'asc' },
   { id: 'updated', label: 'Recently updated', field: 'updated_at', dir: 'desc' },
@@ -1487,6 +1525,7 @@ const state = {
   dealPrefill: null,
   activityPrefill: null,
   activityFilter: 'all',
+  dockedActivityComposers: [],
   contactPrefill: null,
   selectedJobId: '',
   selectedTaskId: '',
@@ -2473,6 +2512,7 @@ function shellTemplate(route, workspace) {
       ${renderMobileMoreSheet(route, companyId)}
     </div>
     ${renderActiveModal(route, session)}
+    ${renderDockedActivityComposers()}
     ${renderToast()}
   `;
 }
@@ -3719,7 +3759,7 @@ function renderContactRecord(companyId, contact) {
 
         <div class="sf-col">
           <div class="sf-card">
-            <div class="sf-activity-tabs">${activityTabs.map(([label, ico]) => `<button class="sf-activity-tab ${activeTab === label ? 'active' : ''}" type="button" data-action="contact-activity-tab" data-tab="${h(label)}"><i class="ti ${ico}"></i>${label}</button>`).join('')}</div>
+            <div class="sf-activity-tabs">${activityTabs.map(([label, ico]) => `<button class="sf-activity-tab ${activeTab === label ? 'active' : ''}" type="button" data-action="open-docked-activity" data-related-type="contact" data-related-id="${h(contact.id)}" data-kind="${h(label)}" data-tab="${h(label)}"><i class="ti ${ico}"></i>${label}</button>`).join('')}</div>
             <form class="sf-note-box" data-contact-note-form autocomplete="off">
               <input type="hidden" name="contact_id" value="${h(contact.id)}" />
               <input name="body" placeholder="Write a note or @mention…" />
@@ -4598,7 +4638,7 @@ function renderJobRecord(companyId, job) {
 
         <div class="sf-col">
           <div class="sf-card">
-            <div class="sf-activity-tabs">${activityTabs.map(([label, ico]) => `<button class="sf-activity-tab ${activeTab === label ? 'active' : ''}" type="button" data-action="job-activity-tab" data-tab="${h(label)}"><i class="ti ${ico}"></i>${label}</button>`).join('')}</div>
+            <div class="sf-activity-tabs">${activityTabs.map(([label, ico]) => `<button class="sf-activity-tab ${activeTab === label ? 'active' : ''}" type="button" data-action="open-docked-activity" data-related-type="job" data-related-id="${h(job.id)}" data-kind="${h(label)}" data-tab="${h(label)}"><i class="ti ${ico}"></i>${label}</button>`).join('')}</div>
             <form class="sf-note-box" data-job-note-form autocomplete="off">
               <input type="hidden" name="job_id" value="${h(job.id)}" />
               <input name="body" placeholder="Write a note or @mention..." />
@@ -7022,7 +7062,7 @@ function renderDealDetail(companyId, deal) {
 
         <div class="sf-col">
           <div class="sf-card">
-            <div class="sf-activity-tabs">${activityTabs.map(([label, ico]) => `<button class="sf-activity-tab ${activeTab === label ? 'active' : ''}" type="button" data-action="deal-activity-tab" data-tab="${h(label)}"><i class="ti ${ico}"></i>${label}</button>`).join('')}</div>
+            <div class="sf-activity-tabs">${activityTabs.map(([label, ico]) => `<button class="sf-activity-tab ${activeTab === label ? 'active' : ''}" type="button" data-action="open-docked-activity" data-related-type="deal" data-related-id="${h(deal.id)}" data-kind="${h(label)}" data-tab="${h(label)}"><i class="ti ${ico}"></i>${label}</button>`).join('')}</div>
             <form class="sf-note-box" data-deal-note-form autocomplete="off">
               <input type="hidden" name="deal_id" value="${h(deal.id)}" />
               <input name="body" placeholder="Write a note or @mention..." />
@@ -9210,6 +9250,21 @@ function handleAction(event, node) {
     }
     return;
   }
+  if (action === 'open-docked-activity') {
+    event.preventDefault();
+    openDockedActivityComposer(node.dataset.relatedType, node.dataset.relatedId, node.dataset.kind || node.dataset.tab);
+    return;
+  }
+  if (action === 'minimize-docked-activity') {
+    event.preventDefault();
+    minimizeDockedActivityComposer(node.dataset.composerId);
+    return;
+  }
+  if (action === 'close-docked-activity') {
+    event.preventDefault();
+    closeDockedActivityComposer(node.dataset.composerId);
+    return;
+  }
   if (action === 'set-activity-filter') {
     event.preventDefault();
     state.activityFilter = node.dataset.filter || 'all';
@@ -9700,7 +9755,7 @@ function handleAction(event, node) {
   if (action === 'deal-activity-tab') {
     event.preventDefault();
     state.dealActivityTab = node.dataset.tab || 'Email';
-    render();
+    openDockedActivityComposer('deal', node.dataset.dealId, node.dataset.kind || node.dataset.tab);
     return;
   }
   if (action === 'open-contact') {
@@ -9742,7 +9797,7 @@ function handleAction(event, node) {
   if (action === 'contact-activity-tab') {
     event.preventDefault();
     state.contactActivityTab = node.dataset.tab;
-    render();
+    openDockedActivityComposer('contact', node.dataset.contactId, node.dataset.kind || node.dataset.tab);
     return;
   }
   if (action === 'contact-convert-quote') {
@@ -9768,7 +9823,7 @@ function handleAction(event, node) {
   if (action === 'job-activity-tab') {
     event.preventDefault();
     state.jobActivityTab = node.dataset.tab || 'Note';
-    render();
+    openDockedActivityComposer('job', node.dataset.jobId, node.dataset.kind || node.dataset.tab);
     return;
   }
   if (action === 'convert-deal') {
@@ -10261,6 +10316,14 @@ function onDocumentSubmit(event) {
   if (event.target.matches('[data-contact-task-form]')) {
     event.preventDefault();
     addContactTask(event.target);
+    return;
+  }
+
+  if (event.target.matches('[data-docked-activity-form]')) {
+    event.preventDefault();
+    submitDockedActivityComposer(event.target).catch((error) => {
+      showToast(error.message || 'Could not save activity.', 'local', 'Activity');
+    });
     return;
   }
 
@@ -13949,6 +14012,135 @@ function filterActivities(items, filterId = state.activityFilter) {
 function filteredActivitiesFor(relatedType, relatedId) {
   return filterActivities(activitiesFor(relatedType, relatedId));
 }
+
+function normalizeActivityComposerKind(kind) {
+  const value = String(kind || '').trim();
+  const aliases = {
+    Task: 'New Task',
+    Meeting: 'New Event',
+    Event: 'New Event',
+    'Call Log': 'Log a Call',
+    Call: 'Log a Call',
+    'Add Note': 'Note',
+  };
+  const normalized = aliases[value] || value || 'Note';
+  return ACTIVITY_COMPOSER_CONFIG[normalized] ? normalized : 'Note';
+}
+
+function activityRelatedRecord(relatedType, relatedId) {
+  if (relatedType === 'contact') return contactById(relatedId);
+  if (relatedType === 'job') return jobById(relatedId);
+  if (relatedType === 'deal') return dealById(relatedId);
+  return null;
+}
+
+function activityRelatedLabel(record) {
+  return record?.name || record?.client_name || record?.title || 'Record';
+}
+
+function activityComposerId(relatedType, relatedId, kind) {
+  return `${relatedType}:${relatedId}:${normalizeActivityComposerKind(kind)}`;
+}
+
+function openDockedActivityComposer(relatedType, relatedId, kind) {
+  const cleanType = String(relatedType || '').trim();
+  const cleanId = String(relatedId || '').trim();
+  const normalizedKind = normalizeActivityComposerKind(kind);
+  if (!activityRelatedRecord(cleanType, cleanId)) return;
+  const id = activityComposerId(cleanType, cleanId, normalizedKind);
+  const existing = state.dockedActivityComposers.find((composer) => composer.id === id);
+  if (existing) {
+    existing.minimized = false;
+    existing.updated_at = Date.now();
+    render();
+    return;
+  }
+  state.dockedActivityComposers = [
+    ...state.dockedActivityComposers,
+    {
+      id,
+      related_type: cleanType,
+      related_id: cleanId,
+      kind: normalizedKind,
+      minimized: false,
+      created_at: Date.now(),
+      updated_at: Date.now(),
+    },
+  ].slice(-4);
+  render();
+}
+
+function closeDockedActivityComposer(composerId) {
+  state.dockedActivityComposers = state.dockedActivityComposers.filter((composer) => composer.id !== composerId);
+  render();
+}
+
+function minimizeDockedActivityComposer(composerId) {
+  const composer = state.dockedActivityComposers.find((item) => item.id === composerId);
+  if (!composer) return;
+  composer.minimized = !composer.minimized;
+  render();
+}
+
+function renderDockedActivityComposers() {
+  if (!state.dockedActivityComposers.length) return '';
+  const items = state.dockedActivityComposers.map((composer) => {
+    const record = activityRelatedRecord(composer.related_type, composer.related_id);
+    if (!record) return '';
+    const config = ACTIVITY_COMPOSER_CONFIG[composer.kind] || ACTIVITY_COMPOSER_CONFIG.Note;
+    const label = activityRelatedLabel(record);
+    const defaultSubject = `${config.subject}: ${label}`;
+    return `
+      <section class="activity-dock-window ${composer.minimized ? 'minimized' : ''}" aria-label="${h(composer.kind)} composer for ${h(label)}">
+        <div class="activity-dock-head">
+          <div>
+            <span class="activity-dock-kind"><i class="ti ${h(config.icon)}"></i>${h(composer.kind)}</span>
+            <strong>${h(label)}</strong>
+          </div>
+          <div class="activity-dock-controls">
+            <button type="button" data-action="minimize-docked-activity" data-composer-id="${h(composer.id)}" aria-label="${composer.minimized ? 'Restore composer' : 'Minimize composer'}"><i class="ti ${composer.minimized ? 'ti-window-maximize' : 'ti-minus'}"></i></button>
+            <button type="button" data-action="close-docked-activity" data-composer-id="${h(composer.id)}" aria-label="Close composer"><i class="ti ti-x"></i></button>
+          </div>
+        </div>
+        ${composer.minimized ? '' : `
+          <form class="activity-dock-body" data-docked-activity-form autocomplete="off">
+            <input type="hidden" name="composer_id" value="${h(composer.id)}" />
+            <input name="subject" value="${h(defaultSubject)}" aria-label="Subject" />
+            <textarea name="body" rows="5" placeholder="${h(config.placeholder)}" aria-label="Message"></textarea>
+            <div class="activity-dock-foot">
+              <button class="btn" type="button" data-action="close-docked-activity" data-composer-id="${h(composer.id)}">Cancel</button>
+              <button class="btn-primary" type="submit">${h(config.action)}</button>
+            </div>
+          </form>
+        `}
+      </section>
+    `;
+  }).join('');
+  return `<div class="activity-dock" aria-live="polite">${items}</div>`;
+}
+
+async function submitDockedActivityComposer(form) {
+  const formData = Object.fromEntries(new FormData(form).entries());
+  const composerId = String(formData.composer_id || '');
+  const composer = state.dockedActivityComposers.find((item) => item.id === composerId);
+  if (!composer) return;
+  const config = ACTIVITY_COMPOSER_CONFIG[composer.kind] || ACTIVITY_COMPOSER_CONFIG.Note;
+  const subject = String(formData.subject || config.subject).trim() || config.subject;
+  const body = String(formData.body || '').trim();
+  state.dockedActivityComposers = state.dockedActivityComposers.filter((item) => item.id !== composerId);
+
+  if (config.type === 'task') {
+    if (composer.related_type === 'contact') await createContactTask(composer.related_id, subject);
+    if (composer.related_type === 'job') await createJobTask(composer.related_id, subject);
+    if (composer.related_type === 'deal') await createDealTask(composer.related_id, subject);
+    return;
+  }
+
+  if (composer.related_type === 'contact') await logContactActivity(composer.related_id, config.type, subject, body);
+  if (composer.related_type === 'job') await logJobActivity(composer.related_id, config.type, subject, body);
+  if (composer.related_type === 'deal') await logDealActivity(composer.related_id, config.type, subject, body);
+}
+
 function renderActivityFilterBar(totalCount, visibleCount) {
   const active = activityFilterOption();
   return `
@@ -14660,6 +14852,9 @@ function isMutableAction(action = '') {
     'toggle-sidebar',
     'toggle-nav-group',
     'toggle-nav-expand',
+    'open-docked-activity',
+    'minimize-docked-activity',
+    'close-docked-activity',
     'set-activity-filter',
     'pipeline-open',
     'pipeline-stage',
