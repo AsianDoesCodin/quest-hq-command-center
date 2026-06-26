@@ -54,7 +54,7 @@ test('workspace presets install industry plugin bundles', () => {
   assert.match(source, /const WORKSPACE_PLUGIN_PRESETS = \{/);
   assert.match(source, /roofing: \['crm_2', 'underwriter', 'files', 'forms', 'finance', 'messages', 'calendar', 'approvals', 'reporting'\]/);
   assert.match(source, /construction: \['files', 'forms', 'finance', 'messages', 'calendar', 'time_clock', 'approvals', 'reporting'\]/);
-  assert.match(source, /generic: \['crm', 'files', 'messages'\]/);
+  assert.match(source, /generic: \['crm', 'files', 'messages', 'workspace_builder'\]/);
   assert.match(source, /name="preset_code"/);
   assert.match(source, /client\.rpc\('create_company_workspace', \{ company_name: companyName, preset_code: presetCode, icon_key: iconKey \}\)/);
 });
@@ -63,6 +63,7 @@ test('navigation and routes are gated by installed plugins', () => {
   assert.match(source, /function renderPluginBlockedPage\(companyId, moduleMeta\)/);
   assert.match(source, /if \(!isModuleInstalled\(route\.section, companyId\)\) return renderPluginBlockedPage\(companyId, moduleMeta\);/);
   assert.match(source, /if \(route\.section === 'underwriter'\) return renderUnderwriterPage\(route, companyId\);/);
+  assert.match(source, /if \(route\.section === 'workspaces'\) return renderWorkspaceBuilderPage\(route, companyId\);/);
   assert.match(source, /function renderUnderwriterPage\(route, companyId\)/);
   assert.match(source, /if \(!isModuleInstalled\(module\.id, companyId\)\) return false;/);
   assert.match(source, /installedModulesForMobileWork\(companyId\)/);

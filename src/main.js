@@ -62,12 +62,13 @@ const CLIENT_PORTAL_ANNOTATION_CACHE_KEY = 'quest-hq-client-portal-annotation-ca
 const CLIENT_PORTAL_EVENT_CACHE_KEY = 'quest-hq-client-portal-event-cache-v1';
 const CLIENT_PORTAL_SESSION_KEY = 'quest-client-portal-session-v1';
 const CLIENT_PORTAL_TOKEN_CACHE_KEY = 'quest-client-portal-token-cache-v1';
+const WORKSPACE_BUILDER_STORAGE_PREFIX = 'qhq_workspace_builder_v1';
 
 const ROLE_PERMISSIONS = {
   developer: ['*'],
   admin: ['*'],
   owner: ['*'],
-  manager: ['jobs.view', 'jobs.manage', 'tasks.view', 'tasks.manage', 'files.view', 'files.manage', 'forms.view', 'forms.manage', 'crm.view', 'underwriter.view', 'underwriter.manage', 'finance.view', 'team.view', 'clock.manage', 'approvals.manage', 'approvals.view', 'calendar.view', 'calendar.manage', 'calendar.view_team', 'users.view', 'settings.view', 'billing.view', 'roles.view', 'messages.view', 'messages.send', 'messages.create_group', 'messages.manage_groups', 'messages.attach_files', 'client_portals.view', 'client_portals.manage'],
+  manager: ['jobs.view', 'jobs.manage', 'tasks.view', 'tasks.manage', 'files.view', 'files.manage', 'forms.view', 'forms.manage', 'crm.view', 'underwriter.view', 'underwriter.manage', 'finance.view', 'team.view', 'clock.manage', 'approvals.manage', 'approvals.view', 'calendar.view', 'calendar.manage', 'calendar.view_team', 'users.view', 'settings.view', 'billing.view', 'roles.view', 'messages.view', 'messages.send', 'messages.create_group', 'messages.manage_groups', 'messages.attach_files', 'client_portals.view', 'client_portals.manage', 'workspaces.view', 'workspaces.manage'],
   member: ['jobs.view', 'tasks.view', 'tasks.manage', 'files.view', 'forms.view', 'time.track', 'approvals.view', 'calendar.view', 'users.view', 'messages.view', 'messages.send', 'messages.attach_files'],
 };
 
@@ -112,6 +113,8 @@ const PERMISSION_KEYS = [
   ['messages.manage', 'Manage messages (compatibility)'],
   ['client_portals.view', 'View client portals'],
   ['client_portals.manage', 'Manage client portals'],
+  ['workspaces.view', 'View workspace builder'],
+  ['workspaces.manage', 'Manage workspace builder'],
 ];
 
 const PERMISSION_ALIASES = {
@@ -126,6 +129,7 @@ const WORKSPACE_PLUGIN_REGISTRY = [
   { id: 'underwriter', label: 'Underwriter', summary: 'Qualification, scope, pricing, and handoff readiness queue.', icon: 'ti-clipboard-search', module_ids: ['underwriter'], permissions: ['underwriter.view', 'underwriter.manage'], recommendedWith: ['crm_2'] },
   { id: 'files', label: 'Files', summary: 'Shared files, job folders, and document storage.', icon: 'ti-folder', module_ids: ['files'], permissions: ['files.view', 'files.manage'] },
   { id: 'client_portal', label: 'Client Portal', summary: 'Password-protected plan links, markups, comments, and client review.', icon: 'ti-world-upload', module_ids: ['client-portals'], permissions: ['client_portals.view', 'client_portals.manage'], recommendedWith: ['files'] },
+  { id: 'workspace_builder', label: 'Workspace Builder', summary: 'No-code workspaces, custom apps, fields, items, reports, and automations.', icon: 'ti-layout-grid-add', module_ids: ['workspaces'], permissions: ['workspaces.view', 'workspaces.manage'] },
   { id: 'forms', label: 'Forms', summary: 'Internal forms, templates, and response capture.', icon: 'ti-clipboard-list', module_ids: ['forms'], permissions: ['forms.view', 'forms.manage'] },
   { id: 'finance', label: 'Finance', summary: 'Invoices, payments, expenses, vendors, and AR.', icon: 'ti-receipt-dollar', module_ids: ['finance'], permissions: ['finance.view', 'finance.manage'] },
   { id: 'messages', label: 'Messages', summary: 'Company chats, role rooms, direct messages, and attachments.', icon: 'ti-messages', module_ids: ['messages'], permissions: ['messages.view', 'messages.send', 'messages.create_group', 'messages.manage_groups', 'messages.attach_files', 'messages.delete_own', 'messages.delete_any', 'messages.manage'] },
@@ -142,7 +146,7 @@ const WORKSPACE_PLUGIN_REGISTRY = [
 const WORKSPACE_PLUGIN_PRESETS = {
   roofing: ['crm_2', 'underwriter', 'files', 'forms', 'finance', 'messages', 'calendar', 'approvals', 'reporting'],
   construction: ['files', 'forms', 'finance', 'messages', 'calendar', 'time_clock', 'approvals', 'reporting'],
-  generic: ['crm', 'files', 'messages'],
+  generic: ['crm', 'files', 'messages', 'workspace_builder'],
 };
 const WORKSPACE_PLUGIN_PRESET_LABELS = {
   roofing: 'Roofing',
@@ -258,6 +262,7 @@ const MODULE_REGISTRY = [
   { id: 'files', group: 'Workspace', label: 'Files', icon: 'ti-folder', symbol: 'q-symbol-files', status: 'live', permission: 'files.view' },
   { id: 'forms', group: 'Workspace', label: 'Forms', icon: 'ti-clipboard-list', symbol: 'q-symbol-forms', status: 'live', permission: 'forms.view' },
   { id: 'client-portals', group: 'Workspace', label: 'Client portals', icon: 'ti-world-upload', symbol: 'q-symbol-files', status: 'live', permission: 'client_portals.view' },
+  { id: 'workspaces', group: 'Workspace', label: 'Workspaces', icon: 'ti-layout-grid-add', symbol: 'q-symbol-templates', status: 'live', permission: 'workspaces.view' },
   { id: 'analytics', group: 'Workspace', label: 'Analytics', icon: 'ti-chart-bar', symbol: 'q-symbol-analytics', status: 'live', permission: 'jobs.view' },
   { id: 'crm', group: 'Workspace', label: 'Accounts', icon: 'ti-building-community', symbol: 'q-symbol-crm', status: 'live', permission: 'crm.view' },
   { id: 'contacts', group: 'Contacts · Top of Funnel', label: 'Contacts', icon: 'ti-id-badge-2', symbol: 'q-symbol-crm', status: 'live', permission: 'crm.view' },
@@ -2798,7 +2803,7 @@ function installedLiveModules(companyId) {
 }
 
 function installedModulesForMobileWork(companyId) {
-  return ['jobs', 'tasks', 'underwriter', 'calendar', 'crm', 'contacts', 'deals', 'finance', 'forms', 'client-portals', 'users', 'time', 'approvals', 'clock', 'team-chart']
+  return ['jobs', 'tasks', 'underwriter', 'calendar', 'crm', 'contacts', 'deals', 'finance', 'forms', 'client-portals', 'workspaces', 'users', 'time', 'approvals', 'clock', 'team-chart']
     .filter((moduleId) => isModuleInstalled(moduleId, companyId));
 }
 
@@ -2810,6 +2815,7 @@ function permissionPluginIds(permission) {
   if (clean.startsWith('forms.')) return ['forms'];
   if (clean.startsWith('finance.')) return ['finance'];
   if (clean.startsWith('client_portals.')) return ['client_portal'];
+  if (clean.startsWith('workspaces.')) return ['workspace_builder'];
   if (clean.startsWith('messages.')) return ['messages'];
   if (clean.startsWith('calendar.')) return ['calendar'];
   if (['time.track', 'clock.manage'].includes(clean)) return ['time_clock'];
@@ -2840,6 +2846,7 @@ function moduleBadgeCount(moduleId, companyId = activeCompanyId()) {
   if (moduleId === 'tasks') return companyTasks(companyId).length;
   if (moduleId === 'files') return companyFiles(companyId).length;
   if (moduleId === 'client-portals') return companyClientPortals(companyId).length;
+  if (moduleId === 'workspaces') return loadWorkspaceBuilderState(companyId).workspaces.length;
   if (moduleId === 'forms') return companyForms(companyId).length;
   if (moduleId === 'crm') return companyAccounts(companyId).length;
   if (moduleId === 'contacts') return companyContacts(companyId).length;
@@ -2884,6 +2891,7 @@ function renderWorkspace(route) {
   if (route.section === 'tasks') return renderTasksPage(route, companyId);
   if (route.section === 'files') return renderFilesPage(route, companyId);
   if (route.section === 'client-portals') return renderClientPortalsPage(route, companyId);
+  if (route.section === 'workspaces') return renderWorkspaceBuilderPage(route, companyId);
   if (route.section === 'users') return renderUsersPage(route, companyId);
   if (route.section === 'settings') return renderSettingsPage(route, companyId);
   if (route.section === 'forms') return renderFormsPage(companyId);
@@ -5138,6 +5146,368 @@ function renderTeamNode(companyId, member, members, depth = 0) {
       ${reports.length ? `<div class="team-node-children">${reports.map((report) => renderTeamNode(companyId, report, members, depth + 1)).join('')}</div>` : ''}
     </article>
   `;
+}
+
+function workspaceBuilderStorageKey(companyId) {
+  return `${WORKSPACE_BUILDER_STORAGE_PREFIX}:${canonicalCompanyId(companyId)}`;
+}
+
+function seedWorkspaceBuilderState(companyId) {
+  const workspaceId = `builder-workspace-${canonicalCompanyId(companyId)}-sales`;
+  const appId = `builder-app-${canonicalCompanyId(companyId)}-contacts`;
+  const fields = [
+    { id: 'field-name', label: 'Name', type: 'text' },
+    { id: 'field-company', label: 'Company', type: 'text' },
+    { id: 'field-status', label: 'Status', type: 'status' },
+    { id: 'field-value', label: 'Value', type: 'money' },
+    { id: 'field-owner', label: 'Owner', type: 'user' },
+  ];
+  return {
+    version: 1,
+    workspaces: [{
+      id: workspaceId,
+      name: 'Sales CRM',
+      description: 'Track custom lead data without changing the core CRM.',
+      color: '#e66a1f',
+      apps: [{
+        id: appId,
+        name: 'Lead tracker',
+        type: 'Pipeline',
+        description: 'A custom app with fields, records, reports, and automation notes.',
+        fields,
+        items: [
+          { id: 'builder-item-1', values: { 'field-name': 'Greenfield HOA', 'field-company': 'Greenfield HOA', 'field-status': 'Contacted', 'field-value': '48000', 'field-owner': 'Maya Rosales' }, created_at: '2026-06-21' },
+          { id: 'builder-item-2', values: { 'field-name': 'Tariq Mansour', 'field-company': 'Mansour Residence', 'field-status': 'Prospect', 'field-value': '12500', 'field-owner': 'Abraham Flores' }, created_at: '2026-06-23' },
+        ],
+        automations: [
+          { id: 'builder-auto-1', name: 'When status is Won, notify owner', enabled: true },
+        ],
+      }],
+    }],
+  };
+}
+
+function loadWorkspaceBuilderState(companyId) {
+  const seeded = seedWorkspaceBuilderState(companyId);
+  const value = readJson(workspaceBuilderStorageKey(companyId), seeded);
+  if (!value || !Array.isArray(value.workspaces)) return seeded;
+  return {
+    version: 1,
+    workspaces: value.workspaces.map((workspace) => ({
+      id: workspace.id || crypto.randomUUID(),
+      name: workspace.name || 'Untitled workspace',
+      description: workspace.description || '',
+      color: workspace.color || '#e66a1f',
+      apps: Array.isArray(workspace.apps) ? workspace.apps.map((app) => ({
+        id: app.id || crypto.randomUUID(),
+        name: app.name || 'Untitled app',
+        type: app.type || 'Custom',
+        description: app.description || '',
+        fields: Array.isArray(app.fields) ? app.fields : [],
+        items: Array.isArray(app.items) ? app.items : [],
+        automations: Array.isArray(app.automations) ? app.automations : [],
+      })) : [],
+    })),
+  };
+}
+
+function saveWorkspaceBuilderState(companyId, builderState) {
+  writeJson(workspaceBuilderStorageKey(companyId), builderState);
+}
+
+function workspaceBuilderFind(builderState, workspaceId, appId = '') {
+  const workspace = builderState.workspaces.find((item) => item.id === workspaceId) || builderState.workspaces[0] || null;
+  const app = workspace && appId ? workspace.apps.find((item) => item.id === appId) : null;
+  return { workspace, app };
+}
+
+function renderWorkspaceBuilderPage(route, companyId) {
+  const builderState = loadWorkspaceBuilderState(companyId);
+  const workspaceId = route.params.get('workspace_id') || '';
+  const appId = route.params.get('app_id') || '';
+  if (workspaceId && appId) return renderBuilderAppDetail(route, companyId, builderState);
+  if (workspaceId) return renderBuilderWorkspaceDetail(route, companyId, builderState);
+  return renderBuilderWorkspaceList(companyId, builderState);
+}
+
+function renderBuilderWorkspaceList(companyId, builderState) {
+  const canManage = can('workspaces.manage', companyId);
+  return `
+    ${workspaceHeader('Workspaces', 'Build no-code dashboards, custom apps, fields, items, reports, and automation notes inside this company.', `
+      <a class="btn" href="${appHref(companyPath('settings', { tab: 'plugins' }, companyId))}" data-router><i class="ti ti-plug"></i>Plugin settings</a>
+    `)}
+    <section class="builder-shell">
+      <div class="builder-grid">
+        ${builderState.workspaces.map((workspace) => renderBuilderWorkspaceCard(companyId, workspace)).join('')}
+        <article class="builder-card builder-create-card">
+          <div class="builder-card-icon"><i class="ti ti-layout-grid-add"></i></div>
+          <strong>New workspace</strong>
+          <span>Create a blank workspace for a team, process, or department.</span>
+          <form class="builder-inline-form" data-builder-workspace-form>
+            <input data-builder-workspace-name name="name" placeholder="Workspace name" ${canManage ? '' : 'disabled'} />
+            <input name="description" placeholder="Description" ${canManage ? '' : 'disabled'} />
+            <button class="btn btn-primary" type="button" data-action="builder-create-workspace" ${canManage ? '' : 'disabled'}><i class="ti ti-plus"></i>Create</button>
+          </form>
+        </article>
+      </div>
+    </section>
+  `;
+}
+
+function renderBuilderWorkspaceCard(companyId, workspace) {
+  const itemCount = workspace.apps.reduce((sum, app) => sum + app.items.length, 0);
+  return `
+    <a class="builder-card" href="${appHref(companyPath('workspaces', { workspace_id: workspace.id }, companyId))}" data-router>
+      <div class="builder-card-icon" style="--builder-accent:${h(workspace.color)}"><i class="ti ti-layout-grid"></i></div>
+      <strong>${h(workspace.name)}</strong>
+      <span>${h(workspace.description || 'No description')}</span>
+      <div class="builder-card-meta"><b>${h(workspace.apps.length)} apps</b><b>${h(itemCount)} items</b></div>
+    </a>
+  `;
+}
+
+function renderBuilderWorkspaceDetail(route, companyId, builderState) {
+  const { workspace } = workspaceBuilderFind(builderState, route.params.get('workspace_id') || '');
+  if (!workspace) return renderBuilderWorkspaceList(companyId, builderState);
+  const canManage = can('workspaces.manage', companyId);
+  return `
+    ${workspaceHeader(workspace.name, workspace.description || 'Custom app workspace.', `
+      <a class="btn" href="${appHref(companyPath('workspaces', {}, companyId))}" data-router><i class="ti ti-arrow-left"></i>All workspaces</a>
+    `)}
+    <section class="builder-shell">
+      <div class="builder-grid">
+        ${workspace.apps.map((app) => renderBuilderAppCard(companyId, workspace, app)).join('')}
+        <article class="builder-card builder-create-card">
+          <div class="builder-card-icon"><i class="ti ti-apps"></i></div>
+          <strong>Add app</strong>
+          <span>Apps are custom tables with fields, records, reports, and automations.</span>
+          <form class="builder-inline-form" data-builder-app-form data-workspace-id="${h(workspace.id)}">
+            <input data-builder-app-name name="name" placeholder="App name" ${canManage ? '' : 'disabled'} />
+            <input name="type" placeholder="Type, e.g. Contacts" ${canManage ? '' : 'disabled'} />
+            <button class="btn btn-primary" type="button" data-action="builder-create-app" ${canManage ? '' : 'disabled'}><i class="ti ti-plus"></i>Create app</button>
+          </form>
+        </article>
+      </div>
+    </section>
+  `;
+}
+
+function renderBuilderAppCard(companyId, workspace, app) {
+  return `
+    <a class="builder-card" href="${appHref(companyPath('workspaces', { workspace_id: workspace.id, app_id: app.id }, companyId))}" data-router>
+      <div class="builder-card-icon"><i class="ti ti-table"></i></div>
+      <strong>${h(app.name)}</strong>
+      <span>${h(app.description || app.type || 'Custom app')}</span>
+      <div class="builder-card-meta"><b>${h(app.fields.length)} fields</b><b>${h(app.items.length)} items</b></div>
+    </a>
+  `;
+}
+
+function renderBuilderAppDetail(route, companyId, builderState) {
+  const { workspace, app } = workspaceBuilderFind(builderState, route.params.get('workspace_id') || '', route.params.get('app_id') || '');
+  if (!workspace || !app) return renderBuilderWorkspaceList(companyId, builderState);
+  const tab = ['items', 'fields', 'reports', 'automations'].includes(route.params.get('tab')) ? route.params.get('tab') : 'items';
+  const tabPath = (nextTab) => companyPath('workspaces', { workspace_id: workspace.id, app_id: app.id, tab: nextTab }, companyId);
+  return `
+    ${workspaceHeader(app.name, `${workspace.name} / ${app.type || 'Custom app'}`, `
+      <a class="btn" href="${appHref(companyPath('workspaces', { workspace_id: workspace.id }, companyId))}" data-router><i class="ti ti-arrow-left"></i>${h(workspace.name)}</a>
+    `)}
+    <section class="builder-shell">
+      <nav class="tabbar">
+        ${['items', 'fields', 'reports', 'automations'].map((item) => `<a class="${tab === item ? 'active' : ''}" href="${appHref(tabPath(item))}" data-router>${h(titleCase(item))}</a>`).join('')}
+      </nav>
+      ${tab === 'items' ? renderBuilderItemsTab(companyId, workspace, app) : ''}
+      ${tab === 'fields' ? renderBuilderFieldsTab(companyId, workspace, app) : ''}
+      ${tab === 'reports' ? renderBuilderReportsTab(app) : ''}
+      ${tab === 'automations' ? renderBuilderAutomationsTab(app) : ''}
+    </section>
+  `;
+}
+
+function renderBuilderFieldsTab(companyId, workspace, app) {
+  const canManage = can('workspaces.manage', companyId);
+  return `
+    <div class="builder-two-col">
+      <article class="panel">
+        <div class="section-head"><div><h2>Fields</h2><p>Shape the data this app stores.</p></div></div>
+        <div class="builder-field-list">
+          ${app.fields.map((field) => `<span class="builder-field-pill"><i class="ti ${h(builderFieldIcon(field.type))}"></i>${h(field.label)}<small>${h(builderFieldLabel(field.type))}</small></span>`).join('') || emptyState('No fields yet.')}
+        </div>
+      </article>
+      <article class="panel">
+        <div class="section-head"><div><h2>Add field</h2><p>Start simple. Add more field controls later.</p></div></div>
+        <form class="builder-inline-form" data-builder-field-form data-workspace-id="${h(workspace.id)}" data-app-id="${h(app.id)}">
+          <input data-builder-field-label name="label" placeholder="Field label" ${canManage ? '' : 'disabled'} />
+          <select name="field_type" ${canManage ? '' : 'disabled'}>${BUILDER_FIELD_TYPES.map((fieldType) => `<option value="${h(fieldType.id)}">${h(fieldType.label)}</option>`).join('')}</select>
+          <button class="btn btn-primary" type="button" data-action="builder-create-field" ${canManage ? '' : 'disabled'}><i class="ti ti-plus"></i>Add field</button>
+        </form>
+      </article>
+    </div>
+  `;
+}
+
+function renderBuilderItemsTab(companyId, workspace, app) {
+  const canManage = can('workspaces.manage', companyId);
+  return `
+    <div class="builder-two-col">
+      <article class="panel builder-main-panel">
+        <div class="section-head"><div><h2>Items</h2><p>${h(app.items.length)} record${app.items.length === 1 ? '' : 's'} in this custom app.</p></div></div>
+        ${renderBuilderItemsTable(app)}
+      </article>
+      <article class="panel">
+        <div class="section-head"><div><h2>Add item</h2><p>Uses the fields configured for this app.</p></div></div>
+        ${app.fields.length ? `
+          <form class="builder-inline-form" data-builder-item-form data-workspace-id="${h(workspace.id)}" data-app-id="${h(app.id)}">
+            ${app.fields.map((field) => `<label><span>${h(field.label)}</span><input data-builder-item-field name="${h(field.id)}" placeholder="${h(builderFieldLabel(field.type))}" ${canManage ? '' : 'disabled'} /></label>`).join('')}
+            <button class="btn btn-primary" type="button" data-action="builder-create-item" ${canManage ? '' : 'disabled'}><i class="ti ti-plus"></i>Add item</button>
+          </form>
+        ` : emptyState('Add fields before creating items.')}
+      </article>
+    </div>
+  `;
+}
+
+function renderBuilderItemsTable(app) {
+  if (!app.fields.length) return emptyState('This app has no fields yet.');
+  if (!app.items.length) return emptyState('No items yet.');
+  const columns = app.fields.slice(0, 6);
+  return `
+    <div class="builder-app-table">
+      <div class="builder-table-head">${columns.map((field) => `<span>${h(field.label)}</span>`).join('')}</div>
+      ${app.items.map((item) => `<div class="builder-table-row">${columns.map((field) => `<span>${h(formatBuilderValue(field, item.values?.[field.id]))}</span>`).join('')}</div>`).join('')}
+    </div>
+  `;
+}
+
+function renderBuilderReportsTab(app) {
+  const moneyFields = app.fields.filter((field) => field.type === 'money');
+  const total = moneyFields[0] ? app.items.reduce((sum, item) => sum + number(item.values?.[moneyFields[0].id]), 0) : 0;
+  return `
+    <div class="metric-grid">
+      ${metricCard('Items', app.items.length, 'Custom records', 'ti-database')}
+      ${metricCard('Fields', app.fields.length, 'Configured fields', 'ti-forms')}
+      ${metricCard('Automations', app.automations.length, 'Workflow rules', 'ti-bolt')}
+      ${metricCard('Value', money(total), moneyFields[0]?.label || 'No money field', 'ti-currency-dollar')}
+    </div>
+  `;
+}
+
+function renderBuilderAutomationsTab(app) {
+  return `
+    <article class="panel">
+      <div class="section-head"><div><h2>Automations</h2><p>Rules attached to this custom app.</p></div></div>
+      <div class="builder-automation-list">
+        ${app.automations.map((automation) => `<div><i class="ti ti-bolt"></i><strong>${h(automation.name)}</strong><span>${automation.enabled ? 'Enabled' : 'Disabled'}</span></div>`).join('') || emptyState('No automations yet.')}
+      </div>
+    </article>
+  `;
+}
+
+const BUILDER_FIELD_TYPES = [
+  { id: 'text', label: 'Text', icon: 'ti-text-caption' },
+  { id: 'number', label: 'Number', icon: 'ti-number' },
+  { id: 'money', label: 'Money', icon: 'ti-currency-dollar' },
+  { id: 'date', label: 'Date', icon: 'ti-calendar' },
+  { id: 'status', label: 'Status', icon: 'ti-flag' },
+  { id: 'user', label: 'User', icon: 'ti-user' },
+  { id: 'email', label: 'Email', icon: 'ti-mail' },
+  { id: 'phone', label: 'Phone', icon: 'ti-phone' },
+  { id: 'checkbox', label: 'Yes / No', icon: 'ti-checkbox' },
+];
+
+function builderFieldLabel(type) {
+  return BUILDER_FIELD_TYPES.find((fieldType) => fieldType.id === type)?.label || 'Text';
+}
+
+function builderFieldIcon(type) {
+  return BUILDER_FIELD_TYPES.find((fieldType) => fieldType.id === type)?.icon || 'ti-text-caption';
+}
+
+function formatBuilderValue(field, value) {
+  if (field.type === 'money') return value ? money(value) : '';
+  if (field.type === 'checkbox') return ['true', 'yes', '1', 'on'].includes(String(value || '').toLowerCase()) ? 'Yes' : 'No';
+  return value || '';
+}
+
+function workspaceBuilderCreateWorkspace(companyId, name, description) {
+  const cleanName = String(name || '').trim();
+  if (!cleanName) throw new Error('Workspace name is required.');
+  const builderState = loadWorkspaceBuilderState(companyId);
+  const workspace = { id: crypto.randomUUID(), name: cleanName, description: String(description || '').trim(), color: '#e66a1f', apps: [] };
+  builderState.workspaces.unshift(workspace);
+  saveWorkspaceBuilderState(companyId, builderState);
+  return workspace;
+}
+
+function workspaceBuilderCreateApp(companyId, workspaceId, name, type) {
+  const cleanName = String(name || '').trim();
+  if (!cleanName) throw new Error('App name is required.');
+  const builderState = loadWorkspaceBuilderState(companyId);
+  const workspace = builderState.workspaces.find((item) => item.id === workspaceId);
+  if (!workspace) throw new Error('Workspace not found.');
+  const app = { id: crypto.randomUUID(), name: cleanName, type: String(type || 'Custom').trim() || 'Custom', description: '', fields: [], items: [], automations: [] };
+  workspace.apps.unshift(app);
+  saveWorkspaceBuilderState(companyId, builderState);
+  return app;
+}
+
+function workspaceBuilderCreateField(companyId, workspaceId, appId, label, fieldType) {
+  const cleanLabel = String(label || '').trim();
+  if (!cleanLabel) throw new Error('Field label is required.');
+  const builderState = loadWorkspaceBuilderState(companyId);
+  const { workspace, app } = workspaceBuilderFind(builderState, workspaceId, appId);
+  if (!workspace || !app) throw new Error('App not found.');
+  const cleanType = BUILDER_FIELD_TYPES.some((item) => item.id === fieldType) ? fieldType : 'text';
+  app.fields.push({ id: crypto.randomUUID(), label: cleanLabel, type: cleanType });
+  saveWorkspaceBuilderState(companyId, builderState);
+  return app.fields[app.fields.length - 1];
+}
+
+function workspaceBuilderCreateItem(companyId, workspaceId, appId, values) {
+  const builderState = loadWorkspaceBuilderState(companyId);
+  const { workspace, app } = workspaceBuilderFind(builderState, workspaceId, appId);
+  if (!workspace || !app) throw new Error('App not found.');
+  const item = { id: crypto.randomUUID(), values: values || {}, created_at: new Date().toISOString() };
+  app.items.unshift(item);
+  saveWorkspaceBuilderState(companyId, builderState);
+  return item;
+}
+
+function handleWorkspaceBuilderAction(node) {
+  const companyId = activeCompanyId();
+  if (!requirePermission('workspaces.manage', companyId, 'Your role cannot manage workspace builder data.', 'Workspaces')) return;
+  try {
+    if (node.dataset.action === 'builder-create-workspace') {
+      const form = node.closest('[data-builder-workspace-form]');
+      const workspace = workspaceBuilderCreateWorkspace(companyId, form?.querySelector('[data-builder-workspace-name]')?.value, form?.elements?.description?.value);
+      showToast(`${workspace.name} created.`, 'local', 'Workspaces');
+      navigate(companyPath('workspaces', { workspace_id: workspace.id }, companyId));
+      return;
+    }
+    if (node.dataset.action === 'builder-create-app') {
+      const form = node.closest('[data-builder-app-form]');
+      const app = workspaceBuilderCreateApp(companyId, form?.dataset.workspaceId, form?.querySelector('[data-builder-app-name]')?.value, form?.elements?.type?.value);
+      showToast(`${app.name} app created.`, 'local', 'Workspaces');
+      navigate(companyPath('workspaces', { workspace_id: form.dataset.workspaceId, app_id: app.id, tab: 'fields' }, companyId));
+      return;
+    }
+    if (node.dataset.action === 'builder-create-field') {
+      const form = node.closest('[data-builder-field-form]');
+      workspaceBuilderCreateField(companyId, form?.dataset.workspaceId, form?.dataset.appId, form?.querySelector('[data-builder-field-label]')?.value, form?.elements?.field_type?.value);
+      showToast('Field added.', 'local', 'Workspaces');
+      render();
+      return;
+    }
+    if (node.dataset.action === 'builder-create-item') {
+      const form = node.closest('[data-builder-item-form]');
+      const values = Object.fromEntries([...form.querySelectorAll('[data-builder-item-field]')].map((input) => [input.name, input.value]));
+      workspaceBuilderCreateItem(companyId, form?.dataset.workspaceId, form?.dataset.appId, values);
+      showToast('Item added.', 'local', 'Workspaces');
+      render();
+    }
+  } catch (error) {
+    showToast(error.message || 'Workspace builder action failed.', 'local', 'Workspaces');
+  }
 }
 
 function renderSettingsPage(route, companyId) {
@@ -8707,6 +9077,11 @@ function handleAction(event, node) {
       state.sync = { label: error.message || 'Plugin preset failed', mode: 'local' };
       render();
     });
+    return;
+  }
+  if (action.startsWith('builder-')) {
+    event.preventDefault();
+    handleWorkspaceBuilderAction(node);
     return;
   }
   if (action === 'new-message-group') {
@@ -13879,6 +14254,10 @@ function isMutableAction(action = '') {
     'start-checkout',
     'review-workspace',
     'platform-company-action',
+    'builder-create-workspace',
+    'builder-create-app',
+    'builder-create-field',
+    'builder-create-item',
     'set-contact-stage',
     'set-contact-temp',
     'toggle-contact-task',

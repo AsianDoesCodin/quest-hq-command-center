@@ -14236,3 +14236,199 @@ button {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
+
+.builder-shell {
+  display: grid;
+  gap: 16px;
+}
+
+.builder-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 12px;
+  align-items: stretch;
+}
+
+.builder-card {
+  display: grid;
+  gap: 9px;
+  min-height: 156px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface);
+  box-shadow: var(--soft-shadow);
+  color: var(--ink);
+  padding: 16px;
+}
+
+.builder-card:hover {
+  border-color: #f7b485;
+  background: #fff7ed;
+}
+
+.builder-create-card {
+  background: #fffaf0;
+}
+
+.builder-card-icon {
+  display: grid;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--builder-accent, var(--orange)) 14%, #fff);
+  color: var(--builder-accent, var(--orange));
+}
+
+.builder-card-icon i {
+  font-size: 22px;
+}
+
+.builder-card strong {
+  min-width: 0;
+  font-size: 15px;
+  font-weight: 900;
+}
+
+.builder-card > span {
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.35;
+}
+
+.builder-card-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-self: end;
+}
+
+.builder-card-meta b,
+.builder-field-pill small {
+  display: inline-flex;
+  align-items: center;
+  min-height: 22px;
+  border-radius: 999px;
+  background: #f4f6f8;
+  color: var(--muted);
+  padding: 0 8px;
+  font-size: 11px;
+  font-weight: 850;
+}
+
+.builder-inline-form {
+  display: grid;
+  gap: 9px;
+}
+
+.builder-inline-form label {
+  display: grid;
+  gap: 5px;
+}
+
+.builder-inline-form label > span {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 850;
+  text-transform: uppercase;
+}
+
+.builder-inline-form input,
+.builder-inline-form select {
+  width: 100%;
+  min-height: 38px;
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--ink);
+  padding: 0 10px;
+}
+
+.builder-two-col {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(280px, .6fr);
+  gap: 14px;
+  align-items: start;
+}
+
+.builder-main-panel {
+  min-width: 0;
+}
+
+.builder-field-list,
+.builder-automation-list {
+  display: grid;
+  gap: 8px;
+}
+
+.builder-field-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 38px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: #fff;
+  color: var(--ink);
+  padding: 0 10px;
+  font-weight: 800;
+}
+
+.builder-field-pill i,
+.builder-automation-list i {
+  color: var(--orange);
+}
+
+.builder-app-table {
+  display: grid;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: #fff;
+}
+
+.builder-table-head,
+.builder-table-row {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(120px, 1fr));
+  gap: 10px;
+  align-items: center;
+  min-width: 680px;
+  padding: 10px 12px;
+}
+
+.builder-table-head {
+  background: var(--surface-2);
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: .05em;
+  text-transform: uppercase;
+}
+
+.builder-table-row {
+  border-top: 1px solid var(--border);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.builder-automation-list > div {
+  display: grid;
+  grid-template-columns: 32px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: #fff;
+  padding: 10px 12px;
+}
+
+@media (max-width: 980px) {
+  .builder-two-col {
+    grid-template-columns: 1fr;
+  }
+
+  .builder-app-table {
+    overflow-x: auto;
+  }
+}
