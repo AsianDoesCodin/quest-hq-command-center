@@ -10593,6 +10593,18 @@ button.side-item.planned b {
   margin-top: 22px;
 }
 
+.client-portal-status {
+  display: inline-flex;
+  align-items: center;
+  min-height: 40px;
+  margin-top: 18px;
+  border-radius: 999px;
+  background: #fff7ed;
+  color: var(--orange-dark);
+  padding: 0 14px;
+  font-weight: 900;
+}
+
 .client-portal-public-top {
   height: 72px;
   justify-content: space-between;

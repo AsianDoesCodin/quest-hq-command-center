@@ -29,6 +29,19 @@ test('public portal route bypasses workspace auth and renders client shell', () 
   assert.match(source, /class="client-portal-public"/);
 });
 
+test('public portal auto-opens and only asks for a password when required', () => {
+  assert.match(source, /function shouldAutoOpenClientPortal\(token\)/);
+  assert.match(source, /ensureClientPortalPublicOpen\(state\.route\.token\)/);
+  assert.match(source, /function renderClientPortalPasswordGate\(token, portal\)/);
+  assert.match(source, /payload\.password_required === true/);
+  assert.match(source, /state\.clientPortalPublic = \{ token, loading: true \}/);
+  assert.match(source, /body: JSON\.stringify\(\{ token, guest_name: CLIENT_PORTAL_GUEST_NAME, password: password \|\| '' \}\)/);
+  assert.match(source, /<input type="hidden" name="token" value="\$\{h\(token\)\}" \/>/);
+  assert.match(source, /<label><span>Portal password<\/span><input name="password" type="password"/);
+  assert.doesNotMatch(source, /name="guest_name"/);
+  assert.doesNotMatch(source, /Your name/);
+});
+
 test('staff portal workspace supports create, upload, copy, revoke, and annotation review', () => {
   assert.match(source, /function renderClientPortalsPage\(route, companyId\)/);
   assert.match(source, /data-action="open-client-portal-form"/);

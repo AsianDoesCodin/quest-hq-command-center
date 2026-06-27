@@ -62,6 +62,7 @@ const CLIENT_PORTAL_ANNOTATION_CACHE_KEY = 'quest-hq-client-portal-annotation-ca
 const CLIENT_PORTAL_EVENT_CACHE_KEY = 'quest-hq-client-portal-event-cache-v1';
 const CLIENT_PORTAL_SESSION_KEY = 'quest-client-portal-session-v1';
 const CLIENT_PORTAL_TOKEN_CACHE_KEY = 'quest-client-portal-token-cache-v1';
+const CLIENT_PORTAL_GUEST_NAME = 'Client';
 const WORKSPACE_BUILDER_STORAGE_PREFIX = 'qhq_workspace_builder_v1';
 
 const ROLE_PERMISSIONS = {
@@ -1710,7 +1711,15 @@ function render() {
   if (state.route.name === 'client-portal') {
     document.title = 'Client portal | Quest HQ';
     app.innerHTML = renderClientPortalPublicPage(state.route);
-    queueMicrotask(() => mountClientPortalViewer().catch((error) => console.warn('Client portal viewer failed', error)));
+    queueMicrotask(() => {
+      if (shouldAutoOpenClientPortal(state.route.token)) {
+        ensureClientPortalPublicOpen(state.route.token).catch((error) => {
+          state.clientPortalPublic = { token: state.route.token || '', error: error.message || 'Could not open portal.' };
+          render();
+        });
+      }
+      mountClientPortalViewer().catch((error) => console.warn('Client portal viewer failed', error));
+    });
     return;
   }
 
@@ -5802,19 +5811,16 @@ function renderClientPortalPublicPage(route) {
   const portal = state.clientPortalPublic;
   const token = route.token || '';
   if (!portal?.session || portal.token !== token) {
+    if (portal?.token === token && portal.passwordRequired) {
+      return renderClientPortalPasswordGate(token, portal);
+    }
     return `
       <main class="client-portal-public">
-        <section class="client-portal-gate">
+        <section class="client-portal-gate ${portal?.loading ? 'loading' : ''}">
           <div class="client-portal-brand"><span class="side-mark">Q</span><span><strong>Quest Client Portal</strong><small>Plan review</small></span></div>
-          <h1>Open plan portal</h1>
-          <p>Enter your name and the portal password if one was provided. You can view plans, add comments, and export a marked PDF.</p>
-          <form data-client-portal-open-form>
-            <input type="hidden" name="token" value="${h(token)}" />
-            <label><span>Your name</span><input name="guest_name" autocomplete="name" placeholder="Your name" required /></label>
-            <label><span>Password</span><input name="password" type="password" autocomplete="current-password" placeholder="Optional unless required" /></label>
-            <button class="btn btn-primary full" type="submit">Open portal</button>
-            ${portal?.error ? `<div class="form-message error">${h(portal.error)}</div>` : ''}
-          </form>
+          <h1>${portal?.error ? 'Could not open portal' : 'Opening plan portal'}</h1>
+          <p>${portal?.error ? 'This public portal link could not be opened. Ask the workspace team to confirm the link is active.' : 'Checking this link. If no password was set, the plan review will open automatically.'}</p>
+          ${portal?.error ? `<div class="form-message error">${h(portal.error)}</div>` : '<div class="client-portal-status">Opening...</div>'}
         </section>
       </main>
     `;
@@ -7318,6 +7324,24 @@ function renderMessagesPage(route, companyId) {
       </section>
       ${state.session?.auth === 'local-basic' ? renderMessageScenarioButton(companyId) : ''}
     </section>
+  `;
+}
+
+function renderClientPortalPasswordGate(token, portal) {
+  return `
+    <main class="client-portal-public">
+      <section class="client-portal-gate">
+        <div class="client-portal-brand"><span class="side-mark">Q</span><span><strong>Quest Client Portal</strong><small>Plan review</small></span></div>
+        <h1>Portal password</h1>
+        <p>This portal is password protected. Enter the password shared with you to review the plans.</p>
+        <form data-client-portal-open-form autocomplete="off">
+          <input type="hidden" name="token" value="${h(token)}" />
+          <label><span>Portal password</span><input name="password" type="password" autocomplete="current-password" autofocus /></label>
+          <button class="btn btn-primary full" type="submit">Open portal</button>
+          ${portal?.error ? `<div class="form-message error">${h(portal.error)}</div>` : ''}
+        </form>
+      </section>
+    </main>
   `;
 }
 
@@ -12528,21 +12552,42 @@ async function revokeClientPortal(portalId) {
 async function openClientPortal(form) {
   const fields = Object.fromEntries(new FormData(form).entries());
   const token = String(fields.token || '').trim();
-  const guestName = String(fields.guest_name || '').trim() || 'Guest';
+  await openClientPortalToken(token, fields.password || '');
+}
+
+function shouldAutoOpenClientPortal(token) {
+  const portal = state.clientPortalPublic;
+  if (!token) return false;
+  if (!portal || portal.token !== token) return true;
+  return !portal.session && !portal.loading && !portal.passwordRequired && !portal.error;
+}
+
+async function ensureClientPortalPublicOpen(token) {
+  if (!shouldAutoOpenClientPortal(token)) return;
+  state.clientPortalPublic = { token, loading: true };
+  render();
+  await openClientPortalToken(token);
+}
+
+async function openClientPortalToken(token, password = '') {
   const response = await fetch('/api/client-portal-open', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ token, guest_name: guestName, password: fields.password || '' }),
+    body: JSON.stringify({ token, guest_name: CLIENT_PORTAL_GUEST_NAME, password: password || '' }),
   });
   const payload = await response.json().catch(() => ({}));
   if (!response.ok) {
-    state.clientPortalPublic = { token, error: payload.error || 'Could not open portal.' };
+    state.clientPortalPublic = {
+      token,
+      error: payload.error || 'Could not open portal.',
+      passwordRequired: payload.password_required === true,
+    };
     render();
     return;
   }
   state.clientPortalPublic = {
     token,
-    guestName,
+    guestName: CLIENT_PORTAL_GUEST_NAME,
     session: payload.session,
     portal: payload.portal,
     documents: payload.documents || [],
