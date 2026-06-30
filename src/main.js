@@ -4478,9 +4478,6 @@ async function openContactEstimate(contactId) {
   const estimateUrl = roofUnderwriterUrl({
     source: 'quest-hq',
     contact_id: contact.id,
-    name: contact.name,
-    address: contact.location,
-    value: contact.value || '',
   });
   window.open(estimateUrl, '_blank', 'noopener,noreferrer');
   await logContactActivity(contact.id, 'system', 'Roof Underwriter opened', 'Estimate workflow opened from this contact.');
@@ -15785,14 +15782,9 @@ async function logDealActivity(dealId, type, subject, body = '') {
 async function openDealEstimate(dealId) {
   const deal = dealById(dealId);
   if (!deal) return;
-  const contact = contactById(deal.primary_contact_id);
-  const account = accountById(deal.account_id);
   const estimateUrl = roofUnderwriterUrl({
     source: 'quest-hq',
     deal_id: deal.id,
-    name: deal.name,
-    address: account?.address || contact?.location || '',
-    value: deal.value || '',
   });
   window.open(estimateUrl, '_blank', 'noopener,noreferrer');
   await logDealActivity(deal.id, 'system', 'Roof Underwriter opened', 'Estimate workflow opened from this quote.');

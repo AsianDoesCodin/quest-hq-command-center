@@ -195,6 +195,10 @@ test('record quick create tiles open real workflows instead of placeholder toast
   assert.match(source, /function openContactEstimate\(contactId\)/);
   assert.match(source, /function openDealEstimate\(dealId\)/);
   assert.match(source, /window\.open\(estimateUrl, '_blank', 'noopener,noreferrer'\)/);
+  const contactEstimateSource = source.match(/async function openContactEstimate[\s\S]*?\n}\n\nfunction contactQuickCreate/)?.[0] || '';
+  const dealEstimateSource = source.match(/async function openDealEstimate[\s\S]*?\n}\n\nasync function createDealProposal/)?.[0] || '';
+  assert.doesNotMatch(contactEstimateSource, /name: contact\.name|address: contact\.location|value: contact\.value/);
+  assert.doesNotMatch(dealEstimateSource, /name: deal\.name|address:|value: deal\.value/);
   assert.match(source, /if \(kind === 'Task' \|\| kind === 'New Task'\) return openDockedActivityComposer\('contact', contactId, 'New Task'\)/);
   assert.match(source, /if \(kind === 'Estimate' \|\| kind === 'New Estimate'\) return openContactEstimate\(contactId\)/);
   assert.match(source, /if \(kind === 'Proposal'\) return convertContactToQuote\(contactId\)/);
