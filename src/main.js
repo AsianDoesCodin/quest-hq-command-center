@@ -1499,6 +1499,9 @@ const state = {
   clientPortalStamp: 'Approved',
   clientPortalPendingComment: null,
   clientPortalSelectedAnnotationId: '',
+  clientPortalDirty: false,
+  clientPortalSaveLabel: 'Ready',
+  clientPortalSaveMode: '',
   timeEntries: readJson(TIME_ENTRY_CACHE_KEY, []),
   activeTimer: readJson(ACTIVE_TIMER_KEY, null),
   teamMembers: readSeededList(TEAM_CACHE_KEY, teamMembersFallback).map(normalizeTeamMember),
@@ -5894,12 +5897,14 @@ function renderClientPortalPublicPage(route) {
     ['4', 'L'],
   ];
   const stamps = ['Approved', 'Revise', 'Question', 'Received'];
+  const saveLabel = state.clientPortalDirty ? 'Unsaved changes' : state.clientPortalSaveLabel || 'Ready';
+  const saveMode = state.clientPortalDirty ? 'pending' : state.clientPortalSaveMode || '';
   return `
     <main class="client-portal-public open">
       <header class="client-portal-public-top">
         <div class="client-portal-brand"><span class="side-mark">Q</span><span><strong>${h(portal.portal?.title || 'Client Portal')}</strong><small>${h(portal.portal?.client_name || portal.guestName || 'Plan review')}</small></span></div>
         <div class="client-portal-public-actions">
-          <span class="client-portal-save-state" data-client-portal-save-state>Ready</span>
+          <span class="client-portal-save-state" data-client-portal-save-state data-mode="${h(saveMode)}">${h(saveLabel)}</span>
           <button class="btn" type="button" data-action="client-portal-save-annotations"><i class="ti ti-device-floppy"></i>Save</button>
           <button class="btn btn-primary" type="button" data-action="client-portal-export"><i class="ti ti-download"></i>Export marked PDF</button>
         </div>
@@ -6065,10 +6070,17 @@ function updateClientPortalStrokeSelection() {
 }
 
 function setClientPortalSaveState(label, mode = '') {
+  state.clientPortalSaveLabel = label;
+  state.clientPortalSaveMode = mode;
   const el = document.querySelector('[data-client-portal-save-state]');
   if (!el) return;
   el.textContent = label;
   el.dataset.mode = mode;
+}
+
+function markClientPortalDirty() {
+  state.clientPortalDirty = true;
+  setClientPortalSaveState('Unsaved changes', 'pending');
 }
 
 function setClientPortalZoom(value) {
@@ -6108,7 +6120,7 @@ function submitClientPortalComment() {
   });
   state.clientPortalPendingComment = null;
   state.clientPortalSelectedAnnotationId = state.clientPortalPublic.annotations.at(-1)?.id || '';
-  setClientPortalSaveState('Unsaved changes', 'pending');
+  markClientPortalDirty();
   render();
 }
 
@@ -6127,7 +6139,7 @@ function toggleClientPortalCommentStatus(annotationId) {
   annotation.payload = { ...(annotation.payload || {}), status: annotation.payload?.status === 'resolved' ? 'open' : 'resolved' };
   annotation.updated_at = new Date().toISOString();
   writeJson(CLIENT_PORTAL_SESSION_KEY, state.clientPortalPublic);
-  setClientPortalSaveState('Unsaved changes', 'pending');
+  markClientPortalDirty();
   render();
 }
 
@@ -6147,7 +6159,7 @@ function undoClientPortalAnnotation() {
   state.clientPortalSelectedAnnotationId = '';
   state.clientPortalPendingComment = null;
   writeJson(CLIENT_PORTAL_SESSION_KEY, portal);
-  setClientPortalSaveState('Unsaved changes', 'pending');
+  markClientPortalDirty();
   render();
 }
 
@@ -9593,6 +9605,9 @@ function handleAction(event, node) {
       state.clientPortalFitMode = true;
       state.clientPortalPendingComment = null;
       state.clientPortalSelectedAnnotationId = '';
+      state.clientPortalDirty = false;
+      state.clientPortalSaveLabel = 'Ready';
+      state.clientPortalSaveMode = '';
       writeJson(CLIENT_PORTAL_SESSION_KEY, state.clientPortalPublic);
       render();
     }
@@ -13004,6 +13019,7 @@ async function saveClientPortalAnnotations() {
     setClientPortalSaveState('Save failed', 'error');
     throw new Error(payload.error || 'Markup save failed.');
   }
+  state.clientPortalDirty = false;
   setClientPortalSaveState('Saved', 'saved');
   showToast('Markups saved.', 'live', 'Client Portal');
 }
@@ -13096,7 +13112,7 @@ function attachClientPortalDrawing(_base, overlay, doc) {
     }
     if (state.clientPortalTool === 'stamp') {
       addClientPortalAnnotation(doc, 'stamp', { ...start, text: state.clientPortalStamp || 'Approved', label: state.clientPortalStamp || 'Approved' });
-      setClientPortalSaveState('Unsaved changes', 'pending');
+      markClientPortalDirty();
       drawing = false;
       start = null;
       redrawClientPortalAnnotations(overlay);
@@ -13114,7 +13130,7 @@ function attachClientPortalDrawing(_base, overlay, doc) {
     event.preventDefault();
     const current = point(event);
     addClientPortalAnnotation(doc, state.clientPortalTool, { x: start.x, y: start.y, x2: current.x, y2: current.y });
-    setClientPortalSaveState('Unsaved changes', 'pending');
+    markClientPortalDirty();
     drawing = false;
     start = null;
     redrawClientPortalAnnotations(overlay);
