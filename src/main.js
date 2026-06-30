@@ -3152,7 +3152,6 @@ function renderCompanyDashboard(companyId) {
             ${DASHBOARD_RANGE_OPTIONS.map(([id, label]) => `<button class="${state.dashboardRange === id ? 'active' : ''}" type="button" data-action="dashboard-range" data-range="${id}">${h(label)}</button>`).join('')}
           </div>
         </div>
-        <span>${h(activeRep.name)} - ${h(activeRange[1])}</span>
       </section>
 
       ${state.dashboardCustomize ? `
