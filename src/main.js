@@ -5878,18 +5878,18 @@ function renderClientPortalPublicPage(route) {
         <section class="client-portal-viewer">
           <div class="client-portal-toolbar">
             ${[
-              { id: 'pan', attr: 'data-portal-tool="pan"', label: 'Pan' },
-              { id: 'pen', attr: 'data-portal-tool="pen"', label: 'Pen' },
-              { id: 'line', attr: 'data-portal-tool="line"', label: '/' },
-              { id: 'rect', attr: 'data-portal-tool="rect"', label: 'Box' },
-              { id: 'circle', attr: 'data-portal-tool="circle"', label: 'Oval' },
-              { id: 'arrow', attr: 'data-portal-tool="arrow"', label: 'Arrow' },
-              { id: 'text', attr: 'data-portal-tool="text"', label: 'T' },
-              { id: 'comment', attr: 'data-portal-tool="comment"', label: 'Pin' },
-              { id: 'measure', attr: 'data-portal-tool="measure"', label: 'Ft' },
-              { id: 'stamp', attr: 'data-portal-tool="stamp"', label: 'OK' },
+              { id: 'pan', attr: 'data-portal-tool="pan"', label: 'Pan', icon: 'ti-hand-move' },
+              { id: 'pen', attr: 'data-portal-tool="pen"', label: 'Pen', icon: 'ti-pencil' },
+              { id: 'line', attr: 'data-portal-tool="line"', label: 'Line', icon: 'ti-slash' },
+              { id: 'rect', attr: 'data-portal-tool="rect"', label: 'Box', icon: 'ti-square' },
+              { id: 'circle', attr: 'data-portal-tool="circle"', label: 'Oval', icon: 'ti-circle' },
+              { id: 'arrow', attr: 'data-portal-tool="arrow"', label: 'Arrow', icon: 'ti-arrow-up-right' },
+              { id: 'text', attr: 'data-portal-tool="text"', label: 'Text', icon: 'ti-letter-t' },
+              { id: 'comment', attr: 'data-portal-tool="comment"', label: 'Pin comment', icon: 'ti-message-circle' },
+              { id: 'measure', attr: 'data-portal-tool="measure"', label: 'Measure', icon: 'ti-ruler-measure' },
+              { id: 'stamp', attr: 'data-portal-tool="stamp"', label: 'Approve stamp', icon: 'ti-stamp' },
             ].map((tool) => `
-              <button class="client-portal-tool ${state.clientPortalTool === tool.id ? 'active' : ''}" type="button" data-action="client-portal-tool" ${tool.attr} title="${h(titleCase(tool.id))}">${h(tool.label)}</button>
+              <button class="client-portal-tool ${state.clientPortalTool === tool.id ? 'active' : ''}" type="button" data-action="client-portal-tool" ${tool.attr} title="${h(tool.label)}" aria-label="${h(tool.label)}"><i class="ti ${h(tool.icon)}" aria-hidden="true"></i></button>
             `).join('')}
             <input type="color" value="${h(state.clientPortalColor)}" data-action="client-portal-color" title="Markup color" />
             <button class="btn" type="button" data-action="client-portal-save-annotations"><i class="ti ti-device-floppy"></i>Save markups</button>

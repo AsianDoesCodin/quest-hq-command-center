@@ -59,6 +59,8 @@ test('public portal viewer exposes plan markup tools and persistent annotations'
   assert.match(source, /client-portal-tool/);
   assert.match(source, /data-portal-tool="pen"/);
   assert.match(source, /data-portal-tool="measure"/);
+  assert.match(source, /icon: 'ti-pencil'/);
+  assert.match(source, /aria-label="\$\{h\(tool\.label\)\}"/);
   assert.match(source, /data-action="client-portal-save-annotations"/);
   assert.match(source, /data-action="client-portal-export"/);
   assert.match(source, /loadClientPortalAnnotations/);

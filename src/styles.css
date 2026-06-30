@@ -10683,13 +10683,18 @@ button.side-item.planned b {
 }
 
 .client-portal-tool {
-  min-width: 42px;
-  height: 36px;
+  flex: 0 0 40px;
+  width: 40px;
+  height: 40px;
   border: 1px solid #d9e0ea;
   border-radius: 6px;
   background: #fff;
-  font-weight: 700;
+  color: #1c2430;
   cursor: pointer;
+  display: inline-grid;
+  place-items: center;
+  font-size: 20px;
+  line-height: 1;
 }
 
 .client-portal-tool.active,
@@ -10697,6 +10702,11 @@ button.side-item.planned b {
   border-color: var(--orange);
   color: var(--orange);
   background: #fff0e8;
+}
+
+.client-portal-tool:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--orange), #fff 35%);
+  outline-offset: 2px;
 }
 
 .client-portal-stage {
