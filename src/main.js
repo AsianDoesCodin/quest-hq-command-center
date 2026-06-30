@@ -2141,6 +2141,8 @@ async function loadSupabaseData() {
     messageReadsResult,
     calendarEventsResult,
     notificationsResult,
+    formsResult,
+    formResponsesResult,
     financeInvoicesResult,
     financePaymentsResult,
     financeExpensesResult,
@@ -2180,6 +2182,8 @@ async function loadSupabaseData() {
     client.from('message_reads').select('*'),
     client.from('calendar_events').select('*').order('starts_at', { ascending: true }),
     client.from('notifications').select('*').order('created_at', { ascending: false }).limit(200),
+    client.from('forms').select('*').order('updated_at', { ascending: false }),
+    client.from('form_responses').select('*').order('created_at', { ascending: false }).limit(500),
     client.from('finance_invoices').select('*').order('updated_at', { ascending: false }),
     client.from('finance_payments').select('*').order('received_at', { ascending: false }),
     client.from('finance_expenses').select('*').order('spent_at', { ascending: false }),
@@ -2248,6 +2252,11 @@ async function loadSupabaseData() {
   if (!messageReadsResult.error) state.messageReads = (messageReadsResult.data || []).map(normalizeMessageRead);
   if (!calendarEventsResult.error) state.calendarEvents = (calendarEventsResult.data || []).map(normalizeCalendarEvent);
   if (!notificationsResult.error) state.notifications = (notificationsResult.data || []).map(normalizeNotification);
+  if (!formsResult.error) {
+    state.forms = (formsResult.data || []).map(normalizeForm);
+    liveTables += 1;
+  }
+  if (!formResponsesResult.error) state.formResponses = (formResponsesResult.data || []).map(normalizeFormResponse);
   if (!financeInvoicesResult.error) {
     state.financeInvoices = (financeInvoicesResult.data || []).map(normalizeFinanceInvoice);
     liveTables += 1;
@@ -7465,7 +7474,7 @@ function renderFormsPage(companyId) {
   return `
     <section class="tool-page forms-center">
       <div class="forms-command panel">
-        <span class="sync-pill live"><i class="ti ti-device-floppy"></i>Local autosafe</span>
+        <span class="sync-pill ${isLiveSupabaseSession() ? 'live' : 'local'}"><i class="ti ti-device-floppy"></i>${isLiveSupabaseSession() ? 'Supabase live' : 'Local draft'}</span>
         <label>
           <span>Search</span>
           <input data-form-search value="${h(state.formQuery)}" placeholder="Find form, audience, or job" />
@@ -11944,7 +11953,7 @@ function handleAction(event, node) {
   if (action === 'save-form') {
     event.preventDefault();
     if (!requirePermission('forms.manage', activeCompanyId(), 'Your role cannot edit forms.', 'Forms')) return;
-    saveFormsState('Form saved locally');
+    saveFormsState('Form saved');
     render();
     return;
   }
@@ -11969,7 +11978,7 @@ function handleAction(event, node) {
   if (action === 'delete-form') {
     event.preventDefault();
     if (!requirePermission('forms.manage', activeCompanyId(), 'Your role cannot delete forms.', 'Forms')) return;
-    deleteForm(node.dataset.formId);
+    deleteForm(node.dataset.formId).catch((error) => showToast(error.message || 'Form delete failed.', 'local', 'Forms'));
     return;
   }
   if (action === 'copy-form-link') {
@@ -12332,7 +12341,7 @@ function onDocumentSubmit(event) {
 
   if (event.target.matches('[data-new-form-form]')) {
     event.preventDefault();
-    createFormFromModal(event.target);
+    createFormFromModal(event.target).catch((error) => showToast(error.message || 'Form create failed.', 'local', 'Forms'));
     return;
   }
 
@@ -12434,7 +12443,7 @@ function onDocumentSubmit(event) {
 
   if (event.target.matches('[data-form-preview-response]')) {
     event.preventDefault();
-    saveFormResponse(event.target);
+    saveFormResponse(event.target).catch((error) => showToast(error.message || 'Form response failed.', 'local', 'Forms'));
   }
 }
 
@@ -18654,6 +18663,40 @@ function filePayload(file) {
   };
 }
 
+function formPayload(form) {
+  return {
+    id: form.id,
+    company_id: form.company_id,
+    title: form.title,
+    description: form.description,
+    type: form.type,
+    status: form.status,
+    audience: form.audience,
+    creator_id: form.creator_id || activeSession().profile.id || '',
+    linked_job_id: form.linked_job_id || null,
+    theme_color: form.theme_color,
+    background: form.background,
+    submit_label: form.submit_label,
+    collect_email: form.collect_email,
+    require_approval: form.require_approval,
+    questions: Array.isArray(form.questions) ? form.questions : [],
+    created_at: form.created_at || new Date().toISOString(),
+    updated_at: form.updated_at || new Date().toISOString(),
+  };
+}
+
+function formResponsePayload(response) {
+  return {
+    id: response.id,
+    company_id: response.company_id,
+    form_id: response.form_id,
+    submitted_by: response.submitted_by,
+    submitter_email: response.submitter_email,
+    answers: response.answers && typeof response.answers === 'object' ? response.answers : {},
+    created_at: response.created_at || new Date().toISOString(),
+  };
+}
+
 function activeSession() {
   if (state.session) {
     if (state.session.auth === 'supabase') return state.session;
@@ -20114,7 +20157,38 @@ function blankQuestion(type = 'short', label = 'Untitled question', options = []
   });
 }
 
-function createForm(companyId, overrides = {}) {
+async function persistFormRecord(form) {
+  if (!isLiveSupabaseSession()) return form;
+  const client = createSupabaseClient();
+  if (!client) throw new Error('Supabase is unavailable.');
+  if (!can('forms.manage', form.company_id)) throw new Error('Your role cannot manage forms.');
+  const result = await client.from('forms').upsert(formPayload(form), { onConflict: 'id' }).select().single();
+  if (result.error) throw new Error(result.error.message || 'Form save failed.');
+  return normalizeForm(result.data);
+}
+
+async function deleteFormRecord(form) {
+  if (!isLiveSupabaseSession()) return true;
+  const client = createSupabaseClient();
+  if (!client) throw new Error('Supabase is unavailable.');
+  if (!can('forms.manage', form.company_id)) throw new Error('Your role cannot delete forms.');
+  const result = await client.from('forms').delete().eq('id', form.id).eq('company_id', form.company_id);
+  if (result.error) throw new Error(result.error.message || 'Form delete failed.');
+  return true;
+}
+
+async function persistFormResponseRecord(response) {
+  if (!isLiveSupabaseSession()) return response;
+  const client = createSupabaseClient();
+  if (!client) throw new Error('Supabase is unavailable.');
+  const form = formById(response.form_id);
+  if (!form || !can('forms.view', response.company_id)) throw new Error('Your role cannot submit this form.');
+  const result = await client.from('form_responses').insert(formResponsePayload(response)).select().single();
+  if (result.error) throw new Error(result.error.message || 'Form response save failed.');
+  return normalizeFormResponse(result.data);
+}
+
+async function createForm(companyId, overrides = {}) {
   if (!requirePermission('forms.manage', companyId, 'Your role cannot create forms.', 'Forms')) return null;
   const base = blankForm(companyId);
   const form = normalizeForm({
@@ -20139,7 +20213,7 @@ function createForm(companyId, overrides = {}) {
   return form;
 }
 
-function createFormFromModal(formEl) {
+async function createFormFromModal(formEl) {
   if (!requirePermission('forms.manage', activeCompanyId(), 'Your role cannot create forms.', 'Forms')) return;
   const data = Object.fromEntries(new FormData(formEl).entries());
   const template = data.template_id ? formTemplates().find((item) => item.id === data.template_id) : null;
@@ -20148,7 +20222,7 @@ function createFormFromModal(formEl) {
   const questions = template
     ? template.questions.map((question) => ({ ...clone(question), id: `q-${crypto.randomUUID()}` }))
     : [blankQuestion('short', 'First question')];
-  createForm(activeCompanyId(), {
+  await createForm(activeCompanyId(), {
     title,
     description,
     type: FORM_TYPES.includes(data.type) ? data.type : template?.type || 'Internal',
@@ -20172,12 +20246,27 @@ function selectForm(id, shouldRender = true) {
   if (shouldRender) render();
 }
 
-function saveFormsState(label = 'Forms saved locally') {
+function saveFormsState(label = 'Forms saved') {
   const form = selectedFormMutable();
   if (form) form.updated_at = new Date().toISOString();
   writeJson(FORM_CACHE_KEY, state.forms);
   writeJson(FORM_RESPONSE_CACHE_KEY, state.formResponses);
-  state.sync = { label, mode: 'live' };
+  if (!isLiveSupabaseSession() || !form) {
+    state.sync = { label: `${label} locally`, mode: 'local' };
+    return;
+  }
+  state.sync = { label: 'Saving form to Supabase...', mode: 'loading' };
+  persistFormRecord(form)
+    .then((saved) => {
+      if (saved) state.forms = [saved].concat(state.forms.filter((item) => item.id !== saved.id));
+      state.sync = { label: `${label} in Supabase`, mode: 'live' };
+      render();
+    })
+    .catch((error) => {
+      state.sync = { label: error.message || 'Form save failed', mode: 'local' };
+      showToast(error.message || 'Form save failed.', 'local', 'Forms');
+      render();
+    });
 }
 
 function setFormStatus(id, status) {
@@ -20186,7 +20275,7 @@ function setFormStatus(id, status) {
   if (!requirePermission('forms.manage', form.company_id, 'Your role cannot update forms.', 'Forms')) return;
   form.status = FORM_STATUSES.includes(status) ? status : 'Draft';
   state.selectedFormId = form.id;
-  saveFormsState(`${form.status} locally`);
+  saveFormsState(form.status);
   render();
 }
 
@@ -20210,17 +20299,20 @@ function duplicateForm(id) {
   render();
 }
 
-function deleteForm(id) {
+async function deleteForm(id) {
   const formId = id || state.selectedFormId;
   if (!formId) return;
   const form = formById(formId);
   if (form && !requirePermission('forms.manage', form.company_id, 'Your role cannot delete forms.', 'Forms')) return;
+  if (form) await deleteFormRecord(form);
   state.forms = state.forms.filter((form) => form.id !== formId);
   state.formResponses = state.formResponses.filter((response) => response.form_id !== formId);
   state.selectedFormId = companyForms(activeCompanyId())[0]?.id || '';
   state.selectedQuestionId = selectedForm(activeCompanyId())?.questions[0]?.id || '';
   state.modal = '';
-  saveFormsState('Form deleted locally');
+  writeJson(FORM_CACHE_KEY, state.forms);
+  writeJson(FORM_RESPONSE_CACHE_KEY, state.formResponses);
+  state.sync = { label: isLiveSupabaseSession() ? 'Form deleted from Supabase' : 'Form deleted locally', mode: isLiveSupabaseSession() ? 'live' : 'local' };
   render();
 }
 
@@ -20350,7 +20442,7 @@ function removeQuestionOption(id, index) {
   render();
 }
 
-function saveFormResponse(formEl) {
+async function saveFormResponse(formEl) {
   const form = formById(formEl.dataset.formId);
   if (!form) return;
   const data = new FormData(formEl);
@@ -20360,17 +20452,20 @@ function saveFormResponse(formEl) {
     const values = data.getAll(key).filter((value) => value instanceof File ? value.name : String(value || '').trim());
     answers[question.id] = values.length > 1 ? values.map((value) => value instanceof File ? value.name : value) : (values[0] instanceof File ? values[0].name : values[0] || '');
   });
-  state.formResponses.unshift(normalizeFormResponse({
+  const response = normalizeFormResponse({
     company_id: form.company_id,
     form_id: form.id,
     submitter_email: String(data.get('submitter_email') || ''),
     submitted_by: String(data.get('submitter_email') || activeSession().profile.full_name || 'Preview submitter'),
     answers,
     created_at: new Date().toISOString(),
-  }));
+  });
+  const savedResponse = await persistFormResponseRecord(response);
+  state.formResponses = [savedResponse].concat(state.formResponses.filter((item) => item.id !== savedResponse.id));
   state.formsTab = 'responses';
   state.modal = '';
-  saveFormsState('Preview response saved');
+  writeJson(FORM_RESPONSE_CACHE_KEY, state.formResponses);
+  state.sync = { label: isLiveSupabaseSession() ? 'Response saved in Supabase' : 'Preview response saved locally', mode: isLiveSupabaseSession() ? 'live' : 'local' };
   notifyLocalEvent(
     form.require_approval ? 'approval.form' : 'form.response',
     form.require_approval ? 'Form approval ready' : 'Form response saved',
