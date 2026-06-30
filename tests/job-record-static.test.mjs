@@ -13,6 +13,9 @@ test('jobs profile route renders a Salesforce-style job record workspace', () =>
   assert.match(source, /data-job-note-form/);
   assert.match(source, /data-action="job-quick"/);
   assert.match(source, /data-job-edit=/);
+  assert.match(source, /\['New Estimate', 'ti-calculator'\]/);
+  assert.match(source, /\['Estimate', 'ti-calculator'\]/);
+  assert.match(source, /if \(kind === 'Estimate' \|\| kind === 'New Estimate'\) return openEstimateBuilder\('job', jobId\)/);
 });
 
 test('job record pencil controls trigger inline editing for editable fields', () => {

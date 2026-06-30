@@ -66,7 +66,111 @@ const CLIENT_PORTAL_GUEST_NAME = 'Client';
 const WORKSPACE_BUILDER_STORAGE_PREFIX = 'qhq_workspace_builder_v1';
 const DASHBOARD_LAYOUT_CACHE_KEY = 'quest-hq-dashboard-layouts-v1';
 const DASHBOARD_ROLE_VIEW_CACHE_KEY = 'quest-hq-dashboard-role-views-v1';
-const ROOF_UNDERWRITER_URL = 'https://roof-underwriter.vercel.app';
+const ESTIMATE_TAX_RATE = 0.085;
+const ROOF_ESTIMATE_SYSTEM_ORDER = ['shingle', 'tile', 'foam', 'metal'];
+const ROOF_ESTIMATE_SYSTEMS = {
+  shingle: {
+    label: 'Shingle',
+    labor: [
+      ['Shingle install labor / sq', 0, 110],
+      ['Walk deck', 0, 1000],
+      ['Plywood labor / sheet', 0, 4],
+      ['Solar un/re-install', 0, 200],
+      ['Dump & gas', 1, 500],
+    ],
+    materials: [
+      ['GAF Timberline HDZ shingles / sq', 0, 125],
+      ['GAF ridge cap / 33ft', 0, 86.25],
+      ['GAF starter strip / bundle', 0, 84.85],
+      ['SecureGrip 30 underlayment', 0, 100],
+      ['Metal underlayment', 0, 125],
+      ['Underlayment nails', 0, 24.6],
+      ['Shingle coil nails 1-1/4', 0, 55.8],
+      ['Staples (overhang)', 0, 41.5],
+      ['Base sheet 2sq black', 0, 130],
+      ['Cap sheet 1sq', 0, 130],
+      ['Flashings', 0, 30],
+      ['Drip edge 10ft', 0, 8],
+      ['Plastic roof cement 5gal', 0, 74],
+      ['Pipe jacks', 0, 20],
+      ['Valley metal 10ft', 0, 40],
+      ['Fascia trim 1x4 16ft', 0, 30],
+      ['Misc', 0, 500],
+    ],
+  },
+  tile: {
+    label: 'Tile',
+    labor: [
+      ['Tile install labor / sq', 0, 120],
+      ['Tile loader / sq', 0, 25],
+      ['Metal', 0, 250],
+      ['Solar un/re-install', 0, 200],
+      ['Dump & gas', 1, 800],
+    ],
+    materials: [
+      ['Eagle tile / sq', 0, 120],
+      ['Tile trim / ln ft', 0, 5],
+      ['Ply40 / tile seal underlayment', 0, 55],
+      ['Furring strips', 0, 14],
+      ['Valley metals 10ft', 0, 44],
+      ['Drip edge 2x2 10ft', 0, 8],
+      ['Birdstop / eave riser', 0, 10],
+      ['Pipejacks', 0, 15],
+      ['Other flashings', 0, 15],
+      ['Plastic cap nails', 0, 25],
+      ['Nails', 0, 55],
+      ['Hip & ridge blocker', 0, 100],
+      ['Plastic cement 4.75gal', 0, 75],
+      ['Base sheet 2sq', 0, 130],
+      ['Cap sheet 1sq', 0, 130],
+      ['Ice & water barrier', 0, 120],
+      ['Misc', 0, 500],
+    ],
+  },
+  foam: {
+    label: 'Foam',
+    labor: [
+      ['SPF foam application / sq', 0, 150],
+      ['Surface prep & clean / sq', 0, 40],
+      ['Solar un/re-install', 0, 200],
+      ['Dump & gas', 1, 400],
+    ],
+    materials: [
+      ['Spray foam 2.5lb / sq', 0, 120],
+      ['Base coat / sq', 0, 60],
+      ['Top coat + granules / sq', 0, 50],
+      ['Primer', 0, 50],
+      ['Caulking / sealant', 0, 25],
+      ['Patch / repair', 0, 40],
+      ['Misc', 0, 500],
+    ],
+  },
+  metal: {
+    label: 'Metal',
+    labor: [
+      ['Metal panel install / sq', 0, 150],
+      ['Tear-off / sq', 0, 60],
+      ['Trim & flashing labor / ln ft', 0, 8],
+      ['Solar un/re-install', 0, 200],
+      ['Dump & gas', 1, 500],
+    ],
+    materials: [
+      ['Metal panels (PBR / standing seam) / sq', 0, 120],
+      ['Ridge cap / hip', 0, 15],
+      ['Trim & rake flashing / ln ft', 0, 10],
+      ['Roof-to-wall flashing / ln ft', 0, 10],
+      ['Drip edge / eave', 0, 8],
+      ['Zee bar', 0, 10],
+      ['Inside/outside foam closures', 0, 5],
+      ['Painted screws / box', 0, 40],
+      ['Butyl tape / sealant', 0, 25],
+      ['Synthetic underlayment / sq', 0, 100],
+      ['Ice & water barrier', 0, 120],
+      ['Pipe jacks', 0, 20],
+      ['Misc', 0, 500],
+    ],
+  },
+};
 
 const ROLE_PERMISSIONS = {
   developer: ['*'],
@@ -1576,6 +1680,7 @@ const state = {
   selectedAccountId: '',
   accountTab: 'overview',
   dealPrefill: null,
+  estimateContext: null,
   activityPrefill: null,
   activityFilter: 'all',
   dockedActivityComposers: [],
@@ -4464,31 +4569,12 @@ async function logContactActivity(contactId, type, subject, body = '') {
   render();
 }
 
-function roofUnderwriterUrl(params = {}) {
-  const url = new URL(ROOF_UNDERWRITER_URL);
-  Object.entries(params).forEach(([key, value]) => {
-    if (value !== undefined && value !== null && String(value).trim()) url.searchParams.set(key, String(value).trim());
-  });
-  return url.toString();
-}
-
-async function openContactEstimate(contactId) {
-  const contact = contactById(contactId);
-  if (!contact) return;
-  const estimateUrl = roofUnderwriterUrl({
-    source: 'quest-hq',
-    contact_id: contact.id,
-  });
-  window.open(estimateUrl, '_blank', 'noopener,noreferrer');
-  await logContactActivity(contact.id, 'system', 'Roof Underwriter opened', 'Estimate workflow opened from this contact.');
-}
-
 function contactQuickCreate(contactId, kind) {
   if (kind === 'Task' || kind === 'New Task') return openDockedActivityComposer('contact', contactId, 'New Task');
   if (kind === 'Note') return openDockedActivityComposer('contact', contactId, 'Note');
   if (kind === 'Call Log' || kind === 'Log a Call') return openDockedActivityComposer('contact', contactId, 'Log a Call');
   if (kind === 'Meeting' || kind === 'New Event') return openDockedActivityComposer('contact', contactId, 'New Event');
-  if (kind === 'Estimate' || kind === 'New Estimate') return openContactEstimate(contactId);
+  if (kind === 'Estimate' || kind === 'New Estimate') return openEstimateBuilder('contact', contactId);
   if (kind === 'Proposal') return convertContactToQuote(contactId);
   if (kind === 'Follow') return showToast('Following this contact.', 'local', 'Contacts');
   return showToast(`${kind} isn't set up yet.`, 'local', 'Contacts');
@@ -4686,6 +4772,7 @@ function jobQuickCreate(jobId, kind) {
   if (kind === 'Note' || kind === 'Add Note') return logJobActivity(jobId, 'note', 'Note added');
   if (kind === 'Log a Call') return logJobActivity(jobId, 'call', 'Logged a call');
   if (kind === 'New Event') return logJobActivity(jobId, 'meeting', 'Meeting scheduled');
+  if (kind === 'Estimate' || kind === 'New Estimate') return openEstimateBuilder('job', jobId);
   if (['Files', 'Open Files'].includes(kind) && !can('files.view', job.company_id)) return showToast('Files is not available for this workspace.', 'local', 'Plugins');
   if (kind === 'Form' && !can('forms.view', job.company_id)) return showToast('Forms is not available for this workspace.', 'local', 'Plugins');
   if (kind === 'Invoice' && !can('finance.view', job.company_id)) return showToast('Finance is not available for this workspace.', 'local', 'Plugins');
@@ -5178,6 +5265,7 @@ function renderJobRecord(companyId, job) {
   const headerActions = [
     ['New Task', 'ti-checkbox'],
     ['Log a Call', 'ti-phone'],
+    ['New Estimate', 'ti-calculator'],
     ['Add Note', 'ti-note'],
     ...(can('files.view', companyId) ? [['Open Files', 'ti-folder']] : []),
     ['Edit', 'ti-pencil'],
@@ -5185,6 +5273,7 @@ function renderJobRecord(companyId, job) {
   const activityTabs = [['Note', 'ti-note'], ['New Task', 'ti-checkbox'], ['New Event', 'ti-calendar'], ['Log a Call', 'ti-phone']];
   const quickTiles = [
     ['Task', 'ti-checkbox'],
+    ['Estimate', 'ti-calculator'],
     ...(can('files.view', companyId) ? [['Files', 'ti-folder']] : []),
     ...(can('forms.view', companyId) ? [['Form', 'ti-clipboard-list']] : []),
     ...(can('finance.view', companyId) ? [['Invoice', 'ti-receipt-dollar']] : []),
@@ -9638,6 +9727,7 @@ function renderActiveModal(route, session) {
   if (state.modal === 'account-edit') return renderAccountFormModal(activeCompanyId(), selectedAccount());
   if (state.modal === 'deal-new') return renderDealFormModal(activeCompanyId(), null);
   if (state.modal === 'deal-edit') return renderDealFormModal(activeCompanyId(), selectedDeal());
+  if (state.modal === 'estimate-builder') return renderEstimateBuilderModal(activeCompanyId());
   if (state.modal === 'activity-new') return renderActivityFormModal(activeCompanyId());
   if (state.modal === 'stages-jobs') return renderStageManagerModal('jobs');
   if (state.modal === 'stages-contacts') return renderStageManagerModal('contacts');
@@ -9728,6 +9818,342 @@ function renderDrawerShell(eyebrow, title, content) {
 
 function renderJobFormModal(companyId, job) {
   return renderModalShell('Jobs', job ? 'Edit job' : 'Create job', renderJobEditor(companyId, job), 'wide-modal');
+}
+
+function estimateLine([name, quantity, unitPrice]) {
+  return { name, quantity: number(quantity), unitPrice: number(unitPrice) };
+}
+
+function estimateSystemKey(value = '') {
+  const clean = String(value || '').toLowerCase();
+  const byKey = ROOF_ESTIMATE_SYSTEM_ORDER.find((key) => clean.includes(key));
+  if (byKey) return byKey;
+  const byLabel = ROOF_ESTIMATE_SYSTEM_ORDER.find((key) => clean.includes(ROOF_ESTIMATE_SYSTEMS[key].label.toLowerCase()));
+  return byLabel || 'shingle';
+}
+
+function createEstimateLines(systemKey = 'shingle') {
+  const system = ROOF_ESTIMATE_SYSTEMS[ROOF_ESTIMATE_SYSTEMS[systemKey] ? systemKey : 'shingle'];
+  return {
+    labor: system.labor.map(estimateLine),
+    materials: system.materials.map(estimateLine),
+  };
+}
+
+function estimateContext(type, id) {
+  if (type === 'contact') {
+    const contact = contactById(id);
+    if (!contact) return null;
+    return {
+      type,
+      id,
+      company_id: contact.company_id,
+      label: 'Contact',
+      title: contact.name,
+      subtitle: contact.location || contact.phone || contact.email || 'No address on file',
+      currentTotal: contact.value || 0,
+      systemKey: estimateSystemKey(contact.roof_system || contact.title),
+      account_id: contact.account_id,
+    };
+  }
+  if (type === 'deal') {
+    const deal = dealById(id);
+    if (!deal) return null;
+    const contact = contactById(deal.primary_contact_id);
+    const account = accountById(deal.account_id);
+    return {
+      type,
+      id,
+      company_id: deal.company_id,
+      label: 'Quote',
+      title: deal.name,
+      subtitle: account?.address || contact?.location || account?.name || 'No address on file',
+      currentTotal: deal.value || 0,
+      systemKey: estimateSystemKey(deal.source || contact?.roof_system),
+      account_id: deal.account_id,
+    };
+  }
+  if (type === 'job') {
+    const job = jobById(id);
+    if (!job) return null;
+    return {
+      type,
+      id,
+      company_id: job.company_id,
+      label: 'Job',
+      title: job.name,
+      subtitle: job.site_address || job.client_name || 'No address on file',
+      currentTotal: job.estimate_total || 0,
+      systemKey: estimateSystemKey(job.job_type || job.scope),
+      account_id: job.account_id,
+    };
+  }
+  return null;
+}
+
+function currentEstimateContext() {
+  const ctx = state.estimateContext || {};
+  const base = estimateContext(ctx.type, ctx.id);
+  if (!base) return null;
+  return { ...base, systemKey: ctx.system || base.systemKey };
+}
+
+function estimateDraftForContext(ctx) {
+  const lines = createEstimateLines(ctx.systemKey);
+  return {
+    name: ctx.title,
+    primary: ctx.systemKey,
+    projectType: 'rr',
+    squares: 0,
+    commissionRate: 10,
+    targetMargin: 22,
+    quote: ctx.currentTotal || 0,
+    ...lines,
+  };
+}
+
+function sumEstimateLines(lines = []) {
+  return lines.reduce((sum, item) => sum + number(item.quantity) * number(item.unitPrice), 0);
+}
+
+function calculateEstimateTotals(draft) {
+  const quote = number(draft.quote);
+  const laborTotal = roundCurrency(sumEstimateLines(draft.labor));
+  const materialSubtotal = roundCurrency(sumEstimateLines(draft.materials));
+  const materialTax = roundCurrency(materialSubtotal * ESTIMATE_TAX_RATE);
+  const materialTotal = roundCurrency(materialSubtotal + materialTax);
+  const hardCost = roundCurrency(laborTotal + materialTotal);
+  const grossProfit = roundCurrency(quote - hardCost);
+  const commission = roundCurrency(quote * (number(draft.commissionRate) / 100));
+  const netProfit = roundCurrency(grossProfit - commission);
+  const netMargin = quote > 0 ? (netProfit / quote) * 100 : 0;
+  return {
+    laborTotal,
+    materialSubtotal,
+    materialTax,
+    materialTotal,
+    hardCost,
+    grossProfit,
+    commission,
+    netProfit,
+    netMargin,
+    targetQuote: calculateEstimateTargetQuote(hardCost, draft.commissionRate, draft.targetMargin),
+    quotePerSquare: number(draft.squares) > 0 ? quote / number(draft.squares) : 0,
+    profitPerSquare: number(draft.squares) > 0 ? netProfit / number(draft.squares) : 0,
+    deposit: roundCurrency(quote * 0.5),
+    materialDrop: roundCurrency(quote * 0.3),
+    completion: roundCurrency(quote * 0.2),
+  };
+}
+
+function calculateEstimateTargetQuote(hardCost, commissionRate, targetMargin) {
+  const denominator = 1 - number(commissionRate) / 100 - number(targetMargin) / 100;
+  return denominator > 0 ? roundCurrency(number(hardCost) / denominator) : 0;
+}
+
+function roundCurrency(value) {
+  return Math.round((number(value) + Number.EPSILON) * 100) / 100;
+}
+
+function estimateMetricGrid(draft, totals) {
+  return `
+    <div class="estimate-metrics">
+      ${metricCard('Quote', money(draft.quote || 0))}
+      ${metricCard('Hard cost', money(totals.hardCost))}
+      ${metricCard('Net profit', money(totals.netProfit))}
+      ${metricCard('Net margin', `${totals.netMargin.toFixed(1)}%`)}
+      ${metricCard('Target quote', money(totals.targetQuote))}
+      ${metricCard('Payment split', `${money(totals.deposit)} / ${money(totals.materialDrop)} / ${money(totals.completion)}`)}
+    </div>
+  `;
+}
+
+function renderEstimateLineRows(kind, lines) {
+  return `
+    <div class="estimate-line-list">
+      ${lines.map((item, index) => `
+        <div class="estimate-line-row">
+          <input data-estimate-field name="${kind}_name" value="${h(item.name)}" aria-label="${h(kind)} item ${index + 1} name" />
+          <input data-estimate-field name="${kind}_quantity" value="${h(String(item.quantity || 0))}" type="number" step="0.01" aria-label="${h(kind)} item ${index + 1} quantity" />
+          <input data-estimate-field name="${kind}_unit_price" value="${h(String(item.unitPrice || 0))}" type="number" step="0.01" aria-label="${h(kind)} item ${index + 1} unit price" />
+        </div>
+      `).join('')}
+    </div>
+  `;
+}
+
+function renderEstimateBuilderModal(companyId) {
+  const ctx = currentEstimateContext();
+  if (!ctx || ctx.company_id !== companyId) return renderModalShell('Job Center', 'Estimate', emptyState('Choose a contact, quote, or job before creating an estimate.'));
+  const draft = estimateDraftForContext(ctx);
+  const totals = calculateEstimateTotals(draft);
+  return renderModalShell('Job Center', `${ctx.label} estimate`, `
+    <form class="estimate-builder" data-estimate-builder-form>
+      <input type="hidden" name="related_type" value="${h(ctx.type)}" />
+      <input type="hidden" name="related_id" value="${h(ctx.id)}" />
+      <section class="estimate-hero span-2">
+        <div>
+          <span>${h(ctx.label)}</span>
+          <h3>${h(ctx.title)}</h3>
+          <p>${h(ctx.subtitle)}</p>
+        </div>
+        <div class="estimate-current">
+          <span>Current saved value</span>
+          <strong>${h(money(ctx.currentTotal || 0))}</strong>
+        </div>
+      </section>
+      <label>
+        <span>Estimate name</span>
+        <input data-estimate-field name="name" value="${h(draft.name)}" />
+      </label>
+      <label>
+        <span>Roof system</span>
+        <select data-estimate-system name="primary">
+          ${ROOF_ESTIMATE_SYSTEM_ORDER.map((key) => `<option value="${h(key)}" ${draft.primary === key ? 'selected' : ''}>${h(ROOF_ESTIMATE_SYSTEMS[key].label)}</option>`).join('')}
+        </select>
+      </label>
+      <label>
+        <span>Project type</span>
+        <select data-estimate-field name="project_type">
+          <option value="rr" selected>R&R</option>
+          <option value="new">New construction</option>
+        </select>
+      </label>
+      <label>
+        <span>Squares</span>
+        <input data-estimate-field name="squares" value="${h(String(draft.squares))}" type="number" step="0.1" />
+      </label>
+      <label>
+        <span>Commission %</span>
+        <input data-estimate-field name="commission_rate" value="${h(String(draft.commissionRate))}" type="number" step="0.1" />
+      </label>
+      <label>
+        <span>Target margin %</span>
+        <input data-estimate-field name="target_margin" value="${h(String(draft.targetMargin))}" type="number" step="0.1" />
+      </label>
+      <label class="span-2">
+        <span>Customer quote</span>
+        <input data-estimate-field name="quote" value="${h(String(draft.quote || ''))}" type="number" step="0.01" placeholder="Enter the sell price or use the target quote" />
+      </label>
+      <section class="estimate-preview span-2" data-estimate-preview>
+        ${estimateMetricGrid(draft, totals)}
+      </section>
+      <section class="estimate-lines span-2">
+        <div class="estimate-lines-head">
+          <div><h3>Labor</h3><p>Quantity x unit price</p></div>
+          <div class="estimate-line-labels"><span>Item</span><span>Qty</span><span>Unit</span></div>
+        </div>
+        ${renderEstimateLineRows('labor', draft.labor)}
+      </section>
+      <section class="estimate-lines span-2">
+        <div class="estimate-lines-head">
+          <div><h3>Materials</h3><p>Material subtotal includes ${Math.round(ESTIMATE_TAX_RATE * 1000) / 10}% tax.</p></div>
+          <div class="estimate-line-labels"><span>Item</span><span>Qty</span><span>Unit</span></div>
+        </div>
+        ${renderEstimateLineRows('material', draft.materials)}
+      </section>
+      <label class="span-2">
+        <span>Internal notes</span>
+        <textarea name="notes" data-estimate-field placeholder="Scope notes, exclusions, insurance details, or proposal reminders."></textarea>
+      </label>
+      <div class="form-actions span-2">
+        <button class="btn btn-primary" type="submit"><i class="ti ti-device-floppy"></i>Save estimate to ${h(ctx.label.toLowerCase())}</button>
+        <button class="btn" type="button" data-action="close-modal">Cancel</button>
+      </div>
+    </form>
+  `, 'estimate-modal');
+}
+
+function estimateDraftFromForm(form) {
+  const data = new FormData(form);
+  const toLines = (prefix) => {
+    const names = data.getAll(`${prefix}_name`);
+    const quantities = data.getAll(`${prefix}_quantity`);
+    const prices = data.getAll(`${prefix}_unit_price`);
+    return names.map((name, index) => ({
+      name: String(name || '').trim(),
+      quantity: number(quantities[index]),
+      unitPrice: number(prices[index]),
+    })).filter((item) => item.name || item.quantity || item.unitPrice);
+  };
+  return {
+    name: String(data.get('name') || '').trim(),
+    primary: estimateSystemKey(data.get('primary')),
+    projectType: String(data.get('project_type') || 'rr'),
+    squares: number(data.get('squares')),
+    commissionRate: number(data.get('commission_rate')),
+    targetMargin: number(data.get('target_margin')),
+    quote: number(data.get('quote')),
+    labor: toLines('labor'),
+    materials: toLines('material'),
+    notes: String(data.get('notes') || '').trim(),
+  };
+}
+
+function updateEstimateBuilderPreview(form) {
+  if (!form) return;
+  const preview = form.querySelector('[data-estimate-preview]');
+  if (!preview) return;
+  const draft = estimateDraftFromForm(form);
+  preview.innerHTML = estimateMetricGrid(draft, calculateEstimateTotals(draft));
+}
+
+function estimateActivityBody(draft, totals) {
+  const system = ROOF_ESTIMATE_SYSTEMS[draft.primary]?.label || titleCase(draft.primary);
+  const projectType = draft.projectType === 'new' ? 'New construction' : 'R&R';
+  const nonZeroLines = draft.labor.concat(draft.materials).filter((line) => number(line.quantity) || number(line.unitPrice));
+  const lineSummary = nonZeroLines.slice(0, 8).map((line) => `${line.name}: ${line.quantity} x ${money(line.unitPrice)}`).join('\n');
+  return [
+    `${system} ${projectType} estimate`,
+    `Squares: ${draft.squares || 0}`,
+    `Quote: ${money(draft.quote || 0)}`,
+    `Hard cost: ${money(totals.hardCost)} (labor ${money(totals.laborTotal)}, materials ${money(totals.materialTotal)})`,
+    `Net profit: ${money(totals.netProfit)} / ${totals.netMargin.toFixed(1)}%`,
+    `Payments: deposit ${money(totals.deposit)}, material drop ${money(totals.materialDrop)}, completion ${money(totals.completion)}`,
+    draft.notes ? `Notes: ${draft.notes}` : '',
+    lineSummary ? `Lines:\n${lineSummary}${nonZeroLines.length > 8 ? '\n...' : ''}` : '',
+  ].filter(Boolean).join('\n');
+}
+
+async function saveBuiltEstimate(form) {
+  const data = new FormData(form);
+  const type = String(data.get('related_type') || '');
+  const id = String(data.get('related_id') || '');
+  const ctx = estimateContext(type, id);
+  if (!ctx) throw new Error('Estimate record was not found.');
+  if (!requirePermission(type === 'job' ? 'jobs.manage' : 'crm.view', ctx.company_id, 'Your role cannot save estimates here.', 'Estimate')) return;
+  const draft = estimateDraftFromForm(form);
+  const initialTotals = calculateEstimateTotals(draft);
+  if (!draft.quote && initialTotals.targetQuote > 0) draft.quote = Math.round(initialTotals.targetQuote);
+  const totals = calculateEstimateTotals(draft);
+  const quoteTotal = roundCurrency(draft.quote || 0);
+  const body = estimateActivityBody(draft, totals);
+  if (type === 'contact') {
+    const contact = contactById(id);
+    await persistContact({ ...contact, value: quoteTotal, roof_system: ROOF_ESTIMATE_SYSTEMS[draft.primary]?.label || draft.primary });
+    await logContactActivity(id, 'system', `Estimate saved - ${money(quoteTotal)}`, body);
+  } else if (type === 'deal') {
+    const deal = dealById(id);
+    const estimateStage = dealStageNames().find((stage) => /estimate|proposal/i.test(stage));
+    await persistDeal({ ...deal, value: quoteTotal, stage: estimateStage || deal.stage }, 'Estimate saved to quote.');
+    await logDealActivity(id, 'system', `Estimate saved - ${money(quoteTotal)}`, body);
+  } else if (type === 'job') {
+    const job = jobById(id);
+    await persistJob({ ...job, estimate_total: quoteTotal }, 'Estimate saved to job.');
+    await logJobActivity(id, 'system', `Estimate saved - ${money(quoteTotal)}`, body);
+  }
+  state.modal = '';
+  state.estimateContext = null;
+  showToast(`Estimate saved at ${money(quoteTotal)}.`, 'live', 'Estimate');
+  render();
+}
+
+function openEstimateBuilder(type, id) {
+  const ctx = estimateContext(type, id);
+  if (!ctx) return;
+  state.estimateContext = { type, id };
+  state.modal = 'estimate-builder';
+  render();
 }
 
 function renderTaskRouteModal(route, companyId) {
@@ -11245,6 +11671,7 @@ function closeActiveModal() {
   state.modal = '';
   state.formStartTemplateId = '';
   state.formStartTab = 'blank';
+  state.estimateContext = null;
   state.selectedFinanceInvoiceId = '';
   state.selectedFinanceExpenseId = '';
   state.selectedFinanceVendorId = '';
@@ -11430,6 +11857,14 @@ function onDocumentSubmit(event) {
   if (event.target.matches('[data-deal-form]')) {
     event.preventDefault();
     saveDeal(event.target);
+    return;
+  }
+
+  if (event.target.matches('[data-estimate-builder-form]')) {
+    event.preventDefault();
+    saveBuiltEstimate(event.target).catch((error) => {
+      showToast(error.message || 'Estimate could not be saved.', 'local', 'Estimate');
+    });
     return;
   }
 
@@ -13088,6 +13523,10 @@ function onDocumentInput(event) {
     filterMessagePeopleList(event.target);
     return;
   }
+  if (event.target.matches('[data-estimate-field]')) {
+    updateEstimateBuilderPreview(event.target.closest('[data-estimate-builder-form]'));
+    return;
+  }
   if (event.target.matches('[data-profile-crop-zoom], [data-profile-crop-x], [data-profile-crop-y]')) {
     updateProfileAvatarCrop(event.target.closest('[data-profile-form]'));
     return;
@@ -13114,6 +13553,15 @@ function onDocumentChange(event) {
   if (event.target.matches('[data-company-switch]')) {
     const nextCompanyId = event.target.value || defaultCompanyId();
     setActiveCompany(nextCompanyId);
+    return;
+  }
+  if (event.target.matches('[data-estimate-system]')) {
+    state.estimateContext = { ...(state.estimateContext || {}), system: event.target.value || 'shingle' };
+    render();
+    return;
+  }
+  if (event.target.matches('[data-estimate-field]')) {
+    updateEstimateBuilderPreview(event.target.closest('[data-estimate-builder-form]'));
     return;
   }
   if (event.target.matches('[data-stage-filter]')) {
@@ -15779,17 +16227,6 @@ async function logDealActivity(dealId, type, subject, body = '') {
   render();
 }
 
-async function openDealEstimate(dealId) {
-  const deal = dealById(dealId);
-  if (!deal) return;
-  const estimateUrl = roofUnderwriterUrl({
-    source: 'quest-hq',
-    deal_id: deal.id,
-  });
-  window.open(estimateUrl, '_blank', 'noopener,noreferrer');
-  await logDealActivity(deal.id, 'system', 'Roof Underwriter opened', 'Estimate workflow opened from this quote.');
-}
-
 async function createDealProposal(dealId) {
   const deal = dealById(dealId);
   if (!deal) return;
@@ -15806,7 +16243,7 @@ function dealQuickCreate(dealId, kind) {
   if (kind === 'Note') return openDockedActivityComposer('deal', dealId, 'Note');
   if (kind === 'Call Log' || kind === 'Log a Call') return openDockedActivityComposer('deal', dealId, 'Log a Call');
   if (kind === 'Meeting' || kind === 'New Event') return openDockedActivityComposer('deal', dealId, 'New Event');
-  if (kind === 'Estimate' || kind === 'New Estimate') return openDealEstimate(dealId);
+  if (kind === 'Estimate' || kind === 'New Estimate') return openEstimateBuilder('deal', dealId);
   if (kind === 'Proposal') return createDealProposal(dealId);
   if (kind === 'Follow') return showToast('Following this quote.', 'local', 'Quotes');
   return showToast(`${kind} isn't set up yet.`, 'local', 'Quotes');

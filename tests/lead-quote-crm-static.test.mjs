@@ -190,20 +190,21 @@ test('record activity buttons open docked Salesforce-style composer windows', ()
 });
 
 test('record quick create tiles open real workflows instead of placeholder toasts', () => {
-  assert.match(source, /const ROOF_UNDERWRITER_URL = 'https:\/\/roof-underwriter\.vercel\.app'/);
-  assert.match(source, /function roofUnderwriterUrl\(params = \{\}\)/);
-  assert.match(source, /function openContactEstimate\(contactId\)/);
-  assert.match(source, /function openDealEstimate\(dealId\)/);
-  assert.match(source, /window\.open\(estimateUrl, '_blank', 'noopener,noreferrer'\)/);
-  const contactEstimateSource = source.match(/async function openContactEstimate[\s\S]*?\n}\n\nfunction contactQuickCreate/)?.[0] || '';
-  const dealEstimateSource = source.match(/async function openDealEstimate[\s\S]*?\n}\n\nasync function createDealProposal/)?.[0] || '';
-  assert.doesNotMatch(contactEstimateSource, /name: contact\.name|address: contact\.location|value: contact\.value/);
-  assert.doesNotMatch(dealEstimateSource, /name: deal\.name|address:|value: deal\.value/);
+  assert.match(source, /const ROOF_ESTIMATE_SYSTEMS = \{/);
+  assert.match(source, /function renderEstimateBuilderModal\(companyId\)/);
+  assert.match(source, /function openEstimateBuilder\(type, id\)/);
+  assert.match(source, /async function saveBuiltEstimate\(form\)/);
+  assert.match(source, /data-estimate-builder-form/);
+  assert.match(source, /calculateEstimateTotals\(draft\)/);
+  assert.match(source, /await persistJob\(\{ \.\.\.job, estimate_total: quoteTotal \}/);
+  assert.match(source, /await persistDeal\(\{ \.\.\.deal, value: quoteTotal/);
+  assert.match(source, /await persistContact\(\{ \.\.\.contact, value: quoteTotal/);
+  assert.doesNotMatch(source, /roofUnderwriterUrl|ROOF_UNDERWRITER_URL|window\.open\(estimateUrl/);
   assert.match(source, /if \(kind === 'Task' \|\| kind === 'New Task'\) return openDockedActivityComposer\('contact', contactId, 'New Task'\)/);
-  assert.match(source, /if \(kind === 'Estimate' \|\| kind === 'New Estimate'\) return openContactEstimate\(contactId\)/);
+  assert.match(source, /if \(kind === 'Estimate' \|\| kind === 'New Estimate'\) return openEstimateBuilder\('contact', contactId\)/);
   assert.match(source, /if \(kind === 'Proposal'\) return convertContactToQuote\(contactId\)/);
   assert.match(source, /if \(kind === 'Task' \|\| kind === 'New Task'\) return openDockedActivityComposer\('deal', dealId, 'New Task'\)/);
-  assert.match(source, /if \(kind === 'Estimate' \|\| kind === 'New Estimate'\) return openDealEstimate\(dealId\)/);
+  assert.match(source, /if \(kind === 'Estimate' \|\| kind === 'New Estimate'\) return openEstimateBuilder\('deal', dealId\)/);
   assert.match(source, /if \(kind === 'Proposal'\) return createDealProposal\(dealId\)/);
 });
 

@@ -6323,6 +6323,129 @@ button.side-item {
   width: min(620px, calc(100vw - 40px));
 }
 
+.estimate-modal {
+  width: min(1080px, calc(100vw - 40px));
+}
+
+.estimate-builder {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.estimate-builder .span-2 {
+  grid-column: 1 / -1;
+}
+
+.estimate-builder label {
+  display: grid;
+  gap: 6px;
+}
+
+.estimate-builder label > span,
+.estimate-lines-head p,
+.estimate-current span {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 850;
+  text-transform: uppercase;
+}
+
+.estimate-builder input,
+.estimate-builder select,
+.estimate-builder textarea {
+  width: 100%;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: #fff;
+  padding: 10px 11px;
+  font: inherit;
+}
+
+.estimate-builder textarea {
+  min-height: 88px;
+  resize: vertical;
+}
+
+.estimate-hero {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: #fbfcfe;
+  padding: 14px;
+}
+
+.estimate-hero h3 {
+  margin: 2px 0;
+  font-size: 18px;
+}
+
+.estimate-hero p {
+  margin: 0;
+  color: var(--muted);
+}
+
+.estimate-current {
+  display: grid;
+  gap: 4px;
+  text-align: right;
+}
+
+.estimate-current strong {
+  font-size: 22px;
+}
+
+.estimate-metrics {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.estimate-lines {
+  display: grid;
+  gap: 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 12px;
+}
+
+.estimate-lines-head {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(220px, 42%);
+  align-items: end;
+  gap: 12px;
+}
+
+.estimate-lines-head h3 {
+  margin: 0 0 3px;
+}
+
+.estimate-lines-head p {
+  margin: 0;
+}
+
+.estimate-line-labels,
+.estimate-line-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 84px 104px;
+  gap: 8px;
+}
+
+.estimate-line-labels {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 850;
+  text-transform: uppercase;
+}
+
+.estimate-line-list {
+  display: grid;
+  gap: 8px;
+}
+
 .drawer-overlay {
   place-items: stretch end;
   padding: 0;
