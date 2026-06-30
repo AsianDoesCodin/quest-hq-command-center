@@ -189,6 +189,20 @@ test('record activity buttons open docked Salesforce-style composer windows', ()
   assert.match(styles, /\.activity-dock-window/);
 });
 
+test('record quick create tiles open real workflows instead of placeholder toasts', () => {
+  assert.match(source, /const ROOF_UNDERWRITER_URL = 'https:\/\/roof-underwriter\.vercel\.app'/);
+  assert.match(source, /function roofUnderwriterUrl\(params = \{\}\)/);
+  assert.match(source, /function openContactEstimate\(contactId\)/);
+  assert.match(source, /function openDealEstimate\(dealId\)/);
+  assert.match(source, /window\.open\(estimateUrl, '_blank', 'noopener,noreferrer'\)/);
+  assert.match(source, /if \(kind === 'Task' \|\| kind === 'New Task'\) return openDockedActivityComposer\('contact', contactId, 'New Task'\)/);
+  assert.match(source, /if \(kind === 'Estimate' \|\| kind === 'New Estimate'\) return openContactEstimate\(contactId\)/);
+  assert.match(source, /if \(kind === 'Proposal'\) return convertContactToQuote\(contactId\)/);
+  assert.match(source, /if \(kind === 'Task' \|\| kind === 'New Task'\) return openDockedActivityComposer\('deal', dealId, 'New Task'\)/);
+  assert.match(source, /if \(kind === 'Estimate' \|\| kind === 'New Estimate'\) return openDealEstimate\(dealId\)/);
+  assert.match(source, /if \(kind === 'Proposal'\) return createDealProposal\(dealId\)/);
+});
+
 test('docked activity composers use distinct salesforce-style forms by action', () => {
   assert.match(source, /function renderDockedActivityFields\(composer, record, config\)/);
   assert.match(source, /function serializeDockedActivityBody\(composer, formData\)/);

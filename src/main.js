@@ -66,6 +66,7 @@ const CLIENT_PORTAL_GUEST_NAME = 'Client';
 const WORKSPACE_BUILDER_STORAGE_PREFIX = 'qhq_workspace_builder_v1';
 const DASHBOARD_LAYOUT_CACHE_KEY = 'quest-hq-dashboard-layouts-v1';
 const DASHBOARD_ROLE_VIEW_CACHE_KEY = 'quest-hq-dashboard-role-views-v1';
+const ROOF_UNDERWRITER_URL = 'https://roof-underwriter.vercel.app';
 
 const ROLE_PERMISSIONS = {
   developer: ['*'],
@@ -4463,11 +4464,35 @@ async function logContactActivity(contactId, type, subject, body = '') {
   render();
 }
 
+function roofUnderwriterUrl(params = {}) {
+  const url = new URL(ROOF_UNDERWRITER_URL);
+  Object.entries(params).forEach(([key, value]) => {
+    if (value !== undefined && value !== null && String(value).trim()) url.searchParams.set(key, String(value).trim());
+  });
+  return url.toString();
+}
+
+async function openContactEstimate(contactId) {
+  const contact = contactById(contactId);
+  if (!contact) return;
+  const estimateUrl = roofUnderwriterUrl({
+    source: 'quest-hq',
+    contact_id: contact.id,
+    name: contact.name,
+    address: contact.location,
+    value: contact.value || '',
+  });
+  window.open(estimateUrl, '_blank', 'noopener,noreferrer');
+  await logContactActivity(contact.id, 'system', 'Roof Underwriter opened', 'Estimate workflow opened from this contact.');
+}
+
 function contactQuickCreate(contactId, kind) {
-  if (kind === 'Task' || kind === 'New Task') return createContactTask(contactId, 'New task');
-  if (kind === 'Note') return logContactActivity(contactId, 'note', 'Note added');
-  if (kind === 'Call Log' || kind === 'Log a Call') return logContactActivity(contactId, 'call', 'Logged a call');
-  if (kind === 'Meeting' || kind === 'New Event') return logContactActivity(contactId, 'meeting', 'Meeting scheduled');
+  if (kind === 'Task' || kind === 'New Task') return openDockedActivityComposer('contact', contactId, 'New Task');
+  if (kind === 'Note') return openDockedActivityComposer('contact', contactId, 'Note');
+  if (kind === 'Call Log' || kind === 'Log a Call') return openDockedActivityComposer('contact', contactId, 'Log a Call');
+  if (kind === 'Meeting' || kind === 'New Event') return openDockedActivityComposer('contact', contactId, 'New Event');
+  if (kind === 'Estimate' || kind === 'New Estimate') return openContactEstimate(contactId);
+  if (kind === 'Proposal') return convertContactToQuote(contactId);
   if (kind === 'Follow') return showToast('Following this contact.', 'local', 'Contacts');
   return showToast(`${kind} isn't set up yet.`, 'local', 'Contacts');
 }
@@ -15757,11 +15782,40 @@ async function logDealActivity(dealId, type, subject, body = '') {
   render();
 }
 
+async function openDealEstimate(dealId) {
+  const deal = dealById(dealId);
+  if (!deal) return;
+  const contact = contactById(deal.primary_contact_id);
+  const account = accountById(deal.account_id);
+  const estimateUrl = roofUnderwriterUrl({
+    source: 'quest-hq',
+    deal_id: deal.id,
+    name: deal.name,
+    address: account?.address || contact?.location || '',
+    value: deal.value || '',
+  });
+  window.open(estimateUrl, '_blank', 'noopener,noreferrer');
+  await logDealActivity(deal.id, 'system', 'Roof Underwriter opened', 'Estimate workflow opened from this quote.');
+}
+
+async function createDealProposal(dealId) {
+  const deal = dealById(dealId);
+  if (!deal) return;
+  const estimateStage = dealStageNames().find((stage) => /estimate|proposal/i.test(stage)) || 'Estimate Sent';
+  if (estimateStage && resolvePipelineStage('deals', deal.stage, deal.company_id) !== estimateStage) {
+    await setDealStage(deal.id, estimateStage);
+  }
+  await logDealActivity(deal.id, 'email', 'Proposal prepared', 'Proposal/estimate work started from Quick Create.');
+  openDockedActivityComposer('deal', deal.id, 'Email');
+}
+
 function dealQuickCreate(dealId, kind) {
-  if (kind === 'Task' || kind === 'New Task') return createDealTask(dealId, 'New quote task');
-  if (kind === 'Note') return logDealActivity(dealId, 'note', 'Note added');
-  if (kind === 'Call Log' || kind === 'Log a Call') return logDealActivity(dealId, 'call', 'Logged a call');
-  if (kind === 'Meeting' || kind === 'New Event') return logDealActivity(dealId, 'meeting', 'Meeting scheduled');
+  if (kind === 'Task' || kind === 'New Task') return openDockedActivityComposer('deal', dealId, 'New Task');
+  if (kind === 'Note') return openDockedActivityComposer('deal', dealId, 'Note');
+  if (kind === 'Call Log' || kind === 'Log a Call') return openDockedActivityComposer('deal', dealId, 'Log a Call');
+  if (kind === 'Meeting' || kind === 'New Event') return openDockedActivityComposer('deal', dealId, 'New Event');
+  if (kind === 'Estimate' || kind === 'New Estimate') return openDealEstimate(dealId);
+  if (kind === 'Proposal') return createDealProposal(dealId);
   if (kind === 'Follow') return showToast('Following this quote.', 'local', 'Quotes');
   return showToast(`${kind} isn't set up yet.`, 'local', 'Quotes');
 }
