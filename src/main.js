@@ -3108,6 +3108,7 @@ function renderCompanyDashboard(companyId) {
   const registry = dashboardWidgetRegistry(companyId, ctx);
   const layout = dashboardWidgetLayout(companyId, role).filter((id) => registry[id]);
   const repOptions = dashboardRepOptions(companyId);
+  if (!repOptions.some((rep) => rep.id === state.dashboardRep)) state.dashboardRep = 'all';
   const activeRep = repOptions.find((rep) => rep.id === state.dashboardRep) || repOptions[0];
   const activeRange = DASHBOARD_RANGE_OPTIONS.find(([id]) => id === state.dashboardRange) || DASHBOARD_RANGE_OPTIONS[1];
 
@@ -3649,14 +3650,18 @@ function dashboardEmptyNote(text) {
 }
 
 function dashboardRepOptions(companyId) {
-  const names = compactUnique([
-    ...companyMembers(companyId).map((member) => member.full_name || member.name),
-    ...companyContacts(companyId).map((item) => item.owner_name),
-    ...companyDeals(companyId).map((item) => item.owner_name),
-    ...companyJobs(companyId).map((item) => item.owner_name),
-    ...companyActivities(companyId).map((item) => item.owner_name),
-  ].filter(Boolean)).sort((a, b) => a.localeCompare(b));
-  return [{ id: 'all', name: 'Whole team' }].concat(names.map((name) => ({ id: dashboardOwnerKey(name), name })));
+  const companyKey = dashboardOwnerKey(companyName(companyId));
+  const reps = companyAccessUsers(companyId)
+    .filter((user) => user.status === 'active')
+    .map((user) => user.name || user.email)
+    .filter(Boolean)
+    .filter((name) => dashboardOwnerKey(name) !== companyKey)
+    .map((name) => ({ id: dashboardOwnerKey(name), name }));
+  const uniqueReps = compactUnique(reps.map((rep) => rep.id))
+    .map((id) => reps.find((rep) => rep.id === id))
+    .filter(Boolean)
+    .sort((a, b) => a.name.localeCompare(b.name));
+  return [{ id: 'all', name: 'Whole team' }].concat(uniqueReps);
 }
 
 function dashboardOwnerKey(value) {

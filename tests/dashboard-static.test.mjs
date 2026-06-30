@@ -5,6 +5,7 @@ import test from 'node:test';
 const source = readFileSync(new URL('../src/main.js', import.meta.url), 'utf8');
 const styles = readFileSync(new URL('../src/styles.css', import.meta.url), 'utf8');
 const smokeScript = readFileSync(new URL('../scripts/production-smoke.mjs', import.meta.url), 'utf8');
+const dashboardRepOptionsBody = source.slice(source.indexOf('function dashboardRepOptions(companyId)'), source.indexOf('function dashboardOwnerKey'));
 
 test('dashboard replaces home as the canonical core workspace route', () => {
   assert.match(source, /const CORE_MODULE_IDS = new Set\(\['dashboard', 'jobs', 'tasks', 'users', 'settings'\]\);/);
@@ -52,6 +53,8 @@ test('dashboard restores customizable handoff framework controls', () => {
   assert.match(source, /data-action="dashboard-toggle-role-view"/);
   assert.match(source, /data-action="dashboard-move-role-view"/);
   assert.match(source, /state\.modal = 'dashboard-widget-library'/);
+  assert.match(dashboardRepOptionsBody, /companyAccessUsers\(companyId\)[\s\S]*\.filter\(\(user\) => user\.status === 'active'\)/);
+  assert.doesNotMatch(dashboardRepOptionsBody, /companyContacts\(companyId\)|companyDeals\(companyId\)|companyJobs\(companyId\)|companyActivities\(companyId\)/);
   assert.match(source, /Needs data source/);
 });
 
