@@ -54,7 +54,8 @@ test('staff portal workspace supports create, upload, copy, revoke, and annotati
 });
 
 test('public portal viewer exposes plan markup tools and persistent annotations', () => {
-  assert.match(source, /pdfjsLib\.getDocument/);
+  assert.match(source, /fetchClientPortalDocumentFile/);
+  assert.match(source, /pdfjsLib\.getDocument\(\{ data: pdfData \}\)/);
   assert.match(source, /client-portal-tool/);
   assert.match(source, /data-portal-tool="pen"/);
   assert.match(source, /data-portal-tool="measure"/);
@@ -83,7 +84,7 @@ test('client portal migration creates tables, RLS, bucket, grants, and plugin al
 
 test('client portal Vercel APIs exist and do not expose raw token or password fields', () => {
   const apiDir = new URL('../api/', import.meta.url);
-  for (const name of ['client-portal-open.js', 'client-portal-document-url.js', 'client-portal-annotations.js', 'client-portal-export-event.js']) {
+  for (const name of ['client-portal-open.js', 'client-portal-document-url.js', 'client-portal-document-file.js', 'client-portal-annotations.js', 'client-portal-export-event.js']) {
     assert.ok(existsSync(new URL(name, apiDir)), `${name} should exist`);
     const api = readFileSync(new URL(name, apiDir), 'utf8');
     assert.match(api, /SUPABASE_SERVICE_ROLE_KEY/);

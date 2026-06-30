@@ -12648,6 +12648,21 @@ async function ensureClientPortalDocumentUrl() {
   return payload.url;
 }
 
+async function fetchClientPortalDocumentFile(documentId) {
+  const portal = state.clientPortalPublic;
+  if (!portal?.session || !documentId) throw new Error('Open a document first.');
+  const response = await fetch('/api/client-portal-document-file', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ session: portal.session, document_id: documentId }),
+  });
+  if (!response.ok) {
+    const payload = await response.json().catch(() => ({}));
+    throw new Error(payload.error || 'Document unavailable.');
+  }
+  return response.blob();
+}
+
 async function loadClientPortalAnnotations() {
   const portal = state.clientPortalPublic;
   if (!portal?.session || !portal.documentId) return [];
@@ -12681,19 +12696,19 @@ async function mountClientPortalViewer() {
   if (!portal?.session || !base || !overlay) return;
   const doc = (portal.documents || []).find((item) => item.id === portal.documentId) || portal.documents?.[0];
   if (!doc) return;
-  const url = await ensureClientPortalDocumentUrl();
-  if (!url) return;
   if (!portal.annotations?.length) await loadClientPortalAnnotations();
-  await renderClientPortalDocumentCanvas(doc, url, base, overlay);
+  await renderClientPortalDocumentCanvas(doc, base, overlay);
   attachClientPortalDrawing(base, overlay, doc);
 }
 
-async function renderClientPortalDocumentCanvas(doc, url, base, overlay) {
+async function renderClientPortalDocumentCanvas(doc, base, overlay) {
   const ctx = base.getContext('2d');
+  const file = await fetchClientPortalDocumentFile(doc.id);
   if (doc.mime_type?.includes('pdf') || /\.pdf($|\?)/i.test(doc.file_name || '')) {
     await loadExternalScript('https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js', 'pdfjsLib');
     window.pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
-    const pdf = await window.pdfjsLib.getDocument(url).promise;
+    const pdfData = new Uint8Array(await file.arrayBuffer());
+    const pdf = await window.pdfjsLib.getDocument({ data: pdfData }).promise;
     const page = await pdf.getPage(1);
     const viewport = page.getViewport({ scale: Math.min(1.35, Math.max(0.8, (document.querySelector('.client-portal-stage')?.clientWidth || 900) / page.getViewport({ scale: 1 }).width)) });
     base.width = viewport.width;
@@ -12702,14 +12717,19 @@ async function renderClientPortalDocumentCanvas(doc, url, base, overlay) {
     overlay.height = viewport.height;
     await page.render({ canvasContext: ctx, viewport }).promise;
   } else {
-    const image = await loadClientPortalImage(url);
-    const maxWidth = Math.min(1200, document.querySelector('.client-portal-stage')?.clientWidth || 900);
-    const scale = Math.min(1, maxWidth / image.width);
-    base.width = image.width * scale;
-    base.height = image.height * scale;
-    overlay.width = base.width;
-    overlay.height = base.height;
-    ctx.drawImage(image, 0, 0, base.width, base.height);
+    const objectUrl = URL.createObjectURL(file);
+    try {
+      const image = await loadClientPortalImage(objectUrl);
+      const maxWidth = Math.min(1200, document.querySelector('.client-portal-stage')?.clientWidth || 900);
+      const scale = Math.min(1, maxWidth / image.width);
+      base.width = image.width * scale;
+      base.height = image.height * scale;
+      overlay.width = base.width;
+      overlay.height = base.height;
+      ctx.drawImage(image, 0, 0, base.width, base.height);
+    } finally {
+      URL.revokeObjectURL(objectUrl);
+    }
   }
   redrawClientPortalAnnotations(overlay);
 }
