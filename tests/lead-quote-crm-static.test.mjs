@@ -87,8 +87,18 @@ test('contact entry formats phone, suggests addresses, links maps, and selects o
   assert.match(source, /function contactOwnerOptions\(companyId, selectedOwner = ''\)/);
   assert.match(source, /function mapsSearchUrl\(address\)/);
   assert.match(editorSource, /autocomplete="tel"/);
-  assert.match(editorSource, /list="contact-address-options"/);
-  assert.match(editorSource, /<datalist id="contact-address-options">/);
+  // Rich global address picker (phone dial-code combobox, map, and the
+  // Country > Province/State > City > Barangay cascade) replaces the old datalist.
+  assert.match(editorSource, /data-contact-address-form/);
+  assert.match(editorSource, /id="qc-phone-combo"/);
+  assert.match(editorSource, /id="qc-contact-map"/);
+  assert.match(editorSource, /id="qc-country"/);
+  assert.match(editorSource, /id="qc-province"/);
+  assert.match(editorSource, /id="qc-city"/);
+  assert.match(editorSource, /name="location"/);
+  assert.match(source, /function initContactAddressForm\(\)/);
+  assert.match(source, /function composeContactLocation\(parts\)/);
+  assert.match(source, /'country_code', 'country', 'province', 'city', 'barangay', 'street', 'block_no', 'zip', 'lat', 'lng'/);
   assert.match(editorSource, /selectField\('Owner', 'owner_name', edit\.owner_name, contactOwnerOptions\(companyId, edit\.owner_name\)\)/);
   assert.match(recordSource, /mapsSearchUrl\(contact\.location\)/);
   assert.match(recordSource, /<i class="ti ti-map-pin"><\/i>Map/);

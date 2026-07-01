@@ -71,20 +71,51 @@ export default async function handler(request, response) {
     return json(response, result.ok ? 200 : result.status, { annotations: result.ok ? await result.json() : [] });
   }
 
+  const guestName = String(session.guest_name || 'Guest').slice(0, 80);
+
+  // Delete a single annotation (guest may only remove their own markups).
+  if (body.action === 'delete') {
+    const annotationId = String(body.annotation_id || '').trim();
+    if (!annotationId) return json(response, 400, { error: 'annotation_id is required.' });
+    const result = await supabaseFetch(`/rest/v1/client_portal_annotations?id=eq.${encodeURIComponent(annotationId)}&portal_id=eq.${encodeURIComponent(session.portal_id)}&guest_name=eq.${encodeURIComponent(guestName)}`, { method: 'DELETE' });
+    return json(response, result.ok ? 200 : result.status, { deleted: result.ok });
+  }
+
+  const sanitize = (annotation, documentId) => {
+    const payload = annotation.payload && typeof annotation.payload === 'object' ? { ...annotation.payload } : {};
+    payload.author = 'guest'; // server-enforced attribution for public link
+    return {
+      id: String(annotation.id || crypto.randomUUID()),
+      company_id: session.company_id,
+      portal_id: session.portal_id,
+      document_id: documentId,
+      page_number: Number(annotation.page_number || annotation.page || 1) || 1,
+      guest_name: guestName,
+      annotation_type: String(annotation.annotation_type || annotation.type || 'markup').slice(0, 40),
+      payload,
+    };
+  };
+
+  // Upsert a single annotation (create, move, or thread reply) without disturbing
+  // markups authored by staff or other guests.
+  if (body.annotation && typeof body.annotation === 'object') {
+    const documentId = String(body.document_id || body.annotation.document_id || '').trim();
+    if (!documentId) return json(response, 400, { error: 'document_id is required.' });
+    const row = sanitize(body.annotation, documentId);
+    const result = await supabaseFetch('/rest/v1/client_portal_annotations?on_conflict=id', {
+      method: 'POST',
+      headers: { Prefer: 'resolution=merge-duplicates,return=representation' },
+      body: JSON.stringify(row),
+    });
+    return json(response, result.ok ? 200 : result.status, { annotations: result.ok ? await result.json() : [], saved: result.ok });
+  }
+
+  // Bulk replace (legacy "Save markups") — replaces this guest's markups on a document.
   const documentId = String(body.document_id || '').trim();
   const annotations = Array.isArray(body.annotations) ? body.annotations : [];
   if (!documentId) return json(response, 400, { error: 'document_id is required.' });
-  const rows = annotations.slice(0, 500).map((annotation) => ({
-    company_id: session.company_id,
-    portal_id: session.portal_id,
-    document_id: documentId,
-    page_number: Number(annotation.page_number || annotation.page || 1) || 1,
-    guest_name: String(annotation.guest_name || session.guest_name || 'Guest').slice(0, 80),
-    annotation_type: String(annotation.annotation_type || annotation.type || 'markup').slice(0, 40),
-    payload: annotation.payload && typeof annotation.payload === 'object' ? annotation.payload : annotation,
-  }));
-
-  await supabaseFetch(`/rest/v1/client_portal_annotations?portal_id=eq.${encodeURIComponent(session.portal_id)}&document_id=eq.${encodeURIComponent(documentId)}&guest_name=eq.${encodeURIComponent(session.guest_name || 'Guest')}`, { method: 'DELETE' });
+  const rows = annotations.slice(0, 500).map((annotation) => sanitize(annotation, documentId));
+  await supabaseFetch(`/rest/v1/client_portal_annotations?portal_id=eq.${encodeURIComponent(session.portal_id)}&document_id=eq.${encodeURIComponent(documentId)}&guest_name=eq.${encodeURIComponent(guestName)}`, { method: 'DELETE' });
   if (!rows.length) return json(response, 200, { annotations: [] });
   const result = await supabaseFetch('/rest/v1/client_portal_annotations', { method: 'POST', body: JSON.stringify(rows) });
   return json(response, result.ok ? 200 : result.status, { annotations: result.ok ? await result.json() : [], saved: result.ok });

@@ -63,6 +63,9 @@ const CLIENT_PORTAL_EVENT_CACHE_KEY = 'quest-hq-client-portal-event-cache-v1';
 const CLIENT_PORTAL_SESSION_KEY = 'quest-client-portal-session-v1';
 const CLIENT_PORTAL_TOKEN_CACHE_KEY = 'quest-client-portal-token-cache-v1';
 const CLIENT_PORTAL_GUEST_NAME = 'Client';
+// Declared here (not next to the normalizer) so it exists before the top-level
+// `state` initializer maps cached documents through normalizeClientPortalDocument.
+const CLIENT_PORTAL_REVIEW_STATUSES = ['pending', 'approved', 'revision', 'rejected'];
 const WORKSPACE_BUILDER_STORAGE_PREFIX = 'qhq_workspace_builder_v1';
 
 const ROLE_PERMISSIONS = {
@@ -1488,9 +1491,8 @@ const state = {
   clientPortalAnnotations: readSeededList(CLIENT_PORTAL_ANNOTATION_CACHE_KEY, []).map(normalizeClientPortalAnnotation),
   clientPortalEvents: readSeededList(CLIENT_PORTAL_EVENT_CACHE_KEY, []).map(normalizeClientPortalEvent),
   clientPortalPublic: readJson(CLIENT_PORTAL_SESSION_KEY, null),
-  clientPortalTool: 'pan',
-  clientPortalColor: '#E8611A',
-  clientPortalStroke: 2,
+  clientPortalAnnotate: null,
+  clientPortalVersionGroup: '',
   timeEntries: readJson(TIME_ENTRY_CACHE_KEY, []),
   activeTimer: readJson(ACTIVE_TIMER_KEY, null),
   teamMembers: readSeededList(TEAM_CACHE_KEY, teamMembersFallback).map(normalizeTeamMember),
@@ -1501,6 +1503,9 @@ const state = {
   platformCompanyMembers: [],
   subscriptions: [],
   workspaceReviews: [],
+  workspaceBuilderDocs: {},
+  workspaceBuilderLoading: '',
+  builderModal: null,
   roles: [],
   rolePermissions: [],
   roleAssignments: [],
@@ -1604,8 +1609,35 @@ function init() {
   document.addEventListener('submit', onDocumentSubmit);
   document.addEventListener('input', onDocumentInput);
   document.addEventListener('change', onDocumentChange);
+  document.addEventListener('keydown', onClientPortalKeydown);
   initializeAuth();
   render();
+}
+
+// Annotate-screen keyboard shortcuts (tool select, undo, delete selection).
+function onClientPortalKeydown(event) {
+  if (!cpA() || !document.querySelector('[data-cp-annotate]')) return;
+  const target = event.target;
+  if (target && (target.matches('input, textarea, select') || target.isContentEditable)) return;
+  if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'z') {
+    event.preventDefault();
+    cpUndoLast();
+    return;
+  }
+  if (event.ctrlKey || event.metaKey || event.altKey) return;
+  if (event.key === 'Delete' || event.key === 'Backspace') {
+    if (cpA().selectedId) {
+      event.preventDefault();
+      cpDeleteAnnotation(cpA().selectedId).catch(() => null);
+    }
+    return;
+  }
+  const tool = CP_TOOLS.find((item) => item.key === event.key.toLowerCase());
+  if (tool) {
+    event.preventDefault();
+    cpA().tool = tool.id;
+    render();
+  }
 }
 
 async function initializeAuth() {
@@ -1710,7 +1742,13 @@ function render() {
 
   if (state.route.name === 'client-portal') {
     document.title = 'Client portal | Quest HQ';
-    app.innerHTML = renderClientPortalPublicPage(state.route);
+    try {
+      app.innerHTML = renderClientPortalPublicPage(state.route);
+    } catch (error) {
+      console.error('Client portal render failed', error);
+      app.innerHTML = `<main class="client-portal-public"><section class="client-portal-gate"><div class="client-portal-brand"><span class="side-mark">Q</span><span><strong>Quest Client Portal</strong><small>Plan review</small></span></div><h1>Something went wrong</h1><div class="form-message error">${h(error.message || String(error))}</div></section></main>`;
+      return;
+    }
     queueMicrotask(() => {
       if (shouldAutoOpenClientPortal(state.route.token)) {
         ensureClientPortalPublicOpen(state.route.token).catch((error) => {
@@ -1718,7 +1756,7 @@ function render() {
           render();
         });
       }
-      mountClientPortalViewer().catch((error) => console.warn('Client portal viewer failed', error));
+      mountClientPortalAnnotate().catch((error) => console.warn('Client portal viewer failed', error));
     });
     return;
   }
@@ -1743,7 +1781,70 @@ function render() {
   reconcileSelection(state.route);
   if (state.route.params.get('account') === 'profile') state.modal = 'profile';
   document.title = `${routeTitle(state.route)} | ${companyName(activeCompanyId())} | Quest HQ`;
-  app.innerHTML = shellTemplate(state.route, renderWorkspace(state.route));
+  try {
+    mountShell(shellTemplate(state.route, renderWorkspace(state.route)));
+  } catch (error) {
+    console.error('Workspace render failed', error);
+    mountShell(shellTemplate(state.route, `<section class="tool-page"><div class="form-message error">Render error: ${h(error.message || String(error))}</div></section>`));
+  }
+  if (state.modal === 'contact-new' || state.modal === 'contact-edit') {
+    queueMicrotask(() => initContactAddressForm());
+  }
+  if (state.clientPortalAnnotate?.mode === 'owner' && document.querySelector('[data-cp-frame]')) {
+    queueMicrotask(() => mountClientPortalAnnotate().catch((error) => console.warn('Annotate mount failed', error)));
+  }
+  if (state.route.section === 'workspaces' || state.builderModal) {
+    queueMicrotask(() => mountWorkspaceBuilder());
+  }
+}
+
+// Swap in freshly rendered shell markup while keeping the sidebar (.deck) DOM node
+// alive when only its attributes/labels changed. Rebuilding the whole shell on every
+// navigation reset the sidebar scroll position (jump to top) and caused a visible
+// flicker; morphing the existing node in place preserves scroll and avoids the flash.
+function mountShell(html) {
+  const liveDeck = app.querySelector('.deck');
+  if (!liveDeck) {
+    app.innerHTML = html;
+    return;
+  }
+  const deckScroll = liveDeck.scrollTop;
+  const staged = document.createElement('div');
+  staged.innerHTML = html;
+  const stagedDeck = staged.querySelector('.deck');
+  if (stagedDeck && morphElement(liveDeck, stagedDeck)) {
+    // liveDeck now matches the freshly rendered deck — reuse it instead of rebuilding.
+    stagedDeck.replaceWith(liveDeck);
+  }
+  app.replaceChildren(...staged.childNodes);
+  const finalDeck = app.querySelector('.deck');
+  if (finalDeck) finalDeck.scrollTop = deckScroll;
+}
+
+// Make `live` match `next` by copying attributes/leaf text when the two trees share
+// the same structure (the usual case for nav clicks: only active classes/badges differ).
+// Returns false when the structure diverges so the caller can fall back to a full swap.
+function morphElement(live, next) {
+  const liveNodes = [live, ...live.querySelectorAll('*')];
+  const nextNodes = [next, ...next.querySelectorAll('*')];
+  if (liveNodes.length !== nextNodes.length) return false;
+  for (let i = 0; i < liveNodes.length; i += 1) {
+    if (liveNodes[i].tagName !== nextNodes[i].tagName) return false;
+  }
+  for (let i = 0; i < liveNodes.length; i += 1) {
+    const a = liveNodes[i];
+    const b = nextNodes[i];
+    for (const attr of [...a.attributes]) {
+      if (!b.hasAttribute(attr.name)) a.removeAttribute(attr.name);
+    }
+    for (const attr of [...b.attributes]) {
+      if (a.getAttribute(attr.name) !== attr.value) a.setAttribute(attr.name, attr.value);
+    }
+    if (a.children.length === 0 && a.textContent !== b.textContent) {
+      a.textContent = b.textContent;
+    }
+  }
+  return true;
 }
 
 function workspacePresetSelect(selected = 'generic') {
@@ -2035,6 +2136,10 @@ async function loadSupabaseData() {
   if (!clientPortalDocumentsResult.error) state.clientPortalDocuments = (clientPortalDocumentsResult.data || []).map(normalizeClientPortalDocument);
   if (!clientPortalAnnotationsResult.error) state.clientPortalAnnotations = (clientPortalAnnotationsResult.data || []).map(normalizeClientPortalAnnotation);
   if (!clientPortalEventsResult.error) state.clientPortalEvents = (clientPortalEventsResult.data || []).map(normalizeClientPortalEvent);
+  // Mirror portal data into localStorage even on live sessions so the public
+  // /portal route (which does not load workspace data) can resolve the link
+  // locally when the serverless backend is not running (e.g. `vite dev`).
+  persistClientPortalCaches();
   state.platformAdmin = !platformAdminResult.error && platformAdminResult.data === true;
 
   if (state.platformAdmin) {
@@ -2920,7 +3025,7 @@ function moduleBadgeCount(moduleId, companyId = activeCompanyId()) {
   if (moduleId === 'tasks') return companyTasks(companyId).length;
   if (moduleId === 'files') return companyFiles(companyId).length;
   if (moduleId === 'client-portals') return companyClientPortals(companyId).length;
-  if (moduleId === 'workspaces') return loadWorkspaceBuilderState(companyId).workspaces.length;
+  if (moduleId === 'workspaces') return wbDoc(companyId)?.workspaces.length || 0;
   if (moduleId === 'forms') return companyForms(companyId).length;
   if (moduleId === 'crm') return companyAccounts(companyId).length;
   if (moduleId === 'contacts') return companyContacts(companyId).length;
@@ -4221,15 +4326,498 @@ function beginJobInlineEdit(span) {
   });
 }
 
+/* ====================================================================== */
+/*  Contact address form — dynamic global address picker + map            */
+/*  Imperative widget mounted after render() while the contact modal is    */
+/*  open. It never calls render() (that would destroy the live map); all    */
+/*  values are mirrored into hidden form inputs so the normal saveContact   */
+/*  path persists them. Degrades to plain text if the APIs/Leaflet fail.    */
+/* ====================================================================== */
+const QC_CN = 'https://countriesnow.space/api/v0.1';
+const QC_PSGC = 'https://psgc.gitlab.io/api';
+const QC_NOM = 'https://nominatim.openstreetmap.org';
+let qcCountryData = [];      // [{ name, iso2, dial }]
+let qcPsgcProvinces = [];    // cached PH provinces/regions
+let qcContactMap = null;
+let qcContactMarker = null;
+let qcContactCircle = null;
+let qcComboDocBound = false;
+
+function qcEl(id) { return document.getElementById(id); }
+function qcIsPH() { const c = qcEl('qc-country'); return c && c.value === 'Philippines'; }
+
+function qcContactToast(message, type = 'info') {
+  let wrap = qcEl('qc-toast-wrap');
+  if (!wrap) {
+    wrap = document.createElement('div');
+    wrap.id = 'qc-toast-wrap';
+    wrap.className = 'qc-toast-wrap';
+    document.body.appendChild(wrap);
+  }
+  const icon = type === 'success' ? 'ti-circle-check' : type === 'error' ? 'ti-alert-circle' : 'ti-info-circle';
+  const el = document.createElement('div');
+  el.className = `qc-toast ${type}`;
+  el.innerHTML = `<i class="ti ${icon}"></i><span></span>`;
+  el.querySelector('span').textContent = message;
+  wrap.appendChild(el);
+  setTimeout(() => { el.style.opacity = '0'; setTimeout(() => el.remove(), 300); }, 3200);
+}
+
+async function qcGetJSON(url, opts) {
+  const res = await fetch(url, opts);
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  return res.json();
+}
+function qcPostBody(obj) {
+  return { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(obj) };
+}
+function qcFillSelect(sel, items, { placeholder, value = (x) => x, label = (x) => x, data } = {}) {
+  if (!sel) return;
+  sel.innerHTML = '';
+  const ph = document.createElement('option');
+  ph.value = ''; ph.textContent = placeholder;
+  sel.appendChild(ph);
+  items.forEach((it) => {
+    const opt = document.createElement('option');
+    opt.value = value(it);
+    opt.textContent = label(it);
+    if (data) Object.entries(data(it)).forEach(([k, v]) => { opt.dataset[k] = v; });
+    sel.appendChild(opt);
+  });
+  sel.disabled = items.length === 0;
+}
+function qcSetLoading(sel, on, text = 'Loading...') {
+  if (!sel) return;
+  sel.closest('label')?.classList.toggle('qc-field-loading', on);
+  if (on) { sel.innerHTML = `<option value="">${text}</option>`; sel.disabled = true; }
+}
+function qcSelectByText(sel, text) {
+  if (!sel || !text) return false;
+  const t = String(text).toLowerCase();
+  const opt = [...sel.options].find((o) => o.textContent.toLowerCase() === t)
+    || [...sel.options].find((o) => o.value && o.textContent.toLowerCase().includes(t));
+  if (opt) { sel.value = opt.value; return true; }
+  return false;
+}
+
+/* ---- Phone dial-code combobox -------------------------------------- */
+function qcRenderPhoneList(filter = '') {
+  const list = qcEl('qc-phone-list');
+  if (!list) return;
+  const q = filter.trim().toLowerCase();
+  const items = qcCountryData.filter((c) => !q || c.name.toLowerCase().includes(q) || c.dial.includes(q) || c.iso2.toLowerCase() === q);
+  list.innerHTML = '';
+  if (!items.length) {
+    const li = document.createElement('li');
+    li.className = 'qc-combo-empty';
+    li.textContent = 'No matches';
+    list.appendChild(li);
+    return;
+  }
+  items.forEach((c) => {
+    const li = document.createElement('li');
+    li.setAttribute('role', 'option');
+    li.dataset.dial = c.dial;
+    li.dataset.iso2 = c.iso2;
+    const img = document.createElement('img');
+    img.loading = 'lazy'; img.alt = '';
+    img.src = `https://flagcdn.com/${c.iso2.toLowerCase()}.svg`;
+    const nm = document.createElement('span'); nm.className = 'nm'; nm.textContent = c.name;
+    const dl = document.createElement('span'); dl.className = 'dl'; dl.textContent = c.dial;
+    li.append(img, nm, dl);
+    list.appendChild(li);
+  });
+}
+function qcSelectDial(dial, iso2) {
+  const code = qcEl('qc-country-code');
+  const dialLabel = qcEl('qc-phone-dial');
+  const flag = qcEl('qc-phone-flag');
+  if (code) code.value = dial;
+  if (dialLabel) dialLabel.textContent = dial;
+  if (flag && iso2) flag.src = `https://flagcdn.com/${iso2.toLowerCase()}.svg`;
+}
+function qcOpenCombo(open) {
+  const root = qcEl('qc-phone-combo');
+  const trigger = qcEl('qc-phone-trigger');
+  const search = qcEl('qc-phone-search');
+  if (!root) return;
+  root.classList.toggle('open', open);
+  if (trigger) trigger.setAttribute('aria-expanded', String(open));
+  if (open && search) { search.value = ''; qcRenderPhoneList(); search.focus(); }
+}
+
+/* ---- Address cascade ----------------------------------------------- */
+function qcToggleBrgy(mode) {
+  const sel = qcEl('qc-brgy-select');
+  const txt = qcEl('qc-brgy-text');
+  if (!sel || !txt) return;
+  const useSelect = mode === 'select';
+  sel.hidden = !useSelect; sel.disabled = !useSelect;
+  txt.hidden = useSelect;
+}
+function qcGetBrgyValue() {
+  const sel = qcEl('qc-brgy-select');
+  const txt = qcEl('qc-brgy-text');
+  if (sel && !sel.hidden) return (sel.value || '').trim();
+  return txt ? (txt.value || '').trim() : '';
+}
+function qcResetBelow(level) {
+  const city = qcEl('qc-city');
+  const brgyText = qcEl('qc-brgy-text');
+  const brgySelect = qcEl('qc-brgy-select');
+  if ((level === 'province' || level === 'city') && city) {
+    city.innerHTML = '<option value="">Select province first</option>';
+    city.disabled = true;
+  }
+  qcToggleBrgy('text');
+  if (brgyText) brgyText.value = '';
+  if (brgySelect) brgySelect.innerHTML = '';
+}
+async function qcLoadProvinces(country, preselect) {
+  const province = qcEl('qc-province');
+  if (!province) return;
+  qcResetBelow('province');
+  if (!country) { province.disabled = true; province.innerHTML = '<option value="">Select country first</option>'; return; }
+  qcSetLoading(province, true, 'Loading provinces...');
+  try {
+    if (country === 'Philippines') {
+      if (!qcPsgcProvinces.length) {
+        const [provs, regions] = await Promise.all([
+          qcGetJSON(`${QC_PSGC}/provinces.json`),
+          qcGetJSON(`${QC_PSGC}/regions.json`),
+        ]);
+        const withProv = new Set(provs.map((p) => p.regionCode));
+        const regionsNoProv = regions.filter((r) => !withProv.has(r.code)).map((r) => ({ code: r.code, name: r.name, type: 'region' }));
+        qcPsgcProvinces = [...provs.map((p) => ({ code: p.code, name: p.name, type: 'province' })), ...regionsNoProv].sort((a, b) => a.name.localeCompare(b.name));
+      }
+      qcFillSelect(province, qcPsgcProvinces, { placeholder: 'Select province / region', value: (p) => p.code, label: (p) => p.name, data: (p) => ({ type: p.type, name: p.name }) });
+    } else {
+      const json = await qcGetJSON(`${QC_CN}/countries/states`, qcPostBody({ country }));
+      const states = (!json.error && json.data?.states) || [];
+      if (states.length) {
+        qcFillSelect(province, states, { placeholder: 'Select province / state', value: (s) => s.name, label: (s) => s.name });
+      } else {
+        province.innerHTML = '<option value="__all__">(Whole country)</option>';
+        province.disabled = false;
+      }
+    }
+    if (preselect) { qcSelectByText(province, preselect); await qcLoadCities(); }
+  } catch (error) {
+    console.warn('Province load failed', error);
+    province.innerHTML = '<option value="__all__">(Whole country)</option>';
+    province.disabled = false;
+  } finally {
+    province.closest('label')?.classList.remove('qc-field-loading');
+    qcSyncAddressHidden();
+  }
+}
+async function qcLoadCities(preselect) {
+  const city = qcEl('qc-city');
+  const country = qcEl('qc-country')?.value;
+  const provOpt = qcEl('qc-province')?.selectedOptions[0];
+  if (!city) return;
+  qcResetBelow('city');
+  if (!country || !provOpt || !provOpt.value) return;
+  qcSetLoading(city, true, 'Loading cities...');
+  try {
+    if (country === 'Philippines') {
+      const path = provOpt.dataset.type === 'region'
+        ? `${QC_PSGC}/regions/${provOpt.value}/cities-municipalities.json`
+        : `${QC_PSGC}/provinces/${provOpt.value}/cities-municipalities.json`;
+      const cities = await qcGetJSON(path);
+      cities.sort((a, b) => a.name.localeCompare(b.name));
+      qcFillSelect(city, cities, { placeholder: 'Select city / municipality', value: (c) => c.code, label: (c) => c.name, data: (c) => ({ name: c.name }) });
+    } else {
+      const state = provOpt.value === '__all__' ? null : qcEl('qc-province').value;
+      const json = state
+        ? await qcGetJSON(`${QC_CN}/countries/state/cities`, qcPostBody({ country, state }))
+        : await qcGetJSON(`${QC_CN}/countries/cities`, qcPostBody({ country }));
+      const cities = (!json.error && json.data) || [];
+      qcFillSelect(city, cities, { placeholder: 'Select city / town', value: (c) => c, label: (c) => c });
+    }
+    if (preselect) { qcSelectByText(city, preselect); await qcLoadBarangays(); }
+  } catch (error) {
+    console.warn('City load failed', error);
+    city.innerHTML = '<option value="">No cities found</option>';
+    city.disabled = false;
+  } finally {
+    city.closest('label')?.classList.remove('qc-field-loading');
+    qcSyncAddressHidden();
+  }
+}
+async function qcLoadBarangays(preselect) {
+  const brgySelect = qcEl('qc-brgy-select');
+  const cityOpt = qcEl('qc-city')?.selectedOptions[0];
+  if (!brgySelect) return;
+  if (qcIsPH() && cityOpt && cityOpt.value) {
+    qcToggleBrgy('select');
+    qcSetLoading(brgySelect, true, 'Loading barangays...');
+    try {
+      const brgys = await qcGetJSON(`${QC_PSGC}/cities-municipalities/${cityOpt.value}/barangays.json`);
+      brgys.sort((a, b) => a.name.localeCompare(b.name));
+      qcFillSelect(brgySelect, brgys, { placeholder: 'Select barangay', value: (b) => b.name, label: (b) => b.name });
+      if (preselect) qcSelectByText(brgySelect, preselect);
+    } catch (error) {
+      console.warn('Barangay load failed', error);
+      qcToggleBrgy('text');
+    } finally {
+      brgySelect.closest('label')?.classList.remove('qc-field-loading');
+    }
+  } else {
+    qcToggleBrgy('text');
+    if (preselect) { const txt = qcEl('qc-brgy-text'); if (txt) txt.value = preselect; }
+  }
+  qcSyncAddressHidden();
+}
+
+function qcProvinceName() {
+  const opt = qcEl('qc-province')?.selectedOptions[0];
+  if (!opt) return '';
+  if (opt.dataset.name) return opt.dataset.name;
+  const text = opt.textContent || '';
+  return /^\(.*\)$/.test(text) ? '' : text;
+}
+function qcCityName() {
+  const opt = qcEl('qc-city')?.selectedOptions[0];
+  if (!opt) return '';
+  return opt.dataset.name || opt.textContent || '';
+}
+function qcSyncAddressHidden() {
+  const country = qcEl('qc-country')?.value || '';
+  const province = qcProvinceName();
+  const city = qcCityName();
+  const barangay = qcGetBrgyValue();
+  const street = qcEl('qc-street')?.value.trim() || '';
+  const block_no = qcEl('qc-block')?.value.trim() || '';
+  const zip = qcEl('qc-zip')?.value.trim() || '';
+  const set = (id, val) => { const el = qcEl(id); if (el) el.value = val; };
+  set('qc-country-hidden', country);
+  set('qc-province-hidden', province);
+  set('qc-city-hidden', city);
+  set('qc-brgy-hidden', barangay);
+  set('qc-location', composeContactLocation({ block_no, street, barangay, city, province, country, zip }));
+}
+
+/* ---- Map + geocoding ------------------------------------------------ */
+function qcInitMap() {
+  const container = qcEl('qc-contact-map');
+  if (!container || typeof window.L === 'undefined') return false;
+  if (qcContactMap) { try { qcContactMap.remove(); } catch (_) { /* detached */ } qcContactMap = null; qcContactMarker = null; qcContactCircle = null; }
+  qcContactMap = window.L.map(container, { zoomControl: true }).setView([39.5, -98.35], 4); // US overview
+  window.L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '&copy; OpenStreetMap contributors' }).addTo(qcContactMap);
+  qcContactMap.on('click', (e) => qcPlacePin(e.latlng.lat, e.latlng.lng, { reverse: true }));
+  setTimeout(() => { if (qcContactMap) qcContactMap.invalidateSize(); }, 250);
+  return true;
+}
+function qcPlacePin(lat, lng, { reverse = false, center = false, accuracy = null } = {}) {
+  if (!qcContactMap) return;
+  if (!qcContactMarker) {
+    qcContactMarker = window.L.marker([lat, lng], { draggable: true }).addTo(qcContactMap);
+    qcContactMarker.on('dragend', () => { const p = qcContactMarker.getLatLng(); qcPlacePin(p.lat, p.lng, { reverse: true }); });
+  } else {
+    qcContactMarker.setLatLng([lat, lng]);
+  }
+  if (qcContactCircle) { qcContactMap.removeLayer(qcContactCircle); qcContactCircle = null; }
+  if (accuracy) qcContactCircle = window.L.circle([lat, lng], { radius: accuracy, color: '#ea580c', weight: 1, fillOpacity: 0.08 }).addTo(qcContactMap);
+  if (center) qcContactMap.setView([lat, lng], 17);
+  const latEl = qcEl('qc-lat'); const lngEl = qcEl('qc-lng'); const coords = qcEl('qc-coords-text');
+  if (latEl) latEl.value = lat.toFixed(6);
+  if (lngEl) lngEl.value = lng.toFixed(6);
+  if (coords) coords.textContent = `Pinned at ${lat.toFixed(5)}, ${lng.toFixed(5)}` + (accuracy ? ` (±${Math.round(accuracy)} m)` : '');
+  if (reverse) qcReverseGeocode(lat, lng);
+}
+async function qcReverseGeocode(lat, lng) {
+  const status = qcEl('qc-map-status');
+  if (status) status.classList.add('show');
+  try {
+    const data = await qcGetJSON(`${QC_NOM}/reverse?format=jsonv2&addressdetails=1&zoom=18&lat=${lat}&lon=${lng}`);
+    const a = data.address || {};
+    const street = qcEl('qc-street'); const block = qcEl('qc-block'); const zip = qcEl('qc-zip');
+    if (street) street.value = a.road || a.pedestrian || a.neighbourhood || street.value;
+    if (block) block.value = a.house_number || block.value;
+    if (zip) zip.value = a.postcode || zip.value;
+    const brgyGuess = a.village || a.suburb || a.quarter || a.neighbourhood || a.city_district;
+    if (a.country) {
+      const country = qcEl('qc-country');
+      if (qcSelectByText(country, a.country)) {
+        await qcLoadProvinces(country.value, a.state || a.region || a.province);
+        const cityName = a.city || a.town || a.municipality || a.village || a.county;
+        if (cityName) await qcLoadCities(cityName);
+        if (brgyGuess) await qcLoadBarangays(brgyGuess);
+      }
+    }
+    const brgySelect = qcEl('qc-brgy-select'); const brgyText = qcEl('qc-brgy-text');
+    if (brgySelect && !brgySelect.hidden && !brgySelect.value && brgyGuess) { qcToggleBrgy('text'); if (brgyText) brgyText.value = brgyGuess; }
+    else if (brgySelect && brgySelect.hidden && brgyGuess && brgyText && !brgyText.value) brgyText.value = brgyGuess;
+    qcSyncAddressHidden();
+    qcContactToast('Location details filled in.', 'success');
+  } catch (error) {
+    console.warn('Reverse geocode failed', error);
+    qcContactToast("Could not resolve that location's address.", 'error');
+  } finally {
+    if (status) status.classList.remove('show');
+  }
+}
+async function qcRunAddressSearch() {
+  const input = qcEl('qc-addr-search');
+  const q = input ? input.value.trim() : '';
+  if (!q) return;
+  const status = qcEl('qc-map-status');
+  if (status) status.classList.add('show');
+  try {
+    const arr = await qcGetJSON(`${QC_NOM}/search?format=jsonv2&addressdetails=1&limit=1&q=${encodeURIComponent(q)}`);
+    if (arr[0]) qcPlacePin(parseFloat(arr[0].lat), parseFloat(arr[0].lon), { reverse: true, center: true });
+    else { qcContactToast('No match found for that search.', 'info'); if (status) status.classList.remove('show'); }
+  } catch (error) {
+    console.warn('Address search failed', error);
+    if (status) status.classList.remove('show');
+    qcContactToast('Address search failed.', 'error');
+  }
+}
+
+async function qcLoadCountries() {
+  const country = qcEl('qc-country');
+  if (!country) return;
+  if (qcCountryData.length) {
+    qcFillSelect(country, qcCountryData, { placeholder: 'Select country', value: (c) => c.name, label: (c) => c.name, data: (c) => ({ iso2: c.iso2 }) });
+    qcRenderPhoneList();
+    return;
+  }
+  try {
+    const json = await qcGetJSON(`${QC_CN}/countries/codes`);
+    qcCountryData = (json.data || [])
+      .filter((c) => c.code && c.dial_code)
+      .map((c) => ({ name: c.name, iso2: c.code, dial: c.dial_code }))
+      .sort((a, b) => a.name.localeCompare(b.name));
+    qcFillSelect(country, qcCountryData, { placeholder: 'Select country', value: (c) => c.name, label: (c) => c.name, data: (c) => ({ iso2: c.iso2 }) });
+    qcRenderPhoneList();
+  } catch (error) {
+    console.warn('Country directory load failed', error);
+    qcContactToast('Country list unavailable — enter the address manually.', 'error');
+    qcDegradeAddress();
+  }
+}
+function qcDegradeAddress() {
+  // Replace cascading selects with plain text inputs so the form still works offline.
+  ['qc-country', 'qc-province', 'qc-city'].forEach((id, i) => {
+    const sel = qcEl(id);
+    if (!sel || sel.tagName === 'INPUT') return;
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.id = id;
+    input.placeholder = ['Country', 'Province / State', 'City / Municipality'][i];
+    input.value = sel.value && sel.selectedOptions[0] ? (sel.selectedOptions[0].dataset.name || sel.selectedOptions[0].textContent || '') : '';
+    sel.replaceWith(input);
+    input.addEventListener('input', qcSyncAddressHidden);
+  });
+  qcToggleBrgy('text');
+}
+
+function initContactAddressForm() {
+  const form = document.querySelector('[data-contact-address-form]');
+  if (!form || form.dataset.qcReady === '1') return;
+  form.dataset.qcReady = '1';
+  const editing = state.modal === 'contact-edit';
+  const contact = editing ? selectedContact() : null;
+
+  // Phone combobox
+  const trigger = qcEl('qc-phone-trigger');
+  const search = qcEl('qc-phone-search');
+  const list = qcEl('qc-phone-list');
+  const phoneNum = qcEl('qc-phone-number');
+  if (trigger) trigger.addEventListener('click', () => qcOpenCombo(!qcEl('qc-phone-combo').classList.contains('open')));
+  if (search) {
+    search.addEventListener('input', (e) => qcRenderPhoneList(e.target.value));
+    search.addEventListener('keydown', (e) => { if (e.key === 'Enter') e.preventDefault(); });
+  }
+  if (list) list.addEventListener('click', (e) => {
+    const li = e.target.closest('li[data-dial]');
+    if (!li) return;
+    qcSelectDial(li.dataset.dial, li.dataset.iso2);
+    qcOpenCombo(false);
+  });
+  if (phoneNum) phoneNum.addEventListener('input', (e) => {
+    const digits = e.target.value.replace(/\D/g, '').slice(0, 15);
+    e.target.value = digits.replace(/(\d{3})(?=\d)/g, '$1 ').trim();
+  });
+  if (!qcComboDocBound) {
+    document.addEventListener('click', (e) => {
+      const root = qcEl('qc-phone-combo');
+      if (root && !root.contains(e.target)) qcOpenCombo(false);
+    });
+    qcComboDocBound = true;
+  }
+
+  // Address cascade listeners
+  qcEl('qc-country')?.addEventListener('change', (e) => qcLoadProvinces(e.target.value));
+  qcEl('qc-province')?.addEventListener('change', () => qcLoadCities());
+  qcEl('qc-city')?.addEventListener('change', () => qcLoadBarangays());
+  ['qc-brgy-select', 'qc-brgy-text', 'qc-street', 'qc-block', 'qc-zip'].forEach((id) => {
+    const el = qcEl(id);
+    if (el) { el.addEventListener('input', qcSyncAddressHidden); el.addEventListener('change', qcSyncAddressHidden); }
+  });
+
+  // Map tools
+  const hasMap = qcInitMap();
+  if (!hasMap) {
+    const mapEl = qcEl('qc-contact-map');
+    if (mapEl) mapEl.style.display = 'none';
+    document.querySelector('.qc-map-tools')?.style.setProperty('display', 'none');
+    const coords = qcEl('qc-coords-text');
+    if (coords) coords.textContent = 'Map unavailable — fill the address fields below.';
+  }
+  qcEl('qc-gps-btn')?.addEventListener('click', () => {
+    if (!qcContactMap) { qcContactToast('Map is unavailable right now.', 'error'); return; }
+    if (!navigator.geolocation) { qcContactToast('Geolocation is not supported by this browser.', 'error'); return; }
+    const status = qcEl('qc-map-status');
+    if (status) status.classList.add('show');
+    navigator.geolocation.getCurrentPosition(
+      (p) => qcPlacePin(p.coords.latitude, p.coords.longitude, { reverse: true, center: true, accuracy: p.coords.accuracy }),
+      (err) => { if (status) status.classList.remove('show'); qcContactToast('GPS failed: ' + err.message, 'error'); },
+      { enableHighAccuracy: true, timeout: 12000, maximumAge: 0 },
+    );
+  });
+  let searchTimer;
+  const addrSearch = qcEl('qc-addr-search');
+  if (addrSearch) {
+    addrSearch.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); qcRunAddressSearch(); } });
+    addrSearch.addEventListener('input', (e) => { clearTimeout(searchTimer); if (e.target.value.trim().length > 4) searchTimer = setTimeout(qcRunAddressSearch, 800); });
+  }
+
+  // Load countries, then prefill on edit
+  qcLoadCountries().then(async () => {
+    const dialDefault = (contact && contact.country_code) || '+1';
+    const match = qcCountryData.find((c) => c.dial === dialDefault) || qcCountryData.find((c) => c.iso2 === 'US');
+    if (match) qcSelectDial(match.dial, match.iso2);
+    else if (contact && contact.country_code) qcSelectDial(contact.country_code, '');
+    if (contact && (contact.country || contact.location)) {
+      const country = qcEl('qc-country');
+      if (country && country.tagName === 'SELECT' && contact.country && qcSelectByText(country, contact.country)) {
+        await qcLoadProvinces(country.value, contact.province);
+        if (contact.city) await qcLoadCities(contact.city);
+        if (contact.barangay) await qcLoadBarangays(contact.barangay);
+        else qcToggleBrgy(qcIsPH() ? 'select' : 'text');
+      } else if (country && country.tagName === 'INPUT' && contact.country) {
+        country.value = contact.country;
+      }
+      const brgyText = qcEl('qc-brgy-text');
+      if (brgyText && !qcGetBrgyValue() && contact.barangay) { qcToggleBrgy('text'); brgyText.value = contact.barangay; }
+      qcSyncAddressHidden();
+      if (contact.lat && contact.lng && qcContactMap) {
+        setTimeout(() => qcPlacePin(parseFloat(contact.lat), parseFloat(contact.lng), { center: true }), 300);
+      }
+    }
+  });
+}
+
 function renderContactFormModal(companyId, contact) {
   return renderModalShell('Contacts', contact ? 'Edit contact' : 'Add contact', renderContactEditor(companyId, contact), 'wide-modal');
 }
 
 function renderContactEditor(companyId, contact) {
   const edit = contact || blankContact(companyId);
-  const addressOptions = contactAddressOptions(companyId);
   return `
-    <form class="job-editor" data-contact-form>
+    <form class="job-editor contact-editor" data-contact-form data-contact-address-form>
       <input type="hidden" name="id" value="${h(edit.id || '')}" />
       <div class="section-head span-2">
         <div><h2>${contact ? 'Edit contact' : 'New contact'}</h2><p>Contacts move through Prospects, Leads, and Nurturing before quote handoff.</p></div>
@@ -4238,10 +4826,83 @@ function renderContactEditor(companyId, contact) {
       ${selectField('Company', 'company_id', companyId, allowedCompanies().map((company) => [company.id, companyLabel(company)]))}
       ${selectField('Account', 'account_id', edit.account_id, [['', '— None —']].concat(companyAccounts(companyId).map((account) => [account.id, account.name])))}
       ${field('Title', 'title', edit.title)}
-      ${field('Phone', 'phone', edit.phone, false, 'tel', '', 'autocomplete="tel" inputmode="tel" data-phone-format')}
       ${field('Email', 'email', edit.email, false, 'email')}
-      ${field('Location', 'location', edit.location, false, 'text', 'span-2', 'autocomplete="street-address" list="contact-address-options"')}
-      <datalist id="contact-address-options">${addressOptions.map((address) => `<option value="${h(address)}"></option>`).join('')}</datalist>
+
+      <label class="span-2">
+        <span>Phone</span>
+        <div class="qc-phone-row">
+          <div class="qc-combo" id="qc-phone-combo">
+            <button type="button" class="qc-combo-trigger" id="qc-phone-trigger" aria-haspopup="listbox" aria-expanded="false">
+              <img id="qc-phone-flag" alt="" src="https://flagcdn.com/us.svg" />
+              <span class="qc-dial" id="qc-phone-dial">${h(edit.country_code || '+1')}</span>
+              <i class="ti ti-chevron-down"></i>
+            </button>
+            <div class="qc-combo-panel">
+              <input type="text" class="qc-combo-search" id="qc-phone-search" placeholder="Search country or code..." autocomplete="off" />
+              <ul class="qc-combo-list" id="qc-phone-list" role="listbox"></ul>
+            </div>
+          </div>
+          <input type="hidden" name="country_code" id="qc-country-code" value="${h(edit.country_code || '')}" />
+          <input type="tel" name="phone" id="qc-phone-number" value="${h(edit.phone || '')}" placeholder="555 123 4567" autocomplete="tel" inputmode="tel" />
+        </div>
+      </label>
+
+      <fieldset class="qc-fieldset span-2 qc-fs-map">
+        <legend><i class="ti ti-map-pin"></i> Pinpoint location</legend>
+        <div class="qc-map-tools">
+          <label class="qc-map-search">
+            <i class="ti ti-search"></i>
+            <input type="text" id="qc-addr-search" placeholder="Search an address to drop a pin..." autocomplete="off" />
+          </label>
+          <button type="button" class="btn" id="qc-gps-btn"><i class="ti ti-current-location"></i> Use my location</button>
+        </div>
+        <div id="qc-contact-map" class="qc-map"></div>
+        <div class="qc-map-status" id="qc-map-status"><span class="qc-spinner"></span> Resolving address from coordinates...</div>
+        <div class="qc-coords" id="qc-coords-text">Tip: click the map or drag the pin for a precise location.</div>
+        <input type="hidden" name="lat" id="qc-lat" value="${h(edit.lat || '')}" />
+        <input type="hidden" name="lng" id="qc-lng" value="${h(edit.lng || '')}" />
+      </fieldset>
+
+      <fieldset class="qc-fieldset span-2 qc-fs-address">
+        <legend><i class="ti ti-building-community"></i> Address</legend>
+        <div class="qc-address-grid">
+          <label>
+            <span>Country</span>
+            <select id="qc-country"><option value="">Loading countries...</option></select>
+          </label>
+          <label>
+            <span>Province / State</span>
+            <select id="qc-province" disabled><option value="">Select country first</option></select>
+          </label>
+          <label>
+            <span>City / Municipality</span>
+            <select id="qc-city" disabled><option value="">Select province first</option></select>
+          </label>
+          <label id="qc-brgy-field">
+            <span>Barangay / Neighborhood</span>
+            <select id="qc-brgy-select" disabled hidden><option value="">Select city first</option></select>
+            <input type="text" id="qc-brgy-text" placeholder="District / suburb (optional)" autocomplete="off" />
+          </label>
+          <label>
+            <span>Street name</span>
+            <input type="text" name="street" id="qc-street" value="${h(edit.street || '')}" placeholder="e.g. Rizal Avenue" autocomplete="off" />
+          </label>
+          <label>
+            <span>Block / House / Unit no.</span>
+            <input type="text" name="block_no" id="qc-block" value="${h(edit.block_no || '')}" placeholder="e.g. Blk 4 Lot 12 / Unit 5B" autocomplete="off" />
+          </label>
+          <label class="span-2">
+            <span>Postal / Zip code</span>
+            <input type="text" name="zip" id="qc-zip" value="${h(edit.zip || '')}" placeholder="e.g. 85001" autocomplete="off" />
+          </label>
+        </div>
+        <input type="hidden" name="country" id="qc-country-hidden" value="${h(edit.country || '')}" />
+        <input type="hidden" name="province" id="qc-province-hidden" value="${h(edit.province || '')}" />
+        <input type="hidden" name="city" id="qc-city-hidden" value="${h(edit.city || '')}" />
+        <input type="hidden" name="barangay" id="qc-brgy-hidden" value="${h(edit.barangay || '')}" />
+        <input type="hidden" name="location" id="qc-location" value="${h(edit.location || '')}" />
+      </fieldset>
+
       ${selectField('Stage', 'stage', edit.stage || contactStageNames()[0], contactStageNames().map((stage) => [stage, stage]))}
       ${selectField('Owner', 'owner_name', edit.owner_name, contactOwnerOptions(companyId, edit.owner_name))}
       ${field('Estimated value', 'value', edit.value || 0, false, 'number')}
@@ -5417,366 +6078,822 @@ function renderTeamNode(companyId, member, members, depth = 0) {
   `;
 }
 
+/* =========================================================================
+   WORKSPACE BUILDER — no-code workspaces, apps, fields, items, automations.
+   Ported from the demo-workspaces module. Per-company state is a single JSON
+   doc persisted to Supabase (workspace_builder_state) with a localStorage
+   fallback for demo/local sessions. Members are the real company members.
+   ========================================================================= */
+const WB_PALETTE = ['#e0552d', '#2563eb', '#7c3aed', '#0d9488', '#16a34a', '#d97706', '#db2777', '#0891b2', '#dc2626', '#4f46e5'];
+const WB_WS_ICONS = ['ti-rocket', 'ti-speakerphone', 'ti-tools', 'ti-headset', 'ti-home-2', 'ti-building-store', 'ti-hammer', 'ti-users-group', 'ti-chart-bar', 'ti-cash', 'ti-package', 'ti-palette'];
+const WB_APP_ICONS = ['ti-address-book', 'ti-checklist', 'ti-folder', 'ti-calendar-event', 'ti-receipt', 'ti-bug', 'ti-shopping-cart', 'ti-id-badge', 'ti-truck', 'ti-file-description', 'ti-phone', 'ti-flask'];
+const WB_FIELD_TYPES = {
+  text: { label: 'Text', icon: 'ti-letter-case', color: '#2563eb', desc: 'Single line of text' },
+  textarea: { label: 'Text Area', icon: 'ti-align-left', color: '#2563eb', desc: 'Long multi-line text' },
+  number: { label: 'Number', icon: 'ti-number-9', color: '#0d9488', desc: 'Numeric value' },
+  date: { label: 'Date', icon: 'ti-calendar', color: '#7c3aed', desc: 'Date picker' },
+  category: { label: 'Category / Dropdown', icon: 'ti-list', color: '#d97706', desc: 'Choose from options' },
+  status: { label: 'Status', icon: 'ti-flag', color: '#16a34a', desc: 'Colored workflow state' },
+  relationship: { label: 'Relationship', icon: 'ti-link', color: '#0891b2', desc: 'Link to items in another app' },
+  file: { label: 'File Attachment', icon: 'ti-paperclip', color: '#6b7280', desc: 'Attach documents' },
+  user: { label: 'User Assignment', icon: 'ti-user', color: '#e0552d', desc: 'Assign workspace members' },
+  email: { label: 'Email', icon: 'ti-mail', color: '#2563eb', desc: 'Email address' },
+  phone: { label: 'Phone Number', icon: 'ti-phone', color: '#16a34a', desc: 'Phone number' },
+  money: { label: 'Money', icon: 'ti-currency-dollar', color: '#16a34a', desc: 'Currency amount' },
+  calculation: { label: 'Calculation', icon: 'ti-math-function', color: '#7c3aed', desc: 'Formula over number fields' },
+  checkbox: { label: 'Yes / No', icon: 'ti-checkbox', color: '#0d9488', desc: 'True or false toggle' },
+};
+const WB_FIELD_ORDER = ['text', 'textarea', 'number', 'money', 'date', 'category', 'status', 'user', 'relationship', 'email', 'phone', 'file', 'calculation', 'checkbox'];
+
+function wbUid() { return `wb-${crypto.randomUUID().slice(0, 12)}`; }
+function wbInitials(name) { return String(name || '?').trim().split(/\s+/).map((w) => w[0]).slice(0, 2).join('').toUpperCase() || '?'; }
+function wbColorFor(id) {
+  const key = String(id || '');
+  let hash = 0;
+  for (let i = 0; i < key.length; i += 1) hash = (hash * 31 + key.charCodeAt(i)) >>> 0;
+  return WB_PALETTE[hash % WB_PALETTE.length];
+}
+function wbMembers(companyId) {
+  return companyAccessUsers(companyId).map((user) => {
+    const id = user.profile_id || user.member_id;
+    return { id, name: user.name, email: user.email || '', role: user.role_label || titleCase(user.role || 'Member'), color: wbColorFor(id), avatar_url: user.avatar_url || '' };
+  });
+}
+function wbMemberById(companyId, id) {
+  return wbMembers(companyId).find((member) => member.id === id) || { id, name: 'Unknown', color: '#6b7280', email: '', role: '' };
+}
+function wbAvatar(member, size = 30) {
+  if (member.avatar_url) return `<span class="wb-avatar has-image" style="width:${size}px;height:${size}px"><img src="${h(member.avatar_url)}" alt="" /></span>`;
+  return `<span class="wb-avatar" style="width:${size}px;height:${size}px;background:${h(member.color)}" title="${h(member.name)}">${h(wbInitials(member.name))}</span>`;
+}
+
+// ---- per-company doc (Supabase-backed, localStorage fallback) ----------------
 function workspaceBuilderStorageKey(companyId) {
   return `${WORKSPACE_BUILDER_STORAGE_PREFIX}:${canonicalCompanyId(companyId)}`;
 }
-
-function seedWorkspaceBuilderState(companyId) {
-  const workspaceId = `builder-workspace-${canonicalCompanyId(companyId)}-sales`;
-  const appId = `builder-app-${canonicalCompanyId(companyId)}-contacts`;
-  const fields = [
-    { id: 'field-name', label: 'Name', type: 'text' },
-    { id: 'field-company', label: 'Company', type: 'text' },
-    { id: 'field-status', label: 'Status', type: 'status' },
-    { id: 'field-value', label: 'Value', type: 'money' },
-    { id: 'field-owner', label: 'Owner', type: 'user' },
-  ];
+function normalizeWorkspaceBuilderDoc(doc) {
+  const workspaces = Array.isArray(doc?.workspaces) ? doc.workspaces : [];
   return {
-    version: 1,
-    workspaces: [{
-      id: workspaceId,
-      name: 'Sales CRM',
-      description: 'Track custom lead data without changing the core CRM.',
-      color: '#e66a1f',
-      apps: [{
-        id: appId,
-        name: 'Lead tracker',
-        type: 'Pipeline',
-        description: 'A custom app with fields, records, reports, and automation notes.',
-        fields,
-        items: [
-          { id: 'builder-item-1', values: { 'field-name': 'Greenfield HOA', 'field-company': 'Greenfield HOA', 'field-status': 'Contacted', 'field-value': '48000', 'field-owner': 'Maya Rosales' }, created_at: '2026-06-21' },
-          { id: 'builder-item-2', values: { 'field-name': 'Tariq Mansour', 'field-company': 'Mansour Residence', 'field-status': 'Prospect', 'field-value': '12500', 'field-owner': 'Abraham Flores' }, created_at: '2026-06-23' },
-        ],
-        automations: [
-          { id: 'builder-auto-1', name: 'When status is Won, notify owner', enabled: true },
-        ],
-      }],
-    }],
-  };
-}
-
-function loadWorkspaceBuilderState(companyId) {
-  const seeded = seedWorkspaceBuilderState(companyId);
-  const value = readJson(workspaceBuilderStorageKey(companyId), seeded);
-  if (!value || !Array.isArray(value.workspaces)) return seeded;
-  return {
-    version: 1,
-    workspaces: value.workspaces.map((workspace) => ({
-      id: workspace.id || crypto.randomUUID(),
-      name: workspace.name || 'Untitled workspace',
-      description: workspace.description || '',
-      color: workspace.color || '#e66a1f',
-      apps: Array.isArray(workspace.apps) ? workspace.apps.map((app) => ({
-        id: app.id || crypto.randomUUID(),
+    workspaces: workspaces.map((ws) => ({
+      id: ws.id || wbUid(),
+      name: ws.name || 'Untitled workspace',
+      description: ws.description || '',
+      icon: ws.icon || WB_WS_ICONS[0],
+      color: ws.color || WB_PALETTE[1],
+      members: Array.isArray(ws.members) ? ws.members.map(String) : [],
+      createdAt: ws.createdAt || new Date().toISOString().slice(0, 10),
+      activity: Array.isArray(ws.activity) ? ws.activity : [],
+      apps: Array.isArray(ws.apps) ? ws.apps.map((app) => ({
+        id: app.id || wbUid(),
         name: app.name || 'Untitled app',
-        type: app.type || 'Custom',
         description: app.description || '',
-        fields: Array.isArray(app.fields) ? app.fields : [],
-        items: Array.isArray(app.items) ? app.items : [],
-        automations: Array.isArray(app.automations) ? app.automations : [],
+        type: app.type || '',
+        icon: app.icon || WB_APP_ICONS[0],
+        color: app.color || ws.color || WB_PALETTE[1],
+        fields: Array.isArray(app.fields) ? app.fields.map((field) => ({ id: field.id || wbUid(), label: field.label || 'Field', type: WB_FIELD_TYPES[field.type] ? field.type : 'text', required: !!field.required, config: field.config && typeof field.config === 'object' ? field.config : {} })) : [],
+        items: Array.isArray(app.items) ? app.items.map((item) => ({ id: item.id || wbUid(), values: item.values && typeof item.values === 'object' ? item.values : {}, createdAt: item.createdAt || new Date().toISOString().slice(0, 10) })) : [],
+        automations: Array.isArray(app.automations) ? app.automations.map((auto) => ({ id: auto.id || wbUid(), name: auto.name || 'Automation', enabled: auto.enabled !== false, trigger: auto.trigger && typeof auto.trigger === 'object' ? auto.trigger : { event: 'created' }, actions: Array.isArray(auto.actions) ? auto.actions : [] })) : [],
       })) : [],
     })),
   };
 }
-
-function saveWorkspaceBuilderState(companyId, builderState) {
-  writeJson(workspaceBuilderStorageKey(companyId), builderState);
+function wbDoc(companyId) {
+  return state.workspaceBuilderDocs[canonicalCompanyId(companyId)] || null;
+}
+function ensureWorkspaceBuilderLoaded(companyId) {
+  const key = canonicalCompanyId(companyId);
+  if (state.workspaceBuilderDocs[key]) return true;
+  if (state.workspaceBuilderLoading === key) return false;
+  state.workspaceBuilderLoading = key;
+  (async () => {
+    let doc = null;
+    const client = createSupabaseClient();
+    if (isLiveSupabaseSession() && client) {
+      const result = await client.from('workspace_builder_state').select('doc').eq('company_id', key).maybeSingle();
+      doc = result.data?.doc || null;
+    }
+    if (!doc) doc = readJson(workspaceBuilderStorageKey(companyId), { workspaces: [] });
+    state.workspaceBuilderDocs[key] = normalizeWorkspaceBuilderDoc(doc);
+    state.workspaceBuilderLoading = '';
+    render();
+  })();
+  return false;
+}
+async function saveWorkspaceBuilderDoc(companyId) {
+  const key = canonicalCompanyId(companyId);
+  const doc = state.workspaceBuilderDocs[key];
+  if (!doc) return;
+  if (!isReadOnlyDemo()) writeJson(workspaceBuilderStorageKey(companyId), doc);
+  const client = createSupabaseClient();
+  if (isLiveSupabaseSession() && client) {
+    const { error } = await client.from('workspace_builder_state').upsert({ company_id: key, doc, updated_by: activeSession()?.profile?.id || null });
+    if (error) showToast(error.message || 'Workspace save failed.', 'local', 'Workspaces');
+  }
+}
+function wbFind(companyId, workspaceId, appId = '') {
+  const doc = wbDoc(companyId);
+  if (!doc) return { workspace: null, app: null };
+  const workspace = doc.workspaces.find((item) => item.id === workspaceId) || null;
+  const app = workspace && appId ? workspace.apps.find((item) => item.id === appId) || null : null;
+  return { workspace, app };
+}
+function wbLogActivity(workspace, entry) {
+  workspace.activity = workspace.activity || [];
+  workspace.activity.unshift({ id: wbUid(), ts: new Date().toISOString(), ...entry });
+  if (workspace.activity.length > 60) workspace.activity.length = 60;
+}
+function wbTimeAgo(ts) {
+  const seconds = (Date.now() - new Date(ts).getTime()) / 1000;
+  if (Number.isNaN(seconds)) return '';
+  if (seconds < 60) return 'just now';
+  if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`;
+  if (seconds < 86400) return `${Math.floor(seconds / 3600)}h ago`;
+  return `${Math.floor(seconds / 86400)}d ago`;
 }
 
-function workspaceBuilderFind(builderState, workspaceId, appId = '') {
-  const workspace = builderState.workspaces.find((item) => item.id === workspaceId) || builderState.workspaces[0] || null;
-  const app = workspace && appId ? workspace.apps.find((item) => item.id === appId) : null;
-  return { workspace, app };
+// The current company IS the workspace — there is a single implicit builder
+// workspace per company that holds its apps. Created lazily in the in-memory doc.
+function wbCompanyWorkspace(companyId) {
+  const doc = wbDoc(companyId);
+  if (!doc) return null;
+  if (!doc.workspaces.length) {
+    doc.workspaces.push({ id: `ws-${canonicalCompanyId(companyId)}`, name: companyName(companyId) || 'Workspace', icon: WB_WS_ICONS[0], color: WB_PALETTE[0], members: [], apps: [], activity: [], createdAt: new Date().toISOString().slice(0, 10) });
+  }
+  return doc.workspaces[0];
 }
 
 function renderWorkspaceBuilderPage(route, companyId) {
-  const builderState = loadWorkspaceBuilderState(companyId);
-  const workspaceId = route.params.get('workspace_id') || '';
-  const appId = route.params.get('app_id') || '';
-  if (workspaceId && appId) return renderBuilderAppDetail(route, companyId, builderState);
-  if (workspaceId) return renderBuilderWorkspaceDetail(route, companyId, builderState);
-  return renderBuilderWorkspaceList(companyId, builderState);
-}
-
-function renderBuilderWorkspaceList(companyId, builderState) {
-  const canManage = can('workspaces.manage', companyId);
-  return `
-    ${workspaceHeader('Workspaces', 'Build no-code dashboards, custom apps, fields, items, reports, and automation notes inside this company.', `
-      <a class="btn" href="${appHref(companyPath('settings', { tab: 'plugins' }, companyId))}" data-router><i class="ti ti-plug"></i>Plugin settings</a>
-    `)}
-    <section class="builder-shell">
-      <div class="builder-grid">
-        ${builderState.workspaces.map((workspace) => renderBuilderWorkspaceCard(companyId, workspace)).join('')}
-        <article class="builder-card builder-create-card">
-          <div class="builder-card-icon"><i class="ti ti-layout-grid-add"></i></div>
-          <strong>New workspace</strong>
-          <span>Create a blank workspace for a team, process, or department.</span>
-          <form class="builder-inline-form" data-builder-workspace-form>
-            <input data-builder-workspace-name name="name" placeholder="Workspace name" ${canManage ? '' : 'disabled'} />
-            <input name="description" placeholder="Description" ${canManage ? '' : 'disabled'} />
-            <button class="btn btn-primary" type="button" data-action="builder-create-workspace" ${canManage ? '' : 'disabled'}><i class="ti ti-plus"></i>Create</button>
-          </form>
-        </article>
-      </div>
-    </section>
-  `;
-}
-
-function renderBuilderWorkspaceCard(companyId, workspace) {
-  const itemCount = workspace.apps.reduce((sum, app) => sum + app.items.length, 0);
-  return `
-    <a class="builder-card" href="${appHref(companyPath('workspaces', { workspace_id: workspace.id }, companyId))}" data-router>
-      <div class="builder-card-icon" style="--builder-accent:${h(workspace.color)}"><i class="ti ti-layout-grid"></i></div>
-      <strong>${h(workspace.name)}</strong>
-      <span>${h(workspace.description || 'No description')}</span>
-      <div class="builder-card-meta"><b>${h(workspace.apps.length)} apps</b><b>${h(itemCount)} items</b></div>
-    </a>
-  `;
-}
-
-function renderBuilderWorkspaceDetail(route, companyId, builderState) {
-  const { workspace } = workspaceBuilderFind(builderState, route.params.get('workspace_id') || '');
-  if (!workspace) return renderBuilderWorkspaceList(companyId, builderState);
-  const canManage = can('workspaces.manage', companyId);
-  return `
-    ${workspaceHeader(workspace.name, workspace.description || 'Custom app workspace.', `
-      <a class="btn" href="${appHref(companyPath('workspaces', {}, companyId))}" data-router><i class="ti ti-arrow-left"></i>All workspaces</a>
-    `)}
-    <section class="builder-shell">
-      <div class="builder-grid">
-        ${workspace.apps.map((app) => renderBuilderAppCard(companyId, workspace, app)).join('')}
-        <article class="builder-card builder-create-card">
-          <div class="builder-card-icon"><i class="ti ti-apps"></i></div>
-          <strong>Add app</strong>
-          <span>Apps are custom tables with fields, records, reports, and automations.</span>
-          <form class="builder-inline-form" data-builder-app-form data-workspace-id="${h(workspace.id)}">
-            <input data-builder-app-name name="name" placeholder="App name" ${canManage ? '' : 'disabled'} />
-            <input name="type" placeholder="Type, e.g. Contacts" ${canManage ? '' : 'disabled'} />
-            <button class="btn btn-primary" type="button" data-action="builder-create-app" ${canManage ? '' : 'disabled'}><i class="ti ti-plus"></i>Create app</button>
-          </form>
-        </article>
-      </div>
-    </section>
-  `;
-}
-
-function renderBuilderAppCard(companyId, workspace, app) {
-  return `
-    <a class="builder-card" href="${appHref(companyPath('workspaces', { workspace_id: workspace.id, app_id: app.id }, companyId))}" data-router>
-      <div class="builder-card-icon"><i class="ti ti-table"></i></div>
-      <strong>${h(app.name)}</strong>
-      <span>${h(app.description || app.type || 'Custom app')}</span>
-      <div class="builder-card-meta"><b>${h(app.fields.length)} fields</b><b>${h(app.items.length)} items</b></div>
-    </a>
-  `;
-}
-
-function renderBuilderAppDetail(route, companyId, builderState) {
-  const { workspace, app } = workspaceBuilderFind(builderState, route.params.get('workspace_id') || '', route.params.get('app_id') || '');
-  if (!workspace || !app) return renderBuilderWorkspaceList(companyId, builderState);
-  const tab = ['items', 'fields', 'reports', 'automations'].includes(route.params.get('tab')) ? route.params.get('tab') : 'items';
-  const tabPath = (nextTab) => companyPath('workspaces', { workspace_id: workspace.id, app_id: app.id, tab: nextTab }, companyId);
-  return `
-    ${workspaceHeader(app.name, `${workspace.name} / ${app.type || 'Custom app'}`, `
-      <a class="btn" href="${appHref(companyPath('workspaces', { workspace_id: workspace.id }, companyId))}" data-router><i class="ti ti-arrow-left"></i>${h(workspace.name)}</a>
-    `)}
-    <section class="builder-shell">
-      <nav class="tabbar">
-        ${['items', 'fields', 'reports', 'automations'].map((item) => `<a class="${tab === item ? 'active' : ''}" href="${appHref(tabPath(item))}" data-router>${h(titleCase(item))}</a>`).join('')}
-      </nav>
-      ${tab === 'items' ? renderBuilderItemsTab(companyId, workspace, app) : ''}
-      ${tab === 'fields' ? renderBuilderFieldsTab(companyId, workspace, app) : ''}
-      ${tab === 'reports' ? renderBuilderReportsTab(app) : ''}
-      ${tab === 'automations' ? renderBuilderAutomationsTab(app) : ''}
-    </section>
-  `;
-}
-
-function renderBuilderFieldsTab(companyId, workspace, app) {
-  const canManage = can('workspaces.manage', companyId);
-  return `
-    <div class="builder-two-col">
-      <article class="panel">
-        <div class="section-head"><div><h2>Fields</h2><p>Shape the data this app stores.</p></div></div>
-        <div class="builder-field-list">
-          ${app.fields.map((field) => `<span class="builder-field-pill"><i class="ti ${h(builderFieldIcon(field.type))}"></i>${h(field.label)}<small>${h(builderFieldLabel(field.type))}</small></span>`).join('') || emptyState('No fields yet.')}
-        </div>
-      </article>
-      <article class="panel">
-        <div class="section-head"><div><h2>Add field</h2><p>Start simple. Add more field controls later.</p></div></div>
-        <form class="builder-inline-form" data-builder-field-form data-workspace-id="${h(workspace.id)}" data-app-id="${h(app.id)}">
-          <input data-builder-field-label name="label" placeholder="Field label" ${canManage ? '' : 'disabled'} />
-          <select name="field_type" ${canManage ? '' : 'disabled'}>${BUILDER_FIELD_TYPES.map((fieldType) => `<option value="${h(fieldType.id)}">${h(fieldType.label)}</option>`).join('')}</select>
-          <button class="btn btn-primary" type="button" data-action="builder-create-field" ${canManage ? '' : 'disabled'}><i class="ti ti-plus"></i>Add field</button>
-        </form>
-      </article>
-    </div>
-  `;
-}
-
-function renderBuilderItemsTab(companyId, workspace, app) {
-  const canManage = can('workspaces.manage', companyId);
-  return `
-    <div class="builder-two-col">
-      <article class="panel builder-main-panel">
-        <div class="section-head"><div><h2>Items</h2><p>${h(app.items.length)} record${app.items.length === 1 ? '' : 's'} in this custom app.</p></div></div>
-        ${renderBuilderItemsTable(app)}
-      </article>
-      <article class="panel">
-        <div class="section-head"><div><h2>Add item</h2><p>Uses the fields configured for this app.</p></div></div>
-        ${app.fields.length ? `
-          <form class="builder-inline-form" data-builder-item-form data-workspace-id="${h(workspace.id)}" data-app-id="${h(app.id)}">
-            ${app.fields.map((field) => `<label><span>${h(field.label)}</span><input data-builder-item-field name="${h(field.id)}" placeholder="${h(builderFieldLabel(field.type))}" ${canManage ? '' : 'disabled'} /></label>`).join('')}
-            <button class="btn btn-primary" type="button" data-action="builder-create-item" ${canManage ? '' : 'disabled'}><i class="ti ti-plus"></i>Add item</button>
-          </form>
-        ` : emptyState('Add fields before creating items.')}
-      </article>
-    </div>
-  `;
-}
-
-function renderBuilderItemsTable(app) {
-  if (!app.fields.length) return emptyState('This app has no fields yet.');
-  if (!app.items.length) return emptyState('No items yet.');
-  const columns = app.fields.slice(0, 6);
-  return `
-    <div class="builder-app-table">
-      <div class="builder-table-head">${columns.map((field) => `<span>${h(field.label)}</span>`).join('')}</div>
-      ${app.items.map((item) => `<div class="builder-table-row">${columns.map((field) => `<span>${h(formatBuilderValue(field, item.values?.[field.id]))}</span>`).join('')}</div>`).join('')}
-    </div>
-  `;
-}
-
-function renderBuilderReportsTab(app) {
-  const moneyFields = app.fields.filter((field) => field.type === 'money');
-  const total = moneyFields[0] ? app.items.reduce((sum, item) => sum + number(item.values?.[moneyFields[0].id]), 0) : 0;
-  return `
-    <div class="metric-grid">
-      ${metricCard('Items', app.items.length, 'Custom records', 'ti-database')}
-      ${metricCard('Fields', app.fields.length, 'Configured fields', 'ti-forms')}
-      ${metricCard('Automations', app.automations.length, 'Workflow rules', 'ti-bolt')}
-      ${metricCard('Value', money(total), moneyFields[0]?.label || 'No money field', 'ti-currency-dollar')}
-    </div>
-  `;
-}
-
-function renderBuilderAutomationsTab(app) {
-  return `
-    <article class="panel">
-      <div class="section-head"><div><h2>Automations</h2><p>Rules attached to this custom app.</p></div></div>
-      <div class="builder-automation-list">
-        ${app.automations.map((automation) => `<div><i class="ti ti-bolt"></i><strong>${h(automation.name)}</strong><span>${automation.enabled ? 'Enabled' : 'Disabled'}</span></div>`).join('') || emptyState('No automations yet.')}
-      </div>
-    </article>
-  `;
-}
-
-const BUILDER_FIELD_TYPES = [
-  { id: 'text', label: 'Text', icon: 'ti-text-caption' },
-  { id: 'number', label: 'Number', icon: 'ti-number' },
-  { id: 'money', label: 'Money', icon: 'ti-currency-dollar' },
-  { id: 'date', label: 'Date', icon: 'ti-calendar' },
-  { id: 'status', label: 'Status', icon: 'ti-flag' },
-  { id: 'user', label: 'User', icon: 'ti-user' },
-  { id: 'email', label: 'Email', icon: 'ti-mail' },
-  { id: 'phone', label: 'Phone', icon: 'ti-phone' },
-  { id: 'checkbox', label: 'Yes / No', icon: 'ti-checkbox' },
-];
-
-function builderFieldLabel(type) {
-  return BUILDER_FIELD_TYPES.find((fieldType) => fieldType.id === type)?.label || 'Text';
-}
-
-function builderFieldIcon(type) {
-  return BUILDER_FIELD_TYPES.find((fieldType) => fieldType.id === type)?.icon || 'ti-text-caption';
-}
-
-function formatBuilderValue(field, value) {
-  if (field.type === 'money') return value ? money(value) : '';
-  if (field.type === 'checkbox') return ['true', 'yes', '1', 'on'].includes(String(value || '').toLowerCase()) ? 'Yes' : 'No';
-  return value || '';
-}
-
-function workspaceBuilderCreateWorkspace(companyId, name, description) {
-  const cleanName = String(name || '').trim();
-  if (!cleanName) throw new Error('Workspace name is required.');
-  const builderState = loadWorkspaceBuilderState(companyId);
-  const workspace = { id: crypto.randomUUID(), name: cleanName, description: String(description || '').trim(), color: '#e66a1f', apps: [] };
-  builderState.workspaces.unshift(workspace);
-  saveWorkspaceBuilderState(companyId, builderState);
-  return workspace;
-}
-
-function workspaceBuilderCreateApp(companyId, workspaceId, name, type) {
-  const cleanName = String(name || '').trim();
-  if (!cleanName) throw new Error('App name is required.');
-  const builderState = loadWorkspaceBuilderState(companyId);
-  const workspace = builderState.workspaces.find((item) => item.id === workspaceId);
-  if (!workspace) throw new Error('Workspace not found.');
-  const app = { id: crypto.randomUUID(), name: cleanName, type: String(type || 'Custom').trim() || 'Custom', description: '', fields: [], items: [], automations: [] };
-  workspace.apps.unshift(app);
-  saveWorkspaceBuilderState(companyId, builderState);
-  return app;
-}
-
-function workspaceBuilderCreateField(companyId, workspaceId, appId, label, fieldType) {
-  const cleanLabel = String(label || '').trim();
-  if (!cleanLabel) throw new Error('Field label is required.');
-  const builderState = loadWorkspaceBuilderState(companyId);
-  const { workspace, app } = workspaceBuilderFind(builderState, workspaceId, appId);
-  if (!workspace || !app) throw new Error('App not found.');
-  const cleanType = BUILDER_FIELD_TYPES.some((item) => item.id === fieldType) ? fieldType : 'text';
-  app.fields.push({ id: crypto.randomUUID(), label: cleanLabel, type: cleanType });
-  saveWorkspaceBuilderState(companyId, builderState);
-  return app.fields[app.fields.length - 1];
-}
-
-function workspaceBuilderCreateItem(companyId, workspaceId, appId, values) {
-  const builderState = loadWorkspaceBuilderState(companyId);
-  const { workspace, app } = workspaceBuilderFind(builderState, workspaceId, appId);
-  if (!workspace || !app) throw new Error('App not found.');
-  const item = { id: crypto.randomUUID(), values: values || {}, created_at: new Date().toISOString() };
-  app.items.unshift(item);
-  saveWorkspaceBuilderState(companyId, builderState);
-  return item;
-}
-
-function handleWorkspaceBuilderAction(node) {
-  const companyId = activeCompanyId();
-  if (!requirePermission('workspaces.manage', companyId, 'Your role cannot manage workspace builder data.', 'Workspaces')) return;
-  try {
-    if (node.dataset.action === 'builder-create-workspace') {
-      const form = node.closest('[data-builder-workspace-form]');
-      const workspace = workspaceBuilderCreateWorkspace(companyId, form?.querySelector('[data-builder-workspace-name]')?.value, form?.elements?.description?.value);
-      showToast(`${workspace.name} created.`, 'local', 'Workspaces');
-      navigate(companyPath('workspaces', { workspace_id: workspace.id }, companyId));
-      return;
-    }
-    if (node.dataset.action === 'builder-create-app') {
-      const form = node.closest('[data-builder-app-form]');
-      const app = workspaceBuilderCreateApp(companyId, form?.dataset.workspaceId, form?.querySelector('[data-builder-app-name]')?.value, form?.elements?.type?.value);
-      showToast(`${app.name} app created.`, 'local', 'Workspaces');
-      navigate(companyPath('workspaces', { workspace_id: form.dataset.workspaceId, app_id: app.id, tab: 'fields' }, companyId));
-      return;
-    }
-    if (node.dataset.action === 'builder-create-field') {
-      const form = node.closest('[data-builder-field-form]');
-      workspaceBuilderCreateField(companyId, form?.dataset.workspaceId, form?.dataset.appId, form?.querySelector('[data-builder-field-label]')?.value, form?.elements?.field_type?.value);
-      showToast('Field added.', 'local', 'Workspaces');
-      render();
-      return;
-    }
-    if (node.dataset.action === 'builder-create-item') {
-      const form = node.closest('[data-builder-item-form]');
-      const values = Object.fromEntries([...form.querySelectorAll('[data-builder-item-field]')].map((input) => [input.name, input.value]));
-      workspaceBuilderCreateItem(companyId, form?.dataset.workspaceId, form?.dataset.appId, values);
-      showToast('Item added.', 'local', 'Workspaces');
-      render();
-    }
-  } catch (error) {
-    showToast(error.message || 'Workspace builder action failed.', 'local', 'Workspaces');
+  if (!ensureWorkspaceBuilderLoaded(companyId)) {
+    return `<section class="tool-page"><div class="wb-loading">Loading workspaces…</div></section>`;
   }
+  const workspace = wbCompanyWorkspace(companyId);
+  const appId = route.params.get('app_id') || '';
+  const app = appId ? workspace.apps.find((item) => item.id === appId) : null;
+  if (app) return `<section class="tool-page wb-page">${wbViewApp(route, companyId, workspace, app)}</section>`;
+  return `<section class="tool-page wb-page">${wbViewCompanyHome(companyId, workspace)}</section>`;
+}
+
+// Landing for the company's workspace: the apps live directly here.
+function wbViewCompanyHome(companyId, workspace) {
+  const canManage = can('workspaces.manage', companyId);
+  const appCards = workspace.apps.map((app) => `
+    <button class="wb-card wb-app-card" data-open-app="${h(app.id)}">
+      <div class="wb-app-ic" style="background:${h(app.color)}"><i class="ti ${h(app.icon)}"></i></div>
+      <div class="wb-app-body">
+        <h4>${h(app.name)}</h4>
+        <div class="wb-app-desc">${h(app.description || 'No description')}</div>
+        <div class="wb-app-stat"><i class="ti ti-list-details"></i>${app.items.length} items · ${app.fields.length} fields${app.type ? ` · ${h(app.type)}` : ''}</div>
+      </div>
+    </button>`).join('');
+  const appsBlock = workspace.apps.length
+    ? `<div class="wb-grid">${appCards}${canManage ? `<button class="wb-new-card wb-app-new" data-new-app><i class="ti ti-plus"></i><b>Add App</b></button>` : ''}</div>`
+    : (canManage
+      ? `<button class="wb-new-card wb-new-hero" data-new-app><i class="ti ti-circle-plus"></i><b>New App</b><span>Start from a blank canvas</span></button>`
+      : `<div class="wb-empty"><i class="ti ti-apps"></i><h3>No apps yet</h3><p>Apps are custom tables with fields, records, reports, and automations.</p></div>`);
+  return `
+    <div class="wb-page-head">
+      <div>
+        <div class="wb-title"><i class="ti ti-layout-grid-add"></i>Workspaces</div>
+        <div class="wb-sub">Build customizable, no-code dashboards for ${h(companyName(companyId) || 'this company')}.</div>
+      </div>
+      <div class="wb-spacer"></div>
+      ${canManage ? `<button class="btn btn-primary" data-new-app><i class="ti ti-plus"></i>Add app</button>` : ''}
+    </div>
+    ${appsBlock}
+    ${wbActivityCard(workspace)}`;
+}
+
+function wbActivityCard(workspace) {
+  const acts = (workspace.activity || []).slice(0, 8);
+  if (!acts.length) return '';
+  return `
+    <h3 class="wb-section-title wb-with-icon"><i class="ti ti-history"></i>Recent activity</h3>
+    <div class="wb-activity">
+      ${acts.map((ev) => `<div class="wb-act-item"><span class="wb-act-ic" style="background:${h(ev.color || '#6b7280')}"><i class="ti ${h(ev.icon || 'ti-point')}"></i></span><div><div class="wb-act-text">${ev.text}</div><div class="wb-act-time">${wbTimeAgo(ev.ts)}</div></div></div>`).join('')}
+    </div>`;
+}
+
+function wbViewApp(route, companyId, workspace, app) {
+  const canManage = can('workspaces.manage', companyId);
+  const tabs = ['items', 'fields', 'reports', 'automations', 'settings'];
+  const tab = tabs.includes(route.params.get('tab')) ? route.params.get('tab') : 'items';
+  const tabPath = (next) => appHref(companyPath('workspaces', { app_id: app.id, tab: next }, companyId));
+  let headBtn = '';
+  if (canManage && tab === 'items' && app.fields.length) headBtn = `<button class="btn btn-primary" data-add-item><i class="ti ti-plus"></i>Add item</button>`;
+  else if (canManage && tab === 'fields') headBtn = `<button class="btn btn-primary" data-add-field><i class="ti ti-plus"></i>Add field</button>`;
+  else if (canManage && tab === 'automations') headBtn = `<button class="btn btn-primary" data-add-auto><i class="ti ti-plus"></i>New automation</button>`;
+  const tabLabel = { items: `Items <b>${app.items.length}</b>`, fields: `Fields <b>${app.fields.length}</b>`, reports: 'Reports', automations: `Automations <b>${app.automations.length}</b>`, settings: 'Settings' };
+  let body = '';
+  if (tab === 'items') body = wbViewItems(companyId, workspace, app);
+  else if (tab === 'fields') body = wbViewBuilder(companyId, workspace, app);
+  else if (tab === 'reports') body = wbViewReports(companyId, workspace, app);
+  else if (tab === 'automations') body = wbViewAutomations(companyId, workspace, app);
+  else body = wbViewAppSettings(companyId, workspace, app);
+  return `
+    <div class="wb-page-head">
+      <div>
+        <div class="wb-title"><span class="wb-title-ic" style="background:${h(app.color)}"><i class="ti ${h(app.icon)}"></i></span>${h(app.name)}</div>
+        <div class="wb-sub">${h(app.description || '')}</div>
+      </div>
+      <div class="wb-spacer"></div>
+      <a class="btn" href="${appHref(companyPath('workspaces', {}, companyId))}" data-router><i class="ti ti-arrow-left"></i>Workspaces</a>
+      ${headBtn}
+    </div>
+    <div class="wb-tabs">
+      ${tabs.map((item) => `<a class="wb-tab ${tab === item ? 'active' : ''}" href="${tabPath(item)}" data-router>${tabLabel[item]}</a>`).join('')}
+    </div>
+    ${body}`;
+}
+
+function wbItemTitle(app, item) {
+  const field = app.fields.find((x) => ['text', 'email'].includes(x.type)) || app.fields[0];
+  return field ? (item.values[field.id] || 'Untitled') : 'Untitled';
+}
+function wbComputeCalc(app, field, values) {
+  const formula = field.config.formula;
+  if (!formula) return '—';
+  const expr = formula.replace(/\{([^}]+)\}/g, (match, name) => {
+    const target = app.fields.find((x) => x.label.toLowerCase() === name.trim().toLowerCase() && ['number', 'money', 'calculation'].includes(x.type));
+    const value = target ? Number(values[target.id] || 0) : 0;
+    return Number.isNaN(value) ? 0 : value;
+  });
+  if (!/^[-+*/(). 0-9]+$/.test(expr)) return '⚠';
+  try { const result = Function(`"use strict";return(${expr})`)(); return Number.isFinite(result) ? (Math.round(result * 100) / 100).toLocaleString() : '—'; } catch { return '⚠'; }
+}
+function wbFmtVal(ctx, field, value) {
+  if (value === undefined || value === null || value === '' || (Array.isArray(value) && !value.length)) return '<span class="wb-cell-empty">—</span>';
+  const meta = WB_FIELD_TYPES[field.type];
+  switch (field.type) {
+    case 'status': { const o = (field.config.options || []).find((x) => x.id === value); return o ? `<span class="wb-status-pill" style="background:${o.color}1f;color:${o.color}"><span class="wb-dot" style="background:${o.color}"></span>${h(o.label)}</span>` : '<span class="wb-cell-empty">—</span>'; }
+    case 'category': { const o = (field.config.options || []).find((x) => x.id === value); return o ? `<span class="wb-tag" style="background:${o.color || '#6b7280'}1f;color:${o.color || '#6b7280'}">${h(o.label)}</span>` : h(value); }
+    case 'user': { const m = wbMemberById(ctx.companyId, value); return `<span class="wb-chip">${wbAvatar(m, 22)}${h(m.name)}</span>`; }
+    case 'money': return `<b>${h(field.config.currency || '$')}${Number(value).toLocaleString()}</b>`;
+    case 'number': return `${Number(value).toLocaleString()}${field.config.unit ? ` ${h(field.config.unit)}` : ''}`;
+    case 'email': return `<a href="mailto:${h(value)}" style="color:var(--info,#2563eb)">${h(value)}</a>`;
+    case 'phone': return h(value);
+    case 'date': return value ? new Date(`${value}T00:00`).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }) : '<span class="wb-cell-empty">—</span>';
+    case 'checkbox': return value ? '<span class="wb-status-pill wb-yes"><i class="ti ti-check"></i>Yes</span>' : '<span class="wb-cell-empty">No</span>';
+    case 'file': return `<span class="wb-tag wb-file"><i class="ti ti-file"></i>${h(value)}</span>`;
+    case 'relationship': { const ta = ctx.workspace.apps.find((x) => x.id === field.config.targetApp); if (!ta) return h(value); const arr = Array.isArray(value) ? value : [value]; return arr.map((id) => { const it = ta.items.find((i) => i.id === id); return `<span class="wb-tag wb-rel">${h(it ? wbItemTitle(ta, it) : '?')}</span>`; }).join(' '); }
+    case 'calculation': return `<b style="color:${meta.color}">${h(wbComputeCalc(ctx.app, field, ctx.values || {}))}</b>`;
+    case 'textarea': { const str = String(value); return h(str.length > 60 ? `${str.slice(0, 60)}…` : str); }
+    default: return h(value);
+  }
+}
+
+function wbViewItems(companyId, workspace, app) {
+  const canManage = can('workspaces.manage', companyId);
+  if (!app.fields.length) return `<div class="wb-empty"><i class="ti ti-layout-dashboard"></i><h3>This app has no fields yet</h3><p>Before adding items you need to design the app's structure. Add fields like Text, Status, or Date.</p>${canManage ? '<button class="btn btn-primary" data-tab="fields"><i class="ti ti-tools"></i>Open field builder</button>' : ''}</div>`;
+  if (!app.items.length) return `<div class="wb-empty"><i class="ti ti-inbox"></i><h3>No items yet</h3><p>Add your first record using the form built from your custom fields.</p>${canManage ? '<button class="btn btn-primary" data-add-item><i class="ti ti-plus"></i>Add item</button>' : ''}</div>`;
+  const cols = app.fields.slice(0, 7);
+  const rows = app.items.map((item) => {
+    const ctx = { companyId, workspace, app, values: item.values };
+    return `<tr data-item="${h(item.id)}">${cols.map((field) => `<td>${wbFmtVal(ctx, field, item.values[field.id])}</td>`).join('')}<td class="wb-row-acts">${canManage ? `<button class="wb-icon-btn" data-edit-item="${h(item.id)}"><i class="ti ti-pencil"></i></button><button class="wb-icon-btn danger" data-del-item="${h(item.id)}"><i class="ti ti-trash"></i></button>` : ''}</td></tr>`;
+  }).join('');
+  return `<div class="wb-tbl-wrap"><table class="wb-table"><thead><tr>${cols.map((field) => `<th>${h(field.label)}</th>`).join('')}<th></th></tr></thead><tbody>${rows}</tbody></table></div>
+    <div class="wb-table-foot">${app.items.length} item${app.items.length === 1 ? '' : 's'}${app.fields.length > 7 ? ` · showing first 7 of ${app.fields.length} fields` : ''}</div>`;
+}
+
+function wbViewBuilder(companyId, workspace, app) {
+  const canManage = can('workspaces.manage', companyId);
+  const list = app.fields.length ? app.fields.map((field) => {
+    const meta = WB_FIELD_TYPES[field.type];
+    let extra = '';
+    if ((field.type === 'category' || field.type === 'status') && field.config.options) extra = ` · ${field.config.options.length} options`;
+    if (field.type === 'relationship' && field.config.targetApp) { const ta = workspace.apps.find((x) => x.id === field.config.targetApp); extra = ta ? ` · → ${h(ta.name)}` : ' · (no target)'; }
+    if (field.type === 'calculation' && field.config.formula) extra = ` · ${h(field.config.formula)}`;
+    return `<div class="wb-field-row" ${canManage ? 'draggable="true"' : ''} data-fid="${h(field.id)}">
+      ${canManage ? '<span class="wb-grip"><i class="ti ti-grip-vertical"></i></span>' : ''}
+      <div class="wb-field-ic" style="background:${meta.color}22;color:${meta.color}"><i class="ti ${meta.icon}"></i></div>
+      <div class="wb-field-meta"><b>${h(field.label)}${field.required ? '<span class="wb-req">*</span>' : ''}</b><div class="wb-field-type">${h(meta.label)}${extra}</div></div>
+      ${canManage ? `<div class="wb-field-acts"><button class="wb-icon-btn" data-edit-field="${h(field.id)}" title="Configure"><i class="ti ti-adjustments"></i></button><button class="wb-icon-btn danger" data-del-field="${h(field.id)}" title="Delete"><i class="ti ti-trash"></i></button></div>` : ''}
+    </div>`;
+  }).join('') : '<div class="wb-empty wb-empty-dashed"><i class="ti ti-layout-dashboard"></i><h3>Design your app</h3><p>Add fields from the palette to shape what data this app stores. Drag to reorder anytime.</p></div>';
+  const palette = canManage ? `<div class="wb-palette"><h4>Add a field</h4>${WB_FIELD_ORDER.map((type) => { const meta = WB_FIELD_TYPES[type]; return `<button class="wb-palette-item" data-add-type="${type}"><span class="wb-pic" style="background:${meta.color}22;color:${meta.color}"><i class="ti ${meta.icon}"></i></span><span class="wb-palette-text">${h(meta.label)}<small>${h(meta.desc)}</small></span></button>`; }).join('')}</div>` : '';
+  return `<div class="wb-builder-grid"><div><div class="wb-field-count">${app.fields.length} field${app.fields.length === 1 ? '' : 's'}${canManage ? ' — drag to reorder' : ''}</div>${list}</div>${palette}</div>`;
+}
+
+function wbViewAppSettings(companyId, workspace, app) {
+  const canManage = can('workspaces.manage', companyId);
+  return `<div class="wb-settings card">
+    <h3 class="wb-settings-title">App settings</h3>
+    <div class="wb-field"><label>App name</label><input class="wb-input" id="wbSetName" value="${h(app.name)}" ${canManage ? '' : 'disabled'}></div>
+    <div class="wb-field"><label>Description</label><textarea class="wb-input" id="wbSetDesc" ${canManage ? '' : 'disabled'}>${h(app.description || '')}</textarea></div>
+    <div class="wb-field"><label>Type</label><input class="wb-input" id="wbSetType" value="${h(app.type || '')}" placeholder="e.g. Contacts, Tasks, Projects" ${canManage ? '' : 'disabled'}></div>
+    <div class="wb-field"><label>Icon &amp; color</label>
+      <div class="wb-emoji-pick" id="wbSetIcons">${WB_APP_ICONS.map((icon) => `<button class="wb-emoji-opt ${app.icon === icon ? 'sel' : ''}" data-icon="${icon}"><i class="ti ${icon}"></i></button>`).join('')}</div>
+      <div class="wb-swatches" id="wbSetColors">${WB_PALETTE.map((color) => `<button class="wb-swatch ${app.color === color ? 'sel' : ''}" data-color="${color}" style="background:${color}"></button>`).join('')}</div>
+    </div>
+    ${canManage ? `<div class="wb-settings-actions"><button class="btn btn-primary" data-save-app><i class="ti ti-device-floppy"></i>Save changes</button><button class="btn danger" data-del-app><i class="ti ti-trash"></i>Delete app</button></div>` : ''}
+  </div>`;
+}
+
+// ---- Reports (hand-rolled SVG/CSS charts) ------------------------------------
+function wbDonutSVG(segs, size = 176) {
+  const total = segs.reduce((sum, x) => sum + x.value, 0) || 1;
+  const r = size / 2 - 16; const cx = size / 2; const cy = size / 2; const C = 2 * Math.PI * r; let off = 0;
+  const rings = segs.filter((s) => s.value > 0).map((s) => {
+    const dash = s.value / total * C;
+    const el = `<circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="${s.color}" stroke-width="20" stroke-dasharray="${dash} ${C - dash}" stroke-dashoffset="${-off}" transform="rotate(-90 ${cx} ${cy})"/>`;
+    off += dash; return el;
+  }).join('');
+  return `<svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}"><circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="var(--surface-3,#eef1f5)" stroke-width="20"/>${rings}<text x="${cx}" y="${cy - 3}" text-anchor="middle" font-size="27" font-weight="800" fill="var(--text,#1f2937)">${total}</text><text x="${cx}" y="${cy + 16}" text-anchor="middle" font-size="10.5" letter-spacing="1" fill="var(--text-muted,#6b7280)" font-weight="700">TOTAL</text></svg>`;
+}
+function wbBarsHTML(bars, fmt) {
+  const max = Math.max(...bars.map((b) => b.value), 1);
+  return `<div class="wb-bars">${bars.map((b) => `<div class="wb-bar-row"><div class="wb-bar-label" title="${h(b.label)}">${h(b.label)}</div><div class="wb-bar-track"><div class="wb-bar-fill" style="width:${Math.max(b.value / max * 100, b.value > 0 ? 4 : 0)}%;background:${b.color}"></div></div><div class="wb-bar-val">${fmt ? fmt(b.value) : b.value.toLocaleString()}</div></div>`).join('')}</div>`;
+}
+function wbGroupKey(item, field) { let k = item.values[field.id]; if (Array.isArray(k)) k = k[0]; return (k == null || k === '') ? '__none' : k; }
+function wbKeyMeta(companyId, field, key) {
+  if (key === '__none') return { label: '(empty)', color: '#9ca3af' };
+  if (field.type === 'user') { const m = wbMemberById(companyId, key); return { label: m.name, color: m.color }; }
+  if (field.type === 'status' || field.type === 'category') { const o = (field.config.options || []).find((x) => x.id === key); return o ? { label: o.label, color: o.color || '#6b7280' } : { label: String(key), color: '#6b7280' }; }
+  return { label: String(key), color: '#6b7280' };
+}
+function wbViewReports(companyId, workspace, app) {
+  const canManage = can('workspaces.manage', companyId);
+  if (!app.fields.length || !app.items.length) return `<div class="wb-empty"><i class="ti ti-chart-donut"></i><h3>Nothing to report yet</h3><p>Add fields and a few items to this app and charts will appear here automatically.</p>${canManage ? `<button class="btn btn-primary" data-tab="${app.fields.length ? 'items' : 'fields'}"><i class="ti ti-plus"></i>${app.fields.length ? 'Add items' : 'Add fields'}</button>` : ''}</div>`;
+  const moneyFields = app.fields.filter((f) => f.type === 'money');
+  const groupField = app.fields.find((f) => f.type === 'status') || app.fields.find((f) => f.type === 'category') || app.fields.find((f) => f.type === 'user');
+  const kpis = [{ v: app.items.length, l: 'Total items', ic: 'ti-database', c: 'var(--primary,#e0552d)' }];
+  moneyFields.slice(0, 2).forEach((mf) => { const sum = app.items.reduce((s, it) => s + Number(it.values[mf.id] || 0), 0); kpis.push({ v: (mf.config.currency || '$') + sum.toLocaleString(), l: `Σ ${mf.label}`, ic: 'ti-currency-dollar', c: '#16a34a' }); });
+  if (groupField && groupField.type === 'status') {
+    const opts = groupField.config.options || []; const last = opts[opts.length - 1];
+    if (last) { const n = app.items.filter((it) => it.values[groupField.id] === last.id).length; kpis.push({ v: n, l: last.label, ic: 'ti-flag', c: last.color }); }
+    const first = opts[0]; if (first) { const n = app.items.filter((it) => it.values[groupField.id] === first.id).length; kpis.push({ v: n, l: first.label, ic: 'ti-sparkles', c: first.color }); }
+  }
+  const kpiHTML = `<div class="wb-kpi-grid">${kpis.slice(0, 5).map((k) => `<div class="wb-kpi"><div class="wb-ki" style="background:${k.c}"><i class="ti ${k.ic}"></i></div><div class="wb-kv">${h(String(k.v))}</div><div class="wb-kl">${h(k.l)}</div></div>`).join('')}</div>`;
+  let donutCard = '';
+  let barCard = '';
+  if (groupField) {
+    const counts = {}; app.items.forEach((it) => { const k = wbGroupKey(it, groupField); counts[k] = (counts[k] || 0) + 1; });
+    const segs = Object.keys(counts).map((k) => ({ ...wbKeyMeta(companyId, groupField, k), value: counts[k] })).sort((x, y) => y.value - x.value);
+    donutCard = `<div class="wb-chart-card"><h4><i class="ti ti-chart-donut"></i>${app.items.length} items by ${h(groupField.label)}</h4><div class="wb-donut-wrap">${wbDonutSVG(segs)}<div class="wb-legend">${segs.map((s) => `<div class="wb-lg"><span class="wb-sw" style="background:${s.color}"></span>${h(s.label)}<span class="wb-lv">${s.value}</span></div>`).join('')}</div></div></div>`;
+    const mf = moneyFields[0]; const agg = {};
+    app.items.forEach((it) => { const k = wbGroupKey(it, groupField); agg[k] = (agg[k] || 0) + (mf ? Number(it.values[mf.id] || 0) : 1); });
+    const bars = Object.keys(agg).map((k) => ({ ...wbKeyMeta(companyId, groupField, k), value: agg[k] })).sort((x, y) => y.value - x.value);
+    barCard = `<div class="wb-chart-card"><h4><i class="ti ti-chart-bar"></i>${mf ? `${h(mf.label)} by ${h(groupField.label)}` : `Count by ${h(groupField.label)}`}</h4>${wbBarsHTML(bars, mf ? (v) => (mf.config.currency || '$') + v.toLocaleString() : null)}</div>`;
+  }
+  const byDate = {}; app.items.forEach((it) => { const d = it.createdAt || '—'; byDate[d] = (byDate[d] || 0) + 1; });
+  const dates = Object.keys(byDate).sort().slice(-10); const dmax = Math.max(...dates.map((d) => byDate[d]), 1);
+  const timeCard = `<div class="wb-chart-card"><h4><i class="ti ti-timeline"></i>Items added over time</h4><div class="wb-spark">${dates.map((d) => `<div class="wb-sb" style="height:${byDate[d] / dmax * 100}%" title="${h(d)}: ${byDate[d]}"></div>`).join('')}</div><div class="wb-spark-x">${dates.map((d) => `<span>${h(String(d).slice(5))}</span>`).join('')}</div></div>`;
+  return kpiHTML + `<div class="wb-report-grid">${donutCard}${barCard}${timeCard}</div>`;
+}
+
+// ---- Automations (rules engine + display) -----------------------------------
+function wbFieldById(app, id) { return app.fields.find((f) => f.id === id); }
+function wbValLabel(companyId, app, fieldId, val) {
+  const field = wbFieldById(app, fieldId); if (!field) return h(val);
+  if (field.type === 'status' || field.type === 'category') { const o = (field.config.options || []).find((x) => x.id === val); return o ? h(o.label) : h(val); }
+  if (field.type === 'user') return h(wbMemberById(companyId, val).name);
+  return h(val);
+}
+function wbTriggerText(companyId, app, t) {
+  if (t.event === 'created') return '<span class="wb-rule-pill"><i class="ti ti-circle-plus"></i>Item is created</span>';
+  if (t.event === 'updated') return '<span class="wb-rule-pill"><i class="ti ti-pencil"></i>Item is updated</span>';
+  const field = wbFieldById(app, t.fieldId);
+  return `<span class="wb-rule-pill"><i class="ti ti-flag"></i>${h(field ? field.label : '?')} = ${wbValLabel(companyId, app, t.fieldId, t.value)}</span>`;
+}
+function wbActionText(companyId, app, ac) {
+  if (ac.type === 'set_field') { const field = wbFieldById(app, ac.fieldId); return `<span class="wb-rule-pill"><i class="ti ti-edit"></i>Set ${h(field ? field.label : '?')} → ${wbValLabel(companyId, app, ac.fieldId, ac.value)}</span>`; }
+  if (ac.type === 'assign') { const field = wbFieldById(app, ac.fieldId); return `<span class="wb-rule-pill"><i class="ti ti-user"></i>Assign ${h(wbMemberById(companyId, ac.value).name)}${field ? ` as ${h(field.label)}` : ''}</span>`; }
+  return '<span class="wb-rule-pill"><i class="ti ti-bell"></i>Notify</span>';
+}
+function wbViewAutomations(companyId, workspace, app) {
+  const canManage = can('workspaces.manage', companyId);
+  const list = app.automations || [];
+  const banner = '<div class="wb-auto-banner"><i class="ti ti-bolt"></i>Automations run rules automatically when items are created, updated, or reach a status — no code required.</div>';
+  if (!list.length) return banner + `<div class="wb-empty"><i class="ti ti-bolt"></i><h3>No automations yet</h3><p>Create rules like "When Stage is Won, assign the Account Manager and post to the activity feed."</p>${canManage ? '<button class="btn btn-primary" data-add-auto><i class="ti ti-plus"></i>Create your first automation</button>' : ''}</div>`;
+  const rows = list.map((au) => `<div class="wb-auto-row ${au.enabled ? '' : 'off'}">
+    <div class="wb-ai"><i class="ti ti-bolt"></i></div>
+    <div class="wb-am"><b>${h(au.name)}</b><div class="wb-rule">When ${wbTriggerText(companyId, app, au.trigger)} <i class="ti ti-arrow-right wb-rule-arrow"></i> ${au.actions.map((ac) => wbActionText(companyId, app, ac)).join(' ')}</div></div>
+    ${canManage ? `<label class="wb-switch" title="Enable/disable"><input type="checkbox" ${au.enabled ? 'checked' : ''} data-toggle-auto="${h(au.id)}"><span class="wb-slider"></span></label>
+    <button class="wb-icon-btn" data-edit-auto="${h(au.id)}"><i class="ti ti-adjustments"></i></button>
+    <button class="wb-icon-btn danger" data-del-auto="${h(au.id)}"><i class="ti ti-trash"></i></button>` : `<span class="wb-sub">${au.enabled ? 'Enabled' : 'Disabled'}</span>`}
+  </div>`).join('');
+  return banner + `<div class="wb-auto-list">${rows}</div>`;
+}
+function wbRunAutomations(companyId, workspace, app, item, event, prev) {
+  const fired = [];
+  (app.automations || []).forEach((au) => {
+    if (!au.enabled) return;
+    const t = au.trigger; let fire = false;
+    if (t.event === 'created') fire = event === 'created';
+    else if (t.event === 'updated') fire = event === 'updated';
+    else if (t.event === 'field_is') { const now = item.values[t.fieldId]; const was = prev ? prev[t.fieldId] : undefined; fire = (event === 'created' || event === 'updated') && now === t.value && was !== t.value; }
+    if (!fire) return;
+    (au.actions || []).forEach((ac) => {
+      if ((ac.type === 'set_field' || ac.type === 'assign') && ac.fieldId) item.values[ac.fieldId] = ac.value;
+      else if (ac.type === 'notify') wbLogActivity(workspace, { icon: 'ti-bell', color: '#7c3aed', text: h(ac.message || `Notification from "${au.name}"`) });
+    });
+    fired.push(au.name);
+    wbLogActivity(workspace, { icon: 'ti-bolt', color: '#7c3aed', text: `⚡ <b>${h(au.name)}</b> ran on <b>${h(wbItemTitle(app, item))}</b>` });
+  });
+  if (fired.length) showToast(`Automation: ${fired.join(', ')}`, 'local', 'Workspaces');
+  return fired;
+}
+
+/* ---- Workspace builder: context, persistence, navigation -------------------- */
+function wbCtx() {
+  const companyId = activeCompanyId();
+  const params = state.route?.params;
+  return wbFind(companyId, params?.get('workspace_id') || '', params?.get('app_id') || '');
+}
+function wbSave(companyId) { saveWorkspaceBuilderDoc(companyId).catch(() => null); }
+function wbGuard() { return requirePermission('workspaces.manage', activeCompanyId(), 'Your role cannot manage workspaces.', 'Workspaces'); }
+
+/* ---- Modal launchers (set state.builderModal, then render) ------------------ */
+function openWbModal(modal) { state.builderModal = modal; render(); }
+function closeWbModal() { state.builderModal = null; render(); }
+
+function openWbWorkspaceModal(companyId, editId) {
+  const ws = editId ? wbFind(companyId, editId).workspace : null;
+  openWbModal({ kind: 'workspace', companyId, editId: editId || '', draft: { icon: ws?.icon || WB_WS_ICONS[0], color: ws?.color || WB_PALETTE[1], members: ws ? [...ws.members] : [] } });
+}
+function openWbMembersModal(companyId, workspaceId) { openWbModal({ kind: 'members', companyId, workspaceId }); }
+function openWbAppModal(companyId, workspaceId) {
+  const ws = wbFind(companyId, workspaceId).workspace;
+  openWbModal({ kind: 'app', companyId, workspaceId, draft: { icon: WB_APP_ICONS[0], color: ws?.color || WB_PALETTE[1] } });
+}
+function openWbFieldModal(companyId, workspaceId, appId, fieldId, fieldType) {
+  const { app } = wbFind(companyId, workspaceId, appId);
+  const existing = fieldId ? app.fields.find((f) => f.id === fieldId) : null;
+  const type = existing ? existing.type : fieldType;
+  const draft = existing ? JSON.parse(JSON.stringify(existing)) : { id: wbUid(), type, label: '', required: false, config: {} };
+  if ((type === 'category' || type === 'status') && !draft.config.options) {
+    draft.config.options = type === 'status'
+      ? [{ id: wbUid(), label: 'To Do', color: '#6b7280' }, { id: wbUid(), label: 'In Progress', color: '#d97706' }, { id: wbUid(), label: 'Done', color: '#16a34a' }]
+      : [{ id: wbUid(), label: 'Option 1', color: '#2563eb' }, { id: wbUid(), label: 'Option 2', color: '#7c3aed' }];
+  }
+  openWbModal({ kind: 'field', companyId, workspaceId, appId, editId: fieldId || '', fieldType: type, draft });
+}
+function openWbItemModal(companyId, workspaceId, appId, itemId) {
+  const { app } = wbFind(companyId, workspaceId, appId);
+  const item = itemId ? app.items.find((i) => i.id === itemId) : null;
+  openWbModal({ kind: 'item', companyId, workspaceId, appId, editId: itemId || '', draft: { values: item ? { ...item.values } : {} } });
+}
+function openWbAutoModal(companyId, workspaceId, appId, autoId) {
+  const { app } = wbFind(companyId, workspaceId, appId);
+  const existing = autoId ? (app.automations || []).find((a) => a.id === autoId) : null;
+  const draft = existing ? JSON.parse(JSON.stringify(existing)) : { id: wbUid(), name: '', enabled: true, trigger: { event: 'created' }, actions: [{ type: 'notify', message: '' }] };
+  openWbModal({ kind: 'automation', companyId, workspaceId, appId, editId: autoId || '', draft });
+}
+function openWbConfirm(companyId, op, message, ids) { openWbModal({ kind: 'confirm', companyId, confirm: { op, message, ...ids } }); }
+
+/* ---- Modal renderer (dispatched from renderActiveModal) --------------------- */
+function renderWorkspaceBuilderModal() {
+  const m = state.builderModal;
+  if (!m) return '';
+  if (m.kind === 'confirm') {
+    return wbModalShell('Delete', 'wb-modal-sm', `<div class="wb-modal-ic danger"><i class="ti ti-alert-triangle"></i></div><h3>Confirm delete</h3>`,
+      `<p class="wb-sub">${h(m.confirm.message)}</p>`,
+      `<button class="btn" data-action="wb-modal-close">Cancel</button><button class="btn danger" data-wb-confirm><i class="ti ti-trash"></i>Delete</button>`);
+  }
+  if (m.kind === 'members') {
+    const ws = wbFind(m.companyId, m.workspaceId).workspace;
+    return wbModalShell('Members', '', `<div class="wb-modal-ic" style="background:${h(ws.color)}"><i class="ti ti-users"></i></div><h3>Members · ${h(ws.name)}</h3>`,
+      `<div class="wb-field"><label>Workspace members</label><div class="wb-member-pick">${wbMembers(m.companyId).map((member) => `<button class="wb-member-opt ${ws.members.includes(member.id) ? 'on' : ''}" data-wb-toggle-member="${h(member.id)}">${wbAvatar(member, 32)}<div class="wb-mo-info"><b>${h(member.name)}</b><span>${h(member.role)} · ${h(member.email)}</span></div><span class="wb-ck"><i class="ti ti-check"></i></span></button>`).join('') || '<div class="wb-sub">No company members found.</div>'}</div><div class="wb-sub">Toggle people in or out of this workspace.</div></div>`,
+      `<button class="btn" data-action="wb-modal-close">Done</button>`);
+  }
+  if (m.kind === 'workspace') {
+    const editing = m.editId ? wbFind(m.companyId, m.editId).workspace : null;
+    return wbModalShell(editing ? 'Edit workspace' : 'Create workspace', 'wb-modal-wide', `<div class="wb-modal-ic" style="background:${h(m.draft.color)}"><i class="ti ${h(m.draft.icon)}"></i></div><h3>${editing ? 'Edit workspace' : 'Create workspace'}</h3>`,
+      `<div class="wb-field"><label>Workspace name</label><input class="wb-input" id="wbWsName" value="${h(editing?.name || '')}" placeholder="e.g. Marketing, Field Operations" autofocus></div>
+      <div class="wb-field"><label>Description <span class="wb-opt">(optional)</span></label><textarea class="wb-input" id="wbWsDesc" placeholder="What is this workspace for?">${h(editing?.description || '')}</textarea></div>
+      <div class="wb-row2"><div class="wb-field"><label>Icon</label><div class="wb-emoji-pick">${WB_WS_ICONS.map((icon) => `<button class="wb-emoji-opt ${icon === m.draft.icon ? 'sel' : ''}" data-wb-pick-icon="${icon}"><i class="ti ${icon}"></i></button>`).join('')}</div></div>
+      <div class="wb-field"><label>Color</label><div class="wb-swatches">${WB_PALETTE.map((color) => `<button class="wb-swatch ${color === m.draft.color ? 'sel' : ''}" data-wb-pick-color="${color}" style="background:${color}"></button>`).join('')}</div></div></div>
+      <div class="wb-field"><label>${editing ? 'Members' : 'Invite members'} <span class="wb-opt">(who collaborates here)</span></label><div class="wb-member-pick">${wbMembers(m.companyId).map((member) => `<button class="wb-member-opt ${m.draft.members.includes(member.id) ? 'on' : ''}" data-wb-toggle-member="${h(member.id)}">${wbAvatar(member, 30)}<div class="wb-mo-info"><b>${h(member.name)}</b><span>${h(member.role)} · ${h(member.email)}</span></div><span class="wb-ck"><i class="ti ti-check"></i></span></button>`).join('') || '<div class="wb-sub">No company members found.</div>'}</div></div>`,
+      `<button class="btn" data-action="wb-modal-close">Cancel</button><button class="btn btn-primary" data-wb-submit><i class="ti ti-check"></i>${editing ? 'Save changes' : 'Create workspace'}</button>`);
+  }
+  if (m.kind === 'app') {
+    return wbModalShell('Add app', '', `<div class="wb-modal-ic" style="background:${h(m.draft.color)}"><i class="ti ${h(m.draft.icon)}"></i></div><h3>Add app</h3>`,
+      `<div class="wb-field"><label>App name</label><input class="wb-input" id="wbApName" placeholder="e.g. Leads, Projects, Inspections" autofocus></div>
+      <div class="wb-field"><label>Description <span class="wb-opt">(optional)</span></label><textarea class="wb-input" id="wbApDesc" placeholder="What does this app track?"></textarea></div>
+      <div class="wb-field"><label>App type <span class="wb-opt">(optional)</span></label><select class="wb-input" id="wbApType"><option value="">— Select a type —</option>${['Contacts', 'Tasks', 'Projects', 'Records', 'Inventory', 'Documents', 'Calendar', 'Tickets', 'Invoices', 'Custom'].map((t) => `<option>${t}</option>`).join('')}</select></div>
+      <div class="wb-row2"><div class="wb-field"><label>Icon</label><div class="wb-emoji-pick">${WB_APP_ICONS.map((icon) => `<button class="wb-emoji-opt ${icon === m.draft.icon ? 'sel' : ''}" data-wb-pick-icon="${icon}"><i class="ti ${icon}"></i></button>`).join('')}</div></div>
+      <div class="wb-field"><label>Color</label><div class="wb-swatches">${WB_PALETTE.map((color) => `<button class="wb-swatch ${color === m.draft.color ? 'sel' : ''}" data-wb-pick-color="${color}" style="background:${color}"></button>`).join('')}</div></div></div>`,
+      `<button class="btn" data-action="wb-modal-close">Cancel</button><button class="btn btn-primary" data-wb-submit><i class="ti ti-plus"></i>Create app</button>`);
+  }
+  if (m.kind === 'field') {
+    const { app } = wbFind(m.companyId, m.workspaceId, m.appId);
+    const meta = WB_FIELD_TYPES[m.draft.type];
+    return wbModalShell('Field', '', `<div class="wb-modal-ic" style="background:${meta.color}"><i class="ti ${meta.icon}"></i></div><h3>${m.editId ? 'Configure' : 'Add'} ${h(meta.label)} field</h3>`,
+      `<div class="wb-field"><label>Field label <span class="wb-opt">(optional)</span></label><input class="wb-input" id="wbFLabel" value="${h(m.draft.label)}" placeholder="${h(meta.label)} field name" autofocus></div>
+      <div id="wbFConfig">${wbFieldConfigUI(m.draft, app)}</div>
+      <div class="wb-check-row"><label class="wb-switch"><input type="checkbox" id="wbFReq" ${m.draft.required ? 'checked' : ''}><span class="wb-slider"></span></label><div><b>Required field</b><div class="wb-sub">Items can't be saved without it.</div></div></div>`,
+      `<button class="btn" data-action="wb-modal-close">Cancel</button><button class="btn btn-primary" data-wb-submit><i class="ti ti-check"></i>${m.editId ? 'Save field' : 'Add field'}</button>`);
+  }
+  if (m.kind === 'item') {
+    const { app } = wbFind(m.companyId, m.workspaceId, m.appId);
+    const body = app.fields.map((f) => wbRenderFieldInput(m.companyId, m.workspaceId, f, m.draft.values[f.id])).join('') || '<div class="wb-sub">This app has no fields yet.</div>';
+    return wbModalShell('Item', '', `<div class="wb-modal-ic" style="background:${h(app.color)}"><i class="ti ${h(app.icon)}"></i></div><h3>${m.editId ? 'Edit' : 'New'} ${h(app.name.replace(/s$/, ''))}</h3>`,
+      `<div id="wbItemForm">${body}</div>`,
+      `<button class="btn" data-action="wb-modal-close">Cancel</button><button class="btn btn-primary" data-wb-submit><i class="ti ti-check"></i>${m.editId ? 'Save' : 'Add item'}</button>`);
+  }
+  if (m.kind === 'automation') {
+    const { app } = wbFind(m.companyId, m.workspaceId, m.appId);
+    return wbModalShell('Automation', 'wb-modal-wide', `<div class="wb-modal-ic" style="background:#7c3aed"><i class="ti ti-bolt"></i></div><h3>${m.editId ? 'Edit' : 'New'} automation</h3>`,
+      `<div class="wb-field"><label>Automation name</label><input class="wb-input" id="wbAuName" value="${h(m.draft.name)}" placeholder="e.g. Notify owner when deal is Won" autofocus></div>
+      <div class="wb-field"><label>When… (trigger)</label><select class="wb-input" id="wbAuEvent" data-wb-auto-event>
+        <option value="created" ${m.draft.trigger.event === 'created' ? 'selected' : ''}>An item is created</option>
+        <option value="updated" ${m.draft.trigger.event === 'updated' ? 'selected' : ''}>An item is updated</option>
+        <option value="field_is" ${m.draft.trigger.event === 'field_is' ? 'selected' : ''}>A field changes to a specific value</option>
+      </select><div id="wbAuTrigCfg">${wbTrigCfgUI(m.draft, app)}</div></div>
+      <div class="wb-field"><label>Then… (actions)</label><div class="wb-action-builder">${wbActionCardsUI(m.companyId, m.draft, app)}</div><button class="btn btn-sm" data-wb-auto-add-action><i class="ti ti-plus"></i>Add action</button></div>`,
+      `<button class="btn" data-action="wb-modal-close">Cancel</button><button class="btn btn-primary" data-wb-submit><i class="ti ti-check"></i>${m.editId ? 'Save automation' : 'Create automation'}</button>`);
+  }
+  return '';
+}
+function wbModalShell(eyebrow, extraClass, head, body, foot) {
+  return `<div class="modal-overlay wb-modal-overlay" data-action="wb-modal-close"><div class="wb-modal ${extraClass}"><div class="wb-modal-head">${head}<button class="wb-modal-close" data-action="wb-modal-close"><i class="ti ti-x"></i></button></div><div class="wb-modal-body">${body}</div><div class="wb-modal-foot">${foot}</div></div></div>`;
+}
+function wbFieldConfigUI(fd, app) {
+  const t = fd.type;
+  if (t === 'category' || t === 'status') {
+    return `<div class="wb-field"><label>Options</label><div class="wb-opt-list">${(fd.config.options || []).map((o) => wbOptRow(o)).join('')}</div><button class="btn btn-sm" data-wb-add-option><i class="ti ti-plus"></i>Add option</button></div>`;
+  }
+  if (t === 'relationship') {
+    const apps = wbFind(state.builderModal.companyId, state.builderModal.workspaceId).workspace.apps;
+    return `<div class="wb-field"><label>Linked app</label><select class="wb-input" id="wbRelTarget"><option value="">— Select app to link —</option>${apps.map((ap) => `<option value="${h(ap.id)}" ${fd.config.targetApp === ap.id ? 'selected' : ''}>${h(ap.name)}</option>`).join('')}</select><div class="wb-sub">Items in this app can reference items from the linked app.</div></div>
+      <div class="wb-check-row"><label class="wb-switch"><input type="checkbox" id="wbRelMulti" ${fd.config.multiple ? 'checked' : ''}><span class="wb-slider"></span></label><div><b>Allow multiple links</b></div></div>`;
+  }
+  if (t === 'calculation') {
+    const numFields = app.fields.filter((f) => ['number', 'money', 'calculation'].includes(f.type));
+    return `<div class="wb-field"><label>Formula</label><input class="wb-input" id="wbCalcFormula" value="${h(fd.config.formula || '')}" placeholder="e.g. {Quantity} * {Unit Price}"><div class="wb-sub">Reference number/money fields by name in {curly braces}. Operators: + - * / ( )</div>${numFields.length ? `<div class="wb-calc-chips">${numFields.map((f) => `<button class="wb-tag wb-calc-chip" data-wb-insert="{${h(f.label)}}">${h(f.label)}</button>`).join('')}</div>` : '<div class="wb-sub" style="color:var(--warning,#d97706)">Add Number or Money fields first to reference them.</div>'}</div>`;
+  }
+  if (t === 'money') return `<div class="wb-field"><label>Currency symbol</label><input class="wb-input" id="wbCurSym" value="${h(fd.config.currency || '$')}" maxlength="3" style="max-width:120px"></div>`;
+  if (t === 'number') return `<div class="wb-field"><label>Unit / suffix <span class="wb-opt">(optional)</span></label><input class="wb-input" id="wbNumUnit" value="${h(fd.config.unit || '')}" placeholder="e.g. sq ft, hrs" style="max-width:200px"></div>`;
+  if (t === 'text' || t === 'textarea') return `<div class="wb-field"><label>Placeholder <span class="wb-opt">(optional)</span></label><input class="wb-input" id="wbPhText" value="${h(fd.config.placeholder || '')}" placeholder="Hint shown in the input"></div>`;
+  return '<div class="wb-sub">No extra configuration needed for this field type.</div>';
+}
+function wbOptRow(o) {
+  return `<div class="wb-opt-item" data-oid="${h(o.id)}"><input type="color" class="wb-dot-pick" value="${h(o.color || '#2563eb')}"><input class="wb-input wb-opt-label" value="${h(o.label)}" placeholder="Option label"><button class="wb-icon-btn danger" data-wb-del-option type="button"><i class="ti ti-x"></i></button></div>`;
+}
+function wbTrigCfgUI(draft, app) {
+  if (draft.trigger.event !== 'field_is') return '';
+  const choiceFields = app.fields.filter((f) => f.type === 'status' || f.type === 'category');
+  if (!choiceFields.length) return '<div class="wb-sub" style="color:var(--warning,#d97706)">Add a Status or Category field to use this trigger.</div>';
+  const fid = draft.trigger.fieldId || choiceFields[0].id;
+  draft.trigger.fieldId = fid;
+  const field = app.fields.find((f) => f.id === fid);
+  return `<div class="wb-row2"><select class="wb-input" data-wb-trig-field>${choiceFields.map((x) => `<option value="${h(x.id)}" ${x.id === fid ? 'selected' : ''}>${h(x.label)}</option>`).join('')}</select><select class="wb-input" data-wb-trig-val><option value="">— value —</option>${(field.config.options || []).map((o) => `<option value="${h(o.id)}" ${draft.trigger.value === o.id ? 'selected' : ''}>${h(o.label)}</option>`).join('')}</select></div>`;
+}
+function wbActionCardsUI(companyId, draft, app) {
+  return draft.actions.map((ac, i) => {
+    let cfg = '';
+    if (ac.type === 'set_field') {
+      const setable = app.fields.filter((f) => ['text', 'textarea', 'status', 'category', 'date', 'number', 'money', 'email', 'phone', 'checkbox'].includes(f.type));
+      const fid = ac.fieldId || (setable[0] && setable[0].id);
+      const field = app.fields.find((f) => f.id === fid);
+      let valInput = '';
+      if (field && (field.type === 'status' || field.type === 'category')) valInput = `<select class="wb-input" data-wb-acval="${i}"><option value="">— value —</option>${(field.config.options || []).map((o) => `<option value="${h(o.id)}" ${ac.value === o.id ? 'selected' : ''}>${h(o.label)}</option>`).join('')}</select>`;
+      else if (field && field.type === 'checkbox') valInput = `<select class="wb-input" data-wb-acval="${i}"><option value="true" ${ac.value === true ? 'selected' : ''}>Yes</option><option value="false" ${ac.value === false ? 'selected' : ''}>No</option></select>`;
+      else valInput = `<input class="wb-input" data-wb-acval="${i}" value="${h(ac.value ?? '')}" placeholder="Value to set">`;
+      cfg = `<select class="wb-input" data-wb-acfield="${i}">${setable.map((x) => `<option value="${h(x.id)}" ${x.id === fid ? 'selected' : ''}>${h(x.label)}</option>`).join('')}</select>${valInput}`;
+    } else if (ac.type === 'assign') {
+      const userFields = app.fields.filter((f) => f.type === 'user');
+      const members = wbMembers(companyId);
+      cfg = `<select class="wb-input" data-wb-acfield="${i}">${userFields.length ? userFields.map((x) => `<option value="${h(x.id)}" ${x.id === ac.fieldId ? 'selected' : ''}>${h(x.label)}</option>`).join('') : '<option value="">(add a User field)</option>'}</select><select class="wb-input" data-wb-acval="${i}"><option value="">— member —</option>${members.map((member) => `<option value="${h(member.id)}" ${ac.value === member.id ? 'selected' : ''}>${h(member.name)}</option>`).join('')}</select>`;
+    } else {
+      cfg = `<input class="wb-input" data-wb-acmsg="${i}" value="${h(ac.message || '')}" placeholder="Message for the activity feed">`;
+    }
+    return `<div class="wb-action-card"><div class="wb-acgrow"><select class="wb-input" data-wb-actype="${i}"><option value="notify" ${ac.type === 'notify' ? 'selected' : ''}>Post a notification</option><option value="set_field" ${ac.type === 'set_field' ? 'selected' : ''}>Set a field value</option><option value="assign" ${ac.type === 'assign' ? 'selected' : ''}>Assign a member</option></select>${cfg}</div><button class="wb-icon-btn danger" data-wb-acdel="${i}" type="button"><i class="ti ti-x"></i></button></div>`;
+  }).join('');
+}
+function wbRenderFieldInput(companyId, workspaceId, f, val) {
+  const meta = WB_FIELD_TYPES[f.type];
+  const lbl = `<label>${h(f.label)}${f.required ? '<span class="wb-req">*</span>' : ''} <span class="wb-opt" style="text-transform:none">${h(meta.label)}</span></label>`;
+  let input = '';
+  switch (f.type) {
+    case 'text': input = `<input class="wb-input" data-f="${h(f.id)}" value="${h(val || '')}" placeholder="${h(f.config.placeholder || '')}">`; break;
+    case 'textarea': input = `<textarea class="wb-input" data-f="${h(f.id)}" placeholder="${h(f.config.placeholder || '')}">${h(val || '')}</textarea>`; break;
+    case 'email': input = `<input type="email" class="wb-input" data-f="${h(f.id)}" value="${h(val || '')}" placeholder="name@email.com">`; break;
+    case 'phone': input = `<input type="tel" class="wb-input" data-f="${h(f.id)}" value="${h(val || '')}" placeholder="(555) 000-0000">`; break;
+    case 'number': input = `<div class="wb-inline"><input type="number" class="wb-input" data-f="${h(f.id)}" value="${h(val ?? '')}" style="max-width:200px">${f.config.unit ? `<span class="wb-sub">${h(f.config.unit)}</span>` : ''}</div>`; break;
+    case 'money': input = `<div class="wb-inline"><span class="wb-cur">${h(f.config.currency || '$')}</span><input type="number" step="0.01" class="wb-input" data-f="${h(f.id)}" value="${h(val ?? '')}" style="max-width:220px"></div>`; break;
+    case 'date': input = `<input type="date" class="wb-input" data-f="${h(f.id)}" value="${h(val || '')}" style="max-width:220px">`; break;
+    case 'checkbox': input = `<label class="wb-switch"><input type="checkbox" data-f="${h(f.id)}" ${val ? 'checked' : ''}><span class="wb-slider"></span></label>`; break;
+    case 'category': case 'status': input = `<select class="wb-input" data-f="${h(f.id)}"><option value="">— Select —</option>${(f.config.options || []).map((o) => `<option value="${h(o.id)}" ${val === o.id ? 'selected' : ''}>${h(o.label)}</option>`).join('')}</select>`; break;
+    case 'user': {
+      const members = wbMembers(companyId);
+      input = members.length ? `<select class="wb-input" data-f="${h(f.id)}"><option value="">— Unassigned —</option>${members.map((m) => `<option value="${h(m.id)}" ${val === m.id ? 'selected' : ''}>${h(m.name)}</option>`).join('')}</select>` : '<div class="wb-sub" style="color:var(--warning,#d97706)">No company members to assign.</div>'; break;
+    }
+    case 'relationship': {
+      const ta = wbFind(companyId, workspaceId).workspace.apps.find((x) => x.id === f.config.targetApp);
+      if (!ta) { input = '<div class="wb-sub" style="color:var(--warning,#d97706)">No linked app configured.</div>'; break; }
+      const cur = Array.isArray(val) ? val : (val ? [val] : []);
+      input = `<select class="wb-input" data-f="${h(f.id)}" ${f.config.multiple ? 'multiple style="min-height:96px"' : ''}>${f.config.multiple ? '' : '<option value="">— None —</option>'}${ta.items.map((it) => `<option value="${h(it.id)}" ${cur.includes(it.id) ? 'selected' : ''}>${h(wbItemTitle(ta, it))}</option>`).join('')}</select><div class="wb-sub">Linked to <b>${h(ta.name)}</b>${f.config.multiple ? ' · hold Ctrl/Cmd to select multiple' : ''}</div>`; break;
+    }
+    case 'file': input = `<input class="wb-input" data-f="${h(f.id)}" value="${h(val || '')}" placeholder="Document name or URL"><div class="wb-sub">Prototype: stores a filename/link reference.</div>`; break;
+    case 'calculation': input = `<div class="wb-input wb-calc-display" data-calc="${h(f.id)}">—</div><div class="wb-sub">Auto-calculated: <code>${h(f.config.formula || '(no formula)')}</code></div>`; break;
+    default: input = `<input class="wb-input" data-f="${h(f.id)}" value="${h(val || '')}">`;
+  }
+  return `<div class="wb-field">${lbl}${input}</div>`;
+}
+
+function wbReadFieldInput(f) {
+  const el = document.querySelector(`[data-f="${f.id}"]`);
+  if (!el) return f.type === 'calculation' ? undefined : '';
+  if (f.type === 'checkbox') return el.checked;
+  if (f.type === 'number' || f.type === 'money') return el.value === '' ? '' : Number(el.value);
+  if (f.type === 'relationship' && f.config.multiple) return [...el.selectedOptions].map((o) => o.value);
+  return el.value;
+}
+
+// Read the live modal inputs back into the working draft before a re-render.
+function wbCollectModalDraft() {
+  const m = state.builderModal;
+  if (!m) return;
+  const val = (id) => document.getElementById(id)?.value;
+  const checked = (id) => document.getElementById(id)?.checked;
+  if (m.kind === 'workspace') { m.draft.name = val('wbWsName'); m.draft.description = val('wbWsDesc'); }
+  else if (m.kind === 'app') { m.draft.name = val('wbApName'); m.draft.description = val('wbApDesc'); m.draft.type = val('wbApType'); }
+  else if (m.kind === 'field') {
+    if (val('wbFLabel') !== undefined) m.draft.label = val('wbFLabel');
+    m.draft.required = !!checked('wbFReq');
+    const t = m.draft.type; m.draft.config = m.draft.config || {};
+    if (t === 'category' || t === 'status') m.draft.config.options = [...document.querySelectorAll('.wb-opt-item')].map((r) => ({ id: r.dataset.oid, label: r.querySelector('.wb-opt-label').value.trim() || 'Untitled', color: r.querySelector('.wb-dot-pick').value })).filter((o) => o.label);
+    if (t === 'relationship') { m.draft.config.targetApp = val('wbRelTarget') || ''; m.draft.config.multiple = !!checked('wbRelMulti'); }
+    if (t === 'calculation') m.draft.config.formula = (val('wbCalcFormula') || '').trim();
+    if (t === 'money') m.draft.config.currency = (val('wbCurSym') || '').trim() || '$';
+    if (t === 'number') m.draft.config.unit = (val('wbNumUnit') || '').trim();
+    if (t === 'text' || t === 'textarea') m.draft.config.placeholder = (val('wbPhText') || '').trim();
+  } else if (m.kind === 'automation') {
+    if (val('wbAuName') !== undefined) m.draft.name = val('wbAuName');
+    const tf = document.querySelector('[data-wb-trig-field]'); if (tf) m.draft.trigger.fieldId = tf.value;
+    const tv = document.querySelector('[data-wb-trig-val]'); if (tv) m.draft.trigger.value = tv.value;
+    document.querySelectorAll('[data-wb-actype]').forEach((s) => { const i = +s.dataset.wbActype; if (m.draft.actions[i]) m.draft.actions[i].type = s.value; });
+    document.querySelectorAll('[data-wb-acfield]').forEach((s) => { const i = +s.dataset.wbAcfield; if (m.draft.actions[i]) m.draft.actions[i].fieldId = s.value; });
+    document.querySelectorAll('[data-wb-acval]').forEach((s) => { const i = +s.dataset.wbAcval; let v = s.value; if (v === 'true') v = true; else if (v === 'false') v = false; if (m.draft.actions[i]) m.draft.actions[i].value = v; });
+    document.querySelectorAll('[data-wb-acmsg]').forEach((s) => { const i = +s.dataset.wbAcmsg; if (m.draft.actions[i]) m.draft.actions[i].message = s.value; });
+  }
+}
+
+function wbSubmitModal() {
+  const m = state.builderModal;
+  if (!m) return;
+  wbCollectModalDraft();
+  const companyId = m.companyId;
+  if (m.kind === 'workspace') {
+    const name = (m.draft.name || '').trim(); if (!name) { showToast('Give your workspace a name.', 'local', 'Workspaces'); return; }
+    const doc = wbDoc(companyId);
+    if (m.editId) {
+      const ws = doc.workspaces.find((w) => w.id === m.editId);
+      ws.name = name; ws.description = (m.draft.description || '').trim(); ws.icon = m.draft.icon; ws.color = m.draft.color; ws.members = [...m.draft.members];
+      wbLogActivity(ws, { icon: ws.icon, color: ws.color, text: `Workspace <b>${h(name)}</b> updated` });
+      state.builderModal = null; wbSave(companyId); showToast('Workspace updated.', 'local', 'Workspaces'); render();
+    } else {
+      const ws = { id: wbUid(), name, description: (m.draft.description || '').trim(), icon: m.draft.icon, color: m.draft.color, members: [...m.draft.members], apps: [], activity: [], createdAt: new Date().toISOString().slice(0, 10) };
+      wbLogActivity(ws, { icon: ws.icon, color: ws.color, text: `Workspace <b>${h(name)}</b> created` });
+      doc.workspaces.push(ws); state.builderModal = null; wbSave(companyId); showToast('Workspace created.', 'local', 'Workspaces');
+      navigate(companyPath('workspaces', { workspace_id: ws.id }, companyId));
+    }
+    return;
+  }
+  if (m.kind === 'app') {
+    const name = (m.draft.name || '').trim(); if (!name) { showToast('Give your app a name.', 'local', 'Workspaces'); return; }
+    const ws = wbFind(companyId, m.workspaceId).workspace;
+    const app = { id: wbUid(), name, description: (m.draft.description || '').trim(), type: m.draft.type || '', icon: m.draft.icon, color: m.draft.color, fields: [], items: [], automations: [] };
+    ws.apps.push(app); wbLogActivity(ws, { icon: app.icon, color: app.color, text: `App <b>${h(name)}</b> created` });
+    state.builderModal = null; wbSave(companyId); showToast('App created — now add fields.', 'local', 'Workspaces');
+    navigate(companyPath('workspaces', { app_id: app.id, tab: 'fields' }, companyId));
+    return;
+  }
+  if (m.kind === 'field') {
+    const meta = WB_FIELD_TYPES[m.draft.type];
+    m.draft.label = (m.draft.label || '').trim() || `Untitled ${meta.label} field`;
+    const { app } = wbFind(companyId, m.workspaceId, m.appId);
+    if (m.editId) { const i = app.fields.findIndex((f) => f.id === m.editId); app.fields[i] = m.draft; } else app.fields.push(m.draft);
+    state.builderModal = null; wbSave(companyId); showToast(m.editId ? 'Field updated.' : 'Field added.', 'local', 'Workspaces'); render();
+    return;
+  }
+  if (m.kind === 'item') {
+    const { workspace, app } = wbFind(companyId, m.workspaceId, m.appId);
+    const values = {}; let missing = null;
+    app.fields.forEach((f) => { const v = wbReadFieldInput(f); values[f.id] = v; if (f.required && (v === '' || v == null || (Array.isArray(v) && !v.length))) missing = missing || f.label; });
+    if (missing) { showToast(`"${missing}" is required.`, 'local', 'Workspaces'); return; }
+    if (m.editId) {
+      const item = app.items.find((i) => i.id === m.editId); const prev = { ...item.values }; item.values = values;
+      wbLogActivity(workspace, { icon: app.icon, color: app.color, text: `Updated <b>${h(wbItemTitle(app, item))}</b> in ${h(app.name)}` });
+      wbRunAutomations(companyId, workspace, app, item, 'updated', prev);
+    } else {
+      const item = { id: wbUid(), values, createdAt: new Date().toISOString().slice(0, 10) }; app.items.unshift(item);
+      wbLogActivity(workspace, { icon: app.icon, color: app.color, text: `Added <b>${h(wbItemTitle(app, item))}</b> to ${h(app.name)}` });
+      wbRunAutomations(companyId, workspace, app, item, 'created', null);
+    }
+    state.builderModal = null; wbSave(companyId); showToast(m.editId ? 'Item saved.' : 'Item added.', 'local', 'Workspaces'); render();
+    return;
+  }
+  if (m.kind === 'automation') {
+    const name = (m.draft.name || '').trim(); if (!name) { showToast('Name your automation.', 'local', 'Workspaces'); return; }
+    if (m.draft.trigger.event === 'field_is' && !m.draft.trigger.value) { showToast('Pick a trigger value.', 'local', 'Workspaces'); return; }
+    if (!m.draft.actions.length) { showToast('Add at least one action.', 'local', 'Workspaces'); return; }
+    m.draft.name = name;
+    const { app } = wbFind(companyId, m.workspaceId, m.appId); app.automations = app.automations || [];
+    if (m.editId) { const i = app.automations.findIndex((a) => a.id === m.editId); app.automations[i] = m.draft; } else app.automations.push(m.draft);
+    state.builderModal = null; wbSave(companyId); showToast(m.editId ? 'Automation saved.' : 'Automation created.', 'local', 'Workspaces'); render();
+  }
+}
+
+function wbConfirmDelete() {
+  const m = state.builderModal;
+  if (!m || m.kind !== 'confirm') return;
+  const c = m.confirm; const companyId = m.companyId; const doc = wbDoc(companyId);
+  if (c.op === 'del-ws') { doc.workspaces = doc.workspaces.filter((w) => w.id !== c.workspaceId); state.builderModal = null; wbSave(companyId); showToast('Workspace deleted.', 'local', 'Workspaces'); navigate(companyPath('workspaces', {}, companyId)); return; }
+  const { workspace, app } = wbFind(companyId, c.workspaceId, c.appId);
+  if (c.op === 'del-app') { workspace.apps = workspace.apps.filter((a) => a.id !== c.appId); state.builderModal = null; wbSave(companyId); showToast('App deleted.', 'local', 'Workspaces'); navigate(companyPath('workspaces', {}, companyId)); return; }
+  if (c.op === 'del-field') { app.fields = app.fields.filter((f) => f.id !== c.fieldId); app.items.forEach((it) => { delete it.values[c.fieldId]; }); }
+  else if (c.op === 'del-item') { app.items = app.items.filter((i) => i.id !== c.itemId); }
+  else if (c.op === 'del-auto') { app.automations = app.automations.filter((a) => a.id !== c.autoId); }
+  state.builderModal = null; wbSave(companyId); showToast('Deleted.', 'local', 'Workspaces'); render();
+}
+
+function wbSaveAppSettings(companyId, workspaceId, appId) {
+  const { app } = wbFind(companyId, workspaceId, appId);
+  app.name = (document.getElementById('wbSetName')?.value || '').trim() || app.name;
+  app.description = (document.getElementById('wbSetDesc')?.value || '').trim();
+  app.type = (document.getElementById('wbSetType')?.value || '').trim();
+  const icon = document.querySelector('#wbSetIcons .wb-emoji-opt.sel'); if (icon) app.icon = icon.dataset.icon;
+  const color = document.querySelector('#wbSetColors .wb-swatch.sel'); if (color) app.color = color.dataset.color;
+  wbSave(companyId); showToast('App settings saved.', 'local', 'Workspaces'); render();
+}
+
+// Bind the builder's content + modal interactions after each render.
+function mountWorkspaceBuilder() {
+  const companyId = activeCompanyId();
+  const params = state.route?.params;
+  const appId = params?.get('app_id') || '';
+  const workspaceId = wbCompanyWorkspace(companyId)?.id || '';
+  const nav = (next) => navigate(companyPath('workspaces', next, companyId));
+  const bind = (selector, handler, eventName = 'onclick') => document.querySelectorAll(selector).forEach((el) => { el[eventName] = handler.bind(null, el); });
+  if (state.route?.section === 'workspaces' && !state.builderModal) {
+    bind('[data-open-app]', (el) => nav({ app_id: el.dataset.openApp, tab: 'items' }));
+    bind('[data-new-app]', () => openWbAppModal(companyId, workspaceId));
+    bind('[data-tab]', (el) => nav({ app_id: appId, tab: el.dataset.tab }));
+    bind('[data-add-field]', () => nav({ app_id: appId, tab: 'fields' }));
+    bind('[data-add-type]', (el) => openWbFieldModal(companyId, workspaceId, appId, '', el.dataset.addType));
+    bind('[data-edit-field]', (el) => openWbFieldModal(companyId, workspaceId, appId, el.dataset.editField));
+    bind('[data-del-field]', (el) => { const { app } = wbFind(companyId, workspaceId, appId); const f = app.fields.find((x) => x.id === el.dataset.delField); openWbConfirm(companyId, 'del-field', `"${f.label}" and its data in all ${app.items.length} item(s) will be removed.`, { workspaceId, appId, fieldId: el.dataset.delField }); });
+    bind('[data-add-item]', () => openWbItemModal(companyId, workspaceId, appId, ''));
+    bind('[data-edit-item]', (el, e) => { e.stopPropagation(); openWbItemModal(companyId, workspaceId, appId, el.dataset.editItem); });
+    bind('[data-del-item]', (el, e) => { e.stopPropagation(); openWbConfirm(companyId, 'del-item', 'This record will be permanently removed.', { workspaceId, appId, itemId: el.dataset.delItem }); });
+    bind('tr[data-item]', (el) => openWbItemModal(companyId, workspaceId, appId, el.dataset.item));
+    bind('[data-save-app]', () => wbSaveAppSettings(companyId, workspaceId, appId));
+    bind('[data-del-app]', () => { const { app } = wbFind(companyId, workspaceId, appId); openWbConfirm(companyId, 'del-app', `"${app.name}" and its ${app.items.length} item(s) will be removed.`, { workspaceId, appId }); });
+    bind('[data-add-auto]', () => openWbAutoModal(companyId, workspaceId, appId, ''));
+    bind('[data-edit-auto]', (el) => openWbAutoModal(companyId, workspaceId, appId, el.dataset.editAuto));
+    bind('[data-del-auto]', (el) => openWbConfirm(companyId, 'del-auto', 'This rule will stop running.', { workspaceId, appId, autoId: el.dataset.delAuto }));
+    bind('[data-toggle-auto]', (el) => { const { app } = wbFind(companyId, workspaceId, appId); const au = app.automations.find((x) => x.id === el.dataset.toggleAuto); if (au) { au.enabled = el.checked; wbSave(companyId); render(); } }, 'onchange');
+    document.querySelectorAll('#wbSetIcons .wb-emoji-opt').forEach((b) => { b.onclick = () => { document.querySelectorAll('#wbSetIcons .wb-emoji-opt').forEach((x) => x.classList.remove('sel')); b.classList.add('sel'); }; });
+    document.querySelectorAll('#wbSetColors .wb-swatch').forEach((b) => { b.onclick = () => { document.querySelectorAll('#wbSetColors .wb-swatch').forEach((x) => x.classList.remove('sel')); b.classList.add('sel'); }; });
+    wbMountDnD(companyId, workspaceId, appId);
+  }
+  if (state.builderModal) wbMountModal();
+}
+
+function wbMountDnD(companyId, workspaceId, appId) {
+  let dragId = null;
+  document.querySelectorAll('.wb-field-row[draggable]').forEach((row) => {
+    row.ondragstart = () => { dragId = row.dataset.fid; row.classList.add('dragging'); };
+    row.ondragend = () => { row.classList.remove('dragging'); document.querySelectorAll('.wb-field-row').forEach((r) => r.classList.remove('drop-target')); };
+    row.ondragover = (e) => { e.preventDefault(); row.classList.add('drop-target'); };
+    row.ondragleave = () => row.classList.remove('drop-target');
+    row.ondrop = (e) => { e.preventDefault(); const { app } = wbFind(companyId, workspaceId, appId); const from = app.fields.findIndex((f) => f.id === dragId); const to = app.fields.findIndex((f) => f.id === row.dataset.fid); if (from < 0 || to < 0 || from === to) return; const [moved] = app.fields.splice(from, 1); app.fields.splice(to, 0, moved); wbSave(companyId); render(); };
+  });
+}
+
+function wbMountModal() {
+  const m = state.builderModal;
+  const overlay = document.querySelector('.wb-modal-overlay');
+  if (!m || !overlay) return;
+  overlay.querySelectorAll('[data-wb-pick-icon]').forEach((b) => { b.onclick = () => { wbCollectModalDraft(); m.draft.icon = b.dataset.wbPickIcon; render(); }; });
+  overlay.querySelectorAll('[data-wb-pick-color]').forEach((b) => { b.onclick = () => { wbCollectModalDraft(); m.draft.color = b.dataset.wbPickColor; render(); }; });
+  overlay.querySelectorAll('[data-wb-toggle-member]').forEach((b) => { b.onclick = () => {
+    const id = b.dataset.wbToggleMember;
+    if (m.kind === 'members') { const ws = wbFind(m.companyId, m.workspaceId).workspace; ws.members = ws.members.includes(id) ? ws.members.filter((x) => x !== id) : [...ws.members, id]; wbSave(m.companyId); render(); }
+    else { wbCollectModalDraft(); m.draft.members = m.draft.members.includes(id) ? m.draft.members.filter((x) => x !== id) : [...m.draft.members, id]; render(); }
+  }; });
+  overlay.querySelectorAll('[data-wb-add-option]').forEach((b) => { b.onclick = () => { wbCollectModalDraft(); m.draft.config.options = m.draft.config.options || []; m.draft.config.options.push({ id: wbUid(), label: '', color: WB_PALETTE[m.draft.config.options.length % WB_PALETTE.length] }); render(); }; });
+  overlay.querySelectorAll('[data-wb-del-option]').forEach((b) => { b.onclick = () => { if ((m.draft.config.options || []).length <= 1) { showToast('Keep at least one option.', 'local', 'Workspaces'); return; } wbCollectModalDraft(); const oid = b.closest('.wb-opt-item').dataset.oid; m.draft.config.options = m.draft.config.options.filter((o) => o.id !== oid); render(); }; });
+  overlay.querySelectorAll('[data-wb-insert]').forEach((b) => { b.onclick = () => { const inp = document.getElementById('wbCalcFormula'); if (inp) { inp.value += (inp.value && !inp.value.endsWith(' ') ? ' ' : '') + b.dataset.wbInsert; inp.focus(); } }; });
+  const ev = overlay.querySelector('[data-wb-auto-event]'); if (ev) ev.onchange = () => { wbCollectModalDraft(); m.draft.trigger = { event: ev.value }; render(); };
+  const tf = overlay.querySelector('[data-wb-trig-field]'); if (tf) tf.onchange = () => { wbCollectModalDraft(); m.draft.trigger.value = ''; render(); };
+  overlay.querySelectorAll('[data-wb-actype]').forEach((s) => { s.onchange = () => { wbCollectModalDraft(); const i = +s.dataset.wbActype; const t = s.value; m.draft.actions[i] = { type: t, ...(t === 'notify' ? { message: '' } : {}) }; render(); }; });
+  overlay.querySelectorAll('[data-wb-acfield]').forEach((s) => { s.onchange = () => { wbCollectModalDraft(); render(); }; });
+  overlay.querySelectorAll('[data-wb-acdel]').forEach((b) => { b.onclick = () => { wbCollectModalDraft(); m.draft.actions.splice(+b.dataset.wbAcdel, 1); render(); }; });
+  const addAct = overlay.querySelector('[data-wb-auto-add-action]'); if (addAct) addAct.onclick = () => { wbCollectModalDraft(); m.draft.actions.push({ type: 'notify', message: '' }); render(); };
+  const submit = overlay.querySelector('[data-wb-submit]'); if (submit) submit.onclick = () => wbSubmitModal();
+  const confirmBtn = overlay.querySelector('[data-wb-confirm]'); if (confirmBtn) confirmBtn.onclick = () => wbConfirmDelete();
+  if (m.kind === 'item') {
+    const { app } = wbFind(m.companyId, m.workspaceId, m.appId);
+    const recompute = () => {
+      const vals = {}; app.fields.forEach((f) => { if (f.type !== 'calculation') vals[f.id] = wbReadFieldInput(f); });
+      app.fields.filter((f) => f.type === 'calculation').forEach((f) => { const el = document.querySelector(`[data-calc="${f.id}"]`); if (el) el.textContent = wbComputeCalc(app, f, vals); });
+    };
+    overlay.querySelectorAll('#wbItemForm [data-f]').forEach((el) => el.addEventListener('input', recompute));
+    recompute();
+  }
+  const af = overlay.querySelector('[autofocus]'); if (af) af.focus();
 }
 
 function renderSettingsPage(route, companyId) {
@@ -5856,66 +6973,8 @@ function renderClientPortalPublicPage(route) {
       </main>
     `;
   }
-  const documents = portal.documents || [];
-  const selectedDoc = documents.find((doc) => doc.id === portal.documentId) || documents[0] || null;
-  return `
-    <main class="client-portal-public open">
-      <header class="client-portal-public-top">
-        <div class="client-portal-brand"><span class="side-mark">Q</span><span><strong>${h(portal.portal?.title || 'Client Portal')}</strong><small>${h(portal.portal?.client_name || portal.guestName || 'Plan review')}</small></span></div>
-        <button class="btn" type="button" data-action="client-portal-export"><i class="ti ti-download"></i>Export marked PDF</button>
-      </header>
-      <section class="client-portal-workbench">
-        <aside class="client-portal-docs">
-          <strong>Plan set</strong>
-          ${documents.map((doc) => `
-            <button class="${selectedDoc?.id === doc.id ? 'active' : ''}" type="button" data-action="client-portal-doc" data-document-id="${h(doc.id)}">
-              <i class="ti ${doc.mime_type?.includes('pdf') ? 'ti-file-type-pdf' : 'ti-photo'}"></i>
-              <span>${h(doc.file_name)}<small>${formatBytes(doc.size_bytes)}</small></span>
-            </button>
-          `).join('') || emptyState('No documents are available.')}
-          <div class="client-portal-help">DWG files should be exported to PDF before upload.</div>
-        </aside>
-        <section class="client-portal-viewer">
-          <div class="client-portal-toolbar">
-            ${[
-              { id: 'pan', attr: 'data-portal-tool="pan"', label: 'Pan' },
-              { id: 'pen', attr: 'data-portal-tool="pen"', label: 'Pen' },
-              { id: 'line', attr: 'data-portal-tool="line"', label: '/' },
-              { id: 'rect', attr: 'data-portal-tool="rect"', label: 'Box' },
-              { id: 'circle', attr: 'data-portal-tool="circle"', label: 'Oval' },
-              { id: 'arrow', attr: 'data-portal-tool="arrow"', label: 'Arrow' },
-              { id: 'text', attr: 'data-portal-tool="text"', label: 'T' },
-              { id: 'comment', attr: 'data-portal-tool="comment"', label: 'Pin' },
-              { id: 'measure', attr: 'data-portal-tool="measure"', label: 'Ft' },
-              { id: 'stamp', attr: 'data-portal-tool="stamp"', label: 'OK' },
-            ].map((tool) => `
-              <button class="client-portal-tool ${state.clientPortalTool === tool.id ? 'active' : ''}" type="button" data-action="client-portal-tool" ${tool.attr} title="${h(titleCase(tool.id))}">${h(tool.label)}</button>
-            `).join('')}
-            <input type="color" value="${h(state.clientPortalColor)}" data-action="client-portal-color" title="Markup color" />
-            <button class="btn" type="button" data-action="client-portal-save-annotations"><i class="ti ti-device-floppy"></i>Save markups</button>
-          </div>
-          <div class="client-portal-stage" data-client-portal-stage>
-            ${selectedDoc ? `
-              <div class="client-portal-canvas-wrap">
-                <canvas id="client-portal-doc-canvas"></canvas>
-                <canvas id="client-portal-draw-canvas"></canvas>
-              </div>
-            ` : emptyState('Choose a document.')}
-          </div>
-        </section>
-        <aside class="client-portal-comments">
-          <strong>Comments</strong>
-          ${(portal.annotations || []).filter((annotation) => !selectedDoc || annotation.document_id === selectedDoc.id).map((annotation) => `
-            <div class="client-portal-comment">
-              <b>${h(annotation.guest_name || portal.guestName || 'Guest')}</b>
-              <span>${h(annotation.payload?.text || annotation.payload?.label || annotation.annotation_type || 'Markup')}</span>
-              <small>Page ${h(annotation.page_number || 1)}</small>
-            </div>
-          `).join('') || emptyState('No comments yet.')}
-        </aside>
-      </section>
-    </main>
-  `;
+  ensureClientPortalAnnotateState('guest', portal.portal?.id || token, portal.documentId || '');
+  return `<main class="client-portal-public open">${renderClientPortalAnnotate('guest')}</main>`;
 }
 
 function renderClientPortalFormModal(companyId, portal = null) {
@@ -5957,7 +7016,351 @@ function renderClientPortalDocumentModal(companyId, portal) {
   `, 'file-modal-panel');
 }
 
+function renderClientPortalDeleteModal(companyId, portal) {
+  if (!portal) return renderModalShell('Client Portal', 'Delete portal', emptyState('Portal not found.'));
+  const docs = portalDocumentGroups(portal.id).length;
+  const marks = clientPortalAnnotationsForPortal(portal.id).length;
+  return renderModalShell('Client Portal', 'Delete portal', `
+    <form class="compact-tool-form" data-client-portal-delete-form>
+      <input type="hidden" name="portal_id" value="${h(portal.id)}" />
+      <div class="form-message error">
+        <strong>This permanently deletes "${h(portal.title)}".</strong>
+        <span>${docs} plan${docs === 1 ? '' : 's'} and ${marks} markup${marks === 1 ? '' : 's'} will be removed for everyone. This cannot be undone.</span>
+      </div>
+      <label><span>Type <b>${h(portal.title)}</b> to confirm</span><input name="confirm_name" autocomplete="off" placeholder="${h(portal.title)}" /></label>
+      <div class="form-actions">
+        <button class="btn danger" type="submit"><i class="ti ti-trash"></i>Delete portal</button>
+        <button class="btn" type="button" data-action="close-modal">Cancel</button>
+      </div>
+    </form>
+  `, 'task-modal');
+}
+
+/* =========================================================================
+   CLIENT PORTAL — Blueprint review & annotation engine (owner + guest)
+   Ported from the standalone Drafting prototype, wired to the SPA data layer.
+   Annotations use normalized 0..1 coordinates stored in payload.
+   ========================================================================= */
+
+const CP_PALETTE = ['#e66a1f', '#b91c1c', '#2563eb', '#15803d', '#7c3aed', '#0d9488', '#eab308'];
+
+const CP_STATUS_META = {
+  approved: { label: 'Approved', icon: 'ti-circle-check', color: 'var(--ok, #15803d)' },
+  revision: { label: 'Revision Required', icon: 'ti-edit', color: 'var(--warn, #b45309)' },
+  rejected: { label: 'Rejected', icon: 'ti-circle-x', color: 'var(--danger, #b91c1c)' },
+  pending: { label: 'Pending Review', icon: 'ti-clock', color: 'var(--info, #2563eb)' },
+};
+
+const CP_TOOLS = [
+  { id: 'select', icon: 'ti-hand-stop', tip: 'Pan / Select · hold Ctrl to pan with any tool', key: 'v' },
+  { id: 'freehand', icon: 'ti-ballpen', tip: 'Pen', key: 'p' },
+  { id: 'line', icon: 'ti-line', tip: 'Line', key: 'l' },
+  { id: 'rect', icon: 'ti-square', tip: 'Box', key: 'r' },
+  { id: 'circle', icon: 'ti-circle', tip: 'Oval', key: 'o' },
+  { id: 'arrow', icon: 'ti-arrow-up-right', tip: 'Arrow', key: 'a' },
+  { id: 'highlight', icon: 'ti-highlight', tip: 'Highlight', key: 'h' },
+  { id: 'label', icon: 'ti-tag', tip: 'Label / Note', key: 't' },
+  { id: 'comment', icon: 'ti-message-plus', tip: 'Comment pin', key: 'c' },
+  { id: 'measure', icon: 'ti-ruler-measure', tip: 'Measure', key: 'f' },
+  { id: 'marker', icon: 'ti-rosette-discount-check', tip: 'Status marker', key: 'm' },
+];
+
+const CP_LABEL_PRESETS = ['Kitchen Revision', 'Window Adjustment', 'Electrical Concern', 'Dimension Check', 'Material Note'];
+
+// Width in feet assumed for a freshly uploaded sheet until the ruler is calibrated.
+const CP_DEFAULT_SHEET_FT = 40;
+
+function clientPortalDocumentById(documentId) {
+  return state.clientPortalDocuments.find((doc) => doc.id === documentId) || null;
+}
+
+// Lazily create / reconcile the annotate UI state. Resets the per-document view
+// (page, selection) whenever the open document changes.
+function ensureClientPortalAnnotateState(mode, portalId, documentId) {
+  const current = state.clientPortalAnnotate;
+  if (!current || current.mode !== mode || current.portalId !== portalId) {
+    state.clientPortalAnnotate = {
+      mode,
+      portalId,
+      documentId: documentId || '',
+      tool: 'select',
+      color: CP_PALETTE[0],
+      stroke: 3,
+      unit: 'ft',
+      zoom: 1,
+      panX: null,
+      panY: null,
+      page: 0,
+      selectedId: null,
+      placement: null,
+    };
+    return state.clientPortalAnnotate;
+  }
+  if (documentId && current.documentId !== documentId) {
+    current.documentId = documentId;
+    current.page = 0;
+    current.selectedId = null;
+    current.panX = null; // re-centre the view on the new plan
+    current.panY = null;
+  }
+  return current;
+}
+
+function cpA() {
+  return state.clientPortalAnnotate;
+}
+
+function cpIsGuest() {
+  return cpA()?.mode === 'guest';
+}
+
+// Documents available in the current annotate view: owner sees the current
+// version of every plan group; guest sees the documents returned by the API.
+function cpDocList() {
+  const annotate = cpA();
+  if (!annotate) return [];
+  if (annotate.mode === 'guest') {
+    return (state.clientPortalPublic?.documents || []).map(normalizeClientPortalDocument);
+  }
+  return portalDocumentGroups(annotate.portalId).map(currentVersionOf).filter(Boolean);
+}
+
+function cpActiveDoc() {
+  const annotate = cpA();
+  if (!annotate) return null;
+  const list = cpDocList();
+  return list.find((doc) => doc.id === annotate.documentId) || list[0] || null;
+}
+
+// Annotations for a document on a given 0-indexed page.
+function cpAnnotationsFor(doc, page) {
+  if (!doc) return [];
+  const list = cpIsGuest()
+    ? (state.clientPortalPublic?.annotations || [])
+    : clientPortalAnnotationsForDocument(doc.id);
+  return list.filter((annotation) => annotation.document_id === doc.id && (Number(annotation.page_number || 1) - 1) === page);
+}
+
+function cpActorId() {
+  return cpIsGuest() ? 'guest' : 'draft';
+}
+
+function cpActorName(author) {
+  if (author === 'guest') {
+    return state.clientPortalPublic?.portal?.client_name || state.clientPortalPublic?.guestName || 'Client';
+  }
+  if (cpIsGuest()) return 'Drafting Team';
+  return activeSession()?.profile?.full_name || 'Drafting Team';
+}
+
+function cpActorColor(author) {
+  return author === 'guest' ? '#2563eb' : '#e66a1f';
+}
+
+function cpActorInitial(author) {
+  return (cpActorName(author) || '?').trim().charAt(0).toUpperCase() || '?';
+}
+
+function cpTimeAgo(ts) {
+  if (!ts) return '';
+  const then = new Date(ts).getTime();
+  if (Number.isNaN(then)) return '';
+  const diff = (Date.now() - then) / 1000;
+  if (diff < 60) return 'just now';
+  if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
+  if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
+  return formatDate(ts);
+}
+
+// ---- Shared annotate view (full-surface) -------------------------------------
+function renderClientPortalAnnotate(mode) {
+  const annotate = cpA();
+  const portal = mode === 'guest' ? null : clientPortalById(annotate.portalId);
+  const docs = cpDocList();
+  const doc = cpActiveDoc();
+  const canManage = mode === 'owner' && portal && can('client_portals.manage', portal.company_id);
+  const title = mode === 'guest' ? (state.clientPortalPublic?.portal?.title || 'Client portal') : (portal?.title || 'Client portal');
+  const client = mode === 'guest'
+    ? (state.clientPortalPublic?.portal?.client_name || 'Plan review')
+    : (portal?.client_name || 'Plan review');
+  const versions = doc && mode === 'owner' ? versionsForGroup(annotate.portalId, doc.version_group_id) : [];
+  return `
+    <div class="cp-annotate" data-cp-annotate data-cp-mode="${h(mode)}">
+      <header class="cp-an-top">
+        <div class="cp-mk">Q</div>
+        <div class="cp-an-title"><strong>${h(title)}</strong><small>${h(client)}</small></div>
+        ${doc ? `<span class="cp-an-crumb">${h(doc.file_name)}${doc.version_number > 1 ? ` · v${h(String(doc.version_number))}` : ''}</span>` : ''}
+        <div class="cp-sp"></div>
+        ${mode === 'owner' ? `<button class="btn btn-sm" type="button" data-action="cp-back"><i class="ti ti-arrow-left"></i>Portals</button>` : ''}
+        <button class="btn btn-sm" type="button" data-action="cp-refresh" title="Pull the latest markups"><i class="ti ti-refresh"></i>Refresh</button>
+        <button class="btn btn-sm" type="button" data-action="cp-save"><i class="ti ti-device-floppy"></i>Save markups</button>
+        <button class="btn btn-sm btn-primary" type="button" data-action="cp-export"><i class="ti ti-download"></i>Export marked PDF</button>
+      </header>
+      <div class="cp-an-body">
+        <aside class="cp-planset">
+          <div class="cp-ph"><h3>Plan set</h3>${canManage ? `<button class="btn btn-icon" type="button" data-action="open-client-portal-document-form" data-portal-id="${h(annotate.portalId)}" title="Upload plan"><i class="ti ti-plus"></i></button>` : ''}</div>
+          <div class="cp-plan-list">
+            ${docs.map((item) => renderClientPortalPlanTile(item, doc)).join('') || emptyState('No plan documents yet.')}
+          </div>
+          ${doc && mode === 'owner' ? `
+            <div class="cp-versions">
+              <div class="cp-versions-head"><strong>Versions</strong>${canManage ? `<button class="btn btn-mini" type="button" data-action="cp-upload-version" data-group-id="${h(doc.version_group_id)}"><i class="ti ti-upload"></i>New version</button>` : ''}</div>
+              ${versions.map((version) => `
+                <button class="cp-version-row ${version.id === doc.id ? 'active' : ''}" type="button" data-action="cp-open-version" data-document-id="${h(version.id)}">
+                  <span>v${h(String(version.version_number))}${version.is_current ? ' · current' : ''}</span>
+                  <small>${formatDate(version.created_at)} · ${cpReviewStatusLabel(version.review_status)}</small>
+                </button>
+              `).join('')}
+            </div>` : ''}
+          <div class="cp-note">DWG files should be exported to PDF before upload.</div>
+        </aside>
+        <section class="cp-stage-wrap">
+          ${renderClientPortalToolbar(doc)}
+          <div class="cp-stage" data-cp-stage>
+            ${doc ? `<div class="cp-frame" data-cp-frame><div class="cp-loading">Loading plan…</div></div>` : `
+              <div class="cp-empty-stage">
+                <div class="cp-ei"><i class="ti ti-draw"></i></div>
+                <h2>No plan documents</h2>
+                <p>${mode === 'owner' ? 'Upload a plan set to start reviewing and annotating.' : 'Your project team has not shared a plan yet.'}</p>
+              </div>`}
+          </div>
+        </section>
+        <aside class="cp-cmts">
+          ${renderClientPortalComments(doc)}
+        </aside>
+      </div>
+      ${annotate.placement ? renderClientPortalPlacementModal(annotate.placement) : ''}
+    </div>
+  `;
+}
+
+function cpReviewStatusLabel(status) {
+  return (CP_STATUS_META[status] || CP_STATUS_META.pending).label;
+}
+
+function renderClientPortalPlanTile(doc, activeDoc) {
+  const marks = (cpIsGuest() ? (state.clientPortalPublic?.annotations || []) : clientPortalAnnotationsForDocument(doc.id))
+    .filter((annotation) => annotation.document_id === doc.id).length;
+  const meta = CP_STATUS_META[doc.review_status] || CP_STATUS_META.pending;
+  return `
+    <button class="cp-plan-tile ${doc.id === activeDoc?.id ? 'active' : ''}" type="button" data-action="cp-open-document" data-document-id="${h(doc.id)}">
+      <i class="ti ${doc.mime_type?.includes('pdf') ? 'ti-file-type-pdf' : 'ti-photo'} cp-plan-ico"></i>
+      <span class="cp-plan-name">${h(doc.file_name)}<small>${doc.page_count ? `${doc.page_count} pg · ` : ''}${formatBytes(doc.size_bytes)} · ${marks} mark${marks === 1 ? '' : 's'}</small></span>
+      <span class="cp-status-dot ${h(doc.review_status)}" title="${h(meta.label)}"></span>
+    </button>
+  `;
+}
+
+function renderClientPortalToolbar(doc) {
+  const annotate = cpA();
+  if (!doc) return '<div class="cp-toolbar cp-toolbar-empty"></div>';
+  const pages = doc.page_count || 1;
+  return `
+    <div class="cp-toolbar" data-cp-toolbar>
+      ${CP_TOOLS.map((tool, index) => `${index === 1 || index === 7 || index === 10 ? '<span class="cp-tool-sep"></span>' : ''}
+        <button class="cp-tbtn ${annotate.tool === tool.id ? 'active' : ''}" type="button" data-action="cp-tool" data-tool="${h(tool.id)}" title="${h(tool.tip)} (${tool.key})"><i class="ti ${tool.icon}"></i></button>
+      `).join('')}
+      <span class="cp-tool-sep"></span>
+      <div class="cp-colors">
+        ${CP_PALETTE.map((color) => `<button class="cp-cdot ${annotate.color === color ? 'active' : ''}" type="button" data-action="cp-color" data-color="${h(color)}" style="background:${h(color)}" title="${h(color)}"></button>`).join('')}
+        <label class="cp-cdot cp-custom-color ${CP_PALETTE.includes(annotate.color) ? '' : 'active'}" style="background:${h(annotate.color)}" title="Custom color">
+          <i class="ti ti-plus"></i>
+          <input type="color" data-cp-color-input value="${h(annotate.color)}" aria-label="Custom markup color" />
+        </label>
+      </div>
+      <span class="cp-tool-sep"></span>
+      <label class="cp-stroke" title="Pen size">
+        <span class="cp-stroke-preview" style="height:${Math.max(2, Math.min(14, annotate.stroke))}px"></span>
+        <input type="range" min="1" max="14" step="1" value="${annotate.stroke}" data-cp-stroke-input aria-label="Pen size" />
+        <span class="cp-stroke-val" data-cp-stroke-val>${annotate.stroke}px</span>
+      </label>
+      <div class="cp-tb-right">
+        <select class="cp-unit-select" data-cp-unit-select title="Measurement unit" aria-label="Measurement unit">
+          ${['ft', 'in', 'cm'].map((unit) => `<option value="${unit}" ${cpProjectUnit() === unit ? 'selected' : ''}>${unit}</option>`).join('')}
+        </select>
+        ${doc.scale || cpProjectScale() ? `<button class="cp-scale-chip" type="button" data-action="cp-recalibrate" title="Recalibrate the project ruler scale"><i class="ti ti-ruler-measure"></i>Scale set</button>` : ''}
+        ${pages > 1 ? `
+          <div class="cp-zoom-ctl">
+            <button type="button" data-action="cp-page" data-page="prev"><i class="ti ti-chevron-left"></i></button>
+            <span>${annotate.page + 1} / ${pages}</span>
+            <button type="button" data-action="cp-page" data-page="next"><i class="ti ti-chevron-right"></i></button>
+          </div>` : ''}
+        <div class="cp-zoom-ctl">
+          <button type="button" data-action="cp-zoom" data-dir="out" title="Zoom out">&minus;</button>
+          <span data-cp-zoom-label>${Math.round(annotate.zoom * 100)}%</span>
+          <button type="button" data-action="cp-zoom" data-dir="in" title="Zoom in">+</button>
+        </div>
+        <button class="cp-tbtn" type="button" data-action="cp-undo" title="Undo (Ctrl+Z)"><i class="ti ti-arrow-back-up"></i></button>
+      </div>
+    </div>
+  `;
+}
+
+function renderClientPortalComments(doc) {
+  if (!doc) return '<div class="cp-ch"><h3>Comments</h3></div>';
+  const annotate = cpA();
+  const annotations = cpAnnotationsFor(doc, annotate.page);
+  const canStatus = true; // owner staff and guest clients may both set status (per product decision)
+  return `
+    <div class="cp-ch"><h3>Review</h3><span class="cp-count">${annotations.length}</span></div>
+    <div class="cp-doc-status">
+      <div class="cp-status-label">Document status</div>
+      <div class="cp-status-opts">
+        ${Object.entries(CP_STATUS_META).map(([key, meta]) => `
+          <button class="cp-status-opt ${doc.review_status === key ? 'active' : ''} ${h(key)}" type="button" data-action="cp-doc-status" data-status="${h(key)}" ${canStatus ? '' : 'disabled'}>
+            <i class="ti ${meta.icon}"></i>${h(meta.label)}
+          </button>
+        `).join('')}
+      </div>
+    </div>
+    <div class="cp-cbody">
+      ${annotations.slice().reverse().map((annotation) => renderClientPortalAnnoCard(annotation)).join('') || emptyState('No markups on this page yet.')}
+    </div>
+  `;
+}
+
+function renderClientPortalAnnoCard(annotation) {
+  const annotate = cpA();
+  const payload = annotation.payload || {};
+  const selected = annotate.selectedId === annotation.id;
+  const author = payload.author || (annotation.guest_name ? 'guest' : 'draft');
+  const tool = CP_TOOLS.find((item) => item.id === annotation.annotation_type);
+  const thread = Array.isArray(payload.thread) ? payload.thread : [];
+  const summary = payload.text || (annotation.annotation_type === 'marker' ? cpReviewStatusLabel(payload.markerStatus) : '') || (tool?.tip || titleCase(annotation.annotation_type));
+  return `
+    <div class="cp-anno-card ${selected ? 'sel' : ''}" data-action="cp-select" data-annotation-id="${h(annotation.id)}">
+      <div class="cp-anno-head">
+        <span class="cp-anno-ico" style="background:${h(payload.color || cpActorColor(author))}"><i class="ti ${tool?.icon || 'ti-pencil'}"></i></span>
+        <div class="cp-anno-meta"><strong>${h(cpActorName(author))}</strong><small>${h(tool?.tip || titleCase(annotation.annotation_type))} · ${cpTimeAgo(annotation.created_at)}</small></div>
+        <button class="cp-anno-del" type="button" data-action="cp-delete-annotation" data-annotation-id="${h(annotation.id)}" title="Delete"><i class="ti ti-trash"></i></button>
+      </div>
+      ${summary ? `<div class="cp-anno-summary">${h(summary)}</div>` : ''}
+      ${thread.length ? `<div class="cp-thread">
+        ${thread.map((message) => `
+          <div class="cp-msg">
+            <span class="cp-msg-av" style="background:${h(cpActorColor(message.author))}">${h((message.author_name || cpActorName(message.author) || '?').charAt(0).toUpperCase())}</span>
+            <div><b>${h(message.author_name || cpActorName(message.author))}</b> <small>${cpTimeAgo(message.at)}</small><p>${h(message.text)}</p></div>
+          </div>
+        `).join('')}
+      </div>` : ''}
+      <form class="cp-reply" data-cp-reply-form data-annotation-id="${h(annotation.id)}">
+        <input name="text" placeholder="Reply…" autocomplete="off" />
+        <button class="btn btn-mini" type="submit"><i class="ti ti-send"></i></button>
+      </form>
+    </div>
+  `;
+}
+
 function renderClientPortalsPage(route, companyId) {
+  // Owner annotate sub-view: ?portal_id=…&document_id=…&annotate=1
+  if (route.params.get('annotate') === '1' && route.params.get('portal_id')) {
+    const portalId = route.params.get('portal_id');
+    if (clientPortalById(portalId)) {
+      ensureClientPortalAnnotateState('owner', portalId, route.params.get('document_id') || '');
+      return renderClientPortalAnnotate('owner');
+    }
+  }
+  state.clientPortalAnnotate = null;
   const portals = filteredClientPortals(companyId);
   const selectedId = route.params.get('portal_id') || portals[0]?.id || '';
   const selected = clientPortalById(selectedId);
@@ -5983,23 +7386,66 @@ function renderClientPortalsPage(route, companyId) {
 }
 
 function renderClientPortalListItem(portal, active) {
-  const docs = clientPortalDocumentsForPortal(portal.id);
+  const groups = portalDocumentGroups(portal.id);
   const annotations = clientPortalAnnotationsForPortal(portal.id);
+  const canManage = can('client_portals.manage', portal.company_id);
   return `
-    <a class="client-portal-row ${active ? 'active' : ''}" href="${appHref(companyPath('client-portals', { portal_id: portal.id }, portal.company_id))}" data-router>
-      <span><i class="ti ti-world-upload"></i></span>
-      <strong>${h(portal.title)}</strong>
-      <small>${h(portal.client_name || portal.client_email || companyName(portal.company_id))}</small>
-      <em>${docs.length} docs / ${annotations.length} marks</em>
-      <b>${h(titleCase(portal.status))}</b>
-    </a>
+    <div class="client-portal-row ${active ? 'active' : ''}">
+      <a class="cp-row-main" href="${appHref(companyPath('client-portals', { portal_id: portal.id }, portal.company_id))}" data-router>
+        <span class="cp-row-ico"><i class="ti ti-world"></i></span>
+        <div class="cp-row-text">
+          <strong>${h(portal.title)}</strong>
+          <small>${h(portal.client_name || portal.client_email || companyName(portal.company_id))}</small>
+          <em>${groups.length} doc${groups.length === 1 ? '' : 's'} / ${annotations.length} mark${annotations.length === 1 ? '' : 's'}</em>
+        </div>
+      </a>
+      <div class="cp-row-side">
+        <span class="status-pill sm ${h(portal.status)}">${h(titleCase(portal.status))}</span>
+        ${canManage ? `<div class="cp-row-actions">
+          <button type="button" data-action="open-client-portal-form" data-portal-id="${h(portal.id)}" title="Edit portal"><i class="ti ti-pencil"></i></button>
+          <button type="button" data-action="delete-client-portal" data-portal-id="${h(portal.id)}" title="Delete portal"><i class="ti ti-trash"></i></button>
+        </div>` : ''}
+      </div>
+    </div>
   `;
 }
 
+const CP_EVENT_META = {
+  'portal.created': { icon: 'ti-world-plus', text: 'created the portal' },
+  'portal.updated': { icon: 'ti-edit', text: 'updated the portal details' },
+  'document.uploaded': { icon: 'ti-upload', text: 'uploaded a plan' },
+  'document.version': { icon: 'ti-versions', text: 'uploaded a new version' },
+  'document.status': { icon: 'ti-rosette-discount-check', text: 'set the document status' },
+  'link.regenerated': { icon: 'ti-refresh', text: 'regenerated the portal link' },
+  'portal.revoked': { icon: 'ti-ban', text: 'revoked the portal link' },
+  'portal.restored': { icon: 'ti-rotate', text: 'reactivated the portal link' },
+  'portal.opened': { icon: 'ti-login', text: 'opened the portal' },
+  'portal.exported': { icon: 'ti-download', text: 'exported a marked PDF' },
+  'annotation.added': { icon: 'ti-pencil', text: 'added a markup' },
+};
+
+function cpEventMeta(event) {
+  const base = CP_EVENT_META[event.event_type] || { icon: 'ti-point', text: titleCase(event.event_type.replace(/[._]/g, ' ')) };
+  const actor = event.guest_name ? `${event.guest_name} (guest)` : 'Team';
+  let text = base.text;
+  if (event.event_type === 'document.status') {
+    const status = CP_STATUS_META[event.details?.review_status];
+    text = `set document status to "${status ? status.label : (event.details?.label || 'updated')}"`;
+  } else if ((event.event_type === 'document.uploaded' || event.event_type === 'document.version') && event.details?.file_name) {
+    text = `${base.text} — ${event.details.file_name}`;
+  } else if (event.event_type === 'annotation.added' && event.details?.type) {
+    const tool = CP_TOOLS.find((item) => item.id === event.details.type);
+    text = `added a ${tool ? tool.tip.toLowerCase() : event.details.type} markup`;
+  }
+  return { icon: base.icon, actor, text };
+}
+
 function renderClientPortalDetail(portal, canManagePortals) {
-  const docs = clientPortalDocumentsForPortal(portal.id);
+  const groups = portalDocumentGroups(portal.id);
   const annotations = clientPortalAnnotationsForPortal(portal.id);
+  const guestMarks = annotations.filter((annotation) => (annotation.payload?.author || (annotation.guest_name ? 'guest' : 'draft')) === 'guest');
   const events = clientPortalEventsForPortal(portal.id);
+  const revoked = portal.status === 'revoked';
   const link = clientPortalPublicLink(portal);
   return `
     <div class="client-portal-head">
@@ -6012,47 +7458,78 @@ function renderClientPortalDetail(portal, canManagePortals) {
     </div>
     <div class="forms-summary-share compact">
       <strong>Portal link</strong>
-      <input readonly value="${h(link)}" />
-      <button class="btn" type="button" data-action="copy-client-portal-link" data-portal-id="${h(portal.id)}"><i class="ti ti-copy"></i>Copy link</button>
+      <input readonly value="${revoked ? '— link revoked —' : h(link)}" />
+      <button class="btn" type="button" data-action="copy-client-portal-link" data-portal-id="${h(portal.id)}" ${revoked ? 'disabled' : ''}><i class="ti ti-copy"></i>Copy link</button>
       ${canManagePortals ? `<button class="btn" type="button" data-action="regenerate-client-portal-link" data-portal-id="${h(portal.id)}"><i class="ti ti-refresh"></i>Regenerate</button>` : ''}
-      ${canManagePortals ? `<button class="btn danger" type="button" data-action="revoke-client-portal" data-portal-id="${h(portal.id)}"><i class="ti ti-ban"></i>Revoke</button>` : ''}
+      ${canManagePortals && !revoked ? `<button class="btn danger" type="button" data-action="revoke-client-portal" data-portal-id="${h(portal.id)}"><i class="ti ti-ban"></i>Revoke</button>` : ''}
+      ${canManagePortals && revoked ? `<button class="btn" type="button" data-action="restore-client-portal" data-portal-id="${h(portal.id)}"><i class="ti ti-rotate"></i>Reactivate</button>` : ''}
     </div>
     ${canManagePortals ? `
       <div class="client-portal-actionbar">
         <button class="btn btn-primary" type="button" data-action="open-client-portal-document-form" data-portal-id="${h(portal.id)}"><i class="ti ti-upload"></i>Upload plan set</button>
-        <button class="btn" type="button" data-action="open-client-portal-form" data-portal-id="${h(portal.id)}"><i class="ti ti-key"></i>Edit password/details</button>
+        <button class="btn" type="button" data-action="open-client-portal-form" data-portal-id="${h(portal.id)}"><i class="ti ti-key"></i>Edit details</button>
+        ${!revoked ? `<button class="btn" type="button" data-action="copy-client-portal-link" data-portal-id="${h(portal.id)}"><i class="ti ti-external-link"></i>Open client view</button>` : ''}
+        <button class="btn danger" type="button" data-action="delete-client-portal" data-portal-id="${h(portal.id)}"><i class="ti ti-trash"></i>Delete</button>
       </div>
     ` : ''}
     <div class="client-portal-detail-grid">
       <article>
         <div class="section-head"><div><h2>Documents</h2><p>PDF, PNG, and JPG plan sets. DWG should be exported to PDF first.</p></div></div>
+        ${canManagePortals ? `<button class="cp-dropzone" type="button" data-action="open-client-portal-document-form" data-portal-id="${h(portal.id)}"><i class="ti ti-cloud-upload"></i><strong>Click or drop to upload plan set</strong><small>PDF · PNG · JPG · multiple files</small></button>` : ''}
         <div class="client-portal-doc-list">
-          ${docs.map((doc) => `
-            <div class="client-portal-doc-row">
-              ${fileTypeBadge({ file_name: doc.file_name, mime_type: doc.mime_type })}
-              <span><strong>${h(doc.file_name)}</strong><small>${formatBytes(doc.size_bytes)} / ${formatDate(doc.created_at)}</small></span>
-            </div>
-          `).join('') || emptyState('No plan documents uploaded.')}
+          ${groups.map((versions) => {
+            const doc = currentVersionOf(versions);
+            const meta = CP_STATUS_META[doc.review_status] || CP_STATUS_META.pending;
+            const marks = clientPortalAnnotationsForDocument(doc.id).length;
+            return `
+              <button class="client-portal-doc-row" type="button" data-action="cp-open-document-page" data-portal-id="${h(portal.id)}" data-document-id="${h(doc.id)}">
+                ${fileTypeBadge({ file_name: doc.file_name, mime_type: doc.mime_type })}
+                <span><strong>${h(doc.file_name)}</strong><small>${versions.length > 1 ? `v${doc.version_number} · ` : ''}${formatBytes(doc.size_bytes)} · ${marks} mark${marks === 1 ? '' : 's'}</small></span>
+                <span class="status-pill sm ${h(doc.review_status)}"><i class="ti ${meta.icon}"></i>${h(meta.label)}</span>
+                <i class="ti ti-chevron-right cp-row-chevron"></i>
+              </button>`;
+          }).join('') || emptyState('No plan documents uploaded.')}
         </div>
       </article>
       <article>
-        <div class="section-head"><div><h2>Guest markups</h2><p>${annotations.length} saved annotation${annotations.length === 1 ? '' : 's'}.</p></div></div>
+        <div class="section-head"><div><h2>Guest markups</h2><p>${guestMarks.length} client annotation${guestMarks.length === 1 ? '' : 's'}.</p></div></div>
         <div class="client-portal-annotation-list">
-          ${annotations.slice(0, 12).map((annotation) => `
-            <div class="client-portal-annotation-row">
-              <strong>${h(annotation.guest_name || 'Guest')}</strong>
-              <span>${h(annotation.annotation_type)} / page ${h(annotation.page_number)}</span>
-              <small>${h(annotation.payload?.text || annotation.payload?.label || annotation.payload?.type || 'Markup saved')}</small>
-            </div>
-          `).join('') || emptyState('No guest markups yet.')}
+          ${guestMarks.slice(0, 8).map((annotation) => renderClientPortalMarkCard(annotation)).join('') || emptyState('No guest markups yet.')}
         </div>
       </article>
     </div>
     <section class="client-portal-events">
       <div class="section-head"><div><h2>Activity</h2><p>${events.length} portal event${events.length === 1 ? '' : 's'}.</p></div></div>
-      ${events.slice(0, 6).map((event) => `<div class="activity-line"><b>${h(event.event_type)}</b><span>${h(event.guest_name || 'Guest')} / ${formatDateTime(event.created_at)}</span></div>`).join('') || emptyState('No portal activity yet.')}
+      <div class="cp-activity">
+        ${events.slice(0, 14).map((event) => {
+          const meta = cpEventMeta(event);
+          return `<div class="cp-activity-row">
+            <span class="cp-activity-ico"><i class="ti ${meta.icon}"></i></span>
+            <div class="cp-activity-meta"><p><b>${h(meta.actor)}</b> ${h(meta.text)}</p><small>${cpTimeAgo(event.created_at)}</small></div>
+          </div>`;
+        }).join('') || emptyState('No portal activity yet.')}
+      </div>
     </section>
   `;
+}
+
+// Guest-markup summary card; the icon is tinted with the colour used in the markup.
+function renderClientPortalMarkCard(annotation) {
+  const doc = clientPortalDocumentById(annotation.document_id);
+  const tool = CP_TOOLS.find((item) => item.id === annotation.annotation_type);
+  const author = annotation.payload?.author || (annotation.guest_name ? 'guest' : 'draft');
+  const color = annotation.payload?.color || cpActorColor(author);
+  const lastMessage = (annotation.payload?.thread || []).slice(-1)[0];
+  const summary = annotation.payload?.text || lastMessage?.text || (tool?.tip || titleCase(annotation.annotation_type));
+  return `
+    <div class="cp-mark-card">
+      <span class="cp-mark-ico" style="background:${h(color)}"><i class="ti ${tool?.icon || 'ti-pencil'}"></i></span>
+      <div class="cp-mark-meta">
+        <strong>${h(tool?.tip || titleCase(annotation.annotation_type))}</strong>
+        <small>${h(doc?.file_name || 'Document')} · ${cpTimeAgo(annotation.created_at)}</small>
+        <span>${h(summary)}</span>
+      </div>
+    </div>`;
 }
 
 function renderWorkspaceSettings(companyId) {
@@ -8866,11 +10343,13 @@ function renderWorkspaceIconModal(companyId) {
 }
 
 function renderActiveModal(route, session) {
+  if (state.builderModal) return renderWorkspaceBuilderModal();
   if (state.modal === 'profile') return renderProfileModal(session.profile);
   if (state.modal === 'workspace-icon') return renderWorkspaceIconModal(activeCompanyId());
   if (state.modal === 'file-upload') return renderFileUploadModal();
   if (state.modal === 'client-portal-form') return renderClientPortalFormModal(activeCompanyId(), clientPortalById(state.selectedClientPortalId));
   if (state.modal === 'client-portal-document') return renderClientPortalDocumentModal(activeCompanyId(), clientPortalById(state.selectedClientPortalId));
+  if (state.modal === 'client-portal-delete') return renderClientPortalDeleteModal(activeCompanyId(), clientPortalById(state.selectedClientPortalId));
   if (state.modal === 'folder-new') return renderNewFolderModal();
   if (state.modal === 'file-detail') return renderFileDetailModal(activeCompanyId());
   if (state.modal === 'forms-tools') return renderFormsToolsModal(activeCompanyId());
@@ -9267,33 +10746,137 @@ function handleAction(event, node) {
     render();
     return;
   }
-  if (action === 'client-portal-tool') {
+  if (action === 'cp-tool') {
     event.preventDefault();
-    state.clientPortalTool = node.dataset.portalTool || 'pan';
-    render();
+    if (cpA()) { cpA().tool = node.dataset.tool || 'select'; render(); }
     return;
   }
-  if (action === 'client-portal-color') {
-    state.clientPortalColor = node.value || node.getAttribute('value') || '#E8611A';
+  if (action === 'cp-color') {
+    event.preventDefault();
+    if (cpA()) { cpA().color = node.dataset.color || CP_PALETTE[0]; render(); }
     return;
   }
-  if (action === 'client-portal-doc') {
+  if (action === 'cp-zoom') {
     event.preventDefault();
-    if (state.clientPortalPublic) {
-      state.clientPortalPublic.documentId = node.dataset.documentId || '';
-      state.clientPortalPublic.documentUrl = '';
-      state.clientPortalPublic.annotations = [];
-      writeJson(CLIENT_PORTAL_SESSION_KEY, state.clientPortalPublic);
+    cpZoomAt(node.dataset.dir === 'in' ? 1.2 : 1 / 1.2);
+    return;
+  }
+  if (action === 'cp-page') {
+    event.preventDefault();
+    const doc = cpActiveDoc();
+    if (cpA() && doc) {
+      const pages = doc.page_count || 1;
+      cpA().page = Math.min(pages - 1, Math.max(0, cpA().page + (node.dataset.page === 'next' ? 1 : -1)));
+      cpA().selectedId = null;
+      cpA().panX = null; // re-centre the freshly loaded page
+      cpA().panY = null;
       render();
     }
     return;
   }
-  if (action === 'client-portal-save-annotations') {
+  if (action === 'cp-undo') {
     event.preventDefault();
-    saveClientPortalAnnotations().catch((error) => showToast(error.message || 'Could not save markups.', 'local', 'Client Portal'));
+    cpUndoLast();
     return;
   }
-  if (action === 'client-portal-export') {
+  if (action === 'cp-open-document' || action === 'cp-open-version') {
+    event.preventDefault();
+    if (cpA()) {
+      if (cpIsGuest()) {
+        state.clientPortalPublic.documentId = node.dataset.documentId || '';
+        state.clientPortalPublic.documentUrl = '';
+      }
+      cpA().documentId = node.dataset.documentId || '';
+      cpA().page = 0;
+      cpA().selectedId = null;
+      if (cpA().mode === 'owner') {
+        navigate(companyPath('client-portals', { portal_id: cpA().portalId, document_id: cpA().documentId, annotate: '1' }, activeCompanyId()), { replace: true });
+      } else {
+        render();
+      }
+    }
+    return;
+  }
+  if (action === 'cp-open-document-page') {
+    event.preventDefault();
+    navigate(companyPath('client-portals', { portal_id: node.dataset.portalId, document_id: node.dataset.documentId, annotate: '1' }, activeCompanyId()));
+    return;
+  }
+  if (action === 'cp-back') {
+    event.preventDefault();
+    navigate(companyPath('client-portals', { portal_id: cpA()?.portalId || '' }, activeCompanyId()));
+    return;
+  }
+  if (action === 'cp-select') {
+    if (event.target.closest('[data-cp-reply-form], .cp-anno-del')) return;
+    event.preventDefault();
+    if (cpA()) { cpA().selectedId = node.dataset.annotationId; render(); }
+    return;
+  }
+  if (action === 'cp-delete-annotation') {
+    event.preventDefault();
+    event.stopPropagation();
+    cpDeleteAnnotation(node.dataset.annotationId).catch((error) => showToast(error.message || 'Delete failed.', 'local', 'Client Portal'));
+    return;
+  }
+  if (action === 'cp-doc-status') {
+    event.preventDefault();
+    cpSetDocStatus(node.dataset.status).catch((error) => showToast(error.message || 'Status update failed.', 'local', 'Client Portal'));
+    return;
+  }
+  if (action === 'cp-recalibrate') {
+    event.preventDefault();
+    cpClearProjectScale();
+    showToast('Project ruler scale cleared — draw a measure line to set a new default.', 'local', 'Client Portal');
+    render();
+    return;
+  }
+  if (action === 'cp-placement-cancel') {
+    // Backdrop only closes when the backdrop itself (outside the card) is clicked.
+    if (node.classList.contains('cp-modal-backdrop') && event.target !== node) return;
+    event.preventDefault();
+    cpClosePlacement();
+    return;
+  }
+  if (action === 'cp-place-marker') {
+    event.preventDefault();
+    cpCommitMarker(node.dataset.status).catch((error) => showToast(error.message || 'Could not place stamp.', 'local', 'Client Portal'));
+    return;
+  }
+  if (action === 'cp-label-preset') {
+    event.preventDefault();
+    const input = node.closest('.cp-modal')?.querySelector('input[name="text"]');
+    if (input) { input.value = node.dataset.text || ''; input.focus(); }
+    return;
+  }
+  if (action === 'cp-placement-color') {
+    event.preventDefault();
+    if (cpA()?.placement) { cpA().placement.color = node.dataset.color || CP_PALETTE[0]; cpA().color = cpA().placement.color; render(); }
+    return;
+  }
+  if (action === 'cp-upload-version') {
+    event.preventDefault();
+    state.selectedClientPortalId = cpA()?.portalId || '';
+    state.clientPortalVersionGroup = node.dataset.groupId || '';
+    state.modal = 'client-portal-document';
+    render();
+    return;
+  }
+  if (action === 'cp-refresh') {
+    event.preventDefault();
+    const portalId = cpIsGuest() ? state.clientPortalPublic?.portal?.id : cpA()?.portalId;
+    cpReloadPortalAnnotations(portalId).then((ok) => {
+      showToast(ok ? 'Markups refreshed.' : 'Nothing to refresh.', 'live', 'Client Portal');
+      render();
+    }).catch((error) => showToast(error.message || 'Refresh failed.', 'local', 'Client Portal'));
+    return;
+  }
+  if (action === 'cp-save') {
+    event.preventDefault();
+    showToast('Markups save automatically as you draw.', state.session?.auth === 'supabase' ? 'live' : 'local', 'Client Portal');
+    return;
+  }
+  if (action === 'cp-export') {
     event.preventDefault();
     exportClientPortalMarkedPdf().catch((error) => showToast(error.message || 'Could not export marked PDF.', 'local', 'Client Portal'));
     return;
@@ -9524,9 +11107,10 @@ function handleAction(event, node) {
     });
     return;
   }
-  if (action.startsWith('builder-')) {
+  if (action === 'wb-modal-close') {
+    if (node.classList.contains('wb-modal-overlay') && event.target !== node) return;
     event.preventDefault();
-    handleWorkspaceBuilderAction(node);
+    closeWbModal();
     return;
   }
   if (action === 'new-message-group') {
@@ -9746,6 +11330,7 @@ function handleAction(event, node) {
     event.preventDefault();
     if (!requirePermission('client_portals.manage', activeCompanyId(), 'Your role cannot upload portal documents.', 'Client Portal')) return;
     state.selectedClientPortalId = node.dataset.portalId || '';
+    state.clientPortalVersionGroup = '';
     state.modal = 'client-portal-document';
     render();
     return;
@@ -9763,6 +11348,20 @@ function handleAction(event, node) {
   if (action === 'revoke-client-portal') {
     event.preventDefault();
     revokeClientPortal(node.dataset.portalId);
+    return;
+  }
+  if (action === 'restore-client-portal') {
+    event.preventDefault();
+    restoreClientPortal(node.dataset.portalId).catch((error) => showToast(error.message || 'Could not reactivate portal.', 'local', 'Client Portal'));
+    return;
+  }
+  if (action === 'delete-client-portal') {
+    event.preventDefault();
+    const portal = clientPortalById(node.dataset.portalId || '');
+    if (!portal || !requirePermission('client_portals.manage', portal.company_id, 'Your role cannot delete portals.', 'Client Portal')) return;
+    state.selectedClientPortalId = portal.id;
+    state.modal = 'client-portal-delete';
+    render();
     return;
   }
   if (action === 'open-folder-form') {
@@ -10520,6 +12119,48 @@ function onDocumentSubmit(event) {
   if (event.target.matches('[data-client-portal-document-form]')) {
     event.preventDefault();
     saveClientPortalDocuments(event.target);
+    return;
+  }
+
+  if (event.target.matches('[data-client-portal-delete-form]')) {
+    event.preventDefault();
+    const portalId = event.target.querySelector('[name="portal_id"]')?.value || '';
+    const confirmName = event.target.querySelector('[name="confirm_name"]')?.value || '';
+    deleteClientPortal(portalId, confirmName).catch((error) => showToast(error.message || 'Could not delete portal.', 'local', 'Client Portal'));
+    return;
+  }
+
+  if (event.target.matches('[data-cp-reply-form]')) {
+    event.preventDefault();
+    const input = event.target.elements.text;
+    const text = String(input?.value || '');
+    if (text.trim()) cpAddThreadReply(event.target.dataset.annotationId, text).catch((error) => showToast(error.message || 'Reply failed.', 'local', 'Client Portal'));
+    return;
+  }
+
+  if (event.target.matches('[data-cp-comment-form]')) {
+    event.preventDefault();
+    cpCommitComment(String(event.target.elements.text?.value || '')).catch((error) => showToast(error.message || 'Could not add comment.', 'local', 'Client Portal'));
+    return;
+  }
+
+  if (event.target.matches('[data-cp-label-form]')) {
+    event.preventDefault();
+    cpCommitLabel(String(event.target.elements.text?.value || ''), cpA()?.placement?.color).catch((error) => showToast(error.message || 'Could not place label.', 'local', 'Client Portal'));
+    return;
+  }
+
+  if (event.target.matches('[data-cp-marker-custom-form]')) {
+    event.preventDefault();
+    cpCommitMarker('custom', String(event.target.elements.text?.value || '')).catch((error) => showToast(error.message || 'Could not place mark.', 'local', 'Client Portal'));
+    return;
+  }
+
+  if (event.target.matches('[data-cp-scale-form]')) {
+    event.preventDefault();
+    const lengthValue = event.target.querySelector('[name="cp_length"]')?.value || '';
+    const unitValue = event.target.querySelector('[name="cp_unit"]')?.value || 'ft';
+    cpCommitScale(String(lengthValue), unitValue).catch((error) => showToast(error.message || 'Could not set scale.', 'local', 'Client Portal'));
     return;
   }
 
@@ -12077,6 +13718,23 @@ async function openMessageAttachment(attachmentId) {
 }
 
 function onDocumentInput(event) {
+  if (event.target.matches('[data-cp-color-input]')) {
+    if (cpA()) cpA().color = event.target.value || CP_PALETTE[0];
+    const swatch = event.target.closest('.cp-custom-color');
+    if (swatch) swatch.style.background = event.target.value;
+    return;
+  }
+  if (event.target.matches('[data-cp-stroke-input]')) {
+    if (cpA()) cpA().stroke = Number(event.target.value) || 3;
+    const wrap = event.target.closest('.cp-stroke');
+    if (wrap) {
+      const preview = wrap.querySelector('.cp-stroke-preview');
+      const val = wrap.querySelector('[data-cp-stroke-val]');
+      if (preview) preview.style.height = `${Math.max(2, Math.min(14, Number(event.target.value)))}px`;
+      if (val) val.textContent = `${event.target.value}px`;
+    }
+    return;
+  }
   if (event.target.matches('[data-phone-format]')) {
     const formatted = formatPhoneNumber(event.target.value);
     if (formatted !== event.target.value) event.target.value = formatted;
@@ -12150,6 +13808,15 @@ function onDocumentInput(event) {
 }
 
 function onDocumentChange(event) {
+  if (event.target.matches('[data-cp-color-input]')) {
+    if (cpA()) cpA().color = event.target.value || CP_PALETTE[0];
+    render();
+    return;
+  }
+  if (event.target.matches('[data-cp-unit-select]')) {
+    cpChangeUnit(event.target.value).catch((error) => showToast(error.message || 'Could not change unit.', 'local', 'Client Portal'));
+    return;
+  }
   if (event.target.matches('[data-company-switch]')) {
     const nextCompanyId = event.target.value || defaultCompanyId();
     setActiveCompany(nextCompanyId);
@@ -12459,6 +14126,7 @@ async function saveClientPortal(form) {
   }
   upsertClientPortal(portal);
   cacheClientPortalToken(portal.id, rawToken);
+  await logClientPortalEvent(portal.id, existing ? 'portal.updated' : 'portal.created', { label: portal.title });
   state.modal = '';
   showToast(existing ? 'Portal saved.' : 'Portal created. Copy the link from the detail panel.', state.session?.auth === 'supabase' ? 'live' : 'local', 'Client Portal');
   navigate(companyPath('client-portals', { portal_id: portal.id }, companyId), { replace: true });
@@ -12478,22 +14146,37 @@ async function saveClientPortalDocuments(form) {
     showToast('Choose at least one PDF, PNG, or JPG.', 'local', 'Client Portal');
     return;
   }
+  // A version group ties new uploads to an existing plan as a new revision.
+  const versionGroup = String(state.clientPortalVersionGroup || fields.version_group_id || '');
+  state.clientPortalVersionGroup = '';
   const client = createSupabaseClient();
+  const live = isLiveSupabaseSession() && client;
   let savedCount = 0;
+  let lastDoc = null;
   for (const file of files) {
     const id = crypto.randomUUID();
     const objectPath = `${companyId}/portals/${portal.id}/${id}-${slugify(file.name || 'plan-set')}`;
+    // Dev-only: keep an inline copy so the local /portal route and owner viewer can
+    // render the plan even when the serverless API isn't running or the upgrade
+    // migration hasn't been applied. import.meta.env.DEV is false in production builds.
+    const keepInline = Boolean(import.meta.env && import.meta.env.DEV);
+    const inlineUrl = (!live || keepInline) ? await cpFileToDataUrl(file).catch(() => '') : '';
     let uploaded = false;
-    if (isLiveSupabaseSession() && client) {
+    if (live) {
       const upload = await client.storage
         .from('quest-client-portal-documents')
         .upload(objectPath, file, { cacheControl: '3600', upsert: false, contentType: file.type || 'application/octet-stream' });
       if (upload.error) {
-        showToast(upload.error.message || 'Plan upload failed.', 'local', 'Client Portal');
-        continue;
+        if (!keepInline) {
+          showToast(upload.error.message || 'Plan upload failed.', 'local', 'Client Portal');
+          continue;
+        }
+      } else {
+        uploaded = true;
       }
-      uploaded = true;
     }
+    const groupId = versionGroup || id;
+    const versionNumber = versionGroup ? nextVersionNumber(portal.id, versionGroup) : 1;
     let doc = normalizeClientPortalDocument({
       id,
       company_id: companyId,
@@ -12503,24 +14186,76 @@ async function saveClientPortalDocuments(form) {
       file_name: file.name || 'Plan set',
       mime_type: file.type || 'application/octet-stream',
       size_bytes: file.size || 0,
+      version_group_id: groupId,
+      version_number: versionNumber,
+      is_current: true,
       uploaded_by: activeSession().profile.id,
     });
-    if (isLiveSupabaseSession() && client) {
+    // Detect page count up front so the plan list/pager are correct on first open.
+    try { doc.page_count = await cpDetectPageCount(file); } catch { /* ignore */ }
+    if (inlineUrl) doc.data_url = inlineUrl;
+    if (live) {
       const result = await client.from('client_portal_documents').insert(clientPortalDocumentPayload(doc)).select().single();
       if (result.error) {
-        if (uploaded) await client.storage.from('quest-client-portal-documents').remove([objectPath]);
-        showToast(result.error.message || 'Document record failed.', 'local', 'Client Portal');
+        if (!keepInline) {
+          if (uploaded) await client.storage.from('quest-client-portal-documents').remove([objectPath]);
+          showToast(result.error.message || 'Document record failed.', 'local', 'Client Portal');
+          continue;
+        }
+        // Dev fallback: the migration likely isn't applied yet. Keep the plan locally
+        // (inline) so it stays fully usable for testing without the backend.
+        if (uploaded) await client.storage.from('quest-client-portal-documents').remove([objectPath]).catch(() => null);
+        doc.object_path = '';
+        showToast('Plan saved locally for preview (dev). Apply the migration to persist it to Supabase.', 'local', 'Client Portal');
+        upsertClientPortalDocument(doc);
+        await logClientPortalEvent(portal.id, versionGroup ? 'document.version' : 'document.uploaded', { document_id: doc.id, file_name: doc.file_name });
+        savedCount += 1;
+        lastDoc = doc;
         continue;
       }
       doc = normalizeClientPortalDocument(result.data);
+      if (inlineUrl) doc.data_url = inlineUrl; // dev: keep inline copy for the local guest route
+    }
+    // Supersede previous current version in the same group.
+    if (versionGroup) {
+      const previous = versionsForGroup(portal.id, versionGroup).filter((item) => item.id !== doc.id && item.is_current);
+      for (const old of previous) {
+        old.is_current = false;
+        if (live) await client.from('client_portal_documents').update({ is_current: false }).eq('id', old.id);
+        upsertClientPortalDocument(old);
+      }
     }
     upsertClientPortalDocument(doc);
+    await logClientPortalEvent(portal.id, versionGroup ? 'document.version' : 'document.uploaded', { document_id: doc.id, file_name: doc.file_name });
     savedCount += 1;
+    lastDoc = doc;
   }
   state.modal = '';
   persistAll();
-  showToast(`${savedCount} document${savedCount === 1 ? '' : 's'} uploaded.`, state.session?.auth === 'supabase' ? 'live' : 'local', 'Client Portal');
-  navigate(companyPath('client-portals', { portal_id: portal.id }, companyId), { replace: true });
+  showToast(`${savedCount} ${versionGroup ? 'version' : 'document'}${savedCount === 1 ? '' : 's'} uploaded.`, state.session?.auth === 'supabase' ? 'live' : 'local', 'Client Portal');
+  if (lastDoc && versionGroup) {
+    navigate(companyPath('client-portals', { portal_id: portal.id, document_id: lastDoc.id, annotate: '1' }, companyId), { replace: true });
+  } else {
+    navigate(companyPath('client-portals', { portal_id: portal.id }, companyId), { replace: true });
+  }
+}
+
+function cpFileToDataUrl(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
+async function cpDetectPageCount(file) {
+  if (!(file.type?.includes('pdf') || /\.pdf$/i.test(file.name || ''))) return 1;
+  await loadExternalScript(PDFJS_SRC, 'pdfjsLib');
+  window.pdfjsLib.GlobalWorkerOptions.workerSrc = PDFJS_WORKER;
+  const data = new Uint8Array(await file.arrayBuffer());
+  const pdf = await window.pdfjsLib.getDocument({ data }).promise;
+  return pdf.numPages || 1;
 }
 
 function copyClientPortalLink(portalId) {
@@ -12558,6 +14293,7 @@ async function regenerateClientPortalLink(portalId) {
   cacheClientPortalToken(portal.id, rawToken);
   upsertClientPortal(next);
   persistAll();
+  await logClientPortalEvent(portal.id, 'link.regenerated', {});
   copyClientPortalLink(portal.id);
   render();
 }
@@ -12576,8 +14312,50 @@ async function revokeClientPortal(portalId) {
     }
   }
   upsertClientPortal(next);
+  await logClientPortalEvent(portal.id, 'portal.revoked', {});
   showToast('Portal revoked.', state.session?.auth === 'supabase' ? 'live' : 'local', 'Client Portal');
   render();
+}
+
+async function restoreClientPortal(portalId) {
+  const portal = clientPortalById(portalId);
+  if (!portal || !requirePermission('client_portals.manage', portal.company_id, 'Your role cannot manage portals.', 'Client Portal')) return;
+  const next = normalizeClientPortal({ ...portal, status: 'active', revoked_at: null, updated_at: new Date().toISOString() });
+  const client = createSupabaseClient();
+  if (isLiveSupabaseSession() && client) {
+    const result = await client.from('client_portals').update({ status: 'active', revoked_at: null, updated_at: next.updated_at }).eq('id', portal.id).select().single();
+    if (result.error) throw new Error(result.error.message || 'Portal reactivate failed.');
+  }
+  upsertClientPortal(next);
+  await logClientPortalEvent(portal.id, 'portal.restored', {});
+  showToast('Portal reactivated.', state.session?.auth === 'supabase' ? 'live' : 'local', 'Client Portal');
+  render();
+}
+
+async function deleteClientPortal(portalId, confirmName) {
+  const portal = clientPortalById(portalId);
+  if (!portal || !requirePermission('client_portals.manage', portal.company_id, 'Your role cannot delete portals.', 'Client Portal')) return;
+  if (String(confirmName || '').trim() !== portal.title.trim()) {
+    showToast('Name did not match — portal not deleted.', 'local', 'Client Portal');
+    return;
+  }
+  state.modal = '';
+  const client = createSupabaseClient();
+  if (isLiveSupabaseSession() && client) {
+    // Remove stored files first, then the portal (cascades documents/annotations/events).
+    const docs = clientPortalDocumentsForPortal(portal.id).filter((doc) => doc.object_path);
+    if (docs.length) await client.storage.from('quest-client-portal-documents').remove(docs.map((doc) => doc.object_path)).catch(() => null);
+    const result = await client.from('client_portals').delete().eq('id', portal.id);
+    if (result.error) throw new Error(result.error.message || 'Portal delete failed.');
+  }
+  state.clientPortals = state.clientPortals.filter((item) => item.id !== portal.id);
+  state.clientPortalDocuments = state.clientPortalDocuments.filter((item) => item.portal_id !== portal.id);
+  state.clientPortalAnnotations = state.clientPortalAnnotations.filter((item) => item.portal_id !== portal.id);
+  state.clientPortalEvents = state.clientPortalEvents.filter((item) => item.portal_id !== portal.id);
+  state.clientPortalAnnotate = null;
+  persistAll();
+  showToast('Portal deleted.', state.session?.auth === 'supabase' ? 'live' : 'local', 'Client Portal');
+  navigate(companyPath('client-portals', {}, portal.company_id), { replace: true });
 }
 
 async function openClientPortal(form) {
@@ -12601,68 +14379,95 @@ async function ensureClientPortalPublicOpen(token) {
 }
 
 async function openClientPortalToken(token, password = '') {
-  const response = await fetch('/api/client-portal-open', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ token, guest_name: CLIENT_PORTAL_GUEST_NAME, password: password || '' }),
-  });
-  const payload = await response.json().catch(() => ({}));
-  if (!response.ok) {
-    state.clientPortalPublic = {
-      token,
-      error: payload.error || 'Could not open portal.',
-      passwordRequired: payload.password_required === true,
-    };
-    render();
-    return;
+  // Try the serverless backend first (production / `vercel dev`).
+  let payload = null;
+  try {
+    const response = await fetch('/api/client-portal-open', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token, guest_name: CLIENT_PORTAL_GUEST_NAME, password: password || '' }),
+    });
+    payload = await response.json().catch(() => null);
+    if (response.ok && payload?.session) {
+      state.clientPortalPublic = {
+        token,
+        guestName: CLIENT_PORTAL_GUEST_NAME,
+        session: payload.session,
+        portal: payload.portal,
+        documents: payload.documents || [],
+        documentId: payload.documents?.[0]?.id || '',
+        documentUrl: '',
+        annotations: [],
+      };
+      writeJson(CLIENT_PORTAL_SESSION_KEY, state.clientPortalPublic);
+      render();
+      return;
+    }
+    if (payload?.password_required) {
+      state.clientPortalPublic = { token, passwordRequired: true, error: password ? 'Incorrect password.' : '' };
+      render();
+      return;
+    }
+  } catch {
+    // Network/API unavailable — fall through to the local/demo opener below.
   }
+  // Local / demo fallback: resolve the portal straight from local state by token.
+  // (The serverless API is not served under `vite dev`, and demo portals live only
+  // in localStorage, so this is how the guest link is exercised without a backend.)
+  if (await openClientPortalLocally(token, password)) return;
   state.clientPortalPublic = {
     token,
-    guestName: CLIENT_PORTAL_GUEST_NAME,
-    session: payload.session,
-    portal: payload.portal,
-    documents: payload.documents || [],
-    documentId: payload.documents?.[0]?.id || '',
-    documentUrl: '',
-    annotations: [],
+    error: (payload && payload.error) || 'Could not open portal.',
+    passwordRequired: false,
   };
-  writeJson(CLIENT_PORTAL_SESSION_KEY, state.clientPortalPublic);
   render();
 }
 
-async function ensureClientPortalDocumentUrl() {
-  const portal = state.clientPortalPublic;
-  if (!portal?.session || portal.documentUrl) return portal?.documentUrl || '';
-  const documentId = portal.documentId || portal.documents?.[0]?.id || '';
-  if (!documentId) return '';
-  const response = await fetch('/api/client-portal-document-url', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ session: portal.session, document_id: documentId }),
-  });
-  const payload = await response.json().catch(() => ({}));
-  if (!response.ok) throw new Error(payload.error || 'Document unavailable.');
-  state.clientPortalPublic.documentUrl = payload.url;
-  state.clientPortalPublic.documentId = documentId;
-  writeJson(CLIENT_PORTAL_SESSION_KEY, state.clientPortalPublic);
-  return payload.url;
+function clientPortalByToken(token) {
+  if (!token) return null;
+  const cache = readJson(CLIENT_PORTAL_TOKEN_CACHE_KEY, {});
+  const cachedId = Object.keys(cache).find((id) => cache[id] === token);
+  return (cachedId && clientPortalById(cachedId))
+    || state.clientPortals.find((portal) => portal.raw_token && portal.raw_token === token)
+    || null;
 }
 
-async function fetchClientPortalDocumentFile(documentId) {
-  const portal = state.clientPortalPublic;
-  if (!portal?.session || !documentId) throw new Error('Open a document first.');
-  const response = await fetch('/api/client-portal-document-file', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ session: portal.session, document_id: documentId }),
-  });
-  if (!response.ok) {
-    const payload = await response.json().catch(() => ({}));
-    throw new Error(payload.error || 'Document unavailable.');
+async function openClientPortalLocally(token, password = '') {
+  const portal = clientPortalByToken(token);
+  if (!portal || portal.status !== 'active') return false;
+  if (portal.password_hash) {
+    if (!password) { state.clientPortalPublic = { token, passwordRequired: true }; render(); return true; }
+    const hash = await pbkdf2Hex(password, portal.password_salt);
+    if (hash !== portal.password_hash) {
+      state.clientPortalPublic = { token, passwordRequired: true, error: 'Incorrect password.' };
+      render();
+      return true;
+    }
   }
-  return response.blob();
+  const documents = portalDocumentGroups(portal.id).map(currentVersionOf).filter(Boolean);
+  state.clientPortalPublic = {
+    token,
+    local: true,
+    session: `local-${portal.id}`,
+    guestName: CLIENT_PORTAL_GUEST_NAME,
+    portal: {
+      id: portal.id,
+      company_id: portal.company_id,
+      title: portal.title,
+      client_name: portal.client_name,
+      client_email: portal.client_email,
+    },
+    documents,
+    documentId: documents[0]?.id || '',
+    documentUrl: '',
+    annotations: clientPortalAnnotationsForPortal(portal.id),
+  };
+  writeJson(CLIENT_PORTAL_SESSION_KEY, state.clientPortalPublic);
+  render();
+  return true;
 }
 
+// Guest: load the active document's annotations (staff + this guest's) for the open portal.
 async function loadClientPortalAnnotations() {
   const portal = state.clientPortalPublic;
   if (!portal?.session || !portal.documentId) return [];
@@ -12670,212 +14475,1020 @@ async function loadClientPortalAnnotations() {
   const response = await fetch(url);
   const payload = await response.json().catch(() => ({}));
   if (!response.ok) return [];
-  state.clientPortalPublic.annotations = (payload.annotations || []).map(normalizeClientPortalAnnotation);
+  const others = (portal.annotations || []).filter((annotation) => annotation.document_id !== portal.documentId);
+  state.clientPortalPublic.annotations = others.concat((payload.annotations || []).map(normalizeClientPortalAnnotation));
   writeJson(CLIENT_PORTAL_SESSION_KEY, state.clientPortalPublic);
   return state.clientPortalPublic.annotations;
 }
 
-async function saveClientPortalAnnotations() {
+/* ---- Annotate engine (normalized 0..1 coords, SVG overlay + pin layer) ---- */
+const PDFJS_SRC = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
+const PDFJS_WORKER = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+const cpBaseCache = new Map(); // `${docId}:${page}` -> { dataUrl, w, h, pages }
+let cpFrameBound = null; // doc id currently bound, to avoid duplicate handlers
+let cpPointerState = null;
+
+function cpCacheKey(docId, page) {
+  return `${docId}:${page}`;
+}
+
+// Resolve a fetchable URL for a document (guest API signed URL, owner storage
+// signed URL, or a local data URL in demo mode).
+async function cpDocumentSourceUrl(doc) {
+  if (doc.data_url) return doc.data_url;
+  // A true public guest (real signed session) fetches via the serverless API.
+  // The local/dev guest fallback has no API running, so it reads storage with the
+  // authenticated browser client — same path as the owner.
+  const remoteGuest = cpIsGuest() && state.clientPortalPublic?.session && !state.clientPortalPublic?.local;
+  if (remoteGuest) {
+    const portal = state.clientPortalPublic;
+    // Stream the file bytes through the API (same-origin) and hand pdf.js a blob
+    // URL. This avoids fetching a cross-origin Supabase signed URL from the
+    // browser, which fails CORS ("Failed to fetch") on non-primary deployments.
+    const response = await fetch('/api/client-portal-document-file', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ session: portal.session, document_id: doc.id }),
+    });
+    if (!response.ok) {
+      const payload = await response.json().catch(() => ({}));
+      throw new Error(payload.error || 'Document unavailable.');
+    }
+    const blob = await response.blob();
+    return URL.createObjectURL(blob);
+  }
+  const client = createSupabaseClient();
+  if (client && doc.object_path) {
+    const bucket = doc.bucket_id || 'quest-client-portal-documents';
+    const signed = await client.storage.from(bucket).createSignedUrl(doc.object_path, 900);
+    if (!signed.error && signed.data?.signedUrl) return signed.data.signedUrl;
+    // Fallback: download the object directly and serve it as a blob URL.
+    const download = await client.storage.from(bucket).download(doc.object_path);
+    if (!download.error && download.data) return URL.createObjectURL(download.data);
+    throw new Error(signed.error?.message || download.error?.message || 'Document unavailable.');
+  }
+  throw new Error('This plan has no stored file in the current workspace.');
+}
+
+// Rasterize a document page to a cached data URL so zoom/redraw/export are cheap.
+async function cpResolveBase(doc, page) {
+  const key = cpCacheKey(doc.id, page);
+  if (cpBaseCache.has(key)) return cpBaseCache.get(key);
+  const url = await cpDocumentSourceUrl(doc);
+  const isPdf = doc.mime_type?.includes('pdf') || /\.pdf($|\?)/i.test(doc.file_name || '');
+  let result;
+  if (isPdf) {
+    await loadExternalScript(PDFJS_SRC, 'pdfjsLib');
+    window.pdfjsLib.GlobalWorkerOptions.workerSrc = PDFJS_WORKER;
+    const pdf = await window.pdfjsLib.getDocument(url).promise;
+    const pageObj = await pdf.getPage(Math.min(page + 1, pdf.numPages));
+    const unit = pageObj.getViewport({ scale: 1 });
+    const scale = Math.min(4, Math.max(1.5, 2400 / unit.width));
+    const viewport = pageObj.getViewport({ scale });
+    const canvas = document.createElement('canvas');
+    canvas.width = viewport.width;
+    canvas.height = viewport.height;
+    await pageObj.render({ canvasContext: canvas.getContext('2d'), viewport }).promise;
+    result = { dataUrl: canvas.toDataURL('image/jpeg', 0.9), w: viewport.width, h: viewport.height, pages: pdf.numPages };
+  } else {
+    const image = await loadClientPortalImage(url);
+    const w = image.naturalWidth || image.width;
+    const h = image.naturalHeight || image.height;
+    const canvas = document.createElement('canvas');
+    canvas.width = w;
+    canvas.height = h;
+    canvas.getContext('2d').drawImage(image, 0, 0, w, h);
+    result = { dataUrl: canvas.toDataURL('image/jpeg', 0.92), w, h, pages: 1 };
+  }
+  cpBaseCache.set(key, result);
+  // Keep page_count in sync for owner docs.
+  if (!cpIsGuest() && doc.page_count !== result.pages) {
+    const stored = clientPortalDocumentById(doc.id);
+    if (stored) { stored.page_count = result.pages; }
+  }
+  return result;
+}
+
+// Pull the latest annotations for a portal from the DB so the owner and the
+// guest each see the other's markups (there is no realtime channel — sync on open
+// and via the Refresh button).
+async function cpReloadPortalAnnotations(portalId) {
+  const client = createSupabaseClient();
+  if (!isLiveSupabaseSession() || !client || !portalId) return false;
+  const { data, error } = await client.from('client_portal_annotations').select('*').eq('portal_id', portalId);
+  if (error || !data) return false;
+  const fresh = data.map(normalizeClientPortalAnnotation);
+  state.clientPortalAnnotations = state.clientPortalAnnotations.filter((item) => item.portal_id !== portalId).concat(fresh);
+  if (state.clientPortalPublic?.local && state.clientPortalPublic.portal?.id === portalId) {
+    state.clientPortalPublic.annotations = fresh;
+    writeJson(CLIENT_PORTAL_SESSION_KEY, state.clientPortalPublic);
+  }
+  persistClientPortalCaches();
+  return true;
+}
+
+async function mountClientPortalAnnotate() {
+  const annotate = cpA();
+  const frame = document.querySelector('[data-cp-frame]');
+  if (!annotate || !frame) return;
+  // Refresh markups from the DB the first time the annotate view opens.
+  if (!annotate.synced) {
+    annotate.synced = true;
+    const portalId = cpIsGuest() ? state.clientPortalPublic?.portal?.id : annotate.portalId;
+    if ((!cpIsGuest() || state.clientPortalPublic?.local) && await cpReloadPortalAnnotations(portalId)) {
+      render();
+      return;
+    }
+  }
+  const doc = cpActiveDoc();
+  if (!doc) return;
+  if (cpIsGuest()) {
+    state.clientPortalPublic.documentId = doc.id;
+    if (!state.clientPortalPublic.local && !(state.clientPortalPublic.annotations || []).some((item) => item.document_id === doc.id)) {
+      await loadClientPortalAnnotations();
+    }
+  }
+  let base;
+  try {
+    base = await cpResolveBase(doc, annotate.page);
+  } catch (error) {
+    frame.innerHTML = `<div class="cp-loading error">${h(error.message || 'Could not load this plan.')}</div>`;
+    return;
+  }
+  cpRenderFrame(frame, doc, annotate.page, base);
+}
+
+function cpRenderFrame(frame, doc, page, base) {
+  const stage = frame.closest('.cp-stage');
+  frame.dataset.baseW = base.w;
+  frame.dataset.baseH = base.h;
+  const annotations = cpAnnotationsFor(doc, page);
+  frame.innerHTML = `
+    <img class="cp-base" src="${base.dataUrl}" alt="${h(doc.file_name)}" draggable="false" />
+    <svg class="cp-overlay" viewBox="0 0 ${base.w} ${base.h}" preserveAspectRatio="none">${cpAnnotationsSvg(annotations, base)}</svg>
+    <div class="cp-pins">${cpAnnotationsPins(annotations)}</div>
+  `;
+  cpApplyView(frame, stage, base);
+  cpBindFrame(frame, doc);
+}
+
+function cpAnnotationsSvg(annotations, base) {
+  const selectedId = cpA().selectedId;
+  return annotations.map((annotation) => {
+    const payload = annotation.payload || {};
+    const type = annotation.annotation_type;
+    const color = payload.color || '#e66a1f';
+    const sw = Number(payload.sw) || 2.5;
+    const sel = annotation.id === selectedId ? ' cp-shape-sel' : '';
+    const attr = `data-annotation-id="${h(annotation.id)}" class="cp-shape${sel}" style="--cp-c:${h(color)}"`;
+    const W = base.w; const H = base.h;
+    if (type === 'freehand' && Array.isArray(payload.points)) {
+      const d = payload.points.map((pt, i) => `${i ? 'L' : 'M'}${(pt.x * W).toFixed(1)} ${(pt.y * H).toFixed(1)}`).join(' ');
+      return `<path ${attr} d="${d}" fill="none" stroke="${h(color)}" stroke-width="${sw}" vector-effect="non-scaling-stroke" stroke-linecap="round" stroke-linejoin="round"/>`;
+    }
+    if (type === 'line' || type === 'arrow' || type === 'measure') {
+      const x1 = (payload.x1 || 0) * W; const y1 = (payload.y1 || 0) * H;
+      const x2 = (payload.x2 || 0) * W; const y2 = (payload.y2 || 0) * H;
+      let extra = '';
+      if (type === 'arrow') {
+        const ang = Math.atan2(y2 - y1, x2 - x1); const head = 16;
+        extra = `<path d="M${x2} ${y2} L${(x2 - head * Math.cos(ang - Math.PI / 6)).toFixed(1)} ${(y2 - head * Math.sin(ang - Math.PI / 6)).toFixed(1)} M${x2} ${y2} L${(x2 - head * Math.cos(ang + Math.PI / 6)).toFixed(1)} ${(y2 - head * Math.sin(ang + Math.PI / 6)).toFixed(1)}" stroke="${h(color)}" stroke-width="${sw}" vector-effect="non-scaling-stroke" fill="none" stroke-linecap="round"/>`;
+      }
+      if (type === 'measure') {
+        const label = cpMeasureLabel(payload, base);
+        extra = `<text x="${((x1 + x2) / 2).toFixed(0)}" y="${((y1 + y2) / 2 - 6).toFixed(0)}" fill="${h(color)}" font-size="${Math.round(base.w / 90)}" font-weight="700" text-anchor="middle" paint-order="stroke" stroke="#fff" stroke-width="3">${h(label)}</text>`;
+      }
+      return `<line ${attr} x1="${x1.toFixed(1)}" y1="${y1.toFixed(1)}" x2="${x2.toFixed(1)}" y2="${y2.toFixed(1)}" stroke="${h(color)}" stroke-width="${sw}" vector-effect="non-scaling-stroke" stroke-linecap="round"/>${extra}`;
+    }
+    if (type === 'rect' || type === 'highlight') {
+      const x = (payload.x || 0) * W; const y = (payload.y || 0) * H;
+      const w = (payload.w || 0) * W; const hgt = (payload.h || 0) * H;
+      const fill = type === 'highlight' ? `${h(color)}` : 'none';
+      const op = type === 'highlight' ? '0.28' : '1';
+      return `<rect ${attr} x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${Math.abs(w).toFixed(1)}" height="${Math.abs(hgt).toFixed(1)}" fill="${fill}" fill-opacity="${op}" stroke="${h(color)}" stroke-width="${type === 'highlight' ? 0 : sw}" vector-effect="non-scaling-stroke"/>`;
+    }
+    if (type === 'circle') {
+      const x = (payload.x || 0) * W; const y = (payload.y || 0) * H;
+      const w = (payload.w || 0) * W; const hgt = (payload.h || 0) * H;
+      return `<ellipse ${attr} cx="${(x + w / 2).toFixed(1)}" cy="${(y + hgt / 2).toFixed(1)}" rx="${Math.abs(w / 2).toFixed(1)}" ry="${Math.abs(hgt / 2).toFixed(1)}" fill="none" stroke="${h(color)}" stroke-width="${sw}" vector-effect="non-scaling-stroke"/>`;
+    }
+    return '';
+  }).join('');
+}
+
+function cpMeasureLabel(payload, base) {
+  const scale = payload.ftScale || 0;
+  if (!scale) return 'set scale…';
+  const dx = (payload.x2 - payload.x1);
+  const dy = (payload.y2 - payload.y1) * (base.h / base.w);
+  const len = Math.sqrt(dx * dx + dy * dy);
+  const real = len * scale;
+  const unit = payload.unit || 'ft';
+  if (unit === 'in') return `${real.toFixed(real < 10 ? 1 : 0)}"`;
+  if (unit === 'cm') return `${real.toFixed(real < 10 ? 1 : 0)} cm`;
+  const ft = Math.floor(real);
+  const inches = Math.round((real - ft) * 12);
+  return inches ? `${ft}' ${inches}"` : `${ft}'`;
+}
+
+function cpAnnotationsPins(annotations) {
+  const selectedId = cpA().selectedId;
+  let commentIndex = 0;
+  return annotations.map((annotation) => {
+    const payload = annotation.payload || {};
+    const type = annotation.annotation_type;
+    if (type !== 'comment' && type !== 'label' && type !== 'marker') return '';
+    const color = payload.color || '#e66a1f';
+    const left = `${((payload.x || 0) * 100).toFixed(2)}%`;
+    const top = `${((payload.y || 0) * 100).toFixed(2)}%`;
+    const sel = annotation.id === selectedId ? ' sel' : '';
+    const common = `data-cp-pin data-annotation-id="${h(annotation.id)}" style="left:${left};top:${top};--cp-c:${h(color)}"`;
+    if (type === 'comment') {
+      commentIndex += 1;
+      return `<button class="cp-pin${sel}" ${common} title="Comment"><span class="cp-pin-bub">${commentIndex}</span></button>`;
+    }
+    if (type === 'label') {
+      return `<button class="cp-label-tag${sel}" ${common}>${h(payload.text || 'Note')}</button>`;
+    }
+    const meta = CP_STATUS_META[payload.markerStatus];
+    const markerLabel = meta ? meta.label : (payload.text || 'Mark');
+    const markerIcon = meta ? meta.icon : 'ti-flag';
+    return `<button class="cp-marker-tag${sel} ${h(meta ? payload.markerStatus : 'custom')}" ${common}><i class="ti ${markerIcon}"></i>${h(markerLabel)}</button>`;
+  }).join('');
+}
+
+// Pointer position normalized to 0..1 within the frame.
+function cpNormPoint(frame, event) {
+  const rect = frame.getBoundingClientRect();
+  const src = event.touches?.[0] || event.changedTouches?.[0] || event;
+  return {
+    x: Math.min(1, Math.max(0, (src.clientX - rect.left) / rect.width)),
+    y: Math.min(1, Math.max(0, (src.clientY - rect.top) / rect.height)),
+  };
+}
+
+function cpBindFrame(frame, doc) {
+  const stage = frame.closest('.cp-stage');
+  frame.onpointerdown = (event) => cpPointerDown(event, frame, doc, stage);
+  frame.onpointermove = (event) => cpPointerMove(event, frame, doc);
+  frame.onpointerup = (event) => cpPointerUp(event, frame, doc);
+  // Wheel zooms the plan toward the cursor (Google-Maps style), and stops the
+  // browser from scrolling/zooming the page behind it.
+  if (stage) {
+    stage.onwheel = (event) => {
+      event.preventDefault();
+      cpZoomAt(event.deltaY < 0 ? 1.12 : 1 / 1.12, event.clientX, event.clientY);
+    };
+  }
+  cpBindKeyPan();
+  cpFrameBound = doc.id;
+}
+
+// Cached base for the currently open document/page.
+function cpCurrentBase() {
+  const doc = cpActiveDoc();
+  return doc ? cpBaseCache.get(cpCacheKey(doc.id, cpA().page)) : null;
+}
+
+// Unzoomed on-screen width (px) that lets the whole sheet fit inside the stage
+// viewport. Everything else (zoom, pan) is layered on top of this via transform.
+function cpFitWidth(stage, base) {
+  const availW = Math.max(200, (stage?.clientWidth || 900) - 32);
+  const availH = Math.max(200, (stage?.clientHeight || 600) - 32);
+  const scale = Math.min(availW / base.w, availH / base.h, 2);
+  return base.w * scale;
+}
+
+// Keep at least a sliver of the plan on-screen so it can never be lost off-canvas.
+function cpClampPan(annotate, stage, dispW, dispH) {
+  const margin = Math.min(140, dispW * 0.5, dispH * 0.5);
+  annotate.panX = Math.min(stage.clientWidth - margin, Math.max(margin - dispW, annotate.panX));
+  annotate.panY = Math.min(stage.clientHeight - margin, Math.max(margin - dispH, annotate.panY));
+}
+
+// Apply the current zoom + pan to the frame via a single CSS transform. The frame
+// keeps its unzoomed fit-width; scale + translate handle the rest, so annotation
+// coordinate math (which reads getBoundingClientRect) stays correct.
+function cpApplyView(frame, stage, base) {
+  const annotate = cpA();
+  if (!frame || !stage || !base || !annotate) return;
+  const fitW = cpFitWidth(stage, base);
+  frame.style.width = `${Math.round(fitW)}px`;
+  const dispW = fitW * annotate.zoom;
+  const dispH = dispW * (base.h / base.w);
+  if (annotate.panX == null || annotate.panY == null) {
+    annotate.panX = (stage.clientWidth - dispW) / 2;
+    annotate.panY = (stage.clientHeight - dispH) / 2;
+  }
+  cpClampPan(annotate, stage, dispW, dispH);
+  frame.style.transform = `translate(${annotate.panX.toFixed(1)}px, ${annotate.panY.toFixed(1)}px) scale(${annotate.zoom})`;
+  const label = document.querySelector('[data-cp-zoom-label]');
+  if (label) label.textContent = `${Math.round(annotate.zoom * 100)}%`;
+}
+
+// Zoom by a factor, keeping the point under the cursor (or stage centre) fixed.
+function cpZoomAt(factor, clientX, clientY) {
+  const annotate = cpA();
+  const frame = document.querySelector('[data-cp-frame]');
+  const stage = frame?.closest('.cp-stage');
+  const base = cpCurrentBase();
+  if (!annotate || !frame || !stage || !base) return;
+  const prev = annotate.zoom;
+  const next = Math.min(8, Math.max(0.25, prev * factor));
+  if (next === prev) return;
+  const stageRect = stage.getBoundingClientRect();
+  const cx = (clientX == null ? stageRect.left + stage.clientWidth / 2 : clientX) - stageRect.left;
+  const cy = (clientY == null ? stageRect.top + stage.clientHeight / 2 : clientY) - stageRect.top;
+  // Content point under the cursor, in pre-zoom frame pixels, held fixed on screen.
+  const fx = (cx - (annotate.panX ?? 0)) / prev;
+  const fy = (cy - (annotate.panY ?? 0)) / prev;
+  annotate.zoom = next;
+  annotate.panX = cx - fx * next;
+  annotate.panY = cy - fy * next;
+  cpApplyView(frame, stage, base);
+}
+
+// Grab-cursor affordance: holding Ctrl/⌘ turns any tool into a pan handle.
+let cpKeyPanBound = false;
+function cpBindKeyPan() {
+  if (cpKeyPanBound) return;
+  cpKeyPanBound = true;
+  const toggle = (on) => {
+    const stage = document.querySelector('.cp-annotate .cp-stage');
+    if (stage) stage.classList.toggle('cp-pan-ready', on);
+  };
+  window.addEventListener('keydown', (event) => { if (event.key === 'Control' || event.key === 'Meta') toggle(true); });
+  window.addEventListener('keyup', (event) => { if (event.key === 'Control' || event.key === 'Meta') toggle(false); });
+  window.addEventListener('blur', () => toggle(false));
+}
+
+function cpPointerDown(event, frame, doc, stage) {
+  const annotate = cpA();
+  const pinEl = event.target.closest('[data-cp-pin]');
+  const capture = () => { try { frame.setPointerCapture(event.pointerId); } catch { /* ignore */ } };
+  const startPan = () => {
+    annotate.selectedId = null;
+    cpPointerState = { mode: 'pan', x: event.clientX, y: event.clientY, px: annotate.panX ?? 0, py: annotate.panY ?? 0 };
+    stage?.classList.add('cp-grabbing');
+    capture();
+  };
+  // Ctrl/⌘ held: every tool becomes a pan handle, so Ctrl+drag always moves the
+  // plan (like grabbing a Google Map) without drawing anything.
+  if (event.ctrlKey || event.metaKey) {
+    event.preventDefault();
+    startPan();
+    return;
+  }
+  // Select / drag pins, or select shapes
+  if (annotate.tool === 'select') {
+    const shapeEl = event.target.closest('[data-annotation-id]');
+    if (pinEl) {
+      annotate.selectedId = pinEl.dataset.annotationId;
+      cpPointerState = { mode: 'drag-pin', id: pinEl.dataset.annotationId };
+      capture();
+      event.preventDefault();
+      return;
+    }
+    if (shapeEl) {
+      annotate.selectedId = shapeEl.dataset.annotationId;
+      render();
+      return;
+    }
+    // pan via drag on empty canvas
+    startPan();
+    return;
+  }
+  // Drawing tools
+  event.preventDefault();
+  const point = cpNormPoint(frame, event);
+  // Pin-style tools open a modal at the clicked point instead of drawing.
+  if (annotate.tool === 'comment' || annotate.tool === 'label' || annotate.tool === 'marker') {
+    annotate.placement = { type: annotate.tool, x: point.x, y: point.y, color: annotate.color };
+    render();
+    return;
+  }
+  capture();
+  if (annotate.tool === 'freehand') {
+    cpPointerState = { mode: 'draw', tool: 'freehand', points: [point] };
+    return;
+  }
+  cpPointerState = { mode: 'draw', tool: annotate.tool, start: point, current: point };
+}
+
+function cpPointerMove(event, frame, doc) {
+  const ps = cpPointerState;
+  if (!ps) return;
+  if (ps.mode === 'pan') {
+    const annotate = cpA();
+    const stage = frame.closest('.cp-stage');
+    annotate.panX = ps.px + (event.clientX - ps.x);
+    annotate.panY = ps.py + (event.clientY - ps.y);
+    cpApplyView(frame, stage, cpCurrentBase());
+    return;
+  }
+  if (ps.mode === 'drag-pin') {
+    const point = cpNormPoint(frame, event);
+    const pin = frame.querySelector(`[data-cp-pin][data-annotation-id="${ps.id}"]`);
+    if (pin) { pin.style.left = `${(point.x * 100).toFixed(2)}%`; pin.style.top = `${(point.y * 100).toFixed(2)}%`; }
+    ps.point = point;
+    return;
+  }
+  if (ps.mode === 'draw') {
+    event.preventDefault();
+    const point = cpNormPoint(frame, event);
+    if (ps.tool === 'freehand') ps.points.push(point);
+    else ps.current = point;
+    cpDrawPreview(frame, ps);
+  }
+}
+
+async function cpPointerUp(event, frame, doc) {
+  const ps = cpPointerState;
+  cpPointerState = null;
+  if (!ps) return;
+  if (ps.mode === 'pan') {
+    frame.closest('.cp-stage')?.classList.remove('cp-grabbing');
+    return;
+  }
+  if (ps.mode === 'drag-pin') {
+    if (ps.point) {
+      const annotation = cpFindAnnotation(ps.id);
+      if (annotation) {
+        annotation.payload = { ...annotation.payload, x: ps.point.x, y: ps.point.y };
+        await cpSaveAnnotation(annotation);
+      }
+    }
+    render();
+    return;
+  }
+  if (ps.mode === 'draw') {
+    const annotate = cpA();
+    const frameEl = frame.querySelector('.cp-measure-live');
+    if (frameEl) frameEl.remove();
+    let payload = { type: ps.tool, color: annotate.color, sw: annotate.stroke };
+    if (ps.tool === 'freehand') {
+      if (ps.points.length < 2) { render(); return; }
+      payload.points = ps.points;
+    } else {
+      const a = ps.start; const b = ps.current || ps.start;
+      if (Math.abs(a.x - b.x) < 0.004 && Math.abs(a.y - b.y) < 0.004) { render(); return; }
+      if (ps.tool === 'line' || ps.tool === 'arrow' || ps.tool === 'measure') {
+        payload = { ...payload, x1: a.x, y1: a.y, x2: b.x, y2: b.y };
+        if (ps.tool === 'measure') {
+          // Place the line immediately; calibrate via a clean modal on first use.
+          const scale = doc.scale || cpProjectScale();
+          payload.ftScale = scale || 0;
+          payload.unit = doc.scale_unit || cpProjectUnit();
+          const annotation = cpNewAnnotation(doc, 'measure', payload);
+          await cpSaveAnnotation(annotation, true);
+          await logClientPortalEvent(annotation.portal_id, 'annotation.added', { document_id: doc.id, type: 'measure' });
+          cpA().selectedId = annotation.id;
+          if (!scale) {
+            cpA().placement = {
+              type: 'measure',
+              annotationId: annotation.id,
+              baseW: Number(frame.dataset.baseW),
+              baseH: Number(frame.dataset.baseH),
+              x1: a.x, y1: a.y, x2: b.x, y2: b.y,
+            };
+          }
+          render();
+          return;
+        }
+      } else {
+        payload = { ...payload, x: Math.min(a.x, b.x), y: Math.min(a.y, b.y), w: Math.abs(b.x - a.x), h: Math.abs(b.y - a.y) };
+      }
+    }
+    await cpCreateAnnotation(doc, ps.tool, payload);
+  }
+}
+
+function cpDrawPreview(frame, ps) {
+  const overlay = frame.querySelector('.cp-overlay');
+  if (!overlay) return;
+  const W = Number(frame.dataset.baseW || 1000); const H = Number(frame.dataset.baseH || 1000);
+  const color = cpA().color;
+  const sw = String(cpA().stroke || 2.5);
+  let node = overlay.querySelector('.cp-preview');
+  const ns = 'http://www.w3.org/2000/svg';
+  if (ps.tool === 'freehand') {
+    if (!node) { node = document.createElementNS(ns, 'path'); node.setAttribute('class', 'cp-preview'); node.setAttribute('fill', 'none'); node.setAttribute('stroke', color); node.setAttribute('stroke-width', sw); node.setAttribute('vector-effect', 'non-scaling-stroke'); overlay.appendChild(node); }
+    node.setAttribute('d', ps.points.map((pt, i) => `${i ? 'L' : 'M'}${(pt.x * W).toFixed(1)} ${(pt.y * H).toFixed(1)}`).join(' '));
+    return;
+  }
+  if (node) node.remove();
+  const a = ps.start; const b = ps.current || ps.start;
+  if (ps.tool === 'rect' || ps.tool === 'highlight' || ps.tool === 'circle') {
+    const tag = ps.tool === 'circle' ? 'ellipse' : 'rect';
+    node = document.createElementNS(ns, tag); node.setAttribute('class', 'cp-preview');
+    const x = Math.min(a.x, b.x) * W; const y = Math.min(a.y, b.y) * H; const w = Math.abs(b.x - a.x) * W; const hh = Math.abs(b.y - a.y) * H;
+    if (tag === 'ellipse') { node.setAttribute('cx', x + w / 2); node.setAttribute('cy', y + hh / 2); node.setAttribute('rx', w / 2); node.setAttribute('ry', hh / 2); }
+    else { node.setAttribute('x', x); node.setAttribute('y', y); node.setAttribute('width', w); node.setAttribute('height', hh); }
+    node.setAttribute('fill', ps.tool === 'highlight' ? color : 'none'); node.setAttribute('fill-opacity', ps.tool === 'highlight' ? '0.28' : '1');
+    node.setAttribute('stroke', color); node.setAttribute('stroke-width', ps.tool === 'highlight' ? '0' : sw); node.setAttribute('vector-effect', 'non-scaling-stroke');
+  } else {
+    node = document.createElementNS(ns, 'line'); node.setAttribute('class', 'cp-preview');
+    node.setAttribute('x1', a.x * W); node.setAttribute('y1', a.y * H); node.setAttribute('x2', b.x * W); node.setAttribute('y2', b.y * H);
+    node.setAttribute('stroke', color); node.setAttribute('stroke-width', sw); node.setAttribute('vector-effect', 'non-scaling-stroke'); node.setAttribute('stroke-linecap', 'round');
+  }
+  overlay.appendChild(node);
+  // Live measurement readout while dragging the ruler.
+  if (ps.tool === 'measure') cpUpdateMeasureLive(frame, a, b, W, H);
+}
+
+// Floating "live" readout that follows the cursor while the ruler is dragged.
+function cpUpdateMeasureLive(frame, a, b, W, H) {
+  let chip = frame.querySelector('.cp-measure-live');
+  if (!chip) {
+    chip = document.createElement('div');
+    chip.className = 'cp-measure-live';
+    frame.appendChild(chip);
+  }
+  const doc = cpActiveDoc();
+  const scale = (doc && doc.scale) || cpProjectScale();
+  const unit = (doc && doc.scale_unit) || cpProjectUnit();
+  const label = cpMeasureLabel({ x1: a.x, y1: a.y, x2: b.x, y2: b.y, ftScale: scale, unit }, { w: W, h: H });
+  chip.textContent = scale ? label : 'set scale on release';
+  chip.style.left = `${(b.x * 100).toFixed(2)}%`;
+  chip.style.top = `${(b.y * 100).toFixed(2)}%`;
+}
+
+function cpFindAnnotation(id) {
+  if (cpIsGuest()) return (state.clientPortalPublic?.annotations || []).find((item) => item.id === id) || null;
+  return state.clientPortalAnnotations.find((item) => item.id === id) || null;
+}
+
+function cpNewAnnotation(doc, type, payload) {
+  const annotate = cpA();
+  const portal = cpIsGuest() ? state.clientPortalPublic.portal : clientPortalById(annotate.portalId);
+  return normalizeClientPortalAnnotation({
+    id: crypto.randomUUID(),
+    company_id: portal?.company_id || activeCompanyId(),
+    portal_id: portal?.id || annotate.portalId,
+    document_id: doc.id,
+    page_number: annotate.page + 1,
+    guest_name: cpIsGuest() ? (state.clientPortalPublic.guestName || 'Client') : '',
+    author_profile_id: cpIsGuest() ? '' : (activeSession()?.profile?.id || ''),
+    annotation_type: type,
+    payload: { ...payload, type, author: cpActorId() },
+  });
+}
+
+async function cpCreateAnnotation(doc, type, payload) {
+  const annotation = cpNewAnnotation(doc, type, payload);
+  await cpSaveAnnotation(annotation, true);
+  await logClientPortalEvent(annotation.portal_id, 'annotation.added', { document_id: doc.id, type });
+  cpA().selectedId = annotation.id;
+  render();
+}
+
+// Persist a new/updated annotation through the right adapter.
+async function cpSaveAnnotation(annotation, isNew = false) {
+  if (cpIsGuest()) {
+    const list = state.clientPortalPublic.annotations || [];
+    state.clientPortalPublic.annotations = list.filter((item) => item.id !== annotation.id).concat([annotation]);
+    writeJson(CLIENT_PORTAL_SESSION_KEY, state.clientPortalPublic);
+    await cpGuestPersist(annotation);
+  } else {
+    await persistClientPortalAnnotation(annotation);
+  }
+}
+
+async function cpGuestPersist(annotation) {
   const portal = state.clientPortalPublic;
-  if (!portal?.session || !portal.documentId) throw new Error('Open a document first.');
-  const annotations = (portal.annotations || []).filter((annotation) => annotation.document_id === portal.documentId);
-  const response = await fetch('/api/client-portal-annotations', {
+  if (!portal?.session) return;
+  if (portal.local) {
+    // Same-browser dev guest: write to the DB via the authenticated client so the
+    // owner / main portal sees the markup. Without a backend, mirror to localStorage.
+    upsertClientPortalAnnotationLocal(annotation);
+    const client = createSupabaseClient();
+    if (isLiveSupabaseSession() && client) {
+      const { error } = await client.from('client_portal_annotations').upsert(clientPortalAnnotationPayload(annotation));
+      if (error) showToast(error.message || 'Markup sync failed.', 'local', 'Client Portal');
+    } else {
+      persistClientPortalCaches();
+    }
+    return;
+  }
+  await fetch('/api/client-portal-annotations', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ session: portal.session, document_id: portal.documentId, annotations }),
-  });
-  const payload = await response.json().catch(() => ({}));
-  if (!response.ok) throw new Error(payload.error || 'Markup save failed.');
-  showToast('Markups saved.', 'live', 'Client Portal');
+    body: JSON.stringify({ session: portal.session, document_id: annotation.document_id, annotation }),
+  }).catch(() => null);
 }
 
-async function mountClientPortalViewer() {
-  const portal = state.clientPortalPublic;
-  const base = document.getElementById('client-portal-doc-canvas');
-  const overlay = document.getElementById('client-portal-draw-canvas');
-  if (!portal?.session || !base || !overlay) return;
-  const doc = (portal.documents || []).find((item) => item.id === portal.documentId) || portal.documents?.[0];
+async function cpDeleteAnnotation(id) {
+  const annotation = cpFindAnnotation(id);
+  if (!annotation) return;
+  if (cpIsGuest()) {
+    state.clientPortalPublic.annotations = (state.clientPortalPublic.annotations || []).filter((item) => item.id !== id);
+    writeJson(CLIENT_PORTAL_SESSION_KEY, state.clientPortalPublic);
+    const portal = state.clientPortalPublic;
+    if (portal.local) {
+      state.clientPortalAnnotations = state.clientPortalAnnotations.filter((item) => item.id !== id);
+      const client = createSupabaseClient();
+      if (isLiveSupabaseSession() && client) {
+        await client.from('client_portal_annotations').delete().eq('id', id);
+      } else {
+        persistClientPortalCaches();
+      }
+    } else {
+      await fetch('/api/client-portal-annotations', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ session: portal.session, action: 'delete', annotation_id: id }),
+      }).catch(() => null);
+    }
+  } else {
+    await deleteClientPortalAnnotationRow(id);
+  }
+  if (cpA().selectedId === id) cpA().selectedId = null;
+  render();
+}
+
+async function cpAddThreadReply(id, text) {
+  const annotation = cpFindAnnotation(id);
+  if (!annotation || !text.trim()) return;
+  const message = { id: crypto.randomUUID(), author: cpActorId(), author_name: cpActorName(cpActorId()), text: text.trim(), at: new Date().toISOString() };
+  annotation.payload = { ...annotation.payload, thread: [...(annotation.payload.thread || []), message] };
+  await cpSaveAnnotation(annotation);
+  render();
+}
+
+// ---- Placement modals (comment / label / status stamp) ----------------------
+function cpClosePlacement() {
+  const placement = cpA()?.placement;
+  if (cpA()) cpA().placement = null;
+  // Cancelling calibration removes the uncalibrated line that was just drawn.
+  if (placement?.type === 'measure' && placement.annotationId) {
+    cpDeleteAnnotation(placement.annotationId).catch(() => null);
+    return;
+  }
+  render();
+}
+
+async function cpCommitComment(text) {
+  const placement = cpA()?.placement;
+  const doc = cpActiveDoc();
+  if (!placement || !doc) return;
+  const annotation = cpNewAnnotation(doc, 'comment', { x: placement.x, y: placement.y, color: cpA().color });
+  if (text && text.trim()) {
+    annotation.payload.thread = [{ id: crypto.randomUUID(), author: cpActorId(), author_name: cpActorName(cpActorId()), text: text.trim(), at: new Date().toISOString() }];
+  }
+  cpA().placement = null;
+  await cpSaveAnnotation(annotation, true);
+  await logClientPortalEvent(annotation.portal_id, 'annotation.added', { document_id: doc.id, type: 'comment' });
+  cpA().selectedId = annotation.id;
+  render();
+}
+
+async function cpCommitLabel(text, color) {
+  const placement = cpA()?.placement;
+  const doc = cpActiveDoc();
+  if (!placement || !doc || !text || !text.trim()) return;
+  cpA().placement = null;
+  await cpCreateAnnotation(doc, 'label', { x: placement.x, y: placement.y, text: text.trim(), color: color || placement.color || cpA().color });
+}
+
+async function cpCommitMarker(status, customText) {
+  const placement = cpA()?.placement;
+  const doc = cpActiveDoc();
+  if (!placement || !doc) return;
+  cpA().placement = null;
+  const payload = { x: placement.x, y: placement.y, color: CP_PALETTE[0] };
+  if (status === 'custom') {
+    if (!customText || !customText.trim()) { render(); return; }
+    payload.markerStatus = 'custom';
+    payload.text = customText.trim();
+  } else {
+    if (!CP_STATUS_META[status]) { render(); return; }
+    payload.markerStatus = status;
+  }
+  await cpCreateAnnotation(doc, 'marker', payload);
+}
+
+// Modal shown when placing a pin-style annotation (comment / label / marker)
+// or calibrating the ruler.
+function renderClientPortalPlacementModal(placement) {
+  if (placement.type === 'measure') {
+    return `
+      <div class="cp-modal-backdrop" data-action="cp-placement-cancel">
+        <form class="cp-modal" data-cp-scale-form>
+          <div class="cp-modal-head"><span class="cp-modal-ico measure"><i class="ti ti-ruler-measure"></i></span><h3>Calibrate ruler scale</h3></div>
+          <div class="cp-modal-body">
+            <p class="cp-modal-text">This is the first measurement on this drawing. Enter the <strong>real-world length</strong> of the line you just drew — it sets the default scale for all future measurements on this plan.</p>
+            <label class="cp-modal-label">Actual length of this line</label>
+            <div class="cp-scale-input">
+              <input name="cp_length" placeholder="e.g. 24 &middot; 24'6&quot; &middot; 18.5" autocomplete="off" autofocus />
+              <select name="cp_unit" aria-label="Measurement unit">
+                ${[['ft', 'Feet (ft)'], ['in', 'Inches (in)'], ['cm', 'Centimeters (cm)']].map(([value, label]) => `<option value="${value}" ${cpProjectUnit() === value ? 'selected' : ''}>${label}</option>`).join('')}
+              </select>
+            </div>
+          </div>
+          <div class="cp-modal-foot">
+            <button class="btn" type="button" data-action="cp-placement-cancel">Cancel</button>
+            <button class="btn btn-primary" type="submit"><i class="ti ti-check"></i>Set scale</button>
+          </div>
+        </form>
+      </div>`;
+  }
+  if (placement.type === 'comment') {
+    return `
+      <div class="cp-modal-backdrop" data-action="cp-placement-cancel">
+        <form class="cp-modal" data-cp-comment-form>
+          <div class="cp-modal-head"><span class="cp-modal-ico comment"><i class="ti ti-pin"></i></span><h3>New comment</h3></div>
+          <div class="cp-modal-body">
+            <label class="cp-modal-label">Comment on this point</label>
+            <textarea name="text" rows="3" placeholder="e.g. Please confirm the window dimensions here…" autofocus></textarea>
+          </div>
+          <div class="cp-modal-foot">
+            <button class="btn" type="button" data-action="cp-placement-cancel">Cancel</button>
+            <button class="btn btn-primary" type="submit"><i class="ti ti-plus"></i>Add comment</button>
+          </div>
+        </form>
+      </div>`;
+  }
+  if (placement.type === 'label') {
+    return `
+      <div class="cp-modal-backdrop" data-action="cp-placement-cancel">
+        <form class="cp-modal" data-cp-label-form>
+          <div class="cp-modal-head"><span class="cp-modal-ico label"><i class="ti ti-tag"></i></span><h3>Add label / note</h3></div>
+          <div class="cp-modal-body">
+            <label class="cp-modal-label">Label text</label>
+            <input name="text" list="cp-label-presets" placeholder="e.g. Kitchen Revision" autocomplete="off" autofocus />
+            <datalist id="cp-label-presets">${CP_LABEL_PRESETS.map((preset) => `<option value="${h(preset)}"></option>`).join('')}</datalist>
+            <div class="cp-modal-sub">Quick picks</div>
+            <div class="cp-preset-row">
+              ${CP_LABEL_PRESETS.map((preset) => `<button class="cp-preset" type="button" data-action="cp-label-preset" data-text="${h(preset)}">${h(preset)}</button>`).join('')}
+            </div>
+            <div class="cp-modal-sub">Color</div>
+            <div class="cp-preset-colors">
+              ${CP_PALETTE.map((color) => `<button class="cp-cdot ${placement.color === color ? 'active' : ''}" type="button" data-action="cp-placement-color" data-color="${h(color)}" style="background:${h(color)}"></button>`).join('')}
+            </div>
+          </div>
+          <div class="cp-modal-foot">
+            <button class="btn" type="button" data-action="cp-placement-cancel">Cancel</button>
+            <button class="btn btn-primary" type="submit"><i class="ti ti-plus"></i>Place label</button>
+          </div>
+        </form>
+      </div>`;
+  }
+  // marker / status stamp
+  return `
+    <div class="cp-modal-backdrop" data-action="cp-placement-cancel">
+      <div class="cp-modal">
+        <div class="cp-modal-head"><span class="cp-modal-ico marker"><i class="ti ti-rosette-discount-check"></i></span><h3>Place status stamp</h3></div>
+        <div class="cp-modal-body">
+          <div class="cp-modal-label">Mark this section as</div>
+          <div class="cp-stamp-grid">
+            ${Object.entries(CP_STATUS_META).map(([key, meta]) => `
+              <button class="cp-stamp-opt ${h(key)}" type="button" data-action="cp-place-marker" data-status="${h(key)}"><i class="ti ${meta.icon}"></i>${h(meta.label)}</button>
+            `).join('')}
+          </div>
+          <form class="cp-stamp-custom" data-cp-marker-custom-form>
+            <input name="text" placeholder="…or type a custom mark" autocomplete="off" />
+            <button class="btn" type="submit"><i class="ti ti-plus"></i>Custom</button>
+          </form>
+        </div>
+        <div class="cp-modal-foot">
+          <button class="btn" type="button" data-action="cp-placement-cancel">Cancel</button>
+        </div>
+      </div>
+    </div>`;
+}
+
+// All documents in the active annotate context (owner: portal; guest: session).
+function cpAllDocs() {
+  if (cpIsGuest()) return state.clientPortalPublic?.documents || [];
+  return clientPortalDocumentsForPortal(cpA()?.portalId);
+}
+
+// The project-wide default scale: the first calibrated document's scale becomes
+// the global default that every other plan references.
+function cpProjectScale() {
+  const calibrated = cpAllDocs().find((item) => item.scale);
+  return calibrated ? calibrated.scale : null;
+}
+
+function cpProjectUnit() {
+  const calibrated = cpAllDocs().find((item) => item.scale);
+  if (calibrated && calibrated.scale_unit) return calibrated.scale_unit;
+  return cpA()?.unit || 'ft';
+}
+
+// Switch the project measurement unit, converting any existing calibrated scale
+// and measurements so they keep the same physical length.
+const CP_FEET_PER_UNIT = { ft: 1, in: 1 / 12, cm: 1 / 30.48 };
+async function cpChangeUnit(newUnit) {
+  const annotate = cpA();
+  if (!annotate || !CP_FEET_PER_UNIT[newUnit]) return;
+  annotate.unit = newUnit;
+  const calibrated = cpAllDocs().find((item) => item.scale);
+  const current = calibrated?.scale_unit || 'ft';
+  if (!calibrated || current === newUnit) { render(); return; }
+  const conv = CP_FEET_PER_UNIT[current] / CP_FEET_PER_UNIT[newUnit];
+  for (const doc of cpAllDocs()) {
+    if (doc.scale) await cpApplyScaleToDoc(doc, doc.scale * conv, newUnit);
+  }
+  const list = cpIsGuest() ? (state.clientPortalPublic.annotations || []) : state.clientPortalAnnotations;
+  const measures = list.filter((item) => item.annotation_type === 'measure' && item.payload?.ftScale
+    && (cpIsGuest() || item.portal_id === annotate.portalId));
+  for (const annotation of measures) {
+    annotation.payload = { ...annotation.payload, ftScale: annotation.payload.ftScale * conv, unit: newUnit };
+    await cpSaveAnnotation(annotation);
+  }
+  render();
+}
+
+// Persist a scale (and its unit) onto a document through the right adapter.
+async function cpApplyScaleToDoc(doc, scale, unit) {
+  doc.scale = scale;
+  if (unit) doc.scale_unit = unit;
+  if (cpIsGuest()) {
+    const target = (state.clientPortalPublic.documents || []).find((item) => item.id === doc.id);
+    if (target) { target.scale = scale; if (unit) target.scale_unit = unit; }
+    writeJson(CLIENT_PORTAL_SESSION_KEY, state.clientPortalPublic);
+    if (state.clientPortalPublic.local) {
+      const owned = clientPortalDocumentById(doc.id);
+      if (owned) { owned.scale = scale; if (unit) owned.scale_unit = unit; }
+      persistClientPortalCaches();
+    }
+  } else {
+    await persistClientPortalDocument(doc);
+  }
+}
+
+// Clear the calibrated scale across the whole project so the next ruler line
+// re-establishes a new global default.
+function cpClearProjectScale() {
+  cpAllDocs().forEach((doc) => {
+    if (!doc.scale) return;
+    doc.scale = null;
+    if (cpIsGuest()) {
+      if (state.clientPortalPublic.local) {
+        const owned = clientPortalDocumentById(doc.id);
+        if (owned) owned.scale = null;
+      }
+    } else {
+      persistClientPortalDocument(doc).catch(() => null);
+    }
+  });
+  if (cpIsGuest()) {
+    writeJson(CLIENT_PORTAL_SESSION_KEY, state.clientPortalPublic);
+    if (state.clientPortalPublic.local) persistClientPortalCaches();
+  }
+}
+
+// Parse a real-world length into the chosen unit's numeric value.
+// ft also accepts feet-inches ("24'6\"") and inch input ("6in"/"6\"").
+function cpParseLength(raw, unit = 'ft') {
+  const value = String(raw || '').trim().toLowerCase();
+  if (!value) return 0;
+  if (unit === 'ft') {
+    const feetInches = value.match(/^(\d+(?:\.\d+)?)\s*'\s*(\d+(?:\.\d+)?)?\s*"?$/);
+    if (feetInches) return parseFloat(feetInches[1]) + (feetInches[2] ? parseFloat(feetInches[2]) / 12 : 0);
+    const inchesOnly = value.match(/^(\d+(?:\.\d+)?)\s*(?:in|")$/);
+    if (inchesOnly) return parseFloat(inchesOnly[1]) / 12;
+  }
+  const number = value.match(/(\d+(?:\.\d+)?)/);
+  return number ? parseFloat(number[1]) : 0;
+}
+
+// Commit the calibration modal: derive the project scale (in the chosen unit)
+// from the line that was just drawn.
+async function cpCommitScale(text, unit = 'ft') {
+  const placement = cpA()?.placement;
+  if (!placement || placement.type !== 'measure') return;
+  const cleanUnit = ['ft', 'in', 'cm'].includes(unit) ? unit : 'ft';
+  const real = cpParseLength(text, cleanUnit);
+  const dx = placement.x2 - placement.x1;
+  const dy = (placement.y2 - placement.y1) * (placement.baseH / placement.baseW);
+  const len = Math.sqrt(dx * dx + dy * dy);
+  if (!real || !len) {
+    showToast(cleanUnit === 'ft' ? 'Enter a length like 24, 24ft, or 24\'6".' : 'Enter a number like 18.5.', 'local', 'Client Portal');
+    return;
+  }
+  const scale = real / len;
+  const doc = cpActiveDoc();
+  cpA().placement = null;
+  if (doc) await cpApplyScaleToDoc(doc, scale, cleanUnit);
+  const annotation = cpFindAnnotation(placement.annotationId);
+  if (annotation) {
+    annotation.payload = { ...annotation.payload, ftScale: scale, unit: cleanUnit };
+    await cpSaveAnnotation(annotation);
+  }
+  render();
+}
+
+async function cpSetDocStatus(status) {
+  const doc = cpActiveDoc();
+  if (!doc || !CP_STATUS_META[status]) return;
+  doc.review_status = status;
+  if (cpIsGuest()) {
+    const portal = state.clientPortalPublic;
+    const target = (portal.documents || []).find((item) => item.id === doc.id);
+    if (target) target.review_status = status;
+    writeJson(CLIENT_PORTAL_SESSION_KEY, portal);
+    if (portal.local) {
+      const owned = clientPortalDocumentById(doc.id);
+      if (owned) { owned.review_status = status; }
+      const client = createSupabaseClient();
+      if (isLiveSupabaseSession() && client) {
+        await client.from('client_portal_documents').update({ review_status: status }).eq('id', doc.id);
+        await logClientPortalEvent(portal.portal?.id || cpA()?.portalId, 'document.status', { document_id: doc.id, review_status: status });
+      } else {
+        persistClientPortalCaches();
+      }
+    } else {
+      await fetch('/api/client-portal-document-status', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ session: portal.session, document_id: doc.id, review_status: status }),
+      }).catch(() => null);
+    }
+  } else {
+    await persistClientPortalDocument(doc);
+    await logClientPortalEvent(cpA().portalId, 'document.status', { document_id: doc.id, label: CP_STATUS_META[status].label });
+  }
+  render();
+}
+
+function cpUndoLast() {
+  const doc = cpActiveDoc();
   if (!doc) return;
-  if (!portal.annotations?.length) await loadClientPortalAnnotations();
-  await renderClientPortalDocumentCanvas(doc, base, overlay);
-  attachClientPortalDrawing(base, overlay, doc);
-}
-
-async function renderClientPortalDocumentCanvas(doc, base, overlay) {
-  const ctx = base.getContext('2d');
-  const file = await fetchClientPortalDocumentFile(doc.id);
-  if (doc.mime_type?.includes('pdf') || /\.pdf($|\?)/i.test(doc.file_name || '')) {
-    await loadExternalScript('https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js', 'pdfjsLib');
-    window.pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
-    const pdfData = new Uint8Array(await file.arrayBuffer());
-    const pdf = await window.pdfjsLib.getDocument({ data: pdfData }).promise;
-    const page = await pdf.getPage(1);
-    const viewport = page.getViewport({ scale: Math.min(1.35, Math.max(0.8, (document.querySelector('.client-portal-stage')?.clientWidth || 900) / page.getViewport({ scale: 1 }).width)) });
-    base.width = viewport.width;
-    base.height = viewport.height;
-    overlay.width = viewport.width;
-    overlay.height = viewport.height;
-    await page.render({ canvasContext: ctx, viewport }).promise;
-  } else {
-    const objectUrl = URL.createObjectURL(file);
-    try {
-      const image = await loadClientPortalImage(objectUrl);
-      const maxWidth = Math.min(1200, document.querySelector('.client-portal-stage')?.clientWidth || 900);
-      const scale = Math.min(1, maxWidth / image.width);
-      base.width = image.width * scale;
-      base.height = image.height * scale;
-      overlay.width = base.width;
-      overlay.height = base.height;
-      ctx.drawImage(image, 0, 0, base.width, base.height);
-    } finally {
-      URL.revokeObjectURL(objectUrl);
-    }
-  }
-  redrawClientPortalAnnotations(overlay);
-}
-
-function attachClientPortalDrawing(_base, overlay, doc) {
-  let start = null;
-  let drawing = false;
-  const point = (event) => {
-    const rect = overlay.getBoundingClientRect();
-    const touch = event.touches?.[0] || event.changedTouches?.[0];
-    const src = touch || event;
-    return { x: src.clientX - rect.left, y: src.clientY - rect.top };
-  };
-  const begin = (event) => {
-    if (state.clientPortalTool === 'pan') return;
-    event.preventDefault();
-    start = point(event);
-    drawing = true;
-    if (['text', 'comment', 'stamp'].includes(state.clientPortalTool)) {
-      const text = state.clientPortalTool === 'stamp' ? 'APPROVED' : window.prompt(state.clientPortalTool === 'text' ? 'Text' : 'Comment') || '';
-      if (text) addClientPortalAnnotation(doc, state.clientPortalTool, { ...start, text, label: text });
-      drawing = false;
-      start = null;
-      redrawClientPortalAnnotations(overlay);
-    }
-  };
-  const move = (event) => {
-    if (!drawing || !start || state.clientPortalTool === 'pan') return;
-    event.preventDefault();
-    const current = point(event);
-    redrawClientPortalAnnotations(overlay);
-    drawClientPortalShape(overlay.getContext('2d'), { type: state.clientPortalTool, x: start.x, y: start.y, x2: current.x, y2: current.y, color: state.clientPortalColor, sw: state.clientPortalStroke });
-  };
-  const end = (event) => {
-    if (!drawing || !start || state.clientPortalTool === 'pan') return;
-    event.preventDefault();
-    const current = point(event);
-    addClientPortalAnnotation(doc, state.clientPortalTool, { x: start.x, y: start.y, x2: current.x, y2: current.y });
-    drawing = false;
-    start = null;
-    redrawClientPortalAnnotations(overlay);
-  };
-  overlay.onmousedown = begin;
-  overlay.onmousemove = move;
-  overlay.onmouseup = end;
-  overlay.onmouseleave = end;
-  overlay.ontouchstart = begin;
-  overlay.ontouchmove = move;
-  overlay.ontouchend = end;
-}
-
-function addClientPortalAnnotation(doc, type, points) {
-  const annotation = normalizeClientPortalAnnotation({
-    id: crypto.randomUUID(),
-    company_id: state.clientPortalPublic.portal?.company_id,
-    portal_id: state.clientPortalPublic.portal?.id,
-    document_id: doc.id,
-    page_number: 1,
-    guest_name: state.clientPortalPublic.guestName || 'Guest',
-    annotation_type: type,
-    payload: { type, ...points, color: state.clientPortalColor, sw: state.clientPortalStroke },
-  });
-  state.clientPortalPublic.annotations = (state.clientPortalPublic.annotations || []).concat(annotation);
-  writeJson(CLIENT_PORTAL_SESSION_KEY, state.clientPortalPublic);
-}
-
-function redrawClientPortalAnnotations(overlay) {
-  const ctx = overlay.getContext('2d');
-  ctx.clearRect(0, 0, overlay.width, overlay.height);
-  (state.clientPortalPublic?.annotations || [])
-    .filter((annotation) => annotation.document_id === state.clientPortalPublic.documentId)
-    .forEach((annotation) => drawClientPortalShape(ctx, annotation.payload || {}));
-}
-
-function drawClientPortalShape(ctx, item) {
-  const color = item.color || '#E8611A';
-  const sw = Number(item.sw || 2);
-  ctx.save();
-  ctx.strokeStyle = color;
-  ctx.fillStyle = color;
-  ctx.lineWidth = sw;
-  ctx.lineCap = 'round';
-  const x = Number(item.x || 0);
-  const y = Number(item.y || 0);
-  const x2 = Number(item.x2 || x);
-  const y2 = Number(item.y2 || y);
-  if (item.type === 'rect') ctx.strokeRect(x, y, x2 - x, y2 - y);
-  else if (item.type === 'circle') {
-    ctx.beginPath();
-    ctx.ellipse(x + (x2 - x) / 2, y + (y2 - y) / 2, Math.abs(x2 - x) / 2, Math.abs(y2 - y) / 2, 0, 0, Math.PI * 2);
-    ctx.stroke();
-  } else if (item.type === 'text' || item.type === 'comment' || item.type === 'stamp') {
-    ctx.font = item.type === 'stamp' ? '700 14px Inter, sans-serif' : '600 14px Inter, sans-serif';
-    const text = item.text || item.label || 'Comment';
-    const width = ctx.measureText(text).width + 16;
-    ctx.fillStyle = item.type === 'stamp' ? color : 'rgba(255,255,255,.94)';
-    ctx.strokeStyle = color;
-    ctx.beginPath();
-    if (typeof ctx.roundRect === 'function') ctx.roundRect(x, y - 22, width, 28, 6);
-    else ctx.rect(x, y - 22, width, 28);
-    item.type === 'stamp' ? ctx.fill() : (ctx.fill(), ctx.stroke());
-    ctx.fillStyle = item.type === 'stamp' ? '#fff' : color;
-    ctx.fillText(text, x + 8, y - 4);
-  } else {
-    ctx.beginPath();
-    ctx.moveTo(x, y);
-    ctx.lineTo(x2, y2);
-    ctx.stroke();
-    if (item.type === 'arrow') {
-      const angle = Math.atan2(y2 - y, x2 - x);
-      const head = 12 + sw;
-      ctx.beginPath();
-      ctx.moveTo(x2, y2);
-      ctx.lineTo(x2 - head * Math.cos(angle - Math.PI / 6), y2 - head * Math.sin(angle - Math.PI / 6));
-      ctx.lineTo(x2 - head * Math.cos(angle + Math.PI / 6), y2 - head * Math.sin(angle + Math.PI / 6));
-      ctx.closePath();
-      ctx.fill();
-    }
-    if (item.type === 'measure') {
-      const dist = Math.sqrt((x2 - x) ** 2 + (y2 - y) ** 2);
-      ctx.font = '600 12px JetBrains Mono, monospace';
-      ctx.fillText(`${Math.round(dist)} px`, (x + x2) / 2 + 6, (y + y2) / 2 - 6);
-    }
-  }
-  ctx.restore();
+  const annotations = cpAnnotationsFor(doc, cpA().page);
+  const last = annotations[annotations.length - 1];
+  if (last) cpDeleteAnnotation(last.id);
 }
 
 async function exportClientPortalMarkedPdf() {
-  const base = document.getElementById('client-portal-doc-canvas');
-  const overlay = document.getElementById('client-portal-draw-canvas');
-  if (!base || !overlay) throw new Error('Open a document first.');
+  const doc = cpActiveDoc();
+  if (!doc) throw new Error('Open a document first.');
   await loadExternalScript('https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js', 'jspdf');
-  const merged = document.createElement('canvas');
-  merged.width = base.width;
-  merged.height = base.height;
-  const ctx = merged.getContext('2d');
-  ctx.drawImage(base, 0, 0);
-  ctx.drawImage(overlay, 0, 0);
-  const pdf = new window.jspdf.jsPDF({ orientation: merged.width > merged.height ? 'l' : 'p', unit: 'px', format: [merged.width, merged.height], compress: true });
-  pdf.addImage(merged.toDataURL('image/jpeg', 0.92), 'JPEG', 0, 0, merged.width, merged.height);
+  await loadExternalScript('https://cdnjs.cloudflare.com/ajax/libs/canvas2svg/1.0.16/canvas2svg.min.js', '__canvas2svg__').catch(() => null);
+  const pages = doc.page_count || 1;
+  let pdf = null;
+  for (let page = 0; page < pages; page += 1) {
+    const base = await cpResolveBase(doc, page);
+    const canvas = document.createElement('canvas');
+    canvas.width = base.w; canvas.height = base.h;
+    const ctx = canvas.getContext('2d');
+    const img = await loadClientPortalImage(base.dataUrl);
+    ctx.drawImage(img, 0, 0, base.w, base.h);
+    cpPaintAnnotationsToCanvas(ctx, cpAnnotationsFor(doc, page), base);
+    const orientation = base.w > base.h ? 'l' : 'p';
+    if (!pdf) pdf = new window.jspdf.jsPDF({ orientation, unit: 'px', format: [base.w, base.h], compress: true });
+    else pdf.addPage([base.w, base.h], orientation);
+    pdf.addImage(canvas.toDataURL('image/jpeg', 0.92), 'JPEG', 0, 0, base.w, base.h);
+  }
   pdf.save(`Quest-Portal-Markups-${new Date().toISOString().slice(0, 10)}.pdf`);
-  await fetch('/api/client-portal-export-event', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ session: state.clientPortalPublic?.session, details: { document_id: state.clientPortalPublic?.documentId } }),
-  }).catch(() => null);
+  if (cpIsGuest()) {
+    await fetch('/api/client-portal-export-event', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ session: state.clientPortalPublic?.session, details: { document_id: doc.id } }),
+    }).catch(() => null);
+  } else {
+    await logClientPortalEvent(cpA().portalId, 'portal.exported', { document_id: doc.id });
+  }
+}
+
+// Flatten annotations onto a 2D canvas for export (mirrors the SVG renderer).
+function cpPaintAnnotationsToCanvas(ctx, annotations, base) {
+  annotations.forEach((annotation) => {
+    const p = annotation.payload || {};
+    const type = annotation.annotation_type;
+    const color = p.color || '#e66a1f';
+    ctx.save();
+    ctx.strokeStyle = color; ctx.fillStyle = color; ctx.lineWidth = Number(p.sw) || 3; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+    const W = base.w; const H = base.h;
+    if (type === 'freehand' && Array.isArray(p.points)) {
+      ctx.beginPath();
+      p.points.forEach((pt, i) => { const x = pt.x * W; const y = pt.y * H; i ? ctx.lineTo(x, y) : ctx.moveTo(x, y); });
+      ctx.stroke();
+    } else if (type === 'line' || type === 'arrow' || type === 'measure') {
+      const x1 = p.x1 * W; const y1 = p.y1 * H; const x2 = p.x2 * W; const y2 = p.y2 * H;
+      ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke();
+      if (type === 'arrow') { const ang = Math.atan2(y2 - y1, x2 - x1); const head = 16; ctx.beginPath(); ctx.moveTo(x2, y2); ctx.lineTo(x2 - head * Math.cos(ang - Math.PI / 6), y2 - head * Math.sin(ang - Math.PI / 6)); ctx.lineTo(x2 - head * Math.cos(ang + Math.PI / 6), y2 - head * Math.sin(ang + Math.PI / 6)); ctx.closePath(); ctx.fill(); }
+      if (type === 'measure') { ctx.font = `700 ${Math.round(W / 90)}px sans-serif`; ctx.fillText(cpMeasureLabel(p, base), (x1 + x2) / 2, (y1 + y2) / 2 - 6); }
+    } else if (type === 'rect' || type === 'highlight') {
+      const x = p.x * W; const y = p.y * H; const w = p.w * W; const hh = p.h * H;
+      if (type === 'highlight') { ctx.globalAlpha = 0.28; ctx.fillRect(x, y, w, hh); ctx.globalAlpha = 1; } else ctx.strokeRect(x, y, w, hh);
+    } else if (type === 'circle') {
+      const x = p.x * W; const y = p.y * H; const w = p.w * W; const hh = p.h * H;
+      ctx.beginPath(); ctx.ellipse(x + w / 2, y + hh / 2, Math.abs(w / 2), Math.abs(hh / 2), 0, 0, Math.PI * 2); ctx.stroke();
+    } else if (type === 'label' || type === 'comment' || type === 'marker') {
+      const x = p.x * W; const y = p.y * H;
+      const text = type === 'marker' ? (CP_STATUS_META[p.markerStatus] ? CP_STATUS_META[p.markerStatus].label : (p.text || 'Mark')) : (p.text || 'Comment');
+      ctx.font = '700 16px sans-serif';
+      const tw = ctx.measureText(text).width + 16;
+      ctx.fillStyle = type === 'comment' ? '#fff' : color; ctx.strokeStyle = color;
+      ctx.beginPath(); (ctx.roundRect ? ctx.roundRect(x, y - 24, tw, 28, 6) : ctx.rect(x, y - 24, tw, 28));
+      ctx.fill(); if (type !== 'marker') ctx.stroke();
+      ctx.fillStyle = type === 'comment' ? color : '#fff'; ctx.fillText(text, x + 8, y - 5);
+    }
+    ctx.restore();
+  });
 }
 
 function loadExternalScript(src, globalName) {
@@ -14598,7 +17211,7 @@ async function supabaseDelete(table, id) {
 const ACCOUNT_COLS = ['id', 'company_id', 'name', 'type', 'industry', 'website', 'phone', 'email', 'address', 'owner_name', 'status', 'notes', 'updated_at'];
 const DEAL_COLS = ['id', 'company_id', 'account_id', 'primary_contact_id', 'name', 'stage', 'status', 'value', 'probability', 'close_date', 'owner_name', 'source', 'job_id', 'notes', 'updated_at'];
 const ACTIVITY_COLS = ['id', 'company_id', 'type', 'subject', 'body', 'related_type', 'related_id', 'account_id', 'due_at', 'completed_at', 'owner_name', 'updated_at'];
-const CONTACT_COLS = ['id', 'company_id', 'name', 'phone', 'email', 'location', 'stage', 'value', 'owner_name', 'account_id', 'title', 'source', 'temperature', 'pay_type', 'roof_system', 'last_activity_at', 'notes', 'updated_at'];
+const CONTACT_COLS = ['id', 'company_id', 'name', 'phone', 'email', 'location', 'stage', 'value', 'owner_name', 'account_id', 'title', 'source', 'temperature', 'pay_type', 'roof_system', 'last_activity_at', 'notes', 'country_code', 'country', 'province', 'city', 'barangay', 'street', 'block_no', 'zip', 'lat', 'lng', 'updated_at'];
 
 function emptyToNull(row, keys) {
   keys.forEach((key) => { if (row[key] === '') row[key] = null; });
@@ -15835,14 +18448,39 @@ function normalizeJob(input) {
   };
 }
 
+function composeContactLocation(parts) {
+  const line1 = [parts.block_no, parts.street].map((value) => String(value || '').trim()).filter(Boolean).join(' ');
+  const segments = [line1, parts.barangay, parts.city, parts.province, parts.country]
+    .map((value) => String(value || '').trim())
+    .filter(Boolean);
+  let out = segments.join(', ');
+  const zip = String(parts.zip || '').trim();
+  if (zip) out = out ? `${out} ${zip}` : zip;
+  return out;
+}
+
 function normalizeContact(input) {
+  const country_code = String(input.country_code || '').trim();
+  const country = String(input.country || '').trim();
+  const province = String(input.province || '').trim();
+  const city = String(input.city || '').trim();
+  const barangay = String(input.barangay || '').trim();
+  const street = String(input.street || '').trim();
+  const block_no = String(input.block_no || '').trim();
+  const zip = String(input.zip || '').trim();
+  const lat = String(input.lat ?? '').trim();
+  const lng = String(input.lng ?? '').trim();
+  // Prefer the explicit location string; otherwise build a readable one from the
+  // structured address parts so the list/record views keep rendering unchanged.
+  const composed = composeContactLocation({ block_no, street, barangay, city, province, country, zip });
+  const location = String(input.location || '').trim() || composed;
   return {
     id: String(input.id || ''),
     company_id: canonicalCompanyId(input.company_id || defaultCompanyId()),
     name: String(input.name || '').trim() || 'Untitled contact',
     phone: formatPhoneNumber(input.phone),
     email: String(input.email || '').trim(),
-    location: String(input.location || '').trim(),
+    location,
     stage: resolveContactStage(input.stage),
     value: number(input.value),
     owner_name: String(input.owner_name || '').trim(),
@@ -15854,6 +18492,16 @@ function normalizeContact(input) {
     roof_system: String(input.roof_system || '').trim(),
     last_activity_at: input.last_activity_at || null,
     notes: String(input.notes || '').trim(),
+    country_code,
+    country,
+    province,
+    city,
+    barangay,
+    street,
+    block_no,
+    zip,
+    lat,
+    lng,
     created_at: input.created_at || new Date().toISOString(),
     updated_at: input.updated_at || new Date().toISOString(),
   };
@@ -16059,8 +18707,9 @@ function normalizeClientPortal(input) {
 }
 
 function normalizeClientPortalDocument(input) {
+  const id = String(input.id || crypto.randomUUID());
   return {
-    id: String(input.id || crypto.randomUUID()),
+    id,
     company_id: canonicalCompanyId(input.company_id || defaultCompanyId()),
     portal_id: String(input.portal_id || ''),
     bucket_id: String(input.bucket_id || 'quest-client-portal-documents'),
@@ -16069,22 +18718,56 @@ function normalizeClientPortalDocument(input) {
     mime_type: String(input.mime_type || 'application/octet-stream'),
     size_bytes: Number(input.size_bytes || 0),
     page_count: Number(input.page_count || 0) || null,
+    version_group_id: String(input.version_group_id || id),
+    version_number: Number(input.version_number || 1) || 1,
+    is_current: input.is_current === undefined ? true : Boolean(input.is_current),
+    review_status: CLIENT_PORTAL_REVIEW_STATUSES.includes(input.review_status) ? input.review_status : 'pending',
+    scale: input.scale === null || input.scale === undefined || input.scale === '' ? null : Number(input.scale),
+    scale_unit: ['ft', 'in', 'cm'].includes(input.scale_unit) ? input.scale_unit : 'ft',
     uploaded_by: String(input.uploaded_by || ''),
+    ...(input.data_url ? { data_url: String(input.data_url) } : {}),
     created_at: input.created_at || new Date().toISOString(),
     updated_at: input.updated_at || input.created_at || new Date().toISOString(),
   };
 }
 
+const CLIENT_PORTAL_ANNOTATION_TYPES = ['freehand', 'line', 'rect', 'circle', 'arrow', 'highlight', 'label', 'comment', 'marker', 'measure'];
+
+function normalizeClientPortalThread(thread) {
+  if (!Array.isArray(thread)) return [];
+  return thread
+    .filter((message) => message && typeof message === 'object')
+    .map((message) => ({
+      id: String(message.id || crypto.randomUUID()),
+      author: String(message.author || 'guest'),
+      author_name: String(message.author_name || ''),
+      text: String(message.text || ''),
+      at: message.at || new Date().toISOString(),
+    }));
+}
+
 function normalizeClientPortalAnnotation(input) {
+  const rawPayload = input.payload && typeof input.payload === 'object' ? input.payload : {};
+  const type = String(input.annotation_type || input.type || rawPayload.type || 'markup');
+  const payload = {
+    ...rawPayload,
+    type,
+    color: String(rawPayload.color || '#e66a1f'),
+    author: String(rawPayload.author || (input.guest_name ? 'guest' : 'draft')),
+    thread: normalizeClientPortalThread(rawPayload.thread),
+  };
+  if (rawPayload.markerStatus) payload.markerStatus = String(rawPayload.markerStatus);
+  if (rawPayload.text !== undefined) payload.text = String(rawPayload.text);
   return {
     id: String(input.id || crypto.randomUUID()),
     company_id: canonicalCompanyId(input.company_id || defaultCompanyId()),
     portal_id: String(input.portal_id || ''),
     document_id: String(input.document_id || ''),
     page_number: Number(input.page_number || input.page || 1) || 1,
-    guest_name: String(input.guest_name || 'Guest'),
-    annotation_type: String(input.annotation_type || input.type || 'markup'),
-    payload: input.payload && typeof input.payload === 'object' ? input.payload : {},
+    guest_name: String(input.guest_name || ''),
+    author_profile_id: String(input.author_profile_id || ''),
+    annotation_type: type,
+    payload,
     resolved_at: input.resolved_at || '',
     created_at: input.created_at || new Date().toISOString(),
     updated_at: input.updated_at || input.created_at || new Date().toISOString(),
@@ -16990,18 +19673,161 @@ function clientPortalDocumentPayload(doc) {
     mime_type: doc.mime_type,
     size_bytes: doc.size_bytes,
     page_count: doc.page_count,
+    version_group_id: doc.version_group_id,
+    version_number: doc.version_number,
+    is_current: doc.is_current,
+    review_status: doc.review_status,
+    scale: doc.scale,
+    scale_unit: doc.scale_unit || 'ft',
     uploaded_by: doc.uploaded_by || activeSession().profile.id,
   };
+}
+
+function clientPortalAnnotationPayload(annotation) {
+  return {
+    id: annotation.id,
+    company_id: annotation.company_id,
+    portal_id: annotation.portal_id,
+    document_id: annotation.document_id || null,
+    page_number: annotation.page_number,
+    guest_name: annotation.guest_name || null,
+    author_profile_id: annotation.author_profile_id || null,
+    annotation_type: annotation.annotation_type,
+    payload: annotation.payload || {},
+    resolved_at: annotation.resolved_at || null,
+  };
+}
+
+// Write the client-portal caches to localStorage regardless of session mode.
+// persistAll() skips writes for live Supabase sessions, but the public /portal
+// route needs this data available locally to resolve the link without the API.
+function persistClientPortalCaches() {
+  if (isReadOnlyDemo()) return;
+  writeJson(CLIENT_PORTAL_CACHE_KEY, state.clientPortals);
+  writeJson(CLIENT_PORTAL_DOCUMENT_CACHE_KEY, state.clientPortalDocuments);
+  writeJson(CLIENT_PORTAL_ANNOTATION_CACHE_KEY, state.clientPortalAnnotations);
+  writeJson(CLIENT_PORTAL_EVENT_CACHE_KEY, state.clientPortalEvents);
 }
 
 function upsertClientPortal(portal) {
   state.clientPortals = [portal].concat(state.clientPortals.filter((item) => item.id !== portal.id));
   persistAll();
+  persistClientPortalCaches();
 }
 
 function upsertClientPortalDocument(doc) {
   state.clientPortalDocuments = [doc].concat(state.clientPortalDocuments.filter((item) => item.id !== doc.id));
   persistAll();
+  persistClientPortalCaches();
+}
+
+function upsertClientPortalAnnotationLocal(annotation) {
+  state.clientPortalAnnotations = state.clientPortalAnnotations
+    .filter((item) => item.id !== annotation.id)
+    .concat([annotation]);
+}
+
+// ---- Version grouping helpers -------------------------------------------------
+// Documents are grouped by version_group_id; each group is one logical plan, its
+// rows are the version history. The current version is the active draft.
+function portalDocumentGroups(portalId) {
+  const docs = clientPortalDocumentsForPortal(portalId);
+  const groups = new Map();
+  docs.forEach((doc) => {
+    const key = doc.version_group_id || doc.id;
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key).push(doc);
+  });
+  return [...groups.values()]
+    .map((versions) => versions.slice().sort((a, b) => b.version_number - a.version_number))
+    .sort((a, b) => new Date(currentVersionOf(a).created_at) - new Date(currentVersionOf(b).created_at));
+}
+
+function currentVersionOf(versions) {
+  return versions.find((doc) => doc.is_current) || versions[0];
+}
+
+function versionsForGroup(portalId, groupId) {
+  return clientPortalDocumentsForPortal(portalId)
+    .filter((doc) => (doc.version_group_id || doc.id) === groupId)
+    .sort((a, b) => b.version_number - a.version_number);
+}
+
+function nextVersionNumber(portalId, groupId) {
+  const versions = versionsForGroup(portalId, groupId);
+  return versions.reduce((max, doc) => Math.max(max, doc.version_number), 0) + 1;
+}
+
+function clientPortalAnnotationsForDocument(documentId) {
+  return state.clientPortalAnnotations
+    .filter((item) => item.document_id === documentId)
+    .sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+}
+
+// ---- Owner-side persistence (supabase when authed, local otherwise) ----------
+async function persistClientPortalAnnotation(annotation) {
+  upsertClientPortalAnnotationLocal(annotation);
+  const client = createSupabaseClient();
+  if (isLiveSupabaseSession() && client) {
+    const { error } = await client.from('client_portal_annotations').upsert(clientPortalAnnotationPayload(annotation));
+    if (error) throw new Error(error.message);
+  } else {
+    persistAll();
+  }
+  persistClientPortalCaches();
+}
+
+async function deleteClientPortalAnnotationRow(annotationId) {
+  state.clientPortalAnnotations = state.clientPortalAnnotations.filter((item) => item.id !== annotationId);
+  const client = createSupabaseClient();
+  if (isLiveSupabaseSession() && client) {
+    const { error } = await client.from('client_portal_annotations').delete().eq('id', annotationId);
+    if (error) throw new Error(error.message);
+  } else {
+    persistAll();
+  }
+}
+
+async function persistClientPortalDocument(doc) {
+  upsertClientPortalDocument(doc);
+  const client = createSupabaseClient();
+  if (isLiveSupabaseSession() && client) {
+    const { error } = await client.from('client_portal_documents').update({
+      is_current: doc.is_current,
+      review_status: doc.review_status,
+      scale: doc.scale,
+      scale_unit: doc.scale_unit || 'ft',
+      page_count: doc.page_count,
+    }).eq('id', doc.id);
+    if (error) throw new Error(error.message);
+  }
+}
+
+async function logClientPortalEvent(portalId, eventType, details = {}) {
+  const portal = clientPortalById(portalId);
+  if (!portal) return;
+  const event = normalizeClientPortalEvent({
+    portal_id: portalId,
+    company_id: portal.company_id,
+    event_type: eventType,
+    guest_name: '',
+    details,
+  });
+  state.clientPortalEvents = [event].concat(state.clientPortalEvents);
+  persistClientPortalCaches();
+  const client = createSupabaseClient();
+  if (isLiveSupabaseSession() && client) {
+    await client.from('client_portal_events').insert({
+      id: event.id,
+      company_id: event.company_id,
+      portal_id: event.portal_id,
+      event_type: event.event_type,
+      guest_name: event.guest_name || null,
+      details: event.details,
+    });
+  } else {
+    persistAll();
+  }
 }
 
 function copyParams(params, keys) {

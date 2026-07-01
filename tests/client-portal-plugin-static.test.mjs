@@ -33,7 +33,7 @@ test('public portal auto-opens and only asks for a password when required', () =
   assert.match(source, /function shouldAutoOpenClientPortal\(token\)/);
   assert.match(source, /ensureClientPortalPublicOpen\(state\.route\.token\)/);
   assert.match(source, /function renderClientPortalPasswordGate\(token, portal\)/);
-  assert.match(source, /payload\.password_required === true/);
+  assert.match(source, /payload\?\.password_required/);
   assert.match(source, /state\.clientPortalPublic = \{ token, loading: true \}/);
   assert.match(source, /body: JSON\.stringify\(\{ token, guest_name: CLIENT_PORTAL_GUEST_NAME, password: password \|\| '' \}\)/);
   assert.match(source, /<input type="hidden" name="token" value="\$\{h\(token\)\}" \/>/);
@@ -53,18 +53,66 @@ test('staff portal workspace supports create, upload, copy, revoke, and annotati
   assert.match(source, /clientPortalAnnotationsForPortal/);
 });
 
-test('public portal viewer exposes plan markup tools and persistent annotations', () => {
-  assert.match(source, /fetchClientPortalDocumentFile/);
-  assert.match(source, /pdfjsLib\.getDocument\(\{ data: pdfData \}\)/);
-  assert.match(source, /client-portal-tool/);
-  assert.match(source, /data-portal-tool="pen"/);
-  assert.match(source, /data-portal-tool="measure"/);
-  assert.match(source, /data-action="client-portal-save-annotations"/);
-  assert.match(source, /data-action="client-portal-export"/);
-  assert.match(source, /loadClientPortalAnnotations/);
-  assert.match(source, /saveClientPortalAnnotations/);
+test('annotate engine renders shared owner + guest blueprint review surface', () => {
+  // Shared annotate renderer, driven by mode.
+  assert.match(source, /function renderClientPortalAnnotate\(mode\)/);
+  assert.match(source, /ensureClientPortalAnnotateState\('owner'/);
+  assert.match(source, /ensureClientPortalAnnotateState\('guest'/);
+  assert.match(source, /async function mountClientPortalAnnotate\(\)/);
+  // Full markup tool set (normalized-coordinate engine).
+  assert.match(source, /const CP_TOOLS = \[/);
+  for (const tool of ['freehand', 'line', 'rect', 'circle', 'arrow', 'highlight', 'label', 'comment', 'measure', 'marker']) {
+    assert.match(source, new RegExp(`id: '${tool}'`), `tool ${tool} missing`);
+  }
+  // New action surface.
+  assert.match(source, /action === 'cp-tool'/);
+  assert.match(source, /action === 'cp-doc-status'/);
+  assert.match(source, /action === 'cp-delete-annotation'/);
+  assert.match(source, /data-cp-reply-form/);
+  // PDF base rendered from a resolved URL (signed url / data url), cached for zoom.
+  assert.match(source, /async function cpResolveBase\(doc, page\)/);
+  assert.match(source, /window\.pdfjsLib\.getDocument\(url\)/);
+  assert.match(source, /async function cpDocumentSourceUrl\(doc\)/);
+  // Threads live in payload.thread.
+  assert.match(source, /function normalizeClientPortalThread\(thread\)/);
+  assert.match(source, /async function cpAddThreadReply\(id, text\)/);
+  // Local/demo fallback so the guest link opens without the serverless backend.
+  assert.match(source, /async function openClientPortalLocally\(token, password = ''\)/);
+  assert.match(source, /function clientPortalByToken\(token\)/);
+  assert.match(source, /if \(await openClientPortalLocally\(token, password\)\) return;/);
+  // Styles for the annotate engine + the public shell.
   assert.match(styles, /\.client-portal-public/);
-  assert.match(styles, /\.client-portal-stage/);
+  assert.match(styles, /\.cp-annotate/);
+  assert.match(styles, /\.cp-frame/);
+});
+
+test('document versions and per-document review status are modeled and persisted', () => {
+  assert.match(source, /version_group_id/);
+  assert.match(source, /function portalDocumentGroups\(portalId\)/);
+  assert.match(source, /function nextVersionNumber\(portalId, groupId\)/);
+  assert.match(source, /review_status/);
+  assert.match(source, /CLIENT_PORTAL_REVIEW_STATUSES = \['pending', 'approved', 'revision', 'rejected'\]/);
+  assert.match(source, /async function cpSetDocStatus\(status\)/);
+  // Upgrade migration adds the new columns + policies (authored, not yet deployed).
+  const upgradeName = migrationFiles.find((name) => /client_portal_review_upgrade/.test(name));
+  assert.ok(upgradeName, 'Expected client_portal_review_upgrade migration');
+  const upgrade = readFileSync(new URL(`../supabase/migrations/${upgradeName}`, import.meta.url), 'utf8');
+  assert.match(upgrade, /add column if not exists version_group_id uuid/);
+  assert.match(upgrade, /add column if not exists review_status text not null default 'pending'/);
+  assert.match(upgrade, /managers insert portal annotations/);
+  assert.match(upgrade, /managers insert portal events/);
+});
+
+test('guest annotation API supports per-annotation upsert, delete, and document status', () => {
+  const apiDir = new URL('../api/', import.meta.url);
+  const annotations = readFileSync(new URL('client-portal-annotations.js', apiDir), 'utf8');
+  assert.match(annotations, /resolution=merge-duplicates/);
+  assert.match(annotations, /body\.action === 'delete'/);
+  assert.match(annotations, /payload\.author = 'guest'/);
+  assert.ok(existsSync(new URL('client-portal-document-status.js', apiDir)), 'document-status endpoint should exist');
+  const status = readFileSync(new URL('client-portal-document-status.js', apiDir), 'utf8');
+  assert.match(status, /REVIEW_STATUSES/);
+  assert.match(status, /client_portal_documents\?id=eq\./);
 });
 
 test('client portal migration creates tables, RLS, bucket, grants, and plugin allowlist updates', () => {

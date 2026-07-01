@@ -20,40 +20,59 @@ test('workspace builder is integrated as a current app plugin, not an old standa
   assert.doesNotMatch(source, /const KEY='qhq_cc_workspaces_v1'/);
 });
 
-test('workspace builder supports working no-code workspace app flows inside a company', () => {
+test('workspace builder is the rich no-code module, Supabase-backed per company', () => {
+  // Per-company doc persisted to Supabase with a localStorage fallback.
   assert.match(source, /const WORKSPACE_BUILDER_STORAGE_PREFIX = 'qhq_workspace_builder_v1';/);
-  assert.match(source, /function workspaceBuilderStorageKey\(companyId\)/);
-  assert.match(source, /function loadWorkspaceBuilderState\(companyId\)/);
-  assert.match(source, /function saveWorkspaceBuilderState\(companyId, builderState\)/);
-  assert.match(source, /function seedWorkspaceBuilderState\(companyId\)/);
-  assert.match(source, /function renderBuilderWorkspaceList\(companyId, builderState\)/);
-  assert.match(source, /function renderBuilderWorkspaceDetail\(route, companyId, builderState\)/);
-  assert.match(source, /function renderBuilderAppDetail\(route, companyId, builderState\)/);
-  assert.match(source, /data-action="builder-create-workspace"/);
-  assert.match(source, /data-action="builder-create-app"/);
-  assert.match(source, /data-action="builder-create-field"/);
-  assert.match(source, /data-action="builder-create-item"/);
-  assert.match(source, /data-builder-workspace-name/);
-  assert.match(source, /data-builder-app-name/);
-  assert.match(source, /data-builder-field-label/);
-  assert.match(source, /data-builder-item-field/);
-  assert.match(source, /function handleWorkspaceBuilderAction\(node\)/);
+  assert.match(source, /function ensureWorkspaceBuilderLoaded\(companyId\)/);
+  assert.match(source, /async function saveWorkspaceBuilderDoc\(companyId\)/);
+  assert.match(source, /function normalizeWorkspaceBuilderDoc\(doc\)/);
+  assert.match(source, /from\('workspace_builder_state'\)/);
+  // Real company members, not a mock directory.
+  assert.match(source, /function wbMembers\(companyId\)/);
+  assert.match(source, /companyAccessUsers\(companyId\)/);
+  // 14 field types incl. the rich ones.
+  assert.match(source, /const WB_FIELD_TYPES = \{/);
+  for (const type of ['relationship', 'calculation', 'category', 'status', 'money', 'checkbox', 'textarea']) {
+    assert.match(source, new RegExp(`\\b${type}: \\{ label:`), `field type ${type} missing`);
+  }
+  // The company IS the workspace — the tab shows its apps directly.
+  assert.match(source, /function wbCompanyWorkspace\(companyId\)/);
+  assert.match(source, /function wbViewCompanyHome\(companyId, workspace\)/);
+  assert.match(source, /function wbViewApp\(route, companyId, workspace, app\)/);
+  assert.match(source, /function renderWorkspaceBuilderModal\(\)/);
+  assert.match(source, /function wbSubmitModal\(\)/);
+  assert.match(source, /function wbRunAutomations\(companyId, workspace, app, item, event, prev\)/);
+  assert.match(source, /function wbComputeCalc\(app, field, values\)/);
+  assert.match(source, /function wbDonutSVG\(/);
+  assert.match(source, /function wbBarsHTML\(/);
+  assert.match(source, /function mountWorkspaceBuilder\(\)/);
+  // Plugin install still reveals the nav module.
   assert.match(source, /function revealPluginModulesInNavigation\(plugin\)/);
-  assert.match(source, /if \(nextStatus === 'installed'\) revealPluginModulesInNavigation\(plugin\);/);
   assert.match(source, /localStorage\.setItem\(SIDEBAR_COLLAPSED_KEY, 'false'\)/);
-  assert.match(source, /workspaceBuilderCreateWorkspace\(companyId, name, description\)/);
-  assert.match(source, /workspaceBuilderCreateApp\(companyId, workspaceId, name, type\)/);
-  assert.match(source, /workspaceBuilderCreateField\(companyId, workspaceId, appId, label, fieldType\)/);
-  assert.match(source, /workspaceBuilderCreateItem\(companyId, workspaceId, appId, values\)/);
+  // The legacy basic builder is gone.
+  assert.doesNotMatch(source, /function handleWorkspaceBuilderAction\(node\)/);
+  assert.doesNotMatch(source, /function seedWorkspaceBuilderState\(companyId\)/);
 });
 
 test('workspace builder UI is scoped and styled for dense command-center use', () => {
-  assert.match(styles, /\.builder-shell\s*\{/);
-  assert.match(styles, /\.builder-grid\s*\{/);
-  assert.match(styles, /\.builder-card\s*\{/);
-  assert.match(styles, /\.builder-app-table\s*\{/);
-  assert.match(styles, /\.builder-inline-form\s*\{/);
-  assert.match(styles, /\.builder-field-pill\s*\{/);
+  assert.match(styles, /\.wb-card\s*\{/);
+  assert.match(styles, /\.wb-grid\s*\{/);
+  assert.match(styles, /\.wb-field-row\s*\{/);
+  assert.match(styles, /\.wb-table\s*\{/);
+  assert.match(styles, /\.wb-palette-item\s*\{/);
+  assert.match(styles, /\.wb-modal\s*\{/);
+  assert.match(styles, /\.wb-auto-row\s*\{/);
+});
+
+test('workspace builder state migration creates the per-company table with RLS', () => {
+  const upgradeUrl = new URL('../supabase/migrations/202607011400_workspace_builder_state.sql', import.meta.url);
+  assert.ok(existsSync(upgradeUrl), 'Expected workspace_builder_state migration');
+  const upgrade = readFileSync(upgradeUrl, 'utf8');
+  assert.match(upgrade, /create table if not exists public\.workspace_builder_state/);
+  assert.match(upgrade, /doc jsonb not null/);
+  assert.match(upgrade, /enable row level security/);
+  assert.match(upgrade, /has_company_permission\(company_id, 'workspaces\.view'\)/);
+  assert.match(upgrade, /has_company_permission\(company_id, 'workspaces\.manage'\)/);
 });
 
 test('workspace builder plugin is allowed by Supabase plugin RPCs', () => {
