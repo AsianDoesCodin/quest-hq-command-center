@@ -15,6 +15,7 @@ const modules = [
   'forms',
   'analytics',
   'crm',
+  'proposals',
   'underwriter',
   'finance',
   'messages',

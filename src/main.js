@@ -23,6 +23,7 @@ const JOB_CACHE_KEY = 'quest-hq-job-cache-v2';
 const CONTACT_CACHE_KEY = 'quest-hq-contact-cache-v1';
 const ACCOUNT_CACHE_KEY = 'quest-hq-account-cache-v1';
 const DEAL_CACHE_KEY = 'quest-hq-deal-cache-v1';
+const PROPOSAL_CACHE_KEY = 'quest-hq-proposal-cache-v1';
 const ACTIVITY_CACHE_KEY = 'quest-hq-activity-cache-v1';
 const JOB_STAGES_KEY = 'quest-hq-job-stages-v1';
 const CONTACT_STAGES_KEY = 'quest-hq-contact-stages-v3';
@@ -274,6 +275,7 @@ const DEFAULT_PROPOSAL_PREMIUM = {
   materials: 'GAF - GAF-certified system and factory-trained crew\nPLY 40 - 2-layer underlayment with manufacturer warranty\nMETAL - valleys, drip edge, and flashings color-matched',
   terms: 'Proposal pricing is valid through the date shown. Scope is subject to final inspection, material availability, and signed approval.',
 };
+const PROPOSAL_STATUS_OPTIONS = ['Draft', 'Sent', 'Viewed', 'Accepted', 'Declined'];
 
 const ROLE_PERMISSIONS = {
   developer: ['*'],
@@ -426,7 +428,7 @@ const PRIVATE_PLUGIN_ACCESS = {
 };
 const WORKSPACE_PLUGIN_REGISTRY = [
   { id: 'crm', label: 'CRM', summary: 'Accounts, contacts, quotes, and customer activity.', icon: 'ti-building-community', module_ids: ['crm', 'contacts', 'deals'], permissions: ['crm.view'], exclusiveGroup: 'crm' },
-  { id: 'crm_2', label: 'Quest CRM', summary: 'Private contacts, quotes, estimates, proposals, and production jobs workspace.', icon: 'ti-id-badge-2', module_ids: ['contacts', 'deals', 'jobs'], permissions: ['crm.view'], exclusiveGroup: 'crm', private: true },
+  { id: 'crm_2', label: 'Quest CRM', summary: 'Private contacts, quotes, estimates, proposals, and production jobs workspace.', icon: 'ti-id-badge-2', module_ids: ['contacts', 'deals', 'proposals', 'jobs'], permissions: ['crm.view'], exclusiveGroup: 'crm', private: true },
   { id: 'underwriter', label: 'Underwriter', summary: 'Qualification, scope, pricing, and handoff readiness queue.', icon: 'ti-clipboard-search', module_ids: ['underwriter'], permissions: ['underwriter.view', 'underwriter.manage'], recommendedWith: ['crm_2'] },
   { id: 'files', label: 'Files', summary: 'Shared files, job folders, and document storage.', icon: 'ti-folder', module_ids: ['files'], permissions: ['files.view', 'files.manage'] },
   { id: 'client_portal', label: 'Client Portal', summary: 'Password-protected plan links, markups, comments, and client review.', icon: 'ti-world-upload', module_ids: ['client-portals'], permissions: ['client_portals.view', 'client_portals.manage'], recommendedWith: ['files'] },
@@ -569,6 +571,7 @@ const MODULE_REGISTRY = [
   { id: 'crm', group: 'Workspace', label: 'Accounts', icon: 'ti-building-community', symbol: 'q-symbol-crm', status: 'live', permission: 'crm.view' },
   { id: 'contacts', group: 'Contacts · Top of Funnel', label: 'Contacts', icon: 'ti-id-badge-2', symbol: 'q-symbol-crm', status: 'live', permission: 'crm.view' },
   { id: 'deals', group: 'Quotes · Bottom of Funnel', label: 'Quotes', icon: 'ti-briefcase', symbol: 'q-symbol-jobs', status: 'live', permission: 'crm.view' },
+  { id: 'proposals', group: 'Quotes · Bottom of Funnel', label: 'Proposals', icon: 'ti-file-dollar', symbol: 'q-symbol-files', status: 'live', permission: 'crm.view' },
   { id: 'underwriter', group: 'Workspace', label: 'Underwriter', icon: 'ti-clipboard-search', symbol: 'q-symbol-crm', status: 'live', permission: 'underwriter.view' },
   { id: 'tickets', group: 'Workspace', label: 'Tickets', icon: 'ti-ticket', symbol: 'q-symbol-tickets', status: 'planned' },
   { id: 'finance', group: 'Workspace', label: 'Finance', icon: 'ti-receipt-dollar', symbol: 'q-symbol-finance', status: 'live', permission: 'finance.view' },
@@ -590,7 +593,7 @@ const NAV_GROUPS = [
   { label: 'Work', ids: ['dashboard', 'tasks', 'workspaces', 'underwriter'] },
   { label: 'Communication', ids: ['messages', 'calendar'] },
   { label: 'Contacts · Top of Funnel', ids: ['contacts'] },
-  { label: 'Quotes · Bottom of Funnel', ids: ['deals'] },
+  { label: 'Quotes · Bottom of Funnel', ids: ['deals', 'proposals'] },
   { label: 'Production', ids: ['jobs'] },
   { label: 'Estimating', ids: ['finance', 'files', 'forms', 'client-portals'] },
   { label: 'Review', ids: ['analytics', 'users', 'team-chart', 'time', 'approvals', 'clock'] },
@@ -1703,6 +1706,7 @@ const state = {
   contacts: readSeededList(CONTACT_CACHE_KEY, contactsFallback).map(normalizeContact),
   accounts: readSeededList(ACCOUNT_CACHE_KEY, accountsFallback).map(normalizeAccount),
   deals: readSeededList(DEAL_CACHE_KEY, dealsFallback).map(normalizeDeal),
+  proposals: readSeededList(PROPOSAL_CACHE_KEY, []).map(normalizeProposal),
   activities: readSeededList(ACTIVITY_CACHE_KEY, activitiesFallback).map(normalizeActivity),
   pipelineStages: [],
   tasks: readSeededList(TASK_CACHE_KEY, tasksFallback).map(normalizeTask),
@@ -1785,6 +1789,9 @@ const state = {
   selectedContactId: '',
   stageFilterDeals: 'all',
   dealQuery: '',
+  proposalQuery: '',
+  proposalStatusFilter: 'all',
+  selectedProposalId: '',
   selectedDealId: '',
   accountQuery: '',
   accountTypeFilter: 'all',
@@ -1793,6 +1800,7 @@ const state = {
   dealPrefill: null,
   estimateContext: null,
   proposalContext: null,
+  proposalPublic: null,
   activityPrefill: null,
   activityFilter: 'all',
   dockedActivityComposers: [],
@@ -1983,6 +1991,18 @@ function render() {
     return;
   }
 
+  if (state.route.name === 'proposal-public') {
+    document.title = 'Proposal | Quest HQ';
+    app.innerHTML = renderProposalPublicPage(state.route);
+    queueMicrotask(() => {
+      ensureProposalPublicOpen(state.route.token).catch((error) => {
+        state.proposalPublic = { token: state.route.token || '', error: error.message || 'Could not open proposal.' };
+        render();
+      });
+    });
+    return;
+  }
+
   if (needsLocalLogin(state.route)) {
     navigate('/login?return_url=' + encodeURIComponent(currentAppUrl()), { replace: true });
     return;
@@ -2011,7 +2031,7 @@ function render() {
 }
 
 function shouldHoldCompanyRouteForLiveData(route) {
-  return !!route && route.name !== 'home' && route.name !== 'login' && route.name !== 'client-portal' && state.session?.auth === 'supabase' && !state.dataLoaded;
+  return !!route && route.name !== 'home' && route.name !== 'login' && route.name !== 'client-portal' && route.name !== 'proposal-public' && state.session?.auth === 'supabase' && !state.dataLoaded;
 }
 
 function renderWorkspaceLoading(route) {
@@ -2102,7 +2122,7 @@ function renderNoCompanyAccess() {
 
 function needsLocalLogin(route) {
   if (!CONFIG.questAuthEnabled && !CONFIG.localLoginEnabled) return false;
-  if (route.name === 'login' || route.name === 'home') return false;
+  if (route.name === 'login' || route.name === 'home' || route.name === 'proposal-public') return false;
   return !state.session;
 }
 
@@ -2185,6 +2205,7 @@ async function loadSupabaseData() {
     pipelineStagesResult,
     accountsResult,
     dealsResult,
+    proposalsResult,
     activitiesResult,
     companyPluginsResult,
     clientPortalsResult,
@@ -2226,6 +2247,7 @@ async function loadSupabaseData() {
     client.from('pipeline_stages').select('*').order('position', { ascending: true }),
     client.from('accounts').select('*').order('name', { ascending: true }),
     client.from('deals').select('*').order('updated_at', { ascending: false }),
+    safeSupabaseQuery(client.from('proposal_documents').select('*').order('updated_at', { ascending: false })),
     client.from('activities').select('*').order('created_at', { ascending: false }).limit(500),
     safeSupabaseQuery(client.from('company_plugins').select('*')),
     safeSupabaseQuery(client.from('client_portals').select('*').order('updated_at', { ascending: false })),
@@ -2313,6 +2335,9 @@ async function loadSupabaseData() {
   if (!dealsResult.error) {
     state.deals = (dealsResult.data || []).map(normalizeDeal);
     liveTables += 1;
+  }
+  if (!proposalsResult.error) {
+    state.proposals = (proposalsResult.data || []).map(normalizeProposal);
   }
   if (!activitiesResult.error) {
     state.activities = (activitiesResult.data || []).map(normalizeActivity);
@@ -2462,6 +2487,11 @@ function safeSupabaseQuery(query) {
 
 function resetLiveWorkspaceData() {
   state.jobs = [];
+  state.contacts = [];
+  state.accounts = [];
+  state.deals = [];
+  state.proposals = [];
+  state.activities = [];
   state.tasks = [];
   state.files = [];
   state.driveFolders = [];
@@ -2513,6 +2543,7 @@ function resetDemoWorkspaceData() {
   state.contacts = readDemoList(CONTACT_CACHE_KEY, contactsFallback).map(normalizeContact);
   state.accounts = readDemoList(ACCOUNT_CACHE_KEY, accountsFallback).map(normalizeAccount);
   state.deals = readDemoList(DEAL_CACHE_KEY, dealsFallback).map(normalizeDeal);
+  state.proposals = readDemoList(PROPOSAL_CACHE_KEY, []).map(normalizeProposal);
   state.activities = readDemoList(ACTIVITY_CACHE_KEY, activitiesFallback).map(normalizeActivity);
   state.tasks = readDemoList(TASK_CACHE_KEY, tasksFallback).map(normalizeTask);
   state.files = readDemoList(FILE_CACHE_KEY, filesFallback).map(normalizeFile);
@@ -3180,7 +3211,7 @@ function installedLiveModules(companyId) {
 }
 
 function installedModulesForMobileWork(companyId) {
-  return ['jobs', 'tasks', 'underwriter', 'calendar', 'crm', 'contacts', 'deals', 'finance', 'forms', 'client-portals', 'workspaces', 'users', 'time', 'approvals', 'clock', 'team-chart']
+  return ['jobs', 'tasks', 'underwriter', 'calendar', 'crm', 'contacts', 'deals', 'proposals', 'finance', 'forms', 'client-portals', 'workspaces', 'users', 'time', 'approvals', 'clock', 'team-chart']
     .filter((moduleId) => isModuleInstalled(moduleId, companyId));
 }
 
@@ -3228,6 +3259,7 @@ function moduleBadgeCount(moduleId, companyId = activeCompanyId()) {
   if (moduleId === 'crm') return companyAccounts(companyId).length;
   if (moduleId === 'contacts') return companyContacts(companyId).length;
   if (moduleId === 'deals') return companyDeals(companyId).filter((deal) => deal.status === 'open').length;
+  if (moduleId === 'proposals') return companyProposals(companyId).filter((proposal) => !['Accepted', 'Declined'].includes(proposal.status)).length;
   if (moduleId === 'underwriter') return companyContacts(companyId).filter((contact) => underwriterStageForContact(contact).key === 'underwriting').length;
   if (moduleId === 'finance') return companyFinanceInvoices(companyId).length;
   if (moduleId === 'users') return companyAccessUsers(companyId).filter((user) => user.status === 'active').length;
@@ -3276,6 +3308,7 @@ function renderWorkspace(route) {
   if (route.section === 'crm') return renderCrmPage(route, companyId);
   if (route.section === 'contacts') return renderContactsPage(route, companyId);
   if (route.section === 'deals') return renderDealsPage(route, companyId);
+  if (route.section === 'proposals') return renderProposalsPage(route, companyId);
   if (route.section === 'underwriter') return renderUnderwriterPage(route, companyId);
   if (route.section === 'finance') return renderFinancePage(route, companyId);
   if (route.section === 'messages') return renderMessagesPage(route, companyId);
@@ -8124,6 +8157,240 @@ function renderDealsPage(route, companyId) {
   `;
 }
 
+function filteredProposals(companyId = activeCompanyId()) {
+  const query = String(state.proposalQuery || '').trim().toLowerCase();
+  const status = state.proposalStatusFilter || 'all';
+  return companyProposals(companyId).filter((proposal) => {
+    if (status !== 'all' && proposal.status !== status) return false;
+    if (!query) return true;
+    return [
+      proposal.proposal_no,
+      proposal.title,
+      proposal.status,
+      proposal.client.name,
+      proposal.client.email,
+      proposal.client.phone,
+      proposal.client.address,
+    ].some((value) => String(value || '').toLowerCase().includes(query));
+  });
+}
+
+function proposalStatusBadge(status) {
+  const clean = PROPOSAL_STATUS_OPTIONS.includes(status) ? status : 'Draft';
+  return `<span class="proposal-status-pill ${h(clean.toLowerCase())}">${h(clean)}</span>`;
+}
+
+function renderProposalSourceLink(proposal) {
+  const label = proposal.related_type === 'contact' ? 'Contact' : proposal.related_type === 'job' ? 'Job' : 'Quote';
+  const params = proposal.related_type === 'contact'
+    ? { contact_id: proposal.related_id }
+    : proposal.related_type === 'job'
+      ? { tab: 'profile', job_id: proposal.related_id }
+      : { deal_id: proposal.related_id };
+  const section = proposal.related_type === 'contact' ? 'contacts' : proposal.related_type === 'job' ? 'jobs' : 'deals';
+  return proposal.related_id ? `<a class="link-button" href="${appHref(companyPath(section, params, proposal.company_id))}" data-router>${h(label)}</a>` : '<span class="muted-dash">No source</span>';
+}
+
+function renderProposalsPage(route, companyId) {
+  const proposalId = route.params.get('proposal_id') || state.selectedProposalId;
+  const selected = proposalId ? proposalById(proposalId) : null;
+  if (selected?.company_id === companyId) state.selectedProposalId = selected.id;
+  else state.selectedProposalId = companyProposals(companyId)[0]?.id || '';
+  const rows = filteredProposals(companyId);
+  const active = proposalById(state.selectedProposalId);
+  const accepted = companyProposals(companyId).filter((proposal) => proposal.status === 'Accepted');
+  const open = companyProposals(companyId).filter((proposal) => !['Accepted', 'Declined'].includes(proposal.status));
+  const fallbackDeal = companyDeals(companyId)[0];
+  const fallbackContact = companyContacts(companyId)[0];
+  const fallbackJob = companyJobs(companyId)[0];
+  const newRelatedType = active?.related_type || (fallbackDeal ? 'deal' : fallbackContact ? 'contact' : fallbackJob ? 'job' : 'deal');
+  const newRelatedId = active?.related_id || fallbackDeal?.id || fallbackContact?.id || fallbackJob?.id || '';
+  return `
+    ${workspaceHeader('Proposals', 'Saved customer proposals, approval links, and reusable quote documents.', `
+      <button class="btn" type="button" data-action="duplicate-proposal" data-proposal-id="${h(active?.id || '')}" ${active ? '' : 'disabled'}><i class="ti ti-copy"></i>Reuse selected</button>
+      <button class="btn btn-primary" type="button" data-action="open-proposal-builder" data-related-type="${h(newRelatedType)}" data-related-id="${h(newRelatedId)}"><i class="ti ti-plus"></i>New proposal</button>
+    `)}
+    <section class="metric-grid crm-metrics">
+      ${metricCard('Open proposals', open.length)}
+      ${metricCard('Accepted', accepted.length)}
+      ${metricCard('Open value', money(sum(open, 'total')))}
+      ${metricCard('Accepted value', money(sum(accepted, 'total')))}
+    </section>
+    <section class="proposal-workspace">
+      <aside class="proposal-list-panel panel">
+        <div class="proposal-toolbar">
+          <label class="crm-search"><i class="ti ti-search"></i><input data-proposal-search value="${h(state.proposalQuery)}" placeholder="Search proposals" /></label>
+          <select data-proposal-status-filter>
+            <option value="all" ${state.proposalStatusFilter === 'all' ? 'selected' : ''}>All statuses</option>
+            ${PROPOSAL_STATUS_OPTIONS.map((status) => `<option value="${h(status)}" ${state.proposalStatusFilter === status ? 'selected' : ''}>${h(status)}</option>`).join('')}
+          </select>
+        </div>
+        <div class="proposal-list">
+          ${rows.map((proposal) => `
+            <button class="proposal-row ${proposal.id === state.selectedProposalId ? 'active' : ''}" type="button" data-action="open-proposal" data-proposal-id="${h(proposal.id)}">
+              <span><strong>${h(proposal.proposal_no || proposal.title)}</strong><em>${h(proposal.client.name || 'No client')} - ${h(formatDate(proposal.updated_at))}</em></span>
+              <b>${h(money(proposal.total))}</b>
+              ${proposalStatusBadge(proposal.status)}
+            </button>
+          `).join('') || emptyState('No proposals saved yet. Create one from a quote, contact, or job.')}
+        </div>
+      </aside>
+      ${active ? renderProposalDetail(active) : `<section class="panel proposal-detail">${emptyState('Select a proposal to review, export, or send for approval.')}</section>`}
+    </section>
+  `;
+}
+
+function renderProposalDetail(proposal) {
+  const draft = proposalDraftFromRecord(proposal);
+  const link = proposalPublicUrl(proposal);
+  return `
+    <section class="panel proposal-detail">
+      <div class="proposal-detail-head">
+        <div>
+          <span class="eyebrow">Proposal</span>
+          <h2>${h(proposal.title)}</h2>
+          <p>${h(proposal.proposal_no || 'Draft')} - ${h(proposal.client.name || 'No client')} - ${h(money(proposal.total))}</p>
+        </div>
+        ${proposalStatusBadge(proposal.status)}
+      </div>
+      <div class="proposal-action-bar">
+        <button class="btn btn-primary" type="button" data-action="edit-proposal" data-proposal-id="${h(proposal.id)}"><i class="ti ti-pencil"></i>Edit</button>
+        <button class="btn" type="button" data-action="duplicate-proposal" data-proposal-id="${h(proposal.id)}"><i class="ti ti-copy"></i>Reuse</button>
+        <button class="btn" type="button" data-action="export-proposal" data-proposal-id="${h(proposal.id)}"><i class="ti ti-download"></i>Export PDF</button>
+        <button class="btn" type="button" data-action="copy-proposal-link" data-proposal-id="${h(proposal.id)}"><i class="ti ti-link"></i>Copy approval link</button>
+      </div>
+      <div class="proposal-meta-grid">
+        <div><span>Status</span><strong>${h(proposal.status)}</strong></div>
+        <div><span>Source</span><strong>${renderProposalSourceLink(proposal)}</strong></div>
+        <div><span>Client email</span><strong>${h(proposal.client.email || 'Not set')}</strong></div>
+        <div><span>Client phone</span><strong>${h(proposal.client.phone || 'Not set')}</strong></div>
+        <div><span>Valid through</span><strong>${h(formatDate(draft.valid))}</strong></div>
+        <div class="span-2"><span>Approval link</span><strong>${link ? `<input class="readonly-link" readonly value="${h(link)}" />` : 'No link'}</strong></div>
+        <div><span>Accepted by</span><strong>${h(proposal.accepted_by || 'Not accepted')}</strong></div>
+        <div><span>Last updated</span><strong>${h(formatDateTime(proposal.updated_at))}</strong></div>
+      </div>
+      <div class="proposal-status-actions">
+        ${PROPOSAL_STATUS_OPTIONS.map((status) => `<button class="btn ${proposal.status === status ? 'btn-primary' : ''}" type="button" data-action="proposal-status" data-proposal-id="${h(proposal.id)}" data-status="${h(status)}">${h(status)}</button>`).join('')}
+      </div>
+      <div class="proposal-detail-preview">${renderProposalPreview(draft)}</div>
+    </section>
+  `;
+}
+
+function renderProposalPublicPage(route) {
+  const proposal = state.proposalPublic?.proposal;
+  const error = state.proposalPublic?.error;
+  const draft = proposal ? proposalDraftFromRecord(proposal) : null;
+  return `
+    <main class="proposal-public-shell">
+      <section class="proposal-public-brand">
+        <span class="side-mark logo-image-mark">${questLogoImage()}</span>
+        <span><strong>Quest Roofing</strong><small>Customer proposal</small></span>
+      </section>
+      ${error ? `
+        <section class="panel proposal-public-card">${emptyState(error)}</section>
+      ` : !proposal ? `
+        <section class="panel proposal-public-card">${emptyState('Opening proposal...')}</section>
+      ` : `
+        <section class="proposal-public-layout">
+          <div class="proposal-public-preview">${renderProposalPreview(draft)}</div>
+          <aside class="proposal-acceptance-panel panel">
+            <span class="eyebrow">${h(proposal.status)}</span>
+            <h1>${h(proposal.title)}</h1>
+            <p>${h(proposal.client.name || 'Customer')} - ${h(money(proposal.total))}</p>
+            ${proposal.status === 'Accepted' ? `<div class="form-message success">Accepted by ${h(proposal.accepted_by || 'customer')} on ${h(formatDate(proposal.accepted_at))}.</div>` : ''}
+            ${proposal.status === 'Declined' ? `<div class="form-message error">This proposal was declined on ${h(formatDate(proposal.declined_at))}.</div>` : ''}
+            ${['Accepted', 'Declined'].includes(proposal.status) ? `
+              <button class="btn full" type="button" data-action="export-public-proposal"><i class="ti ti-download"></i>Download PDF</button>
+            ` : `
+              <form class="proposal-public-form" data-proposal-public-form>
+                <input type="hidden" name="token" value="${h(route.token || '')}" />
+                <label><span>Your name</span><input name="signer_name" required autocomplete="name" /></label>
+                <label><span>Email</span><input name="signer_email" type="email" value="${h(proposal.client.email || '')}" autocomplete="email" /></label>
+                <button class="btn btn-primary full" type="submit" name="decision" value="accept"><i class="ti ti-signature"></i>Approve proposal</button>
+                <button class="btn full" type="submit" name="decision" value="decline">Decline</button>
+              </form>
+            `}
+          </aside>
+        </section>
+      `}
+    </main>
+  `;
+}
+
+async function ensureProposalPublicOpen(token) {
+  const cleanToken = String(token || '').trim();
+  if (!cleanToken) throw new Error('Missing proposal link.');
+  if (state.proposalPublic?.token === cleanToken && state.proposalPublic.proposal) return;
+  const client = createSupabaseClient();
+  if (client) {
+    const result = await client.rpc('public_proposal_by_token', { proposal_token: cleanToken });
+    if (!result.error) {
+      state.proposalPublic = { token: cleanToken, proposal: normalizeProposal(result.data || {}) };
+      render();
+      return;
+    }
+    console.warn('Public proposal RPC failed, falling back to local state:', result.error.message || result.error);
+  }
+  const local = state.proposals.find((proposal) => proposal.public_token === cleanToken);
+  if (local) {
+    const viewed = ['Draft', 'Sent'].includes(local.status)
+      ? normalizeProposal({ ...local, status: local.status === 'Draft' ? 'Draft' : 'Viewed', viewed_at: local.viewed_at || new Date().toISOString() })
+      : local;
+    if (viewed !== local) upsertProposal(viewed);
+    state.proposalPublic = { token: cleanToken, proposal: viewed };
+    render();
+    return;
+  }
+  throw new Error('This proposal is not available on this device.');
+}
+
+async function submitPublicProposalDecision(form) {
+  const data = Object.fromEntries(new FormData(form).entries());
+  const submitter = form.ownerDocument.activeElement;
+  const decision = submitter?.name === 'decision' ? submitter.value : data.decision || 'accept';
+  const token = String(data.token || state.proposalPublic?.token || '').trim();
+  const signerName = String(data.signer_name || '').trim();
+  const signerEmail = String(data.signer_email || '').trim();
+  if (!token || !signerName) throw new Error('Name is required to respond.');
+  const client = createSupabaseClient();
+  if (client) {
+    const result = await client.rpc('accept_public_proposal', {
+      proposal_token: token,
+      signer_name: signerName,
+      signer_email: signerEmail,
+      decision,
+    });
+    if (!result.error) {
+      const updated = normalizeProposal(result.data || {});
+      upsertProposal(updated);
+      state.proposalPublic = { token, proposal: updated };
+      render();
+      return;
+    }
+    console.warn('Public proposal response RPC failed, falling back to local state:', result.error.message || result.error);
+  }
+  const local = state.proposals.find((proposal) => proposal.public_token === token);
+  if (local) {
+    const status = decision === 'decline' ? 'Declined' : 'Accepted';
+    const now = new Date().toISOString();
+    const updated = normalizeProposal({
+      ...local,
+      status,
+      accepted_by: status === 'Accepted' ? signerName : local.accepted_by,
+      accepted_email: status === 'Accepted' ? signerEmail : local.accepted_email,
+      accepted_at: status === 'Accepted' ? now : local.accepted_at,
+      declined_at: status === 'Declined' ? now : local.declined_at,
+      updated_at: now,
+    });
+    upsertProposal(updated);
+    state.proposalPublic = { token, proposal: updated };
+    render();
+    return;
+  }
+  throw new Error('Could not submit this response.');
+}
+
 function renderDealBoard(companyId) {
   const rows = filteredDeals(companyId, true);
   const filter = state.stageFilterDeals;
@@ -10433,6 +10700,68 @@ function proposalTemplateById(id) {
   return PROPOSAL_TEMPLATES.find((template) => template.id === id) || PROPOSAL_TEMPLATES[0];
 }
 
+function normalizeProposal(input = {}) {
+  const status = PROPOSAL_STATUS_OPTIONS.includes(input.status) ? input.status : 'Draft';
+  const draft = input.draft && typeof input.draft === 'object' ? input.draft : {};
+  const client = input.client && typeof input.client === 'object' ? input.client : draft.client || {};
+  return {
+    id: String(input.id || ''),
+    company_id: canonicalCompanyId(input.company_id || defaultCompanyId()),
+    proposal_no: String(input.proposal_no || draft.proposalNo || '').trim(),
+    title: String(input.title || draft.jobTitle || 'Proposal').trim(),
+    status,
+    related_type: ['contact', 'deal', 'job'].includes(input.related_type) ? input.related_type : 'deal',
+    related_id: input.related_id ? String(input.related_id) : '',
+    contact_id: input.contact_id ? String(input.contact_id) : '',
+    deal_id: input.deal_id ? String(input.deal_id) : '',
+    job_id: input.job_id ? String(input.job_id) : '',
+    client: {
+      name: String(client.name || '').trim(),
+      email: String(client.email || '').trim(),
+      phone: String(client.phone || '').trim(),
+      address: String(client.address || '').trim(),
+    },
+    draft: { ...draft },
+    total: number(input.total ?? draft.total),
+    public_token: String(input.public_token || ''),
+    accepted_by: String(input.accepted_by || '').trim(),
+    accepted_email: String(input.accepted_email || '').trim(),
+    accepted_at: input.accepted_at || null,
+    declined_at: input.declined_at || null,
+    viewed_at: input.viewed_at || null,
+    sent_at: input.sent_at || null,
+    created_by: String(input.created_by || ''),
+    created_by_label: String(input.created_by_label || '').trim(),
+    created_at: input.created_at || new Date().toISOString(),
+    updated_at: input.updated_at || new Date().toISOString(),
+  };
+}
+
+function proposalById(id) {
+  return id ? state.proposals.find((proposal) => proposal.id === id) || null : null;
+}
+
+function companyProposals(companyId = activeCompanyId()) {
+  return state.proposals
+    .filter((proposal) => proposal.company_id === companyId)
+    .sort((a, b) => Date.parse(b.updated_at || 0) - Date.parse(a.updated_at || 0));
+}
+
+function proposalsFor(relatedType, relatedId) {
+  if (!relatedId) return [];
+  return state.proposals
+    .filter((proposal) => proposal.related_type === relatedType && proposal.related_id === relatedId)
+    .sort((a, b) => Date.parse(b.updated_at || 0) - Date.parse(a.updated_at || 0));
+}
+
+function proposalPublicUrl(proposal) {
+  return proposal?.public_token ? `${window.location.origin}${appHref(`/proposal/${encodeURIComponent(proposal.public_token)}`)}` : '';
+}
+
+function proposalToken() {
+  return `prop_${crypto.randomUUID().replace(/-/g, '')}`;
+}
+
 function proposalContext(type, id) {
   if (type === 'contact') {
     const contact = contactById(id);
@@ -10491,12 +10820,37 @@ function proposalContext(type, id) {
 
 function currentProposalContext() {
   const ctx = state.proposalContext || {};
+  if (ctx.proposalId) {
+    const proposal = proposalById(ctx.proposalId);
+    if (proposal) {
+      const base = proposalContext(proposal.related_type, proposal.related_id) || {
+        type: proposal.related_type,
+        id: proposal.related_id,
+        company_id: proposal.company_id,
+        label: 'Proposal',
+        title: proposal.title,
+        client: proposal.client,
+        total: proposal.total,
+        jobTitle: proposal.title,
+        account_id: '',
+      };
+      return {
+        ...base,
+        templateId: proposal.draft?.templateId || ctx.template || PROPOSAL_TEMPLATES[0].id,
+        proposalId: proposal.id,
+      };
+    }
+  }
   const base = proposalContext(ctx.type, ctx.id);
   if (!base) return null;
   return { ...base, templateId: ctx.template || PROPOSAL_TEMPLATES[0].id };
 }
 
 function proposalDraftForContext(ctx) {
+  if (ctx.proposalId) {
+    const proposal = proposalById(ctx.proposalId);
+    if (proposal?.draft) return { ...proposal.draft, client: { ...(proposal.draft.client || proposal.client) } };
+  }
   const template = proposalTemplateById(ctx.templateId);
   return {
     ...DEFAULT_PROPOSAL_PREMIUM,
@@ -10544,6 +10898,45 @@ function proposalDraftFromForm(form) {
       description: String(descriptions[index] || '').trim(),
       star: data.get(`scope_star_${index}`) === 'on',
     })).filter((item) => item.service || item.description),
+  };
+}
+
+function proposalRecordFromDraft(ctx, draft, existing = null) {
+  const now = new Date().toISOString();
+  const relatedType = ctx.type || existing?.related_type || 'deal';
+  const relatedId = ctx.id || existing?.related_id || '';
+  const record = normalizeProposal({
+    ...(existing || {}),
+    id: existing?.id || `proposal-${crypto.randomUUID()}`,
+    company_id: ctx.company_id || existing?.company_id || activeCompanyId(),
+    proposal_no: draft.proposalNo,
+    title: draft.jobTitle || existing?.title || 'Proposal',
+    status: existing?.status || 'Draft',
+    related_type: relatedType,
+    related_id: relatedId,
+    contact_id: relatedType === 'contact' ? relatedId : existing?.contact_id || (relatedType === 'deal' ? dealById(relatedId)?.primary_contact_id : ''),
+    deal_id: relatedType === 'deal' ? relatedId : existing?.deal_id || (relatedType === 'job' ? jobById(relatedId)?.deal_id : ''),
+    job_id: relatedType === 'job' ? relatedId : existing?.job_id || (relatedType === 'deal' ? dealById(relatedId)?.job_id : ''),
+    client: draft.client,
+    draft,
+    total: draft.total || 0,
+    public_token: existing?.public_token || proposalToken(),
+    created_by: existing?.created_by || activeSession().profile.id || '',
+    created_by_label: existing?.created_by_label || activeSession().profile.full_name || '',
+    created_at: existing?.created_at || now,
+    updated_at: now,
+  });
+  return record;
+}
+
+function proposalDraftFromRecord(proposal) {
+  return {
+    ...DEFAULT_PROPOSAL_PREMIUM,
+    ...(proposal?.draft || {}),
+    client: { ...(proposal?.client || {}), ...(proposal?.draft?.client || {}) },
+    total: number(proposal?.total ?? proposal?.draft?.total),
+    proposalNo: proposal?.proposal_no || proposal?.draft?.proposalNo || '',
+    jobTitle: proposal?.title || proposal?.draft?.jobTitle || 'Proposal',
   };
 }
 
@@ -10612,13 +11005,28 @@ function renderProposalBuilderModal(companyId) {
   const ctx = currentProposalContext();
   if (!ctx || ctx.company_id !== companyId) return renderModalShell('Job Center', 'Proposal', emptyState('Choose a contact, quote, or job before creating a proposal.'));
   const draft = proposalDraftForContext(ctx);
+  const saved = proposalsFor(ctx.type, ctx.id);
+  const activeProposal = ctx.proposalId ? proposalById(ctx.proposalId) : null;
+  const savedPanel = saved.length ? `
+    <section class="proposal-history">
+      <div><strong>Saved proposals</strong><small>Reuse, edit, or export past versions.</small></div>
+      ${saved.slice(0, 5).map((proposal) => `
+        <button class="${proposal.id === ctx.proposalId ? 'active' : ''}" type="button" data-action="edit-proposal" data-proposal-id="${h(proposal.id)}">
+          <span>${h(proposal.proposal_no || proposal.title)}</span>
+          <em>${h(proposal.status)} - ${h(money(proposal.total))}</em>
+        </button>
+      `).join('')}
+    </section>
+  ` : '';
   return renderModalShell('Job Center', `${ctx.label} proposal`, `
     <form id="proposal-builder-form" class="proposal-builder" data-proposal-builder-form>
+      <input type="hidden" name="proposal_id" value="${h(ctx.proposalId || '')}" />
       <input type="hidden" name="related_type" value="${h(ctx.type)}" />
       <input type="hidden" name="related_id" value="${h(ctx.id)}" />
       <section class="proposal-builder-rail">
+        ${savedPanel}
         <label><span>Template</span><select data-proposal-template name="template_id">${PROPOSAL_TEMPLATES.map((template) => `<option value="${h(template.id)}" ${template.id === draft.templateId ? 'selected' : ''}>${h(template.name)}</option>`).join('')}</select></label>
-        <label><span>Style</span><select data-proposal-field name="style"><option value="premium" selected>Premium</option><option value="simple">Simple</option></select></label>
+        <label><span>Style</span><select data-proposal-field name="style"><option value="premium" ${draft.style !== 'simple' ? 'selected' : ''}>Premium</option><option value="simple" ${draft.style === 'simple' ? 'selected' : ''}>Simple</option></select></label>
         <label><span>Proposal #</span><input data-proposal-field name="proposal_no" value="${h(draft.proposalNo)}" /></label>
         <div class="proposal-two"><label><span>Issued</span><input data-proposal-field name="issued" type="date" value="${h(draft.issued)}" /></label><label><span>Valid through</span><input data-proposal-field name="valid" type="date" value="${h(draft.valid)}" /></label></div>
         <label><span>Client name</span><input data-proposal-field name="client_name" value="${h(draft.client.name)}" /></label>
@@ -10637,7 +11045,10 @@ function renderProposalBuilderModal(companyId) {
       </section>
       <section class="proposal-builder-preview" data-proposal-preview>${renderProposalPreview(draft)}</section>
     </form>
-  `, 'proposal-modal', '<button class="btn btn-primary" type="submit" form="proposal-builder-form"><i class="ti ti-file-text"></i>Save proposal</button>');
+  `, 'proposal-modal', `
+    ${activeProposal ? `<button class="btn" type="button" data-action="export-proposal" data-proposal-id="${h(activeProposal.id)}"><i class="ti ti-download"></i>Export</button>` : ''}
+    <button class="btn btn-primary" type="submit" form="proposal-builder-form"><i class="ti ti-file-text"></i>${activeProposal ? 'Update proposal' : 'Save proposal'}</button>
+  `);
 }
 
 function proposalActivityBody(draft) {
@@ -10657,38 +11068,172 @@ async function saveBuiltProposal(form) {
   const data = new FormData(form);
   const type = String(data.get('related_type') || '');
   const id = String(data.get('related_id') || '');
+  const proposalId = String(data.get('proposal_id') || '');
   const ctx = proposalContext(type, id);
   if (!ctx) throw new Error('Proposal record was not found.');
   if (!requirePermission(type === 'job' ? 'jobs.manage' : 'crm.view', ctx.company_id, 'Your role cannot save proposals here.', 'Proposal')) return;
   const draft = proposalDraftFromForm(form);
   const total = roundCurrency(draft.total || 0);
   const body = proposalActivityBody(draft);
+  const existing = proposalId ? proposalById(proposalId) : null;
+  const savedProposal = await persistProposal(proposalRecordFromDraft(ctx, draft, existing), existing ? 'Proposal updated.' : 'Proposal saved.');
   if (type === 'contact') {
     const contact = contactById(id);
     await persistContact({ ...contact, value: total });
-    await logContactActivity(id, 'email', `Proposal prepared - ${money(total)}`, body);
+    await logContactActivity(id, 'email', `${existing ? 'Proposal updated' : 'Proposal prepared'} - ${money(total)}`, `${body}\n\nProposal ID: ${savedProposal.id}`);
   } else if (type === 'deal') {
     const deal = dealById(id);
     const proposalStage = dealStageNames().find((stage) => /estimate|proposal/i.test(stage));
     await persistDeal({ ...deal, value: total, stage: proposalStage || deal.stage }, 'Proposal saved to quote.');
-    await logDealActivity(id, 'email', `Proposal prepared - ${money(total)}`, body);
+    await logDealActivity(id, 'email', `${existing ? 'Proposal updated' : 'Proposal prepared'} - ${money(total)}`, `${body}\n\nProposal ID: ${savedProposal.id}`);
   } else if (type === 'job') {
     const job = jobById(id);
     await persistJob({ ...job, estimate_total: total }, 'Proposal saved to job.');
-    await logJobActivity(id, 'email', `Proposal prepared - ${money(total)}`, body);
+    await logJobActivity(id, 'email', `${existing ? 'Proposal updated' : 'Proposal prepared'} - ${money(total)}`, `${body}\n\nProposal ID: ${savedProposal.id}`);
   }
   state.modal = '';
   state.proposalContext = null;
-  showToast(`Proposal saved at ${money(total)}.`, 'live', 'Proposal');
+  state.selectedProposalId = savedProposal.id;
+  navigate(companyPath('proposals', { proposal_id: savedProposal.id }, ctx.company_id));
+}
+
+function openProposalBuilder(type, id, proposalId = '') {
+  const ctx = proposalContext(type, id);
+  if (!ctx) return;
+  state.proposalContext = { type, id, proposalId };
+  state.modal = 'proposal-builder';
   render();
 }
 
-function openProposalBuilder(type, id) {
-  const ctx = proposalContext(type, id);
-  if (!ctx) return;
-  state.proposalContext = { type, id };
-  state.modal = 'proposal-builder';
+function openProposalEdit(proposalId) {
+  const proposal = proposalById(proposalId);
+  if (!proposal) return showToast('Proposal not found.', 'local', 'Proposals');
+  openProposalBuilder(proposal.related_type, proposal.related_id, proposal.id);
+}
+
+async function duplicateProposal(proposalId) {
+  const source = proposalById(proposalId);
+  if (!source) return showToast('Choose a proposal to reuse first.', 'local', 'Proposals');
+  if (!requirePermission(source.related_type === 'job' ? 'jobs.manage' : 'crm.view', source.company_id, 'Your role cannot duplicate proposals here.', 'Proposal')) return;
+  const draft = proposalDraftFromRecord(source);
+  const copy = normalizeProposal({
+    ...source,
+    id: `proposal-${crypto.randomUUID()}`,
+    proposal_no: `${source.proposal_no || 'QR'}-COPY`,
+    title: `${source.title} copy`,
+    status: 'Draft',
+    public_token: proposalToken(),
+    accepted_by: '',
+    accepted_email: '',
+    accepted_at: null,
+    declined_at: null,
+    viewed_at: null,
+    sent_at: null,
+    draft: { ...draft, proposalNo: `${source.proposal_no || 'QR'}-COPY` },
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  });
+  const saved = await persistProposal(copy, 'Proposal duplicated.');
+  await logActivity({ type: 'system', subject: 'Proposal reused', body: `Copied from ${source.proposal_no || source.id}`, related_type: saved.related_type, related_id: saved.related_id });
+  state.selectedProposalId = saved.id;
+  navigate(companyPath('proposals', { proposal_id: saved.id }, saved.company_id));
+}
+
+async function setProposalStatus(proposalId, status, label = 'Proposal status saved.') {
+  const proposal = proposalById(proposalId);
+  if (!proposal || !PROPOSAL_STATUS_OPTIONS.includes(status)) return;
+  if (!requirePermission(proposal.related_type === 'job' ? 'jobs.manage' : 'crm.view', proposal.company_id, 'Your role cannot update proposal status.', 'Proposal')) return;
+  const now = new Date().toISOString();
+  const updates = { status };
+  if (status === 'Sent' && !proposal.sent_at) updates.sent_at = now;
+  if (status === 'Viewed' && !proposal.viewed_at) updates.viewed_at = now;
+  if (status === 'Accepted' && !proposal.accepted_at) updates.accepted_at = now;
+  if (status === 'Declined' && !proposal.declined_at) updates.declined_at = now;
+  const saved = await persistProposal({ ...proposal, ...updates }, label);
+  await logActivity({ type: 'system', subject: `Proposal ${status}`, body: `${saved.proposal_no || saved.title} is now ${status}.`, related_type: saved.related_type, related_id: saved.related_id });
+  state.selectedProposalId = saved.id;
   render();
+}
+
+function copyProposalApprovalLink(proposalId) {
+  const proposal = proposalById(proposalId);
+  const url = proposalPublicUrl(proposal);
+  if (!url) return showToast('This proposal does not have an approval link.', 'local', 'Proposals');
+  navigator.clipboard?.writeText(url).then(
+    () => showToast('Approval link copied.', 'live', 'Proposals'),
+    () => showToast(url, 'local', 'Approval link')
+  );
+  if (proposal.status === 'Draft') setProposalStatus(proposal.id, 'Sent', 'Proposal marked sent.');
+}
+
+async function exportProposalPdf(proposalId) {
+  const proposal = proposalById(proposalId) || state.proposalPublic?.proposal;
+  if (!proposal) throw new Error('Proposal not found.');
+  const draft = proposalDraftFromRecord(proposal);
+  await loadExternalScript('https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js', 'jspdf');
+  const pdf = new window.jspdf.jsPDF({ unit: 'pt', format: 'letter' });
+  const pageWidth = 612;
+  const margin = 42;
+  let y = 54;
+  pdf.setFillColor(26, 43, 74);
+  pdf.rect(0, 0, pageWidth, 102, 'F');
+  pdf.setTextColor(255, 255, 255);
+  pdf.setFont('helvetica', 'bold');
+  pdf.setFontSize(24);
+  pdf.text('Quest Roofing', margin, y);
+  pdf.setFontSize(10);
+  pdf.text(`Proposal - ${draft.proposalNo || proposal.proposal_no || proposal.id}`, margin, y + 20);
+  pdf.setFontSize(26);
+  pdf.text(money(draft.total || 0), pageWidth - margin, y, { align: 'right' });
+  y = 138;
+  pdf.setTextColor(232, 97, 26);
+  pdf.setFontSize(11);
+  pdf.text(String(draft.tagline || 'On a quest to serve you better').toUpperCase(), margin, y);
+  pdf.setTextColor(20, 28, 45);
+  pdf.setFontSize(18);
+  pdf.text(draft.jobTitle || proposal.title || 'Proposal', margin, y + 22);
+  pdf.setFont('helvetica', 'normal');
+  pdf.setFontSize(11);
+  const prepared = `Prepared for ${draft.client?.name || 'Client'}${draft.client?.address ? ` at ${draft.client.address}` : ''}`;
+  pdf.text(pdf.splitTextToSize(prepared, pageWidth - margin * 2), margin, y + 42);
+  y += 84;
+  pdf.setFont('helvetica', 'bold');
+  pdf.setFontSize(14);
+  pdf.text('Scope of work', margin, y);
+  y += 22;
+  pdf.setFont('helvetica', 'normal');
+  pdf.setFontSize(10);
+  (draft.items || []).forEach((item) => {
+    const line = `${item.star ? '* ' : ''}${item.service}${item.description ? ` - ${item.description}` : ''}`;
+    const lines = pdf.splitTextToSize(line, pageWidth - margin * 2 - 18);
+    if (y + lines.length * 13 > 742) {
+      pdf.addPage();
+      y = 54;
+    }
+    pdf.text('- ', margin, y);
+    pdf.text(lines, margin + 16, y);
+    y += lines.length * 13 + 4;
+  });
+  y += 12;
+  if (y > 660) {
+    pdf.addPage();
+    y = 54;
+  }
+  pdf.setFont('helvetica', 'bold');
+  pdf.setFontSize(13);
+  pdf.text('Warranty and terms', margin, y);
+  y += 18;
+  pdf.setFont('helvetica', 'normal');
+  pdf.setFontSize(10);
+  const terms = [
+    draft.warranty || DEFAULT_PROPOSAL_PREMIUM.warranty,
+    draft.manufacturerWarranty || DEFAULT_PROPOSAL_PREMIUM.manufacturerWarranty,
+    draft.terms || DEFAULT_PROPOSAL_PREMIUM.terms,
+    draft.deposit ? `Deposit due at approval: ${draft.deposit}% (${money((draft.total || 0) * draft.deposit / 100)}).` : '',
+    `Valid through ${formatDate(draft.valid)}.`,
+  ].filter(Boolean).join('\n');
+  pdf.text(pdf.splitTextToSize(terms, pageWidth - margin * 2), margin, y);
+  pdf.save(`Quest-Proposal-${slugify(proposal.proposal_no || proposal.id)}.pdf`);
 }
 
 function renderTaskRouteModal(route, companyId) {
@@ -11778,6 +12323,50 @@ function handleAction(event, node) {
     openDockedActivityComposer('deal', node.dataset.dealId, node.dataset.kind || node.dataset.tab);
     return;
   }
+  if (action === 'open-proposal') {
+    event.preventDefault();
+    state.selectedProposalId = node.dataset.proposalId || '';
+    navigate(companyPath('proposals', { proposal_id: state.selectedProposalId }, activeCompanyId()));
+    return;
+  }
+  if (action === 'open-proposal-builder') {
+    event.preventDefault();
+    const relatedType = node.dataset.relatedType || 'deal';
+    const relatedId = node.dataset.relatedId || '';
+    if (!relatedId) return showToast('Create or select a quote/contact/job first.', 'local', 'Proposals');
+    openProposalBuilder(relatedType, relatedId);
+    return;
+  }
+  if (action === 'edit-proposal') {
+    event.preventDefault();
+    openProposalEdit(node.dataset.proposalId || '');
+    return;
+  }
+  if (action === 'duplicate-proposal') {
+    event.preventDefault();
+    duplicateProposal(node.dataset.proposalId || state.selectedProposalId).catch((error) => showToast(error.message || 'Could not reuse proposal.', 'local', 'Proposals'));
+    return;
+  }
+  if (action === 'proposal-status') {
+    event.preventDefault();
+    setProposalStatus(node.dataset.proposalId || '', node.dataset.status || '').catch((error) => showToast(error.message || 'Could not update proposal status.', 'local', 'Proposals'));
+    return;
+  }
+  if (action === 'copy-proposal-link') {
+    event.preventDefault();
+    copyProposalApprovalLink(node.dataset.proposalId || '');
+    return;
+  }
+  if (action === 'export-proposal') {
+    event.preventDefault();
+    exportProposalPdf(node.dataset.proposalId || state.selectedProposalId).catch((error) => showToast(error.message || 'Could not export proposal.', 'local', 'Proposals'));
+    return;
+  }
+  if (action === 'export-public-proposal') {
+    event.preventDefault();
+    exportProposalPdf('').catch((error) => showToast(error.message || 'Could not export proposal.', 'local', 'Proposal'));
+    return;
+  }
   if (action === 'open-contact') {
     event.preventDefault();
     state.selectedContactId = node.dataset.contactId || '';
@@ -12410,6 +12999,15 @@ function onDocumentSubmit(event) {
     event.preventDefault();
     saveBuiltProposal(event.target).catch((error) => {
       showToast(error.message || 'Proposal could not be saved.', 'local', 'Proposal');
+    });
+    return;
+  }
+
+  if (event.target.matches('[data-proposal-public-form]')) {
+    event.preventDefault();
+    submitPublicProposalDecision(event.target).catch((error) => {
+      state.proposalPublic = { ...(state.proposalPublic || {}), error: error.message || 'Could not submit proposal response.' };
+      render();
     });
     return;
   }
@@ -14101,6 +14699,11 @@ function onDocumentInput(event) {
     updateWorkspaceOnly();
     return;
   }
+  if (event.target.matches('[data-proposal-search]')) {
+    state.proposalQuery = event.target.value;
+    updateWorkspaceOnly();
+    return;
+  }
   if (event.target.matches('[data-message-search]')) {
     state.messageQuery = event.target.value;
     updateWorkspaceOnly();
@@ -14190,6 +14793,12 @@ function onDocumentChange(event) {
       state.contactFilters = { ...CONTACT_FILTER_DEFAULTS, ...(state.contactFilters || {}), [key]: event.target.value || 'all' };
       render();
     }
+    return;
+  }
+  if (event.target.matches('[data-proposal-status-filter]')) {
+    const next = event.target.value || 'all';
+    state.proposalStatusFilter = next === 'all' || PROPOSAL_STATUS_OPTIONS.includes(next) ? next : 'all';
+    render();
     return;
   }
   if (event.target.matches('[data-task-status-filter]')) {
@@ -15358,6 +15967,7 @@ function getRoute() {
   const path = appPathname();
   const params = new URLSearchParams(window.location.search);
   if (path.startsWith('/portal/')) return { name: 'client-portal', path, params, section: 'client-portal', companyId: '', token: decodeURIComponent(path.replace(/^\/portal\//, '')), jobId: '' };
+  if (path.startsWith('/proposal/')) return { name: 'proposal-public', path, params, section: 'proposal-public', companyId: '', token: decodeURIComponent(path.replace(/^\/proposal\//, '')), jobId: '' };
   if (path === '/login') return { name: 'login', path, params, section: '', companyId: '', jobId: '' };
   if (path === '/') return { name: 'home', path, params, section: '', companyId: '', jobId: '' };
   if (path === '/command') return { name: 'command', path, params, section: 'dashboard', companyId: activeCompanyId(), jobId: params.get('job_id') || '' };
@@ -15570,6 +16180,9 @@ function resetScopedUiState() {
   state.dealQuery = '';
   state.selectedDealId = '';
   state.stageFilterDeals = 'all';
+  state.proposalQuery = '';
+  state.proposalStatusFilter = 'all';
+  state.selectedProposalId = '';
   state.accountQuery = '';
   state.selectedAccountId = '';
   state.accountTypeFilter = 'all';
@@ -16681,6 +17294,7 @@ function activitiesForAccount(accountId) {
 
 function persistAccounts() { writeJson(ACCOUNT_CACHE_KEY, state.accounts); }
 function persistDeals() { writeJson(DEAL_CACHE_KEY, state.deals); }
+function persistProposalsLocal() { writeJson(PROPOSAL_CACHE_KEY, state.proposals); }
 function persistActivities() { writeJson(ACTIVITY_CACHE_KEY, state.activities); }
 
 function upsertAccount(account) {
@@ -16694,6 +17308,13 @@ function upsertDeal(deal) {
   if (index >= 0) state.deals[index] = deal;
   else state.deals.push(deal);
   persistDeals();
+}
+function upsertProposal(proposal) {
+  const normalized = normalizeProposal(proposal);
+  const index = state.proposals.findIndex((item) => item.id === normalized.id);
+  if (index >= 0) state.proposals[index] = normalized;
+  else state.proposals.unshift(normalized);
+  persistProposalsLocal();
 }
 function upsertActivity(activity) {
   const index = state.activities.findIndex((item) => item.id === activity.id);
@@ -16735,6 +17356,7 @@ async function supabaseDelete(table, id) {
 
 const ACCOUNT_COLS = ['id', 'company_id', 'name', 'type', 'industry', 'website', 'phone', 'email', 'address', 'owner_name', 'status', 'notes', 'updated_at'];
 const DEAL_COLS = ['id', 'company_id', 'account_id', 'primary_contact_id', 'name', 'stage', 'status', 'value', 'probability', 'close_date', 'owner_name', 'source', 'job_id', 'notes', 'updated_at'];
+const PROPOSAL_COLS = ['id', 'company_id', 'proposal_no', 'title', 'status', 'related_type', 'related_id', 'contact_id', 'deal_id', 'job_id', 'client', 'draft', 'total', 'public_token', 'accepted_by', 'accepted_email', 'accepted_at', 'declined_at', 'viewed_at', 'sent_at', 'created_by', 'created_by_label', 'created_at', 'updated_at'];
 const ACTIVITY_COLS = ['id', 'company_id', 'type', 'subject', 'body', 'related_type', 'related_id', 'account_id', 'due_at', 'completed_at', 'owner_name', 'updated_at'];
 const CONTACT_COLS = ['id', 'company_id', 'name', 'phone', 'email', 'location', 'stage', 'value', 'owner_name', 'account_id', 'title', 'source', 'temperature', 'pay_type', 'roof_system', 'last_activity_at', 'notes', 'updated_at'];
 
@@ -16797,6 +17419,15 @@ async function persistDeal(deal, label = 'Quote saved.') {
   showToast(label, ok ? 'live' : 'local', 'Quotes');
   render();
   return payload;
+}
+
+async function persistProposal(proposal, label = 'Proposal saved.') {
+  const payload = normalizeProposal({ ...proposal, updated_at: new Date().toISOString() });
+  const row = emptyToNull(supabaseRow(payload, PROPOSAL_COLS), ['contact_id', 'deal_id', 'job_id', 'accepted_at', 'declined_at', 'viewed_at', 'sent_at']);
+  const { ok, data } = await supabaseWrite('proposal_documents', row);
+  upsertProposal(ok && data ? normalizeProposal(data) : payload);
+  showToast(label, ok ? 'live' : 'local', 'Proposals');
+  return ok && data ? normalizeProposal(data) : payload;
 }
 
 async function setDealStage(dealId, stage) {
@@ -19194,6 +19825,7 @@ function persistAll() {
   writeJson(CONTACT_CACHE_KEY, state.contacts);
   writeJson(ACCOUNT_CACHE_KEY, state.accounts);
   writeJson(DEAL_CACHE_KEY, state.deals);
+  writeJson(PROPOSAL_CACHE_KEY, state.proposals);
   writeJson(ACTIVITY_CACHE_KEY, state.activities);
   writeJson(TASK_CACHE_KEY, state.tasks);
   writeJson(FILE_CACHE_KEY, state.files);
