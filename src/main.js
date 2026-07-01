@@ -61,7 +61,6 @@ const CLIENT_PORTAL_DOCUMENT_CACHE_KEY = 'quest-hq-client-portal-document-cache-
 const CLIENT_PORTAL_ANNOTATION_CACHE_KEY = 'quest-hq-client-portal-annotation-cache-v1';
 const CLIENT_PORTAL_EVENT_CACHE_KEY = 'quest-hq-client-portal-event-cache-v1';
 const CLIENT_PORTAL_SESSION_KEY = 'quest-client-portal-session-v1';
-const CLIENT_PORTAL_TOKEN_CACHE_KEY = 'quest-client-portal-token-cache-v1';
 const CLIENT_PORTAL_GUEST_NAME = 'Client';
 const WORKSPACE_BUILDER_STORAGE_PREFIX = 'qhq_workspace_builder_v1';
 const DASHBOARD_LAYOUT_CACHE_KEY = 'quest-hq-dashboard-layouts-v1';
@@ -6961,7 +6960,7 @@ function renderClientPortalFormModal(companyId, portal = null) {
       <label><span>${portal ? 'New password' : 'Password'} (optional)</span><input name="password" type="password" autocomplete="new-password" placeholder="${portal?.password_hash ? 'Leave blank to keep current password' : 'Leave blank for link-only access'}" /></label>
       <div class="file-policy-note">
         <strong>Security</strong>
-        <span>Quest stores only token and password hashes. The raw link is shown after creation and can be copied from the portal detail.</span>
+        <span>Quest stores only token and password hashes. Copy the raw link after creating or regenerating a portal.</span>
       </div>
       <div class="form-actions">
         <button class="btn btn-primary" type="submit">${portal ? 'Save portal' : 'Create portal'}</button>
@@ -14425,7 +14424,7 @@ async function saveClientPortal(form) {
   if (!requirePermission('client_portals.manage', companyId, 'Your role cannot manage client portals.', 'Client Portal')) return;
   const fields = Object.fromEntries(new FormData(form).entries());
   const existing = fields.id ? clientPortalById(String(fields.id)) : null;
-  const rawToken = existing ? cachedClientPortalToken(existing.id) || existing.raw_token || '' : randomPortalToken();
+  const rawToken = existing?.raw_token || (existing ? '' : randomPortalToken());
   const tokenHash = existing?.token_hash || await digestHex(rawToken);
   const password = String(fields.password || '');
   const passwordSalt = password ? randomPortalToken(18) : existing?.password_salt || '';
@@ -14460,7 +14459,6 @@ async function saveClientPortal(form) {
     portal = normalizeClientPortal({ ...result.data, raw_token: rawToken });
   }
   upsertClientPortal(portal);
-  cacheClientPortalToken(portal.id, rawToken);
   state.modal = '';
   showToast(existing ? 'Portal saved.' : 'Portal created. Copy the link from the detail panel.', state.session?.auth === 'supabase' ? 'live' : 'local', 'Client Portal');
   navigate(companyPath('client-portals', { portal_id: portal.id }, companyId), { replace: true });
@@ -14528,7 +14526,7 @@ async function saveClientPortalDocuments(form) {
 function copyClientPortalLink(portalId) {
   const portal = clientPortalById(portalId);
   if (!portal) return;
-  const token = cachedClientPortalToken(portal.id) || portal.raw_token;
+  const token = String(portal.raw_token || '');
   if (!token) {
     showToast('Use Regenerate to issue a new copyable portal link.', 'local', 'Client Portal');
     return;
@@ -14557,7 +14555,6 @@ async function regenerateClientPortalLink(portalId) {
       .single();
     if (result.error) throw new Error(result.error.message || 'Portal link regenerate failed.');
   }
-  cacheClientPortalToken(portal.id, rawToken);
   upsertClientPortal(next);
   persistAll();
   copyClientPortalLink(portal.id);
@@ -19108,17 +19105,6 @@ async function pbkdf2Hex(password, salt) {
   return [...new Uint8Array(bits)].map((byte) => byte.toString(16).padStart(2, '0')).join('');
 }
 
-function cachedClientPortalToken(portalId) {
-  return String(readJson(CLIENT_PORTAL_TOKEN_CACHE_KEY, {})[portalId] || '');
-}
-
-function cacheClientPortalToken(portalId, token) {
-  if (!portalId || !token) return;
-  const cache = readJson(CLIENT_PORTAL_TOKEN_CACHE_KEY, {});
-  cache[portalId] = token;
-  writeJson(CLIENT_PORTAL_TOKEN_CACHE_KEY, cache);
-}
-
 function clientPortalPayload(portal) {
   return {
     id: portal.id,
@@ -19982,8 +19968,8 @@ function clientPortalEventsForPortal(portalId) {
 }
 
 function clientPortalPublicLink(portal) {
-  const raw = cachedClientPortalToken(portal?.id) || portal?.raw_token || '';
-  return raw ? `${window.location.origin}${appHref(`/portal/${encodeURIComponent(raw)}`)}` : 'Link token unavailable in this browser';
+  const raw = String(portal?.raw_token || '');
+  return raw ? `${window.location.origin}${appHref(`/portal/${encodeURIComponent(raw)}`)}` : 'Regenerate to issue a copyable portal link';
 }
 
 function fileTypeLabel(file) {
