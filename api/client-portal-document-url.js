@@ -50,6 +50,13 @@ async function supabaseFetch(path, options = {}) {
   });
 }
 
+function absoluteStorageUrl(path) {
+  if (!path) return '';
+  if (/^https?:\/\//i.test(path)) return path;
+  const cleanPath = path.startsWith('/') ? path : `/${path}`;
+  return `${baseUrl()}/storage/v1${cleanPath}`;
+}
+
 async function readJson(request) {
   const chunks = [];
   for await (const chunk of request) chunks.push(chunk);
@@ -78,5 +85,5 @@ export default async function handler(request, response) {
   const signed = signResult.ok ? await signResult.json() : {};
   const signedURL = signed.signedURL || signed.signedUrl || signed.url || '';
   if (!signedURL) return json(response, 502, { error: 'Could not create signed document URL.' });
-  return json(response, 200, { url: signedURL.startsWith('http') ? signedURL : `${baseUrl()}${signedURL}`, document: { id: doc.id, file_name: doc.file_name, mime_type: doc.mime_type } });
+  return json(response, 200, { url: absoluteStorageUrl(signedURL), document: { id: doc.id, file_name: doc.file_name, mime_type: doc.mime_type } });
 }

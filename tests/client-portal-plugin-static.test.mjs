@@ -117,4 +117,7 @@ test('client portal Vercel APIs exist and do not expose raw token or password fi
     assert.doesNotMatch(api, /select=token/);
     assert.doesNotMatch(api, /select=password/);
   }
+  const documentUrlApi = readFileSync(new URL('client-portal-document-url.js', apiDir), 'utf8');
+  assert.match(documentUrlApi, /function absoluteStorageUrl\s*\(/);
+  assert.match(documentUrlApi, /\$\{baseUrl\(\)\}\/storage\/v1\$\{cleanPath\}/);
 });
