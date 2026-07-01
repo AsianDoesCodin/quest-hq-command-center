@@ -149,3 +149,15 @@ test('workspace switcher lives in the sidebar workspace card, not the top nav', 
   assert.match(source, /workspaceIconMarkup\(company\)/);
   assert.doesNotMatch(source, /<select data-company-switch aria-label="Active company">\s*\$\{companies\.map\(.*deckMode/s);
 });
+
+test('technical data connection status lives in settings, not the topbar', () => {
+  const shellTemplateBlock = source.match(/function shellTemplate\(route, workspace\) \{[\s\S]*?function renderDeck/)?.[0] || '';
+  assert.ok(shellTemplateBlock, 'Expected shellTemplate block');
+  assert.doesNotMatch(shellTemplateBlock, /data-sync-state/);
+  assert.match(source, /<article class="panel settings-connection-card">/);
+  assert.match(source, /<h2>Data connection<\/h2>/);
+  assert.match(source, /const connectionLabel = connectionMode === 'live' \? 'Live database'/);
+  assert.match(source, /<span class="sync-pill \$\{h\(connectionMode\)\}" data-sync-state><i class="ti ti-database"><\/i>\$\{h\(connectionLabel\)\}<\/span>/);
+  assert.match(styles, /\.settings-connection-card\s*\{/);
+  assert.match(styles, /\.settings-connection-status\s*\{/);
+});

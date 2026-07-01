@@ -2784,7 +2784,6 @@ function shellTemplate(route, workspace) {
             ${svgIcon('q-search')}
             <input data-global-search value="${h(state.query)}" placeholder="Search this company" />
           </label>
-          <span class="sync-pill ${h(state.sync.mode)}" data-sync-state>${h(state.sync.label)}</span>
           <button class="btn" type="button" data-action="refresh-data" title="Refresh workspace data"><i class="ti ti-refresh"></i></button>
           ${renderNotificationCenter(companyId)}
           <div class="account-menu ${state.accountMenuOpen ? 'open' : ''}">
@@ -7091,6 +7090,13 @@ function renderWorkspaceSettings(companyId) {
   const iconDraft = workspaceIconDraft(companyId);
   const canManage = can('settings.manage', companyId) || ['owner', 'admin'].includes(String(membershipForProfile(companyId, activeSession().profile.id)?.role || '').toLowerCase()) || isQuestDeveloper();
   const canCreate = canCreateAnotherWorkspace();
+  const connectionMode = state.sync.mode === 'live' ? 'live' : state.sync.mode === 'loading' ? 'loading' : 'local';
+  const connectionLabel = connectionMode === 'live' ? 'Live database' : connectionMode === 'loading' ? 'Checking connection' : 'Local fallback';
+  const connectionDescription = connectionMode === 'live'
+    ? 'Workspace changes are saving to the live company database.'
+    : connectionMode === 'loading'
+      ? 'Quest HQ is checking the workspace data connection.'
+      : 'This workspace is using local fallback data. Changes may not persist for the team.';
   return `
     <article class="panel span-2">
       <div class="section-head"><div><h2>Workspace identity</h2><p>Rename this workspace and choose the icon your team sees in navigation.</p></div></div>
@@ -7131,6 +7137,18 @@ function renderWorkspaceSettings(companyId) {
         ['Owned workspaces', isQuestDeveloper() ? 'Unlimited' : `${ownedWorkspaceCount()} / ${WORKSPACE_SELF_CREATE_LIMIT}`],
         ['Visible jobs', companyJobs(companyId).length],
         ['Installed plugins', availableWorkspacePlugins().filter((plugin) => isPluginInstalled(companyId, plugin.id)).length],
+      ])}
+    </article>
+    <article class="panel settings-connection-card">
+      <div class="section-head"><div><h2>Data connection</h2><p>Admin-only health check for where workspace changes are being saved.</p></div></div>
+      <div class="settings-connection-status">
+        <span class="sync-pill ${h(connectionMode)}" data-sync-state><i class="ti ti-database"></i>${h(connectionLabel)}</span>
+        <p>${h(connectionDescription)}</p>
+      </div>
+      ${contractRows([
+        ['Workspace', companyName(companyId)],
+        ['Current status', state.sync.label],
+        ['Storage mode', connectionMode === 'live' ? 'Quest cloud database' : connectionMode === 'loading' ? 'Checking' : 'This browser only'],
       ])}
     </article>
   `;
