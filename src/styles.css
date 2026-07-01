@@ -17506,8 +17506,34 @@ button {
     width: min(260px, calc(100% - 24px));
   }
 
-  .landing-symbol-strip span {
+.landing-symbol-strip span {
     justify-content: flex-start;
     padding-inline: 12px;
   }
+}
+
+/* Front-page brand contrast fix: keep the wordmark readable on the dark header. */
+.landing-nav .landing-brand {
+  min-width: max-content;
+}
+
+.landing-nav .landing-brand .side-mark {
+  border-color: #f0b23b;
+  background: linear-gradient(180deg, #1b1711 0%, #0f0d0a 100%);
+  color: #ffb325;
+  box-shadow: inset 0 -5px rgba(240, 178, 59, .16), 0 0 0 1px rgba(240, 178, 59, .18);
+}
+
+.landing-nav .landing-brand strong {
+  color: #f0b23b;
+  font-weight: 950;
+  letter-spacing: .24em;
+  text-shadow: 0 1px 0 rgba(0, 0, 0, .45);
+}
+
+.landing-nav .landing-brand small {
+  color: #f7efe3;
+  font-weight: 800;
+  letter-spacing: .22em;
+  text-shadow: 0 1px 0 rgba(0, 0, 0, .45);
 }
