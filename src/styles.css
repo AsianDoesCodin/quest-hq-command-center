@@ -11293,6 +11293,34 @@ button.side-item.planned b {
   cursor: crosshair;
 }
 
+.client-portal-pdf-fallback {
+  display: block;
+  width: min(1120px, calc(100vw - 360px));
+  min-width: 720px;
+  height: 76vh;
+  min-height: 560px;
+  border: 0;
+  background: #fff;
+}
+
+.client-portal-pdf-fallback[hidden],
+.client-portal-pdf-fallback-message[hidden] {
+  display: none;
+}
+
+.client-portal-canvas-wrap.fallback-visible #client-portal-doc-canvas,
+.client-portal-canvas-wrap.fallback-visible #client-portal-draw-canvas {
+  display: none;
+}
+
+.client-portal-pdf-fallback-message {
+  padding: 10px 14px;
+  border-top: 1px solid #d9e0ea;
+  color: #4b5563;
+  font-size: 13px;
+  background: #f8fafc;
+}
+
 .client-portal-comment {
   padding: 0;
   margin-top: 8px;

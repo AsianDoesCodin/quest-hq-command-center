@@ -66,7 +66,18 @@ const CLIENT_PORTAL_GUEST_NAME = 'Client';
 const WORKSPACE_BUILDER_STORAGE_PREFIX = 'qhq_workspace_builder_v1';
 const DASHBOARD_LAYOUT_CACHE_KEY = 'quest-hq-dashboard-layouts-v1';
 const DASHBOARD_ROLE_VIEW_CACHE_KEY = 'quest-hq-dashboard-role-views-v1';
+const LAUNCH_HIDE_FUTURE_MODULES = true;
+const LAUNCH_HIDE_UNREADY_DASHBOARD_WIDGETS = true;
 const ESTIMATE_TAX_RATE = 0.085;
+const CRM2_UNDERWRITER_STAGES = [
+  { key: 'prospect', name: 'Prospect', color: '#9AA0A8' },
+  { key: 'lead', name: 'Lead', color: '#378ADD' },
+  { key: 'nurturing', name: 'Nurturing', color: '#2F9E8F' },
+  { key: 'underwriting', name: 'Underwriting', color: '#BA7517' },
+  { key: 'estimate', name: 'Estimate Sent', color: '#378ADD' },
+  { key: 'negotiating', name: 'Negotiating', color: '#BA7517' },
+  { key: 'won', name: 'Won', color: '#639922' },
+];
 const ROOF_ESTIMATE_SYSTEM_ORDER = ['shingle', 'tile', 'foam', 'metal'];
 const ROOF_ESTIMATE_SYSTEMS = {
   shingle: {
@@ -1978,6 +1989,10 @@ function render() {
   }
 
   ensureDataLoad();
+  if (shouldHoldCompanyRouteForLiveData(state.route)) {
+    renderWorkspaceLoading(state.route);
+    return;
+  }
   if (state.session?.auth === 'supabase' && state.dataLoaded && !allowedCompanyIds().length) {
     renderNoCompanyAccess();
     return;
@@ -1993,6 +2008,25 @@ function render() {
   if (state.route.params.get('account') === 'profile') state.modal = 'profile';
   document.title = `${routeTitle(state.route)} | ${companyName(activeCompanyId())} | Quest HQ`;
   app.innerHTML = shellTemplate(state.route, renderWorkspace(state.route));
+}
+
+function shouldHoldCompanyRouteForLiveData(route) {
+  return !!route && route.name !== 'home' && route.name !== 'login' && route.name !== 'client-portal' && state.session?.auth === 'supabase' && !state.dataLoaded;
+}
+
+function renderWorkspaceLoading(route) {
+  document.title = `${routeTitle(route)} | Quest HQ`;
+  app.innerHTML = `
+    <main class="login-shell">
+      <section class="login-panel">
+        <div class="login-brand">
+          <span class="side-mark">Q</span>
+          <span><strong>Quest HQ</strong><small>Secure workspace</small></span>
+        </div>
+        ${emptyState('Loading workspace data...')}
+      </section>
+    </main>
+  `;
 }
 
 function workspacePresetSelect(selected = 'generic') {
@@ -3330,7 +3364,7 @@ function renderCompanyDashboard(companyId) {
   state.dashboardRole = role;
   const ctx = dashboardContext(companyId);
   const registry = dashboardWidgetRegistry(companyId, ctx);
-  const layout = dashboardWidgetLayout(companyId, role).filter((id) => registry[id]);
+  const layout = dashboardWidgetLayout(companyId, role).filter((id) => registry[id] && !isLaunchHiddenDashboardWidget(registry[id]));
   const repOptions = dashboardRepOptions(companyId);
   if (!repOptions.some((rep) => rep.id === state.dashboardRep)) state.dashboardRep = 'all';
   const activeRep = repOptions.find((rep) => rep.id === state.dashboardRep) || repOptions[0];
@@ -3679,11 +3713,15 @@ function renderDashboardWidgetCard(widget, id, index, total) {
   `;
 }
 
+function isLaunchHiddenDashboardWidget(widget) {
+  return LAUNCH_HIDE_UNREADY_DASHBOARD_WIDGETS && widget?.locked;
+}
+
 function renderDashboardWidgetLibraryModal(companyId) {
   const role = state.dashboardRole || 'exec';
   const ctx = dashboardContext(companyId);
   const registry = dashboardWidgetRegistry(companyId, ctx);
-  const layout = dashboardWidgetLayout(companyId, role).filter((id) => registry[id]);
+  const layout = dashboardWidgetLayout(companyId, role).filter((id) => registry[id] && !isLaunchHiddenDashboardWidget(registry[id]));
   const roleLabel = DASHBOARD_ROLE_VIEWS.find(([id]) => id === role)?.[1] || 'Executive';
   return renderModalShell('Dashboard', 'Add widget', `
     <div class="dash-modal-summary">
@@ -3735,6 +3773,7 @@ function renderDashboardWidgetTray(registry, layout) {
             <strong>${h(group)}</strong>
             <div class="dash-tray-options">
               ${items.map(([id, widget]) => {
+                if (LAUNCH_HIDE_UNREADY_DASHBOARD_WIDGETS && widget.locked) return '';
                 const active = layout.includes(id);
                 const status = active ? 'Added' : widget.locked ? 'Needs data source' : 'Ready';
                 return `<button class="${active ? 'active' : ''}" type="button" data-action="dashboard-add-widget" data-widget-id="${h(id)}" ${active ? 'disabled' : ''}><b>${h(widget.title)}</b><span>${h(status)} - ${widget.locked ? h(widget.sub || '') : h(widget.sub || 'Ready widget')}</span></button>`;
@@ -3877,7 +3916,7 @@ function dashboardRepOptions(companyId) {
   const companyKey = dashboardOwnerKey(companyName(companyId));
   const reps = companyAccessUsers(companyId)
     .filter((user) => user.status === 'active')
-    .map((user) => user.name || user.email)
+    .map((user) => dashboardRepDisplayName(user))
     .filter(Boolean)
     .filter((name) => dashboardOwnerKey(name) !== companyKey)
     .map((name) => ({ id: dashboardOwnerKey(name), name }));
@@ -3886,6 +3925,16 @@ function dashboardRepOptions(companyId) {
     .filter(Boolean)
     .sort((a, b) => a.name.localeCompare(b.name));
   return [{ id: 'all', name: 'Whole team' }].concat(uniqueReps);
+}
+
+function dashboardRepDisplayName(user) {
+  const name = String(user?.name || user?.email || '').trim();
+  return isInternalDashboardRepName(name) ? '' : name;
+}
+
+function isInternalDashboardRepName(name) {
+  const key = dashboardOwnerKey(name);
+  return key === 'basic-quest-user' || key === 'demo-readonly-user' || /^profile-[a-f0-9-]+$/.test(key);
 }
 
 function dashboardOwnerKey(value) {
@@ -4150,16 +4199,6 @@ function renderAnalyticsPage(route, companyId) {
     </section>
   `;
 }
-
-const CRM2_UNDERWRITER_STAGES = [
-  { key: 'prospect', name: 'Prospect', color: '#9AA0A8' },
-  { key: 'lead', name: 'Lead', color: '#378ADD' },
-  { key: 'nurturing', name: 'Nurturing', color: '#2F9E8F' },
-  { key: 'underwriting', name: 'Underwriting', color: '#BA7517' },
-  { key: 'estimate', name: 'Estimate Sent', color: '#378ADD' },
-  { key: 'negotiating', name: 'Negotiating', color: '#BA7517' },
-  { key: 'won', name: 'Won', color: '#639922' },
-];
 
 const CRM2_UNDERWRITER_GUIDANCE = {
   prospect: { title: 'Work the prospect.', lines: ['Confirm source and best contact method.', 'Decide if there is a real project.', 'Move them into a real conversation.'] },
@@ -6671,6 +6710,10 @@ function renderClientPortalPublicPage(route) {
               <div class="client-portal-canvas-wrap">
                 <canvas id="client-portal-doc-canvas"></canvas>
                 <canvas id="client-portal-draw-canvas"></canvas>
+                <iframe id="client-portal-pdf-fallback" class="client-portal-pdf-fallback" title="${h(selectedDoc.file_name || 'Plan preview')}" hidden></iframe>
+                <div class="client-portal-pdf-fallback-message" data-client-portal-pdf-fallback-message hidden>
+                  The plan preview did not render in this browser. Open the PDF directly to review the plan.
+                </div>
               </div>
             ` : emptyState('Choose a document.')}
           </div>
@@ -7091,6 +7134,8 @@ function renderPluginsSettings(companyId) {
 
 function renderPluginCard(companyId, plugin, canManagePlugins) {
   const status = companyPluginStatus(companyId, plugin.id);
+  plugin.status = status;
+  if (LAUNCH_HIDE_FUTURE_MODULES && plugin.status === 'coming_soon') return '';
   const installed = status === 'installed';
   const disabled = status === 'disabled';
   const available = status === 'available';
@@ -7458,7 +7503,7 @@ function renderInviteFormModal(companyId) {
       <input type="hidden" name="company_id" value="${h(companyId)}" />
       ${field('Email', 'email', '', true, 'email')}
       ${selectField('Role', 'role_id', defaultInviteRoleId(companyId), options)}
-      <div class="form-message span-2">Quest creates an invite code and link for you to copy. Automatic invite email delivery is not active in v1.</div>
+      <div class="form-message span-2">Copy this invite link or code and send it to the teammate yourself.</div>
       <div class="form-actions span-2">
         <button class="btn btn-primary" type="submit">Create invite code</button>
         <button class="btn" type="button" data-action="close-modal">Cancel</button>
@@ -14157,8 +14202,25 @@ function onDocumentChange(event) {
   }
 }
 
+function validateJobForm(form) {
+  const formData = Object.fromEntries(new FormData(form).entries());
+  const nameInput = form.querySelector('[name="name"]');
+  const rawName = String(formData.name || '').trim();
+  if (!rawName) {
+    nameInput?.setCustomValidity('Workspace name is required.');
+    nameInput?.reportValidity();
+    showToast('Workspace name is required.', 'local', 'Jobs');
+    return { ok: false };
+  }
+  nameInput?.setCustomValidity('');
+  formData.name = rawName;
+  return { ok: true, data: formData };
+}
+
 async function saveJob(form) {
-  const payload = normalizeJob(Object.fromEntries(new FormData(form).entries()));
+  const validation = validateJobForm(form);
+  if (!validation.ok) return;
+  const payload = normalizeJob(validation.data);
   payload.id = payload.id || crypto.randomUUID();
   payload.company_id = payload.company_id || activeCompanyId();
   if (!requirePermission('jobs.manage', payload.company_id, 'Your role can view jobs but cannot create or edit them.', 'Jobs')) return;
@@ -14619,30 +14681,90 @@ async function mountClientPortalViewer() {
   attachClientPortalDrawing(base, overlay, doc);
 }
 
+function setClientPortalPdfFallback(url = '', message = '') {
+  const fallback = document.getElementById('client-portal-pdf-fallback');
+  const fallbackMessage = document.querySelector('[data-client-portal-pdf-fallback-message]');
+  const wrap = document.querySelector('.client-portal-canvas-wrap');
+  if (!fallback || !wrap) return;
+  if (url) fallback.setAttribute('src', url);
+  fallback.hidden = true;
+  fallbackMessage?.setAttribute('hidden', '');
+  wrap.classList.remove('fallback-visible');
+  if (message && fallbackMessage) fallbackMessage.textContent = message;
+}
+
+function showClientPortalPdfFallback(url, message = 'The plan preview did not render in this browser. Open the PDF directly to review the plan.') {
+  const fallback = document.getElementById('client-portal-pdf-fallback');
+  const fallbackMessage = document.querySelector('[data-client-portal-pdf-fallback-message]');
+  const wrap = document.querySelector('.client-portal-canvas-wrap');
+  if (!fallback || !wrap || !url) return;
+  fallback.setAttribute('src', url);
+  fallback.hidden = false;
+  if (fallbackMessage) {
+    fallbackMessage.textContent = message;
+    fallbackMessage.hidden = false;
+  }
+  wrap.classList.add('fallback-visible');
+}
+
+function looksBlankClientPortalCanvas(base) {
+  try {
+    const ctx = base.getContext('2d', { willReadFrequently: true });
+    const width = base.width;
+    const height = base.height;
+    if (!ctx || !width || !height) return true;
+    const sampleWidth = Math.max(1, Math.min(width, 80));
+    const sampleHeight = Math.max(1, Math.min(height, 80));
+    const data = ctx.getImageData(Math.floor((width - sampleWidth) / 2), Math.floor((height - sampleHeight) / 2), sampleWidth, sampleHeight).data;
+    let nonWhitePixels = 0;
+    for (let i = 0; i < data.length; i += 4) {
+      const alpha = data[i + 3];
+      const isWhite = data[i] > 248 && data[i + 1] > 248 && data[i + 2] > 248;
+      if (alpha > 8 && !isWhite) nonWhitePixels += 1;
+      if (nonWhitePixels > 12) return false;
+    }
+    return true;
+  } catch (_error) {
+    return false;
+  }
+}
+
 async function renderClientPortalDocumentCanvas(doc, base, overlay) {
   const ctx = base.getContext('2d');
+  setClientPortalPdfFallback('', '');
   const file = await fetchClientPortalDocumentFile(doc.id);
   if (doc.mime_type?.includes('pdf') || /\.pdf($|\?)/i.test(doc.file_name || '')) {
-    await loadExternalScript('https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js', 'pdfjsLib');
-    window.pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
-    const pdfData = new Uint8Array(await file.arrayBuffer());
-    const pdf = await window.pdfjsLib.getDocument({ data: pdfData }).promise;
-    state.clientPortalPageCount = Math.max(1, pdf.numPages || 1);
-    state.clientPortalPage = Math.max(1, Math.min(state.clientPortalPageCount, Number(state.clientPortalPage || 1)));
-    const page = await pdf.getPage(state.clientPortalPage);
-    const stageWidth = document.querySelector('.client-portal-stage')?.clientWidth || 900;
-    const baseViewport = page.getViewport({ scale: 1 });
-    const fitScale = Math.min(1.35, Math.max(0.45, (stageWidth - 48) / baseViewport.width));
-    const scale = state.clientPortalFitMode ? fitScale : Math.max(0.35, Math.min(3, Number(state.clientPortalZoom || fitScale)));
-    state.clientPortalZoom = scale;
-    const zoomLabel = document.querySelector('.client-portal-zoom-label');
-    if (zoomLabel) zoomLabel.textContent = `${Math.round(scale * 100)}%`;
-    const viewport = page.getViewport({ scale });
-    base.width = viewport.width;
-    base.height = viewport.height;
-    overlay.width = viewport.width;
-    overlay.height = viewport.height;
-    await page.render({ canvasContext: ctx, viewport }).promise;
+    const fallbackUrl = await ensureClientPortalDocumentUrl().catch(() => '') || URL.createObjectURL(file);
+    try {
+      await loadExternalScript('https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js', 'pdfjsLib');
+      window.pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+      const pdfData = new Uint8Array(await file.arrayBuffer());
+      const pdf = await window.pdfjsLib.getDocument({ data: pdfData }).promise;
+      state.clientPortalPageCount = Math.max(1, pdf.numPages || 1);
+      state.clientPortalPage = Math.max(1, Math.min(state.clientPortalPageCount, Number(state.clientPortalPage || 1)));
+      const page = await pdf.getPage(state.clientPortalPage);
+      const stageWidth = document.querySelector('.client-portal-stage')?.clientWidth || 900;
+      const baseViewport = page.getViewport({ scale: 1 });
+      const fitScale = Math.min(1.35, Math.max(0.45, (stageWidth - 48) / baseViewport.width));
+      const scale = state.clientPortalFitMode ? fitScale : Math.max(0.35, Math.min(3, Number(state.clientPortalZoom || fitScale)));
+      state.clientPortalZoom = scale;
+      const zoomLabel = document.querySelector('.client-portal-zoom-label');
+      if (zoomLabel) zoomLabel.textContent = `${Math.round(scale * 100)}%`;
+      const viewport = page.getViewport({ scale });
+      base.width = viewport.width;
+      base.height = viewport.height;
+      overlay.width = viewport.width;
+      overlay.height = viewport.height;
+      await page.render({ canvasContext: ctx, viewport }).promise;
+      if (looksBlankClientPortalCanvas(base)) {
+        showClientPortalPdfFallback(fallbackUrl);
+        return;
+      }
+    } catch (error) {
+      console.warn('PDF canvas render failed; showing portal fallback', error);
+      showClientPortalPdfFallback(fallbackUrl);
+      return;
+    }
   } else {
     const objectUrl = URL.createObjectURL(file);
     try {
@@ -20217,7 +20339,9 @@ async function createFormFromModal(formEl) {
   if (!requirePermission('forms.manage', activeCompanyId(), 'Your role cannot create forms.', 'Forms')) return;
   const data = Object.fromEntries(new FormData(formEl).entries());
   const template = data.template_id ? formTemplates().find((item) => item.id === data.template_id) : null;
-  const title = String(data.title || template?.title || 'Untitled form').trim() || 'Untitled form';
+  const validation = validateNewFormModal(formEl, template);
+  if (!validation.ok) return;
+  const title = validation.title;
   const description = String(data.description || template?.description || '').trim();
   const questions = template
     ? template.questions.map((question) => ({ ...clone(question), id: `q-${crypto.randomUUID()}` }))
@@ -20236,6 +20360,20 @@ async function createFormFromModal(formEl) {
     require_approval: data.require_approval === 'on',
     questions,
   });
+}
+
+function validateNewFormModal(formEl, template) {
+  const data = Object.fromEntries(new FormData(formEl).entries());
+  const titleInput = formEl.querySelector('[name="title"]');
+  const title = String(data.title || template?.title || '').trim();
+  if (!title) {
+    titleInput?.setCustomValidity('Form title is required.');
+    titleInput?.reportValidity();
+    showToast('Form title is required.', 'local', 'Forms');
+    return { ok: false };
+  }
+  titleInput?.setCustomValidity('');
+  return { ok: true, data, title };
 }
 
 function selectForm(id, shouldRender = true) {
