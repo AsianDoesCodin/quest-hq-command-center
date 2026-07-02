@@ -444,6 +444,26 @@ const CONTACT_SOURCE_OPTIONS = [
   ['Canvassing', 'Canvassing'],
   ['Other', 'Other'],
 ];
+const CRM_ADDRESS_SUGGESTIONS = [
+  'Arizona, USA',
+  'Phoenix, AZ',
+  'Scottsdale, AZ',
+  'Mesa, AZ',
+  'Tempe, AZ',
+  'Chandler, AZ',
+  'Gilbert, AZ',
+  'Glendale, AZ',
+  'Peoria, AZ',
+  'Surprise, AZ',
+  'Avondale, AZ',
+  'Goodyear, AZ',
+  'Buckeye, AZ',
+  'Queen Creek, AZ',
+  'San Tan Valley, AZ',
+  'Fountain Hills, AZ',
+  'Paradise Valley, AZ',
+  'Tucson, AZ',
+];
 
 const DASHBOARD_WIDGET_GROUPS = ['Value drivers', 'Growth', 'Capacity', 'People', 'Cash flow', 'Strategy', 'EOS', 'Sales', 'Operations', 'Finance', 'Reputation'];
 const DASHBOARD_ROLE_VIEWS = [
@@ -2102,7 +2122,7 @@ function bindTimePickerInputs() {
 function bindGoogleAddressInputs() {
   document.querySelectorAll('[data-address-lookup-input]:not([data-address-lookup-bound])').forEach((input) => {
     input.dataset.addressLookupBound = 'true';
-    const field = input.closest('.address-lookup-field');
+    const field = input.closest('.address-lookup-field, .sf-inline-address-editor');
     const link = field?.querySelector('[data-address-map-link]');
     const updatePinLink = () => {
       const address = String(input.value || '').trim();
@@ -2112,7 +2132,11 @@ function bindGoogleAddressInputs() {
       link.setAttribute('aria-disabled', address ? 'false' : 'true');
     };
     input.addEventListener('input', updatePinLink);
+    link?.addEventListener('pointerdown', (ev) => {
+      if (link.getAttribute('aria-disabled') !== 'true') ev.preventDefault();
+    });
     link?.addEventListener('click', (ev) => {
+      updatePinLink();
       if (link.getAttribute('aria-disabled') === 'true') ev.preventDefault();
     });
     updatePinLink();
@@ -18911,6 +18935,7 @@ function renderAddressLookupField(label, name, value = '', options = [], classNa
 
 function contactAddressOptions(companyId) {
   return compactUnique([
+    ...CRM_ADDRESS_SUGGESTIONS,
     ...companyContacts(companyId).map((contact) => contact.location),
     ...companyAccounts(companyId).map((account) => account.address),
     ...companyJobs(companyId).map((job) => job.site_address),

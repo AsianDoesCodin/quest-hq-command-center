@@ -41,6 +41,9 @@ test('contact locations support google maps autocomplete and pin links', () => {
   assert.match(source, /function googleMapsPlaceSearchUrl\(address\)/);
   assert.match(source, /function renderAddressLookupField\(label, name, value = '', options = \[\]/);
   assert.match(source, /function beginAddressInlineEdit\(span, value, companyId, commitValue\)/);
+  assert.match(source, /const CRM_ADDRESS_SUGGESTIONS = \[/);
+  assert.match(source, /Arizona, USA/);
+  assert.match(source, /Phoenix, AZ/);
   assert.match(source, /data-address-map-link/);
   assert.match(source, /data-address-lookup-input/);
   assert.match(editorSource, /renderAddressLookupField\('Location', 'location', edit\.location/);
@@ -50,6 +53,8 @@ test('contact locations support google maps autocomplete and pin links', () => {
   assert.match(source, /beginAddressInlineEdit\(span, job\.site_address, job\.company_id/);
   assert.match(source, /renderAddressLookupField\('Client address', 'client_address', draft\.client\.address/);
   assert.match(source, /const quoteAddress = job\?\.site_address \|\| account\?\.address \|\| contact\?\.location \|\| ''/);
+  assert.match(source, /\.closest\('\.address-lookup-field, \.sf-inline-address-editor'\)/);
+  assert.match(source, /addEventListener\('pointerdown', \(ev\) => \{\s*if \(link\.getAttribute\('aria-disabled'\) !== 'true'\) ev\.preventDefault\(\);/);
   assert.match(styles, /\.address-pin-button/);
   assert.match(styles, /\.sf-inline-address-editor/);
   assert.match(recordSource, /googleMapsPlaceSearchUrl\(contact\.location\)/);
