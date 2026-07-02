@@ -1933,6 +1933,7 @@ const state = {
 
 const app = document.getElementById('app');
 let supabaseClientCache = null;
+let addressSuggestionRequestSeq = 0;
 init();
 
 function init() {
@@ -2119,10 +2120,123 @@ function bindTimePickerInputs() {
   });
 }
 
+function addressLookupContainer(input) {
+  return input.closest('.address-lookup-control, .sf-inline-address-editor');
+}
+
+function addressLookupField(input) {
+  return input.closest('.address-lookup-field, .sf-inline-address-editor');
+}
+
+function closeAddressSuggestionMenus(exceptInput = null) {
+  document.querySelectorAll('.address-suggestions-menu').forEach((menu) => {
+    if (exceptInput && menu.dataset.addressInputId === exceptInput.dataset.addressInputId) return;
+    menu.hidden = true;
+    menu.innerHTML = '';
+  });
+}
+
+function parseAddressOptionDataset(input) {
+  try {
+    const parsed = JSON.parse(input.dataset.addressOptions || '[]');
+    return Array.isArray(parsed) ? parsed : [];
+  } catch (error) {
+    return [];
+  }
+}
+
+function localAddressSuggestions(input, query) {
+  const needle = String(query || '').toLowerCase();
+  if (!needle) return [];
+  return parseAddressOptionDataset(input)
+    .filter((address) => String(address || '').toLowerCase().includes(needle))
+    .map((address) => ({ label: String(address), value: String(address), source: 'saved' }));
+}
+
+function mergeAddressSuggestions(...groups) {
+  const merged = new Map();
+  groups.flat().forEach((item) => {
+    const value = String(item?.value || item?.label || '').trim();
+    if (!value) return;
+    const key = value.toLowerCase();
+    if (!merged.has(key)) merged.set(key, { label: String(item.label || value), value, source: item.source || 'address' });
+  });
+  return [...merged.values()].slice(0, 8);
+}
+
+function addressSuggestionMenu(input) {
+  if (!input.dataset.addressInputId) input.dataset.addressInputId = `address-${crypto.randomUUID()}`;
+  const host = addressLookupContainer(input) || addressLookupField(input);
+  if (!host) return null;
+  let menu = host.querySelector(`.address-suggestions-menu[data-address-input-id="${input.dataset.addressInputId}"]`);
+  if (!menu) {
+    menu = document.createElement('div');
+    menu.className = 'address-suggestions-menu';
+    menu.dataset.addressInputId = input.dataset.addressInputId;
+    menu.setAttribute('role', 'listbox');
+    menu.hidden = true;
+    host.appendChild(menu);
+  }
+  return menu;
+}
+
+function renderAddressSuggestionMenu(input, suggestions, status = '') {
+  const menu = addressSuggestionMenu(input);
+  if (!menu) return;
+  if (!suggestions.length && !status) {
+    menu.hidden = true;
+    menu.innerHTML = '';
+    return;
+  }
+  const rows = suggestions.map((item) => `
+    <button type="button" class="address-suggestion-option" data-address-suggestion="${h(item.value)}" role="option">
+      <i class="ti ti-map-pin"></i>
+      <span>${h(item.label)}</span>
+    </button>
+  `).join('');
+  menu.innerHTML = `${status ? `<div class="address-suggestion-status">${h(status)}</div>` : ''}${rows}`;
+  menu.hidden = false;
+  menu.querySelectorAll('[data-address-suggestion]').forEach((button) => {
+    button.addEventListener('pointerdown', (ev) => ev.preventDefault());
+    button.addEventListener('click', () => {
+      input.value = button.dataset.addressSuggestion || '';
+      input.dispatchEvent(new Event('input', { bubbles: true }));
+      input.dispatchEvent(new Event('change', { bubbles: true }));
+      closeAddressSuggestionMenus();
+      input.focus();
+    });
+  });
+}
+
+async function refreshAddressSuggestions(input) {
+  const query = String(input.value || '').trim();
+  const local = localAddressSuggestions(input, query);
+  if (query.length < 3) {
+    renderAddressSuggestionMenu(input, mergeAddressSuggestions(local));
+    return;
+  }
+  const requestId = String(++addressSuggestionRequestSeq);
+  input.dataset.addressSuggestRequest = requestId;
+  renderAddressSuggestionMenu(input, mergeAddressSuggestions(local), 'Searching addresses...');
+  const response = await fetch(`/api/address-suggestions?q=${encodeURIComponent(query)}`).catch(() => null);
+  if (input.dataset.addressSuggestRequest !== requestId) return;
+  const payload = response?.ok ? await response.json().catch(() => ({})) : {};
+  const remote = Array.isArray(payload.suggestions) ? payload.suggestions : [];
+  renderAddressSuggestionMenu(input, mergeAddressSuggestions(remote, local));
+}
+
+function scheduleAddressSuggestions(input) {
+  window.clearTimeout(Number(input.dataset.addressSuggestTimer || 0));
+  const timer = window.setTimeout(() => {
+    refreshAddressSuggestions(input).catch(() => renderAddressSuggestionMenu(input, localAddressSuggestions(input, input.value)));
+  }, 250);
+  input.dataset.addressSuggestTimer = String(timer);
+}
+
 function bindGoogleAddressInputs() {
   document.querySelectorAll('[data-address-lookup-input]:not([data-address-lookup-bound])').forEach((input) => {
     input.dataset.addressLookupBound = 'true';
-    const field = input.closest('.address-lookup-field, .sf-inline-address-editor');
+    const field = addressLookupField(input);
     const link = field?.querySelector('[data-address-map-link]');
     const updatePinLink = () => {
       const address = String(input.value || '').trim();
@@ -2131,7 +2245,14 @@ function bindGoogleAddressInputs() {
       link.classList.toggle('is-disabled', !address);
       link.setAttribute('aria-disabled', address ? 'false' : 'true');
     };
-    input.addEventListener('input', updatePinLink);
+    input.addEventListener('input', () => {
+      updatePinLink();
+      scheduleAddressSuggestions(input);
+    });
+    input.addEventListener('focus', () => scheduleAddressSuggestions(input));
+    input.addEventListener('keydown', (ev) => {
+      if (ev.key === 'Escape') closeAddressSuggestionMenus();
+    });
     link?.addEventListener('pointerdown', (ev) => {
       if (link.getAttribute('aria-disabled') !== 'true') ev.preventDefault();
     });
@@ -4924,14 +5045,13 @@ function beginAddressInlineEdit(span, value, companyId, commitValue) {
   const wrapper = document.createElement('span');
   wrapper.className = 'sf-inline-address-editor';
   const input = document.createElement('input');
-  const listId = `inline-address-${crypto.randomUUID()}`;
   input.className = 'sf-edit-input';
   input.type = 'text';
   input.value = value || '';
-  input.setAttribute('list', listId);
   input.setAttribute('autocomplete', 'street-address');
   input.setAttribute('data-google-address-input', '');
   input.setAttribute('data-address-lookup-input', '');
+  input.dataset.addressOptions = JSON.stringify(contactAddressOptions(companyId));
   const link = document.createElement('a');
   link.className = 'address-pin-button';
   link.setAttribute('data-address-map-link', '');
@@ -4939,14 +5059,7 @@ function beginAddressInlineEdit(span, value, companyId, commitValue) {
   link.rel = 'noreferrer';
   link.title = 'Open Google Maps pin';
   link.innerHTML = '<i class="ti ti-map-pin"></i><span>Map pin</span>';
-  const datalist = document.createElement('datalist');
-  datalist.id = listId;
-  contactAddressOptions(companyId).forEach((address) => {
-    const option = document.createElement('option');
-    option.value = address;
-    datalist.appendChild(option);
-  });
-  wrapper.append(input, link, datalist);
+  wrapper.append(input, link);
   span.replaceWith(wrapper);
   bindGoogleAddressInputs();
   input.focus();
@@ -11743,6 +11856,7 @@ function onDocumentClick(event) {
   if (closeAccountMenu) state.accountMenuOpen = false;
   if (closeNotificationMenu) state.notificationMenuOpen = false;
   if (closeWorkspaceMenu) state.workspaceMenuOpen = false;
+  if (!event.target.closest('.address-lookup-control, .sf-inline-address-editor')) closeAddressSuggestionMenus();
 
   const action = event.target.closest('[data-action]');
   if (action) {
@@ -18916,20 +19030,18 @@ function googleMapsPlaceSearchUrl(address) {
 
 function renderAddressLookupField(label, name, value = '', options = [], className = 'span-2', listId = '', inputAttrs = '') {
   const clean = String(value || '').trim();
-  const resolvedListId = listId || `${String(name).replace(/[^a-z0-9_-]/gi, '-')}-address-options`;
   const classes = [className, 'address-lookup-field'].filter(Boolean).join(' ');
   return `
     <label class="${h(classes)}">
       <span>${h(label)}</span>
       <div class="address-lookup-control">
-        <input name="${h(name)}" type="text" value="${h(value)}" autocomplete="street-address" list="${h(resolvedListId)}" data-google-address-input data-address-lookup-input placeholder="Start typing the site address" ${inputAttrs} />
+        <input name="${h(name)}" type="text" value="${h(value)}" autocomplete="street-address" data-google-address-input data-address-lookup-input data-address-options="${h(JSON.stringify(options))}" placeholder="Start typing the site address" ${inputAttrs} />
         <a class="address-pin-button ${clean ? '' : 'is-disabled'}" href="${clean ? h(googleMapsPlaceSearchUrl(clean)) : '#'}" data-address-map-link target="_blank" rel="noreferrer" aria-disabled="${clean ? 'false' : 'true'}" title="Open Google Maps pin">
           <i class="ti ti-map-pin"></i><span>Map pin</span>
         </a>
       </div>
       <small class="field-hint">Pick a saved address or type the full site address, then verify the pin in Google Maps.</small>
     </label>
-    <datalist id="${h(resolvedListId)}">${options.map((address) => `<option value="${h(address)}"></option>`).join('')}</datalist>
   `;
 }
 
