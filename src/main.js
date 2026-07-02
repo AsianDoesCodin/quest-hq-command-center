@@ -23,6 +23,7 @@ const JOB_CACHE_KEY = 'quest-hq-job-cache-v2';
 const CONTACT_CACHE_KEY = 'quest-hq-contact-cache-v1';
 const ACCOUNT_CACHE_KEY = 'quest-hq-account-cache-v1';
 const DEAL_CACHE_KEY = 'quest-hq-deal-cache-v1';
+const SITE_CACHE_KEY = 'quest-hq-crm-site-cache-v1';
 const PROPOSAL_CACHE_KEY = 'quest-hq-proposal-cache-v1';
 const ACTIVITY_CACHE_KEY = 'quest-hq-activity-cache-v1';
 const JOB_STAGES_KEY = 'quest-hq-job-stages-v1';
@@ -1753,6 +1754,7 @@ const state = {
   contacts: readSeededList(CONTACT_CACHE_KEY, contactsFallback).map(normalizeContact),
   accounts: readSeededList(ACCOUNT_CACHE_KEY, accountsFallback).map(normalizeAccount),
   deals: readSeededList(DEAL_CACHE_KEY, dealsFallback).map(normalizeDeal),
+  sites: readSeededList(SITE_CACHE_KEY, []).map(normalizeCrmSite),
   proposals: readSeededList(PROPOSAL_CACHE_KEY, []).map(normalizeProposal),
   activities: readSeededList(ACTIVITY_CACHE_KEY, activitiesFallback).map(normalizeActivity),
   pipelineStages: [],
@@ -2287,6 +2289,7 @@ async function loadSupabaseData() {
     pipelineStagesResult,
     accountsResult,
     dealsResult,
+    sitesResult,
     proposalsResult,
     activitiesResult,
     companyPluginsResult,
@@ -2329,6 +2332,7 @@ async function loadSupabaseData() {
     client.from('pipeline_stages').select('*').order('position', { ascending: true }),
     client.from('accounts').select('*').order('name', { ascending: true }),
     client.from('deals').select('*').order('updated_at', { ascending: false }),
+    safeSupabaseQuery(client.from('crm_sites').select('*').order('updated_at', { ascending: false })),
     safeSupabaseQuery(client.from('proposal_documents').select('*').order('updated_at', { ascending: false })),
     client.from('activities').select('*').order('created_at', { ascending: false }).limit(500),
     safeSupabaseQuery(client.from('company_plugins').select('*')),
@@ -2417,6 +2421,9 @@ async function loadSupabaseData() {
   if (!dealsResult.error) {
     state.deals = (dealsResult.data || []).map(normalizeDeal);
     liveTables += 1;
+  }
+  if (!sitesResult.error) {
+    state.sites = (sitesResult.data || []).map(normalizeCrmSite);
   }
   if (!proposalsResult.error) {
     state.proposals = (proposalsResult.data || []).map(normalizeProposal);
@@ -2625,6 +2632,7 @@ function resetDemoWorkspaceData() {
   state.contacts = readDemoList(CONTACT_CACHE_KEY, contactsFallback).map(normalizeContact);
   state.accounts = readDemoList(ACCOUNT_CACHE_KEY, accountsFallback).map(normalizeAccount);
   state.deals = readDemoList(DEAL_CACHE_KEY, dealsFallback).map(normalizeDeal);
+  state.sites = readDemoList(SITE_CACHE_KEY, []).map(normalizeCrmSite);
   state.proposals = readDemoList(PROPOSAL_CACHE_KEY, []).map(normalizeProposal);
   state.activities = readDemoList(ACTIVITY_CACHE_KEY, activitiesFallback).map(normalizeActivity);
   state.tasks = readDemoList(TASK_CACHE_KEY, tasksFallback).map(normalizeTask);
@@ -4981,16 +4989,46 @@ async function postContactNote(form) {
   await logContactActivity(contactId, typeMap[tab] || 'note', '', text);
 }
 
+async function ensureCrmSiteForContact(contact) {
+  if (!contact?.id) return null;
+  const existing = crmSitesForContact(contact.id).find((site) => site.address || site.roof_system) || crmSitesForContact(contact.id)[0];
+  if (existing) return existing;
+  const site = normalizeCrmSite({
+    id: `site-${crypto.randomUUID()}`,
+    company_id: contact.company_id,
+    contact_id: contact.id,
+    account_id: contact.account_id,
+    label: 'Primary site',
+    address: contact.location,
+    roof_system: contact.roof_system,
+    secondary_roof_system: contact.secondary_roof_system,
+    has_multiple_roof_systems: contact.has_multiple_roof_systems,
+    notes: contact.notes,
+  });
+  site.updated_at = new Date().toISOString();
+  upsertCrmSite(site);
+  const row = emptyToNull(supabaseRow(site, SITE_COLS), ['contact_id', 'account_id']);
+  const { ok, data } = await supabaseWrite('crm_sites', row);
+  if (ok && data) {
+    const liveSite = normalizeCrmSite(data);
+    upsertCrmSite(liveSite);
+    return liveSite;
+  }
+  return site;
+}
+
 async function convertContactToQuote(contactId) {
   const contact = contactById(contactId);
   if (!contact) return;
   const companyId = contact.company_id;
   if (!requirePermission('crm.view', companyId, 'Your role cannot create quotes.', 'Quotes')) return;
+  const site = await ensureCrmSiteForContact(contact);
   const deal = normalizeDeal({
     id: `deal-${crypto.randomUUID()}`,
     company_id: companyId,
     account_id: contact.account_id,
     primary_contact_id: contact.id,
+    site_id: site?.id || '',
     name: `${contact.name}${contact.title ? ' - ' + contact.title : ''}`,
     stage: pipelineStages('deals', companyId)[0]?.name || dealStageNames()[0],
     status: 'open',
@@ -5000,7 +5038,7 @@ async function convertContactToQuote(contactId) {
     notes: contact.notes,
   });
   deal.updated_at = new Date().toISOString();
-  const row = emptyToNull(supabaseRow(deal, DEAL_COLS), ['account_id', 'primary_contact_id', 'close_date', 'job_id']);
+  const row = emptyToNull(supabaseRow(deal, DEAL_COLS), ['account_id', 'primary_contact_id', 'site_id', 'close_date', 'job_id']);
   const { ok, data } = await supabaseWrite('deals', row);
   upsertDeal(ok && data ? normalizeDeal(data) : deal);
   await logActivity({ type: 'system', subject: 'Contact graduated -> Quote created', body: deal.name, related_type: 'contact', related_id: contact.id, account_id: contact.account_id });
@@ -5101,7 +5139,7 @@ async function toggleContactTask(taskId) {
 }
 
 function jobSupabaseRow(job) {
-  return emptyToNull(supabaseRow(job, ['id', 'company_id', 'name', 'client_name', 'contact_name', 'site_address', 'job_type', 'stage', 'priority', 'owner_name', 'scope', 'notes', 'estimate_total', 'invoice_total', 'account_id', 'deal_id', 'updated_at']), ['account_id', 'deal_id']);
+  return emptyToNull(supabaseRow(job, JOB_COLS), ['account_id', 'contact_id', 'deal_id', 'site_id']);
 }
 
 async function persistJob(job, label = 'Job saved locally') {
@@ -17170,6 +17208,15 @@ function accountName(id) {
 function selectedAccount() {
   return accountById(state.selectedAccountId);
 }
+function companyCrmSites(companyId = activeCompanyId()) {
+  return state.sites.filter((site) => site.company_id === companyId);
+}
+function crmSiteById(id) {
+  return id ? state.sites.find((site) => site.id === id) || null : null;
+}
+function crmSitesForContact(contactId) {
+  return state.sites.filter((site) => site.contact_id === contactId);
+}
 function filteredAccounts(companyId = activeCompanyId()) {
   const q = state.accountQuery.trim().toLowerCase();
   return companyAccounts(companyId).filter((account) => {
@@ -17211,10 +17258,49 @@ function jobsForAccount(accountId) {
 function companyActivities(companyId = activeCompanyId()) {
   return state.activities.filter((activity) => activity.company_id === companyId);
 }
+function relationThreadIds(relatedType, relatedId) {
+  const ids = { account_id: '', contact_id: '', site_id: '', deal_id: '', job_id: '' };
+  if (!relatedId) return ids;
+  if (relatedType === 'account') ids.account_id = relatedId;
+  if (relatedType === 'contact') {
+    const contact = contactById(relatedId);
+    ids.contact_id = relatedId;
+    ids.account_id = contact?.account_id || '';
+    ids.site_id = crmSitesForContact(relatedId)[0]?.id || '';
+  }
+  if (relatedType === 'deal') {
+    const deal = dealById(relatedId);
+    ids.deal_id = relatedId;
+    ids.account_id = deal?.account_id || '';
+    ids.contact_id = deal?.primary_contact_id || '';
+    ids.site_id = deal?.site_id || '';
+    ids.job_id = deal?.job_id || '';
+  }
+  if (relatedType === 'job') {
+    const job = jobById(relatedId);
+    const deal = dealById(job?.deal_id);
+    ids.job_id = relatedId;
+    ids.deal_id = job?.deal_id || '';
+    ids.account_id = job?.account_id || deal?.account_id || '';
+    ids.contact_id = job?.contact_id || deal?.primary_contact_id || '';
+    ids.site_id = job?.site_id || deal?.site_id || '';
+  }
+  return ids;
+}
+function matchesActivityThread(activity, relatedType, relatedId) {
+  if (!relatedId) return false;
+  if (activity.related_type === relatedType && activity.related_id === relatedId) return true;
+  const ids = relationThreadIds(relatedType, relatedId);
+  return (!!ids.account_id && activity.account_id === ids.account_id && relatedType === 'account')
+    || (!!ids.contact_id && activity.contact_id === ids.contact_id)
+    || (!!ids.site_id && activity.site_id === ids.site_id)
+    || (!!ids.deal_id && activity.deal_id === ids.deal_id)
+    || (!!ids.job_id && activity.job_id === ids.job_id);
+}
 function activitiesFor(relatedType, relatedId) {
   if (!relatedId) return [];
   return state.activities
-    .filter((activity) => activity.related_type === relatedType && activity.related_id === relatedId)
+    .filter((activity) => matchesActivityThread(activity, relatedType, relatedId))
     .sort((a, b) => Date.parse(b.created_at || 0) - Date.parse(a.created_at || 0));
 }
 function activityFilterOption(filterId = state.activityFilter) {
@@ -17556,6 +17642,7 @@ function activitiesForAccount(accountId) {
 
 function persistAccounts() { writeJson(ACCOUNT_CACHE_KEY, state.accounts); }
 function persistDeals() { writeJson(DEAL_CACHE_KEY, state.deals); }
+function persistSites() { writeJson(SITE_CACHE_KEY, state.sites); }
 function persistProposalsLocal() { writeJson(PROPOSAL_CACHE_KEY, state.proposals); }
 function persistActivities() { writeJson(ACTIVITY_CACHE_KEY, state.activities); }
 
@@ -17570,6 +17657,12 @@ function upsertDeal(deal) {
   if (index >= 0) state.deals[index] = deal;
   else state.deals.push(deal);
   persistDeals();
+}
+function upsertCrmSite(site) {
+  const index = state.sites.findIndex((item) => item.id === site.id);
+  if (index >= 0) state.sites[index] = site;
+  else state.sites.push(site);
+  persistSites();
 }
 function upsertProposal(proposal) {
   const normalized = normalizeProposal(proposal);
@@ -17617,9 +17710,11 @@ async function supabaseDelete(table, id) {
 }
 
 const ACCOUNT_COLS = ['id', 'company_id', 'name', 'type', 'industry', 'website', 'phone', 'email', 'address', 'owner_name', 'status', 'notes', 'updated_at'];
-const DEAL_COLS = ['id', 'company_id', 'account_id', 'primary_contact_id', 'name', 'stage', 'status', 'value', 'probability', 'close_date', 'owner_name', 'source', 'job_id', 'notes', 'updated_at'];
+const SITE_COLS = ['id', 'company_id', 'contact_id', 'account_id', 'label', 'address', 'roof_system', 'secondary_roof_system', 'has_multiple_roof_systems', 'notes', 'updated_at'];
+const DEAL_COLS = ['id', 'company_id', 'account_id', 'primary_contact_id', 'site_id', 'name', 'stage', 'status', 'value', 'probability', 'close_date', 'owner_name', 'source', 'job_id', 'notes', 'updated_at'];
+const JOB_COLS = ['id', 'company_id', 'name', 'client_name', 'contact_name', 'site_address', 'job_type', 'stage', 'priority', 'owner_name', 'scope', 'notes', 'estimate_total', 'invoice_total', 'account_id', 'contact_id', 'deal_id', 'site_id', 'updated_at'];
 const PROPOSAL_COLS = ['id', 'company_id', 'proposal_no', 'title', 'status', 'related_type', 'related_id', 'contact_id', 'deal_id', 'job_id', 'client', 'draft', 'total', 'public_token', 'accepted_by', 'accepted_email', 'accepted_at', 'declined_at', 'viewed_at', 'sent_at', 'created_by', 'created_by_label', 'created_at', 'updated_at'];
-const ACTIVITY_COLS = ['id', 'company_id', 'type', 'subject', 'body', 'related_type', 'related_id', 'account_id', 'due_at', 'completed_at', 'owner_name', 'updated_at'];
+const ACTIVITY_COLS = ['id', 'company_id', 'type', 'subject', 'body', 'related_type', 'related_id', 'account_id', 'contact_id', 'site_id', 'deal_id', 'job_id', 'due_at', 'completed_at', 'owner_name', 'updated_at'];
 const CONTACT_COLS = ['id', 'company_id', 'name', 'phone', 'email', 'location', 'stage', 'value', 'owner_name', 'account_id', 'title', 'source', 'temperature', 'pay_type', 'roof_system', 'secondary_roof_system', 'has_multiple_roof_systems', 'last_activity_at', 'notes', 'updated_at'];
 
 function emptyToNull(row, keys) {
@@ -17658,7 +17753,7 @@ async function saveDeal(form) {
   else if (payload.status !== 'open' && !/^won|^lost/i.test(payload.stage)) payload.status = 'open';
   payload.updated_at = new Date().toISOString();
   const previous = dealById(payload.id);
-  const row = emptyToNull(supabaseRow(payload, DEAL_COLS), ['account_id', 'primary_contact_id', 'close_date', 'job_id']);
+  const row = emptyToNull(supabaseRow(payload, DEAL_COLS), ['account_id', 'primary_contact_id', 'site_id', 'close_date', 'job_id']);
   const { ok, data } = await supabaseWrite('deals', row);
   upsertDeal(ok && data ? normalizeDeal(data) : payload);
   if (previous && previous.stage !== payload.stage) {
@@ -17675,7 +17770,7 @@ async function persistDeal(deal, label = 'Quote saved.') {
   if (/^won/i.test(payload.stage)) payload.status = 'won';
   else if (/^lost/i.test(payload.stage)) payload.status = 'lost';
   else if (payload.status !== 'open' && !/^won|^lost/i.test(payload.stage)) payload.status = 'open';
-  const row = emptyToNull(supabaseRow(payload, DEAL_COLS), ['account_id', 'primary_contact_id', 'close_date', 'job_id']);
+  const row = emptyToNull(supabaseRow(payload, DEAL_COLS), ['account_id', 'primary_contact_id', 'site_id', 'close_date', 'job_id']);
   const { ok, data } = await supabaseWrite('deals', row);
   upsertDeal(ok && data ? normalizeDeal(data) : payload);
   showToast(label, ok ? 'live' : 'local', 'Quotes');
@@ -17814,28 +17909,45 @@ async function deleteDeal(id) {
 async function logActivity(input) {
   // Resolve a real account_id: explicit, valid, or derived from the related record.
   let accountId = accountById(input.account_id) ? input.account_id : '';
+  let contactId = input.contact_id ? String(input.contact_id) : '';
+  let siteId = input.site_id ? String(input.site_id) : '';
+  let dealId = input.deal_id ? String(input.deal_id) : '';
+  let jobId = input.job_id ? String(input.job_id) : '';
   if (!accountId) {
     if (input.related_type === 'account') accountId = input.related_id;
     else if (input.related_type === 'deal') accountId = dealById(input.related_id)?.account_id || '';
     else if (input.related_type === 'contact') accountId = contactById(input.related_id)?.account_id || '';
     else if (input.related_type === 'job') accountId = jobById(input.related_id)?.account_id || '';
   }
+  if (input.related_type === 'contact') contactId ||= String(input.related_id || '');
+  if (input.related_type === 'deal') dealId ||= String(input.related_id || '');
+  if (input.related_type === 'job') jobId ||= String(input.related_id || '');
+  const relatedJob = jobById(jobId);
+  const relatedDeal = dealById(dealId || relatedJob?.deal_id);
+  if (relatedDeal) dealId ||= relatedDeal.id;
+  contactId ||= relatedJob?.contact_id || relatedDeal?.primary_contact_id || '';
+  siteId ||= relatedJob?.site_id || relatedDeal?.site_id || (contactId ? crmSitesForContact(contactId)[0]?.id : '') || '';
+  accountId ||= relatedJob?.account_id || relatedDeal?.account_id || contactById(contactId)?.account_id || '';
   if (!accountById(accountId)) accountId = '';
   const payload = normalizeActivity({
     ...input,
     id: input.id || `activity-${crypto.randomUUID()}`,
     company_id: activeCompanyId(),
     account_id: accountId,
+    contact_id: contactId,
+    site_id: siteId,
+    deal_id: dealId,
+    job_id: jobId,
     owner_name: input.owner_name || activeSession().profile.full_name || '',
     completed_at: input.completed_at || (input.type === 'note' || input.type === 'stage_change' ? new Date().toISOString() : input.completed_at),
   });
   payload.updated_at = new Date().toISOString();
-  const row = emptyToNull(supabaseRow(payload, ACTIVITY_COLS), ['account_id', 'due_at', 'completed_at']);
+  const row = emptyToNull(supabaseRow(payload, ACTIVITY_COLS), ['account_id', 'contact_id', 'site_id', 'deal_id', 'job_id', 'due_at', 'completed_at']);
   const { ok, data } = await supabaseWrite('activities', row);
   upsertActivity(ok && data ? normalizeActivity(data) : payload);
   // Stamp last_activity_at on a related contact.
-  if (input.related_type === 'contact') {
-    const contact = contactById(input.related_id);
+  if (contactId) {
+    const contact = contactById(contactId);
     if (contact) {
       const updated = { ...contact, last_activity_at: payload.completed_at || payload.created_at, updated_at: new Date().toISOString() };
       upsertContact(updated);
@@ -17876,30 +17988,32 @@ async function convertDealToJob(dealId) {
   if (!requirePermission('jobs.manage', companyId, 'Your role cannot create jobs.', 'Jobs')) return;
   const account = accountById(deal.account_id);
   const contact = contactById(deal.primary_contact_id);
+  const site = crmSiteById(deal.site_id);
   const job = normalizeJob({
     id: '',
     company_id: companyId,
     name: deal.name,
     client_name: account?.name || '',
     contact_name: contact?.name || '',
-    site_address: account?.address || '',
+    site_address: site?.address || account?.address || contact?.location || '',
     owner_name: deal.owner_name,
     estimate_total: deal.value,
     stage: pipelineStages('jobs', companyId)[0]?.name || jobStageNames()[0],
     account_id: deal.account_id,
+    contact_id: deal.primary_contact_id,
     deal_id: deal.id,
+    site_id: deal.site_id,
     scope: deal.notes,
   });
   job.id = crypto.randomUUID();
   job.updated_at = new Date().toISOString();
-  const jobRow = supabaseRow(job, ['id', 'company_id', 'name', 'client_name', 'contact_name', 'site_address', 'job_type', 'stage', 'priority', 'owner_name', 'scope', 'notes', 'estimate_total', 'invoice_total', 'account_id', 'deal_id', 'updated_at']);
-  emptyToNull(jobRow, ['account_id', 'deal_id']);
+  const jobRow = jobSupabaseRow(job);
   const { ok, data } = await supabaseWrite('jobs', jobRow);
   upsertJob(ok && data ? normalizeJob(data) : job);
   // mark the deal won + link the job
   const wonStage = dealStageNames().find((name) => /win|won/i.test(name)) || deal.stage;
   const updatedDeal = normalizeDeal({ ...deal, status: 'won', stage: wonStage, job_id: job.id, updated_at: new Date().toISOString() });
-  const dealRes = await supabaseWrite('deals', emptyToNull(supabaseRow(updatedDeal, DEAL_COLS), ['account_id', 'primary_contact_id', 'close_date', 'job_id']));
+  const dealRes = await supabaseWrite('deals', emptyToNull(supabaseRow(updatedDeal, DEAL_COLS), ['account_id', 'primary_contact_id', 'site_id', 'close_date', 'job_id']));
   upsertDeal(updatedDeal);
   logActivity({ type: 'system', subject: 'Quote converted → Job created', body: deal.name, related_type: 'deal', related_id: deal.id, account_id: deal.account_id });
   state.selectedJobId = job.id;
@@ -18782,6 +18896,7 @@ function contactAddressOptions(companyId) {
     ...companyContacts(companyId).map((contact) => contact.location),
     ...companyAccounts(companyId).map((account) => account.address),
     ...companyJobs(companyId).map((job) => job.site_address),
+    ...companyCrmSites(companyId).map((site) => site.address),
   ]).sort((a, b) => a.localeCompare(b));
 }
 
@@ -18916,7 +19031,9 @@ function normalizeJob(input) {
     priority: ['Low', 'Medium', 'High', 'Urgent'].includes(input.priority) ? input.priority : 'Medium',
     owner_name: String(input.owner_name || '').trim(),
     account_id: input.account_id ? String(input.account_id) : '',
+    contact_id: input.contact_id ? String(input.contact_id) : '',
     deal_id: input.deal_id ? String(input.deal_id) : '',
+    site_id: input.site_id ? String(input.site_id) : '',
     scope: String(input.scope || '').trim(),
     notes: String(input.notes || '').trim(),
     estimate_total: number(input.estimate_total),
@@ -18954,6 +19071,23 @@ function normalizeContact(input) {
   };
 }
 
+function normalizeCrmSite(input) {
+  return {
+    id: String(input.id || ''),
+    company_id: canonicalCompanyId(input.company_id || defaultCompanyId()),
+    contact_id: input.contact_id ? String(input.contact_id) : '',
+    account_id: input.account_id ? String(input.account_id) : '',
+    label: String(input.label || 'Primary site').trim() || 'Primary site',
+    address: String(input.address || '').trim(),
+    roof_system: String(input.roof_system || '').trim(),
+    secondary_roof_system: String(input.secondary_roof_system || '').trim(),
+    has_multiple_roof_systems: input.has_multiple_roof_systems === true || input.has_multiple_roof_systems === 'true' || input.has_multiple_roof_systems === 'on',
+    notes: String(input.notes || '').trim(),
+    created_at: input.created_at || new Date().toISOString(),
+    updated_at: input.updated_at || new Date().toISOString(),
+  };
+}
+
 function resolveTemperature(value) {
   const v = String(value || '').trim();
   return TEMPERATURES.includes(v) ? v : 'Warm';
@@ -18985,6 +19119,7 @@ function normalizeDeal(input) {
     company_id: canonicalCompanyId(input.company_id || defaultCompanyId()),
     account_id: input.account_id ? String(input.account_id) : '',
     primary_contact_id: input.primary_contact_id ? String(input.primary_contact_id) : '',
+    site_id: input.site_id ? String(input.site_id) : '',
     name: String(input.name || '').trim() || 'Untitled deal',
     stage: resolveDealStage(input.stage),
     status,
@@ -19010,6 +19145,10 @@ function normalizeActivity(input) {
     related_type: ['account', 'contact', 'deal', 'job'].includes(input.related_type) ? input.related_type : '',
     related_id: input.related_id ? String(input.related_id) : '',
     account_id: input.account_id ? String(input.account_id) : '',
+    contact_id: input.contact_id ? String(input.contact_id) : '',
+    site_id: input.site_id ? String(input.site_id) : '',
+    deal_id: input.deal_id ? String(input.deal_id) : '',
+    job_id: input.job_id ? String(input.job_id) : '',
     due_at: input.due_at || null,
     completed_at: input.completed_at || null,
     owner_name: String(input.owner_name || '').trim(),
