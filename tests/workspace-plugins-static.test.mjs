@@ -59,7 +59,7 @@ test('quest crm plugin contents match the contacts quotes jobs workspace', () =>
 
 test('workspace presets install industry plugin bundles', () => {
   assert.match(source, /const WORKSPACE_PLUGIN_PRESETS = \{/);
-  assert.match(source, /roofing: \['crm_2', 'underwriter', 'files', 'forms', 'finance', 'messages', 'calendar', 'approvals', 'reporting'\]/);
+  assert.match(source, /roofing: \['crm_2', 'underwriter', 'price_book', 'files', 'forms', 'finance', 'messages', 'calendar', 'approvals', 'reporting'\]/);
   assert.match(source, /construction: \['files', 'forms', 'finance', 'messages', 'calendar', 'time_clock', 'approvals', 'reporting'\]/);
   assert.match(source, /generic: \['crm', 'files', 'messages', 'workspace_builder'\]/);
   assert.match(source, /name="preset_code"/);

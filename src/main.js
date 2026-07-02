@@ -1,4 +1,7 @@
 import './styles.css';
+import 'leaflet/dist/leaflet.css';
+import L from 'leaflet';
+import { createClient as createSupabaseJsClient } from '@supabase/supabase-js';
 import opsCommandHeroUrl from './assets/quest-hq-ops-command-hero.png';
 import questLogoMarkUrl from './assets/quest-hq-logo-mark.png';
 
@@ -41,6 +44,9 @@ const FINANCE_INVOICE_CACHE_KEY = 'quest-hq-finance-invoice-cache-v1';
 const FINANCE_PAYMENT_CACHE_KEY = 'quest-hq-finance-payment-cache-v1';
 const FINANCE_EXPENSE_CACHE_KEY = 'quest-hq-finance-expense-cache-v1';
 const FINANCE_VENDOR_CACHE_KEY = 'quest-hq-finance-vendor-cache-v1';
+const PRICEBOOK_VENDOR_CACHE_KEY = 'quest-hq-pricebook-vendors-v1';
+const PRICEBOOK_MATERIAL_CACHE_KEY = 'quest-hq-pricebook-materials-v1';
+const PRICEBOOK_PRICE_CACHE_KEY = 'quest-hq-pricebook-prices-v1';
 const TIME_ENTRY_CACHE_KEY = 'quest-hq-time-entry-cache-v1';
 const ACTIVE_TIMER_KEY = 'quest-hq-active-timer-v1';
 const COMPANY_KEY = 'quest-hq-active-company';
@@ -52,6 +58,7 @@ const NAV_GROUP_COLLAPSED_KEY = 'quest-hq-nav-groups-collapsed';
 const NAV_EXPANDED_KEY = 'quest-hq-nav-expanded-v1';
 const JOB_BOARD_VIEW_KEY = 'quest-hq-job-board-view';
 const CONTACT_BOARD_VIEW_KEY = 'quest-hq-contact-board-view';
+const THEME_KEY = 'quest-theme';
 const NOTIFICATION_CACHE_KEY = 'quest-hq-notification-cache-v1';
 const MESSAGE_CONVERSATION_CACHE_KEY = 'quest-hq-message-conversation-cache-v1';
 const MESSAGE_ACCESS_CACHE_KEY = 'quest-hq-message-access-cache-v1';
@@ -283,7 +290,7 @@ const ROLE_PERMISSIONS = {
   developer: ['*'],
   admin: ['*'],
   owner: ['*'],
-  manager: ['jobs.view', 'jobs.manage', 'tasks.view', 'tasks.manage', 'files.view', 'files.manage', 'forms.view', 'forms.manage', 'crm.view', 'underwriter.view', 'underwriter.manage', 'finance.view', 'team.view', 'clock.manage', 'approvals.manage', 'approvals.view', 'calendar.view', 'calendar.manage', 'calendar.view_team', 'users.view', 'settings.view', 'billing.view', 'roles.view', 'messages.view', 'messages.send', 'messages.create_group', 'messages.manage_groups', 'messages.attach_files', 'client_portals.view', 'client_portals.manage', 'workspaces.view', 'workspaces.manage'],
+  manager: ['jobs.view', 'jobs.manage', 'tasks.view', 'tasks.manage', 'files.view', 'files.manage', 'forms.view', 'forms.manage', 'crm.view', 'underwriter.view', 'underwriter.manage', 'finance.view', 'price_book.view', 'price_book.manage', 'team.view', 'clock.manage', 'approvals.manage', 'approvals.view', 'calendar.view', 'calendar.manage', 'calendar.view_team', 'users.view', 'settings.view', 'billing.view', 'roles.view', 'messages.view', 'messages.send', 'messages.create_group', 'messages.manage_groups', 'messages.attach_files', 'client_portals.view', 'client_portals.manage', 'workspaces.view', 'workspaces.manage'],
   member: ['jobs.view', 'tasks.view', 'tasks.manage', 'files.view', 'forms.view', 'time.track', 'approvals.view', 'calendar.view', 'users.view', 'messages.view', 'messages.send', 'messages.attach_files'],
 };
 
@@ -330,6 +337,8 @@ const PERMISSION_KEYS = [
   ['client_portals.manage', 'Manage client portals'],
   ['workspaces.view', 'View workspace builder'],
   ['workspaces.manage', 'Manage workspace builder'],
+  ['price_book.view', 'View price book'],
+  ['price_book.manage', 'Manage price book (vendors, materials, costs, imports)'],
 ];
 
 const PERMISSION_ALIASES = {
@@ -502,6 +511,7 @@ const WORKSPACE_PLUGIN_REGISTRY = [
   { id: 'files', label: 'Files', summary: 'Shared files, job folders, and document storage.', icon: 'ti-folder', module_ids: ['files'], permissions: ['files.view', 'files.manage'] },
   { id: 'client_portal', label: 'Client Portal', summary: 'Password-protected plan links, markups, comments, and client review.', icon: 'ti-world-upload', module_ids: ['client-portals'], permissions: ['client_portals.view', 'client_portals.manage'], recommendedWith: ['files'] },
   { id: 'workspace_builder', label: 'Workspace Builder', summary: 'No-code workspaces, custom apps, fields, items, reports, and automations.', icon: 'ti-layout-grid-add', module_ids: ['workspaces'], permissions: ['workspaces.view', 'workspaces.manage'] },
+  { id: 'price_book', label: 'Price Book', summary: 'Vendor cost catalog for estimating materials, costs, stale pricing, and best-price checks.', icon: 'ti-book', module_ids: ['price-book'], permissions: ['price_book.view', 'price_book.manage'] },
   { id: 'forms', label: 'Forms', summary: 'Internal forms, templates, and response capture.', icon: 'ti-clipboard-list', module_ids: ['forms'], permissions: ['forms.view', 'forms.manage'] },
   { id: 'finance', label: 'Finance', summary: 'Invoices, payments, expenses, vendors, and AR.', icon: 'ti-receipt-dollar', module_ids: ['finance'], permissions: ['finance.view', 'finance.manage'] },
   { id: 'messages', label: 'Messages', summary: 'Company chats, role rooms, direct messages, and attachments.', icon: 'ti-messages', module_ids: ['messages'], permissions: ['messages.view', 'messages.send', 'messages.create_group', 'messages.manage_groups', 'messages.attach_files', 'messages.delete_own', 'messages.delete_any', 'messages.manage'] },
@@ -516,7 +526,7 @@ const WORKSPACE_PLUGIN_REGISTRY = [
   { id: 'team_workload', label: 'Team workload', summary: 'Future workload planning board.', icon: 'ti-users', module_ids: ['team-workload'], permissions: [], comingSoon: true },
 ];
 const WORKSPACE_PLUGIN_PRESETS = {
-  roofing: ['crm_2', 'underwriter', 'files', 'forms', 'finance', 'messages', 'calendar', 'approvals', 'reporting'],
+  roofing: ['crm_2', 'underwriter', 'price_book', 'files', 'forms', 'finance', 'messages', 'calendar', 'approvals', 'reporting'],
   construction: ['files', 'forms', 'finance', 'messages', 'calendar', 'time_clock', 'approvals', 'reporting'],
   generic: ['crm', 'files', 'messages', 'workspace_builder'],
 };
@@ -635,6 +645,7 @@ const MODULE_REGISTRY = [
   { id: 'files', group: 'Workspace', label: 'Files', icon: 'ti-folder', symbol: 'q-symbol-files', status: 'live', permission: 'files.view' },
   { id: 'forms', group: 'Workspace', label: 'Forms', icon: 'ti-clipboard-list', symbol: 'q-symbol-forms', status: 'live', permission: 'forms.view' },
   { id: 'client-portals', group: 'Workspace', label: 'Client portals', icon: 'ti-world-upload', symbol: 'q-symbol-files', status: 'live', permission: 'client_portals.view' },
+  { id: 'price-book', group: 'Estimating', label: 'Price Book', icon: 'ti-book', symbol: 'q-symbol-finance', status: 'live', permission: 'price_book.view' },
   { id: 'workspaces', group: 'Workspace', label: 'Workspaces', icon: 'ti-layout-grid-add', symbol: 'q-symbol-templates', status: 'live', permission: 'workspaces.view' },
   { id: 'analytics', group: 'Workspace', label: 'Analytics', icon: 'ti-chart-bar', symbol: 'q-symbol-analytics', status: 'live', permission: 'jobs.view' },
   { id: 'crm', group: 'Workspace', label: 'Accounts', icon: 'ti-building-community', symbol: 'q-symbol-crm', status: 'live', permission: 'crm.view' },
@@ -664,7 +675,7 @@ const NAV_GROUPS = [
   { label: 'Contacts · Top of Funnel', ids: ['contacts'] },
   { label: 'Quotes · Bottom of Funnel', ids: ['deals', 'proposals'] },
   { label: 'Production', ids: ['jobs'] },
-  { label: 'Estimating', ids: ['finance', 'files', 'forms', 'client-portals'] },
+  { label: 'Estimating', ids: ['price-book', 'finance', 'files', 'forms', 'client-portals'] },
   { label: 'Review', ids: ['analytics', 'users', 'team-chart', 'time', 'approvals', 'clock'] },
   { label: 'Control', ids: ['settings'] },
   { label: 'Future', ids: ['tickets', 'knowledge', 'automations', 'templates', 'team-workload'] },
@@ -1788,6 +1799,9 @@ const state = {
   financePayments: readSeededList(FINANCE_PAYMENT_CACHE_KEY, financePaymentsFallback).map(normalizeFinancePayment),
   financeExpenses: readSeededList(FINANCE_EXPENSE_CACHE_KEY, financeExpensesFallback).map(normalizeFinanceExpense),
   financeVendors: readSeededList(FINANCE_VENDOR_CACHE_KEY, financeVendorsFallback).map(normalizeFinanceVendor),
+  pricebookVendors: readSeededList(PRICEBOOK_VENDOR_CACHE_KEY, []).map(normalizePricebookVendor),
+  pricebookMaterials: readSeededList(PRICEBOOK_MATERIAL_CACHE_KEY, []).map(normalizePricebookMaterial),
+  pricebookPrices: readSeededList(PRICEBOOK_PRICE_CACHE_KEY, []).map(normalizePricebookPrice),
   notifications: readSeededList(NOTIFICATION_CACHE_KEY, notificationsFallback).map(normalizeNotification),
   messageConversations: readSeededList(MESSAGE_CONVERSATION_CACHE_KEY, messageConversationsFallback).map(normalizeMessageConversation),
   messageAccess: readSeededList(MESSAGE_ACCESS_CACHE_KEY, messageAccessFallback).map(normalizeMessageAccess),
@@ -1886,6 +1900,7 @@ const state = {
   selectedFinanceExpenseId: '',
   selectedFinanceVendorId: '',
   selectedCalendarEventId: '',
+  selectedActivityId: '',
   inviteLookup: null,
   expandedFormIds: new Set(),
   formStartTemplateId: '',
@@ -1914,6 +1929,16 @@ const state = {
   formTypeFilter: 'all',
   formsTab: 'library',
   formEditorTab: 'questions',
+  pricebookTab: 'vendors',
+  pricebookQuery: '',
+  pricebookCategory: 'All',
+  pricebookVendorId: '',
+  pricebookSort: { key: '', dir: 'asc' },
+  pbEditingVendor: '',
+  pbMaterialEditId: '',
+  pbMaterialVendorId: '',
+  pbCostEditId: '',
+  locationPicker: null,
   taskView: localStorage.getItem(TASK_VIEW_KEY) || 'table',
   driveFolder: 'home',
   driveView: localStorage.getItem(DRIVE_VIEW_KEY) || 'list',
@@ -1935,10 +1960,14 @@ const state = {
 const app = document.getElementById('app');
 let supabaseClientCache = null;
 let addressSuggestionRequestSeq = 0;
+let pipeDrag = null;
+let locationPickerMap = null;
+let locationPickerMarker = null;
 init();
 
 function init() {
   normalizeLegacyLocation();
+  applyTheme();
   window.addEventListener('popstate', () => {
     rememberSidebarScroll();
     render();
@@ -1947,7 +1976,26 @@ function init() {
   document.addEventListener('submit', onDocumentSubmit);
   document.addEventListener('input', onDocumentInput);
   document.addEventListener('change', onDocumentChange);
+  document.addEventListener('dragstart', onPipeDragStart);
+  document.addEventListener('dragend', onPipeDragEnd);
+  document.addEventListener('dragover', onPipeDragOver);
+  document.addEventListener('drop', onPipeDrop);
   initializeAuth();
+  render();
+}
+
+function getTheme() {
+  return localStorage.getItem(THEME_KEY) === 'dark' ? 'dark' : 'light';
+}
+
+function applyTheme(theme = getTheme()) {
+  document.documentElement.dataset.theme = theme === 'dark' ? 'dark' : 'light';
+}
+
+function setTheme(theme) {
+  const next = theme === 'dark' ? 'dark' : 'light';
+  localStorage.setItem(THEME_KEY, next);
+  applyTheme(next);
   render();
 }
 
@@ -2106,6 +2154,9 @@ function render() {
   queueMicrotask(restoreSidebarScroll);
   queueMicrotask(bindTimePickerInputs);
   queueMicrotask(bindGoogleAddressInputs);
+  queueMicrotask(mountPriceBookVendorModal);
+  queueMicrotask(mountPriceBookImport);
+  queueMicrotask(mountLocationPicker);
 }
 
 function openNativeTimePicker(input) {
@@ -2465,6 +2516,9 @@ async function loadSupabaseData() {
     clientPortalDocumentsResult,
     clientPortalAnnotationsResult,
     clientPortalEventsResult,
+    pricebookVendorsResult,
+    pricebookMaterialsResult,
+    pricebookPricesResult,
     platformAdminResult,
   ] = await Promise.all([
     client.from('companies').select('*').order('name', { ascending: true }),
@@ -2508,6 +2562,9 @@ async function loadSupabaseData() {
     safeSupabaseQuery(client.from('client_portal_documents').select('*').order('created_at', { ascending: false })),
     safeSupabaseQuery(client.from('client_portal_annotations').select('*').order('created_at', { ascending: true })),
     safeSupabaseQuery(client.from('client_portal_events').select('*').order('created_at', { ascending: false }).limit(500)),
+    safeSupabaseQuery(client.from('pricebook_vendors').select('*').order('name', { ascending: true })),
+    safeSupabaseQuery(client.from('pricebook_materials').select('*').order('name', { ascending: true })),
+    safeSupabaseQuery(client.from('pricebook_vendor_prices').select('*').order('updated_at', { ascending: false })),
     safeSupabaseQuery(client.rpc('is_platform_admin')),
   ]);
 
@@ -2609,6 +2666,9 @@ async function loadSupabaseData() {
   if (!clientPortalDocumentsResult.error) state.clientPortalDocuments = (clientPortalDocumentsResult.data || []).map(normalizeClientPortalDocument);
   if (!clientPortalAnnotationsResult.error) state.clientPortalAnnotations = (clientPortalAnnotationsResult.data || []).map(normalizeClientPortalAnnotation);
   if (!clientPortalEventsResult.error) state.clientPortalEvents = (clientPortalEventsResult.data || []).map(normalizeClientPortalEvent);
+  if (!pricebookVendorsResult.error) state.pricebookVendors = (pricebookVendorsResult.data || []).map(normalizePricebookVendor);
+  if (!pricebookMaterialsResult.error) state.pricebookMaterials = (pricebookMaterialsResult.data || []).map(normalizePricebookMaterial);
+  if (!pricebookPricesResult.error) state.pricebookPrices = (pricebookPricesResult.data || []).map(normalizePricebookPrice);
   state.platformAdmin = !platformAdminResult.error && platformAdminResult.data === true;
 
   if (state.platformAdmin) {
@@ -2731,9 +2791,9 @@ async function loadSupabaseBootstrapData() {
 
 function createSupabaseClient() {
   if (isReadOnlyDemo()) return null;
-  if (!window.supabase || typeof window.supabase.createClient !== 'function') return null;
+  if (!CONFIG.supabaseUrl || !CONFIG.supabaseKey) return null;
   if (!supabaseClientCache) {
-    supabaseClientCache = window.supabase.createClient(CONFIG.supabaseUrl, CONFIG.supabaseKey);
+    supabaseClientCache = createSupabaseJsClient(CONFIG.supabaseUrl, CONFIG.supabaseKey);
   }
   return supabaseClientCache;
 }
@@ -2758,6 +2818,9 @@ function resetLiveWorkspaceData() {
   state.financePayments = [];
   state.financeExpenses = [];
   state.financeVendors = [];
+  state.pricebookVendors = [];
+  state.pricebookMaterials = [];
+  state.pricebookPrices = [];
   state.notifications = [];
   state.messageConversations = [];
   state.messageAccess = [];
@@ -2812,6 +2875,9 @@ function resetDemoWorkspaceData() {
   state.financePayments = readDemoList(FINANCE_PAYMENT_CACHE_KEY, financePaymentsFallback).map(normalizeFinancePayment);
   state.financeExpenses = readDemoList(FINANCE_EXPENSE_CACHE_KEY, financeExpensesFallback).map(normalizeFinanceExpense);
   state.financeVendors = readDemoList(FINANCE_VENDOR_CACHE_KEY, financeVendorsFallback).map(normalizeFinanceVendor);
+  state.pricebookVendors = readDemoList(PRICEBOOK_VENDOR_CACHE_KEY, []).map(normalizePricebookVendor);
+  state.pricebookMaterials = readDemoList(PRICEBOOK_MATERIAL_CACHE_KEY, []).map(normalizePricebookMaterial);
+  state.pricebookPrices = readDemoList(PRICEBOOK_PRICE_CACHE_KEY, []).map(normalizePricebookPrice);
   state.notifications = readDemoList(NOTIFICATION_CACHE_KEY, notificationsFallback).map(normalizeNotification);
   state.messageConversations = readDemoList(MESSAGE_CONVERSATION_CACHE_KEY, messageConversationsFallback).map(normalizeMessageConversation);
   state.messageAccess = readDemoList(MESSAGE_ACCESS_CACHE_KEY, messageAccessFallback).map(normalizeMessageAccess);
@@ -3469,7 +3535,7 @@ function installedLiveModules(companyId) {
 }
 
 function installedModulesForMobileWork(companyId) {
-  return ['jobs', 'tasks', 'underwriter', 'calendar', 'crm', 'contacts', 'deals', 'proposals', 'finance', 'forms', 'client-portals', 'workspaces', 'users', 'time', 'approvals', 'clock', 'team-chart']
+  return ['jobs', 'tasks', 'underwriter', 'calendar', 'crm', 'contacts', 'deals', 'proposals', 'price-book', 'finance', 'forms', 'client-portals', 'workspaces', 'users', 'time', 'approvals', 'clock', 'team-chart']
     .filter((moduleId) => isModuleInstalled(moduleId, companyId));
 }
 
@@ -3480,6 +3546,7 @@ function permissionPluginIds(permission) {
   if (clean.startsWith('files.')) return ['files'];
   if (clean.startsWith('forms.')) return ['forms'];
   if (clean.startsWith('finance.')) return ['finance'];
+  if (clean.startsWith('price_book.')) return ['price_book'];
   if (clean.startsWith('client_portals.')) return ['client_portal'];
   if (clean.startsWith('workspaces.')) return ['workspace_builder'];
   if (clean.startsWith('messages.')) return ['messages'];
@@ -3558,6 +3625,7 @@ function renderWorkspace(route) {
   if (route.section === 'tasks') return renderTasksPage(route, companyId);
   if (route.section === 'files') return renderFilesPage(route, companyId);
   if (route.section === 'client-portals') return renderClientPortalsPage(route, companyId);
+  if (route.section === 'price-book') return renderPriceBookPage(route, companyId);
   if (route.section === 'workspaces') return renderWorkspaceBuilderPage(route, companyId);
   if (route.section === 'users') return renderUsersPage(route, companyId);
   if (route.section === 'settings') return renderSettingsPage(route, companyId);
@@ -3573,6 +3641,549 @@ function renderWorkspace(route) {
   if (route.section === 'team-chart') return renderTeamChartPage(companyId);
   if (route.section === 'time' || route.section === 'calendar' || route.section === 'approvals' || route.section === 'clock') return renderOperationsPage(route, companyId);
   return renderPlannedPage(route.section);
+}
+
+const PB_STALE_DAYS = 45;
+const PB_VENDOR_TYPES = [['supply_house', 'Supply House'], ['lumber_yard', 'Lumber Yard'], ['distributor', 'Distributor'], ['manufacturer', 'Manufacturer']];
+const PB_ACCOUNT_OPTIONS = [['0', 'No credit line / COD'], ['1', 'On account / credit line']];
+const PB_PAYMENT_TERMS = [['cod', 'COD'], ['net_15', 'Net 15'], ['net_30', 'Net 30'], ['net_45', 'Net 45'], ['net_60', 'Net 60']];
+const PB_VENDOR_COLORS = ['#ED4E0D', '#C8341E', '#16864A', '#6B4A1E', '#E8731A', '#2C6BB0', '#7A4FA0'];
+const PB_UNITS = ['each', 'square', 'roll', 'piece', 'bundle', 'sheet', 'box', 'gallon', 'linear ft'];
+let pbImportFile = null;
+
+function pbPaymentLabel(term) { return (PB_PAYMENT_TERMS.find(([id]) => id === term) || PB_PAYMENT_TERMS[0])[1]; }
+function pbVendorTypeLabel(type) { return (PB_VENDOR_TYPES.find(([id]) => id === type) || PB_VENDOR_TYPES[0])[1]; }
+function pbMoney(n) { return number(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
+function pbMoneyWhole(n) { return number(n).toLocaleString('en-US', { maximumFractionDigits: 0 }); }
+function pbDate(value) {
+  if (!value) return '-';
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? '-' : date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+}
+function pbIsStale(value) {
+  if (!value) return false;
+  const time = new Date(value).getTime();
+  return Number.isFinite(time) && (Date.now() - time) / 864e5 > PB_STALE_DAYS;
+}
+function pbInitials(name) {
+  return String(name || 'Vendor').split(/\s+/).filter(Boolean).slice(0, 2).map((word) => word[0]).join('').toUpperCase() || 'V';
+}
+function pbTermsChip(vendor) {
+  const onAccount = Boolean(vendor?.on_account);
+  const label = onAccount ? `On account - ${pbPaymentLabel(vendor.payment_terms)}` : 'Cash / COD';
+  const limit = onAccount && number(vendor.credit_limit) > 0 ? ` - $${pbMoneyWhole(vendor.credit_limit)} limit` : '';
+  return `<span class="pb-terms ${onAccount ? 'on' : ''}"><i class="ti ${onAccount ? 'ti-credit-card' : 'ti-cash'}"></i>${h(label + limit)}</span>`;
+}
+function pricebookPersistLocal() {
+  if (isReadOnlyDemo() || state.session?.auth === 'supabase') return;
+  writeJson(PRICEBOOK_VENDOR_CACHE_KEY, state.pricebookVendors);
+  writeJson(PRICEBOOK_MATERIAL_CACHE_KEY, state.pricebookMaterials);
+  writeJson(PRICEBOOK_PRICE_CACHE_KEY, state.pricebookPrices);
+}
+function pbCompanyVendors(companyId = activeCompanyId()) {
+  return state.pricebookVendors.filter((vendor) => vendor.company_id === companyId).sort((a, b) => a.name.localeCompare(b.name));
+}
+function pbRows(companyId = activeCompanyId()) {
+  const materials = new Map(state.pricebookMaterials.filter((item) => item.company_id === companyId).map((item) => [item.id, item]));
+  const vendors = new Map(state.pricebookVendors.filter((item) => item.company_id === companyId).map((item) => [item.id, item]));
+  return state.pricebookPrices
+    .filter((price) => price.company_id === companyId)
+    .map((price) => {
+      const material = materials.get(price.material_id);
+      const vendor = vendors.get(price.vendor_id);
+      if (!material || !vendor) return null;
+      return {
+        id: price.id,
+        materialId: material.id,
+        material: material.name,
+        category: material.category || 'Uncategorized',
+        sku: price.sku || '-',
+        unit: material.unit || 'each',
+        cost: number(price.unit_cost),
+        vendorId: vendor.id,
+        vendor: vendor.name,
+        vendorColor: vendor.color || '#ED4E0D',
+        updated: price.updated_at,
+      };
+    })
+    .filter(Boolean);
+}
+function pbBest(companyId = activeCompanyId()) {
+  return pbRows(companyId).reduce((best, row) => {
+    if (!(row.materialId in best) || row.cost < best[row.materialId]) best[row.materialId] = row.cost;
+    return best;
+  }, {});
+}
+function pbSortRows(rows) {
+  const sort = state.pricebookSort || {};
+  if (!sort.key) return rows;
+  const dir = sort.dir === 'desc' ? -1 : 1;
+  const value = (row) => sort.key === 'cost' ? row.cost : sort.key === 'updated' ? new Date(row.updated).getTime() : String(row[sort.key] || '').toLowerCase();
+  return [...rows].sort((a, b) => {
+    const av = value(a);
+    const bv = value(b);
+    return av < bv ? -dir : av > bv ? dir : 0;
+  });
+}
+
+function renderPriceBookPage(route, companyId) {
+  const canManage = can('price_book.manage', companyId);
+  const rows = pbRows(companyId);
+  const vendors = pbCompanyVendors(companyId);
+  const stale = rows.filter((row) => pbIsStale(row.updated)).length;
+  const onAccount = vendors.filter((vendor) => vendor.on_account).length;
+  const lastSynced = vendors.filter((vendor) => vendor.last_synced_at).sort((a, b) => new Date(b.last_synced_at) - new Date(a.last_synced_at))[0];
+  const view = state.pricebookVendorId ? 'detail' : state.pricebookTab === 'all' ? 'all' : 'vendors';
+  return `
+    <section class="tool-page price-book-page">
+      ${workspaceHeader('Price Book', 'Vendor cost catalog for estimating. Costs stay here; sell price and margin stay on quotes.', `
+        ${canManage ? '<button class="btn" type="button" data-action="pb-import"><i class="ti ti-file-import"></i>Import prices</button>' : ''}
+        ${canManage ? '<button class="btn" type="button" data-action="pb-add-material"><i class="ti ti-plus"></i>Add material</button>' : ''}
+        ${canManage ? '<button class="btn btn-primary" type="button" data-action="pb-add-vendor"><i class="ti ti-building-store"></i>Add vendor</button>' : ''}
+      `)}
+      <div class="pb-stats">
+        <div class="pb-stat"><span>Vendors</span><strong>${vendors.length}</strong></div>
+        <div class="pb-stat"><span>Material prices</span><strong>${rows.length}</strong></div>
+        <div class="pb-stat"><span>Last import</span><strong>${lastSynced ? pbDate(lastSynced.last_synced_at) : '-'}</strong></div>
+        <div class="pb-stat ${stale ? 'warn' : ''}"><span>Stale prices</span><strong>${stale}</strong></div>
+        <div class="pb-stat"><span>On account</span><strong>${onAccount}<em> / ${vendors.length}</em></strong></div>
+      </div>
+      <div class="pb-tabs">
+        <button class="pb-tab ${view !== 'all' ? 'active' : ''}" type="button" data-action="pb-tab" data-tab="vendors">Vendors <span>${vendors.length}</span></button>
+        <button class="pb-tab ${view === 'all' ? 'active' : ''}" type="button" data-action="pb-tab" data-tab="all">All materials <span>${rows.length}</span></button>
+      </div>
+      ${view === 'detail' ? renderPriceBookVendorDetail(companyId, canManage) : view === 'all' ? renderPriceBookMaterialsTable(companyId, canManage) : renderPriceBookVendorGrid(companyId, canManage)}
+    </section>
+  `;
+}
+
+function renderPriceBookVendorGrid(companyId, canManage) {
+  const rows = pbRows(companyId);
+  const vendors = pbCompanyVendors(companyId);
+  if (!vendors.length) return `<section class="panel">${emptyState('No vendors yet. Add a supply house or distributor to start a real estimating catalog.')}</section>`;
+  return `<div class="pb-vendor-grid">
+    ${vendors.map((vendor) => {
+      const count = rows.filter((row) => row.vendorId === vendor.id).length;
+      return `<button class="pb-vcard" type="button" data-action="pb-open-vendor" data-vendor-id="${h(vendor.id)}">
+        <div class="pb-vtop"><span class="pb-vlogo" style="background:${h(vendor.color || '#ED4E0D')}">${h(pbInitials(vendor.name))}</span><span><strong>${h(vendor.name)}</strong><small>${h(pbVendorTypeLabel(vendor.type))}</small></span></div>
+        <div class="pb-vmeta"><div><span>Materials</span><b>${count}</b></div><div class="${pbIsStale(vendor.last_synced_at) ? 'stale' : ''}"><span>Last synced</span><b>${pbDate(vendor.last_synced_at)}</b></div></div>
+        <div class="pb-vfoot">${pbTermsChip(vendor)}</div>
+      </button>`;
+    }).join('')}
+    ${canManage ? '<button class="pb-vcard add" type="button" data-action="pb-add-vendor"><i class="ti ti-plus"></i>Add vendor</button>' : ''}
+  </div>`;
+}
+function pbTh(label, key) {
+  const sort = state.pricebookSort || {};
+  const dir = sort.key === key ? sort.dir : '';
+  return `<th><button class="pb-sortable ${dir ? 'sorted' : ''}" type="button" data-action="pb-sort" data-key="${h(key)}">${h(label)}${dir ? (dir === 'asc' ? ' ↑' : ' ↓') : ''}</button></th>`;
+}
+function pbRowHtml(row, best, showVendor, canManage) {
+  const editing = state.pbCostEditId === row.id;
+  const isBest = row.cost === best[row.materialId];
+  const costCell = editing
+    ? `<form class="pb-cost-edit" data-pb-cost-form data-price-id="${h(row.id)}"><input name="cost" type="number" min="0" step="0.01" value="${h(String(row.cost))}" autofocus /><button class="pb-cost-save" type="submit" title="Save"><i class="ti ti-check"></i></button></form>`
+    : `<button class="pb-cost" type="button" ${canManage ? `data-action="pb-edit-cost" data-price-id="${h(row.id)}"` : 'disabled'}>$${pbMoney(row.cost)}</button>${isBest ? '<span class="pb-best"><i class="ti ti-check"></i>best</span>' : ''}`;
+  return `<tr>
+    <td class="pb-mat">${h(row.material)}</td>
+    <td><span class="pb-cat">${h(row.category)}</span></td>
+    <td class="pb-muted">${h(row.sku)}</td>
+    <td class="pb-muted">${h(row.unit)}</td>
+    <td class="pb-num">${costCell}</td>
+    ${showVendor ? `<td><span class="pb-vtag"><span class="pb-dot" style="background:${h(row.vendorColor)}"></span>${h(row.vendor)}</span></td>` : ''}
+    <td class="${pbIsStale(row.updated) ? 'stale' : ''}">${pbDate(row.updated)}</td>
+    <td class="pb-rowact">${canManage ? `<button type="button" data-action="pb-edit-material" data-price-id="${h(row.id)}" title="Edit"><i class="ti ti-pencil"></i></button><button type="button" data-action="pb-delete-row" data-price-id="${h(row.id)}" title="Remove"><i class="ti ti-trash"></i></button>` : ''}</td>
+  </tr>`;
+}
+function renderPriceBookMaterialsTable(companyId, canManage) {
+  const query = String(state.pricebookQuery || '').toLowerCase();
+  const category = state.pricebookCategory || 'All';
+  const allRows = pbRows(companyId);
+  const categories = ['All', ...Array.from(new Set(allRows.map((row) => row.category))).sort()];
+  const rows = pbSortRows(allRows.filter((row) => (category === 'All' || row.category === category) && (!query || [row.material, row.sku, row.category, row.vendor].some((value) => String(value).toLowerCase().includes(query)))));
+  const best = pbBest(companyId);
+  return `
+    <div class="pb-toolbar">
+      <label class="crm-search"><i class="ti ti-search"></i><input data-pb-search value="${h(state.pricebookQuery)}" placeholder="Search materials, SKU, vendor" /></label>
+      <div class="pb-chips">${categories.map((item) => `<button class="pb-chip ${item === category ? 'active' : ''}" type="button" data-action="pb-set-cat" data-cat="${h(item)}">${h(item)}</button>`).join('')}</div>
+    </div>
+    <section class="panel pb-table-wrap">
+      <table class="pb-table"><thead><tr>${pbTh('Material', 'material')}${pbTh('Category', 'category')}<th>SKU</th><th>Unit</th>${pbTh('Unit cost', 'cost')}${pbTh('Vendor', 'vendor')}${pbTh('Updated', 'updated')}<th></th></tr></thead>
+      <tbody>${rows.length ? rows.map((row) => pbRowHtml(row, best, true, canManage)).join('') : '<tr><td class="pb-empty" colspan="8">No materials match this view.</td></tr>'}</tbody></table>
+    </section>`;
+}
+function renderPriceBookVendorDetail(companyId, canManage) {
+  const vendor = state.pricebookVendors.find((item) => item.company_id === companyId && item.id === state.pricebookVendorId);
+  if (!vendor) {
+    state.pricebookVendorId = '';
+    return renderPriceBookVendorGrid(companyId, canManage);
+  }
+  const query = String(state.pricebookQuery || '').toLowerCase();
+  const rows = pbSortRows(pbRows(companyId).filter((row) => row.vendorId === vendor.id && (!query || [row.material, row.sku, row.category].some((value) => String(value).toLowerCase().includes(query)))));
+  const best = pbBest(companyId);
+  return `
+    <div class="pb-detail-head">
+      <button class="btn btn-sm" type="button" data-action="pb-back"><i class="ti ti-arrow-left"></i>Vendors</button>
+      <span class="pb-vlogo lg" style="background:${h(vendor.color || '#ED4E0D')}">${h(pbInitials(vendor.name))}</span>
+      <span class="pb-vname"><strong>${h(vendor.name)}</strong><small>${h(pbVendorTypeLabel(vendor.type))}${vendor.account_ref ? ` - ${h(vendor.account_ref)}` : ''}</small></span>
+      ${pbTermsChip(vendor)}
+      <span class="pb-spacer"></span>
+      ${canManage ? `<button class="btn btn-sm" type="button" data-action="pb-add-material" data-vendor-id="${h(vendor.id)}"><i class="ti ti-plus"></i>Add material</button><button class="btn btn-sm" type="button" data-action="pb-edit-vendor" data-vendor-id="${h(vendor.id)}"><i class="ti ti-pencil"></i>Edit</button><button class="btn btn-sm danger" type="button" data-action="pb-delete-vendor" data-vendor-id="${h(vendor.id)}"><i class="ti ti-trash"></i>Delete</button>` : ''}
+    </div>
+    <div class="pb-toolbar"><label class="crm-search"><i class="ti ti-search"></i><input data-pb-search value="${h(state.pricebookQuery)}" placeholder="Search this vendor catalog" /></label></div>
+    <section class="panel pb-table-wrap">
+      <table class="pb-table"><thead><tr>${pbTh('Material', 'material')}${pbTh('Category', 'category')}<th>SKU</th><th>Unit</th>${pbTh('Unit cost', 'cost')}${pbTh('Updated', 'updated')}<th></th></tr></thead>
+      <tbody>${rows.length ? rows.map((row) => pbRowHtml(row, best, false, canManage)).join('') : '<tr><td class="pb-empty" colspan="7">No materials for this vendor yet.</td></tr>'}</tbody></table>
+    </section>`;
+}
+
+function renderPriceBookVendorModal() {
+  const editing = state.pbEditingVendor ? state.pricebookVendors.find((vendor) => vendor.id === state.pbEditingVendor) : null;
+  return renderModalShell('Price Book', editing ? 'Edit vendor' : 'Add vendor', `
+    <form class="compact-tool-form" data-pb-vendor-form>
+      ${editing ? `<input type="hidden" name="id" value="${h(editing.id)}" />` : ''}
+      ${field('Vendor name', 'name', editing?.name || '', true)}
+      ${selectField('Type', 'type', editing?.type || 'supply_house', PB_VENDOR_TYPES)}
+      ${field('Account # / rep', 'account_ref', editing?.account_ref || '')}
+      <label><span>Credit line</span><select name="on_account" data-pb-account-select>${PB_ACCOUNT_OPTIONS.map(([value, label]) => `<option value="${value}" ${String(editing?.on_account ? '1' : '0') === value ? 'selected' : ''}>${h(label)}</option>`).join('')}</select></label>
+      <div class="pb-field-row pb-credit-fields" data-pb-credit-fields ${editing?.on_account ? '' : 'hidden'}>
+        ${selectField('Payment terms', 'payment_terms', editing?.payment_terms || 'cod', PB_PAYMENT_TERMS)}
+        <label><span>Credit limit</span><input name="credit_limit" type="number" min="0" step="100" value="${editing?.credit_limit != null ? h(String(editing.credit_limit)) : ''}" /></label>
+      </div>
+      <div class="form-actions"><button class="btn btn-primary" type="submit">${editing ? 'Save vendor' : 'Add vendor'}</button><button class="btn" type="button" data-action="close-modal">Cancel</button></div>
+    </form>
+  `, 'task-modal');
+}
+function renderPriceBookMaterialModal() {
+  const companyId = activeCompanyId();
+  const editing = state.pbMaterialEditId ? pbRows(companyId).find((row) => row.id === state.pbMaterialEditId) : null;
+  const vendors = pbCompanyVendors(companyId);
+  const vendorId = state.pbMaterialVendorId || editing?.vendorId || vendors[0]?.id || '';
+  return renderModalShell('Price Book', editing ? 'Edit material' : 'Add material', `
+    <form class="compact-tool-form" data-pb-material-form>
+      ${editing ? `<input type="hidden" name="price_id" value="${h(editing.id)}" />` : ''}
+      <label><span>Material</span><input name="name" required value="${h(editing?.material || '')}" placeholder="GAF Timberline HDZ Shingles" /></label>
+      <div class="pb-field-row"><label><span>Category</span><input name="category" value="${h(editing?.category || '')}" placeholder="Shingles" /></label><label><span>Unit</span><input name="unit" value="${h(editing?.unit || 'each')}" list="pb-unit-list" /></label></div>
+      <div class="pb-field-row"><label><span>SKU</span><input name="sku" value="${h(editing && editing.sku !== '-' ? editing.sku : '')}" /></label><label><span>Unit cost</span><input name="cost" type="number" min="0" step="0.01" required value="${editing ? h(String(editing.cost)) : ''}" /></label></div>
+      ${selectField('Vendor', 'vendor_id', vendorId, vendors.map((vendor) => [vendor.id, vendor.name]))}
+      <datalist id="pb-unit-list">${PB_UNITS.map((unit) => `<option value="${h(unit)}"></option>`).join('')}</datalist>
+      <div class="form-actions"><button class="btn btn-primary" type="submit">${editing ? 'Save material' : 'Add material'}</button><button class="btn" type="button" data-action="close-modal">Cancel</button></div>
+    </form>
+  `, 'task-modal');
+}
+function renderPriceBookImportModal() {
+  const vendors = pbCompanyVendors();
+  const chosen = pbImportFile?.name || '';
+  return renderModalShell('Price Book', 'Import prices', `
+    <form class="compact-tool-form" data-pb-import-form>
+      <p class="pb-modal-sub">Upload or paste CSV rows: Material, Category, SKU, Unit, Cost.</p>
+      ${selectField('Import into vendor', 'vendor_id', vendors[0]?.id || '', vendors.map((vendor) => [vendor.id, vendor.name]))}
+      <label class="pb-drop ${chosen ? 'has-file' : ''}" data-pb-dropzone><input type="file" name="file" accept=".csv,.tsv,text/csv,text/plain" hidden data-pb-file-input /><i class="ti ${chosen ? 'ti-file-check' : 'ti-cloud-upload'}"></i><strong data-pb-drop-title>${chosen ? h(chosen) : 'Drop a CSV file'}</strong><small>or click to browse</small></label>
+      <textarea name="csv" rows="6" placeholder="GAF Timberline HDZ Shingles, Shingles, GAF-HDZ, square, 118.90"></textarea>
+      <div class="form-actions"><button class="btn btn-primary" type="submit"><i class="ti ti-file-import"></i>Import</button><button class="btn" type="button" data-action="close-modal">Cancel</button></div>
+    </form>
+  `, 'task-modal');
+}
+
+function mountPriceBookVendorModal() {
+  const select = document.querySelector('[data-pb-account-select]');
+  const fields = document.querySelector('[data-pb-credit-fields]');
+  if (!select || !fields || select.dataset.bound) return;
+  select.dataset.bound = '1';
+  select.addEventListener('change', () => { fields.hidden = select.value !== '1'; });
+}
+function mountPriceBookImport() {
+  const zone = document.querySelector('[data-pb-dropzone]');
+  const input = document.querySelector('[data-pb-file-input]');
+  if (!zone || !input || zone.dataset.bound) return;
+  zone.dataset.bound = '1';
+  const setFile = (file) => {
+    pbImportFile = file || null;
+    const title = zone.querySelector('[data-pb-drop-title]');
+    if (title) title.textContent = file ? file.name : 'Drop a CSV file';
+    zone.classList.toggle('has-file', Boolean(file));
+  };
+  input.addEventListener('change', () => setFile(input.files?.[0] || null));
+  ['dragenter', 'dragover'].forEach((type) => zone.addEventListener(type, (event) => { event.preventDefault(); zone.classList.add('drag'); }));
+  ['dragleave', 'dragend'].forEach((type) => zone.addEventListener(type, () => zone.classList.remove('drag')));
+  zone.addEventListener('drop', (event) => {
+    event.preventDefault();
+    zone.classList.remove('drag');
+    setFile(event.dataTransfer?.files?.[0] || null);
+  });
+}
+async function stampPricebookVendorSynced(vendorId, live, client, now) {
+  const vendor = state.pricebookVendors.find((item) => item.id === vendorId);
+  if (!vendor) return;
+  state.pricebookVendors = [{ ...vendor, last_synced_at: now, updated_at: now }, ...state.pricebookVendors.filter((item) => item.id !== vendorId)];
+  if (live) await client.from('pricebook_vendors').update({ last_synced_at: now, updated_at: now }).eq('id', vendorId);
+}
+async function savePricebookVendor(form) {
+  const companyId = activeCompanyId();
+  if (!requirePermission('price_book.manage', companyId, 'Your role cannot manage the price book.', 'Price Book')) return;
+  const data = Object.fromEntries(new FormData(form).entries());
+  const name = String(data.name || '').trim();
+  if (!name) return showToast('Enter a vendor name.', 'local', 'Price Book');
+  const existing = data.id ? state.pricebookVendors.find((item) => item.id === data.id) : null;
+  const payload = normalizePricebookVendor({
+    ...(existing || {}),
+    id: existing?.id || crypto.randomUUID(),
+    company_id: companyId,
+    name,
+    type: data.type || 'supply_house',
+    account_ref: data.account_ref || '',
+    on_account: data.on_account === '1',
+    payment_terms: data.on_account === '1' ? data.payment_terms || 'cod' : 'cod',
+    credit_limit: data.on_account === '1' && data.credit_limit !== '' ? Number(data.credit_limit) : null,
+    color: existing?.color || PB_VENDOR_COLORS[pbCompanyVendors(companyId).length % PB_VENDOR_COLORS.length],
+    updated_at: new Date().toISOString(),
+  });
+  const client = createSupabaseClient();
+  const live = isLiveSupabaseSession() && client;
+  if (live) {
+    const row = {
+      company_id: payload.company_id,
+      name: payload.name,
+      type: payload.type,
+      account_ref: payload.account_ref || null,
+      on_account: payload.on_account,
+      payment_terms: payload.payment_terms,
+      credit_limit: payload.credit_limit,
+      color: payload.color,
+      updated_at: payload.updated_at,
+    };
+    const result = existing
+      ? await client.from('pricebook_vendors').update(row).eq('id', existing.id).select().single()
+      : await client.from('pricebook_vendors').insert(row).select().single();
+    if (result.error) return showToast(result.error.message || 'Vendor save failed.', 'local', 'Price Book');
+    state.pricebookVendors = [normalizePricebookVendor(result.data), ...state.pricebookVendors.filter((item) => item.id !== result.data.id)];
+  } else {
+    state.pricebookVendors = [payload, ...state.pricebookVendors.filter((item) => item.id !== payload.id)];
+    pricebookPersistLocal();
+  }
+  state.modal = '';
+  state.pbEditingVendor = '';
+  showToast(existing ? 'Vendor updated.' : 'Vendor added.', live ? 'live' : 'local', 'Price Book');
+  render();
+}
+async function deletePricebookVendor(vendorId) {
+  const companyId = activeCompanyId();
+  if (!requirePermission('price_book.manage', companyId, 'Your role cannot manage the price book.', 'Price Book')) return;
+  const vendor = state.pricebookVendors.find((item) => item.id === vendorId);
+  if (!vendor || !window.confirm(`Delete ${vendor.name}? This removes its catalog prices.`)) return;
+  const client = createSupabaseClient();
+  const live = isLiveSupabaseSession() && client;
+  if (live) {
+    const result = await client.from('pricebook_vendors').delete().eq('id', vendorId);
+    if (result.error) return showToast(result.error.message || 'Vendor delete failed.', 'local', 'Price Book');
+  }
+  state.pricebookVendors = state.pricebookVendors.filter((item) => item.id !== vendorId);
+  state.pricebookPrices = state.pricebookPrices.filter((item) => item.vendor_id !== vendorId);
+  if (state.pricebookVendorId === vendorId) state.pricebookVendorId = '';
+  pricebookPersistLocal();
+  showToast('Vendor deleted.', live ? 'live' : 'local', 'Price Book');
+  render();
+}
+async function upsertPricebookMaterial(companyId, name, category, unit, live, client) {
+  const existing = state.pricebookMaterials.find((item) => item.company_id === companyId && item.name.toLowerCase() === name.toLowerCase());
+  if (live) {
+    const result = await client.from('pricebook_materials').upsert({ company_id: companyId, name, category, unit }, { onConflict: 'company_id,name' }).select().single();
+    if (result.error) throw new Error(result.error.message || 'Material save failed.');
+    return normalizePricebookMaterial(result.data);
+  }
+  return normalizePricebookMaterial({ ...(existing || {}), id: existing?.id || crypto.randomUUID(), company_id: companyId, name, category, unit });
+}
+async function savePricebookMaterial(form) {
+  const companyId = activeCompanyId();
+  if (!requirePermission('price_book.manage', companyId, 'Your role cannot manage the price book.', 'Price Book')) return;
+  const data = Object.fromEntries(new FormData(form).entries());
+  const name = String(data.name || '').trim();
+  const cost = Number(data.cost);
+  const vendorId = String(data.vendor_id || '');
+  if (!name || !vendorId || !Number.isFinite(cost) || cost < 0) return showToast('Need material, vendor, and valid cost.', 'local', 'Price Book');
+  const client = createSupabaseClient();
+  const live = isLiveSupabaseSession() && client;
+  const now = new Date().toISOString();
+  const material = await upsertPricebookMaterial(companyId, name, String(data.category || 'Uncategorized').trim() || 'Uncategorized', String(data.unit || 'each').trim() || 'each', live, client);
+  state.pricebookMaterials = [material, ...state.pricebookMaterials.filter((item) => item.id !== material.id)];
+  const existingPrice = data.price_id ? state.pricebookPrices.find((item) => item.id === data.price_id) : state.pricebookPrices.find((item) => item.company_id === companyId && item.vendor_id === vendorId && item.material_id === material.id);
+  let price = normalizePricebookPrice({
+    ...(existingPrice || {}),
+    id: existingPrice?.id || crypto.randomUUID(),
+    company_id: companyId,
+    material_id: material.id,
+    vendor_id: vendorId,
+    sku: String(data.sku || '').trim(),
+    unit_cost: cost,
+    updated_at: now,
+  });
+  if (live) {
+    const result = await client.from('pricebook_vendor_prices').upsert({
+      company_id: companyId,
+      material_id: material.id,
+      vendor_id: vendorId,
+      sku: price.sku || null,
+      unit_cost: cost,
+      updated_at: now,
+    }, { onConflict: 'company_id,vendor_id,material_id' }).select().single();
+    if (result.error) return showToast(result.error.message || 'Price save failed.', 'local', 'Price Book');
+    price = normalizePricebookPrice(result.data);
+  }
+  state.pricebookPrices = [price, ...state.pricebookPrices.filter((item) => item.id !== price.id && item.id !== data.price_id)];
+  await stampPricebookVendorSynced(vendorId, live, client, now);
+  pricebookPersistLocal();
+  state.modal = '';
+  state.pbMaterialEditId = '';
+  state.pbMaterialVendorId = '';
+  showToast(data.price_id ? 'Material updated.' : 'Material added.', live ? 'live' : 'local', 'Price Book');
+  render();
+}
+async function commitPricebookCost(priceId, value) {
+  const cost = Number(value);
+  const price = state.pricebookPrices.find((item) => item.id === priceId);
+  state.pbCostEditId = '';
+  if (!price || !Number.isFinite(cost) || cost < 0) return render();
+  const updated = normalizePricebookPrice({ ...price, unit_cost: cost, updated_at: new Date().toISOString() });
+  const client = createSupabaseClient();
+  const live = isLiveSupabaseSession() && client;
+  if (live) {
+    const result = await client.from('pricebook_vendor_prices').update({ unit_cost: cost, updated_at: updated.updated_at }).eq('id', priceId);
+    if (result.error) return showToast(result.error.message || 'Price update failed.', 'local', 'Price Book');
+  }
+  state.pricebookPrices = [updated, ...state.pricebookPrices.filter((item) => item.id !== priceId)];
+  await stampPricebookVendorSynced(updated.vendor_id, live, client, updated.updated_at);
+  pricebookPersistLocal();
+  render();
+}
+async function deletePricebookRow(priceId) {
+  const companyId = activeCompanyId();
+  if (!requirePermission('price_book.manage', companyId, 'Your role cannot manage the price book.', 'Price Book')) return;
+  const client = createSupabaseClient();
+  const live = isLiveSupabaseSession() && client;
+  if (live) {
+    const result = await client.from('pricebook_vendor_prices').delete().eq('id', priceId);
+    if (result.error) return showToast(result.error.message || 'Delete failed.', 'local', 'Price Book');
+  }
+  state.pricebookPrices = state.pricebookPrices.filter((item) => item.id !== priceId);
+  pricebookPersistLocal();
+  render();
+}
+function parsePricebookCsvLine(line, delimiter = ',') {
+  const cells = [];
+  let current = '';
+  let quoted = false;
+  for (let index = 0; index < line.length; index += 1) {
+    const char = line[index];
+    if (quoted) {
+      if (char === '"' && line[index + 1] === '"') { current += '"'; index += 1; }
+      else if (char === '"') quoted = false;
+      else current += char;
+    } else if (char === '"') quoted = true;
+    else if (char === delimiter) { cells.push(current.trim()); current = ''; }
+    else current += char;
+  }
+  cells.push(current.trim());
+  return cells;
+}
+async function importPricebookRows(form) {
+  const companyId = activeCompanyId();
+  if (!requirePermission('price_book.manage', companyId, 'Your role cannot manage the price book.', 'Price Book')) return;
+  const data = new FormData(form);
+  const vendorId = String(data.get('vendor_id') || '');
+  if (!vendorId) return showToast('Choose a vendor first.', 'local', 'Price Book');
+  let text = String(data.get('csv') || '').trim();
+  const file = pbImportFile || form.elements.file?.files?.[0];
+  if (file) text = String(await file.text().catch(() => text)).trim();
+  if (!text) return showToast('Paste CSV rows or choose a CSV file.', 'local', 'Price Book');
+  const delimiter = (text.split(/\r?\n/)[0] || '').includes('\t') ? '\t' : ',';
+  const lines = text.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
+  if (lines[0] && /material|name/i.test(lines[0]) && /cost|price/i.test(lines[0])) lines.shift();
+  const client = createSupabaseClient();
+  const live = isLiveSupabaseSession() && client;
+  const now = new Date().toISOString();
+  let count = 0;
+  for (const line of lines) {
+    const cells = parsePricebookCsvLine(line, delimiter);
+    const name = String(cells[0] || '').trim();
+    const cost = Number(String(cells[4] || cells.at(-1) || '').replace(/[$,]/g, ''));
+    if (!name || !Number.isFinite(cost) || cost < 0) continue;
+    const material = await upsertPricebookMaterial(companyId, name, String(cells[1] || 'Uncategorized').trim() || 'Uncategorized', String(cells[3] || 'each').trim() || 'each', live, client);
+    state.pricebookMaterials = [material, ...state.pricebookMaterials.filter((item) => item.id !== material.id)];
+    let price = normalizePricebookPrice({
+      id: crypto.randomUUID(),
+      company_id: companyId,
+      material_id: material.id,
+      vendor_id: vendorId,
+      sku: String(cells[2] || '').trim(),
+      unit_cost: cost,
+      updated_at: now,
+    });
+    if (live) {
+      const result = await client.from('pricebook_vendor_prices').upsert({
+        company_id: companyId,
+        material_id: material.id,
+        vendor_id: vendorId,
+        sku: price.sku || null,
+        unit_cost: cost,
+        updated_at: now,
+      }, { onConflict: 'company_id,vendor_id,material_id' }).select().single();
+      if (result.error) continue;
+      price = normalizePricebookPrice(result.data);
+    } else {
+      const existing = state.pricebookPrices.find((item) => item.company_id === companyId && item.vendor_id === vendorId && item.material_id === material.id);
+      if (existing) price = normalizePricebookPrice({ ...existing, sku: price.sku, unit_cost: cost, updated_at: now });
+    }
+    state.pricebookPrices = [price, ...state.pricebookPrices.filter((item) => item.id !== price.id)];
+    count += 1;
+  }
+  await stampPricebookVendorSynced(vendorId, live, client, now);
+  pricebookPersistLocal();
+  pbImportFile = null;
+  state.modal = '';
+  showToast(count ? `Imported ${count} row${count === 1 ? '' : 's'}.` : 'No valid rows found.', live ? 'live' : 'local', 'Price Book');
+  render();
+}
+
+function normalizePricebookVendor(input = {}) {
+  return {
+    id: String(input.id || crypto.randomUUID()),
+    company_id: canonicalCompanyId(input.company_id || defaultCompanyId()),
+    name: String(input.name || 'Vendor').trim() || 'Vendor',
+    type: String(input.type || 'supply_house').trim() || 'supply_house',
+    account_ref: String(input.account_ref || '').trim(),
+    on_account: input.on_account === true || input.on_account === 'true' || input.on_account === '1',
+    payment_terms: String(input.payment_terms || 'cod').trim() || 'cod',
+    credit_limit: input.credit_limit === null || input.credit_limit === undefined || input.credit_limit === '' ? null : number(input.credit_limit),
+    color: String(input.color || '#ED4E0D').trim() || '#ED4E0D',
+    last_synced_at: input.last_synced_at || null,
+    created_at: input.created_at || new Date().toISOString(),
+    updated_at: input.updated_at || input.created_at || new Date().toISOString(),
+  };
+}
+
+function normalizePricebookMaterial(input = {}) {
+  return {
+    id: String(input.id || crypto.randomUUID()),
+    company_id: canonicalCompanyId(input.company_id || defaultCompanyId()),
+    name: String(input.name || 'Material').trim() || 'Material',
+    category: String(input.category || 'Uncategorized').trim() || 'Uncategorized',
+    unit: String(input.unit || 'each').trim() || 'each',
+    created_at: input.created_at || new Date().toISOString(),
+    updated_at: input.updated_at || input.created_at || new Date().toISOString(),
+  };
+}
+
+function normalizePricebookPrice(input = {}) {
+  return {
+    id: String(input.id || crypto.randomUUID()),
+    company_id: canonicalCompanyId(input.company_id || defaultCompanyId()),
+    material_id: String(input.material_id || ''),
+    vendor_id: String(input.vendor_id || ''),
+    sku: String(input.sku || '').trim(),
+    unit_cost: number(input.unit_cost),
+    updated_at: input.updated_at || input.created_at || new Date().toISOString(),
+    created_at: input.created_at || input.updated_at || new Date().toISOString(),
+  };
 }
 
 function renderSubscriptionBlockedPage(companyId) {
@@ -4788,7 +5399,7 @@ function renderContactBoard(companyId) {
       ${lanes.map((stage) => {
         const cards = rows.filter((contact) => resolvePipelineStage('contacts', contact.stage, companyId) === stage.name);
         return `
-          <article class="pipe-lane">
+          <article class="pipe-lane" data-drop-stage="${h(stage.name)}" data-drag-kind="contact">
             <header class="pipe-lane-head">${pipelineDot(stage.color)}<span>${h(stage.name)}</span><b>${cards.length}</b></header>
             <div class="pipe-lane-body">
               ${cards.map((contact) => contactCard(contact)).join('') || '<div class="lane-empty">No contacts</div>'}
@@ -4802,7 +5413,7 @@ function renderContactBoard(companyId) {
 
 function contactCard(contact) {
   return `
-    <button class="pipe-card ${contact.id === state.selectedContactId ? 'active' : ''}" type="button" data-action="open-contact" data-contact-id="${h(contact.id)}">
+    <button class="pipe-card ${contact.id === state.selectedContactId ? 'active' : ''}" type="button" draggable="true" data-drag-kind="contact" data-drag-id="${h(contact.id)}" data-action="open-contact" data-contact-id="${h(contact.id)}">
       <strong>${h(contact.name)}</strong>
       <span>${h(contact.location || contact.phone || contact.email || 'No details')}</span>
       <em>${contact.value ? money(contact.value) : '—'}</em>
@@ -4881,7 +5492,7 @@ function renderContactRecord(companyId, contact) {
           <div class="sf-card"><div class="sf-card-head"><i class="ti ti-id-badge-2"></i>About</div><div class="sf-card-body">
             ${fieldRow('Phone', ed('phone'), 'phone')}
             ${fieldRow('Email', ed('email', { blue: true }), 'email')}
-            ${fieldRow('Location', `${ed('location')}${contact.location ? `<a class="sf-field-action" href="${h(googleMapsPlaceSearchUrl(contact.location))}" data-map-url="${h(mapsSearchUrl(contact.location))}" target="_blank" rel="noreferrer"><i class="ti ti-map-pin"></i>Map: Exact pin</a>` : ''}`, 'location')}
+            ${fieldRow('Location', `${ed('location')}${contact.location ? `<button class="sf-field-action" type="button" data-action="open-location-picker" data-location-kind="contact" data-location-id="${h(contact.id)}" data-location-field="location" data-address="${h(contact.location)}" data-map-url="${h(mapsSearchUrl(contact.location))}" data-google-url="${h(googleMapsPlaceSearchUrl(contact.location))}"><i class="ti ti-map-pin"></i>Map: Exact pin</button>` : ''}`, 'location')}
             ${fieldRow('Job Type', `<span class="sf-pill sf-edit" data-contact-edit="title" data-contact-id="${h(contact.id)}" title="Click to edit">${h(contact.title || '—')}</span>`, 'title')}
             ${fieldRow('Owner', ed('owner_name', { blue: true }), 'owner_name')}
             ${fieldRow('Source', ed('source'), 'source')}
@@ -4978,13 +5589,13 @@ function sfFeedItem(a) {
   const [tc, tb] = typeColors[a.type] || typeColors.note;
   const text = a.subject ? (a.subject + (a.body ? ' — ' + a.body : '')) : (a.body || titleCase(a.type || 'note'));
   return `
-    <div class="sf-feed-item">
+    <button class="sf-feed-item" type="button" data-action="open-activity" data-activity-id="${h(a.id)}">
       <span class="sf-feed-avatar" style="background:${tc}">${h(initials)}</span>
       <div class="sf-feed-main">
         <div class="sf-feed-top"><span class="sf-feed-name">${h(owner)}</span><span class="sf-feed-tag" style="color:${tc};background:${tb}">${h(String(a.type || 'note').replace('_', ' '))}</span><span class="sf-feed-time">${h(timeAgo(a.completed_at || a.created_at))}</span></div>
         <div class="sf-feed-text">${h(text)}</div>
       </div>
-    </div>`;
+    </button>`;
 }
 
 function patchContactField(contactId, key, raw) {
@@ -5774,7 +6385,7 @@ function renderJobBoard(companyId) {
       ${lanes.map((stage) => {
         const cards = rows.filter((job) => resolvePipelineStage('jobs', job.stage, companyId) === stage.name);
         return `
-          <article class="pipe-lane">
+          <article class="pipe-lane" data-drop-stage="${h(stage.name)}" data-drag-kind="job">
             <header class="pipe-lane-head">${pipelineDot(stage.color)}<span>${h(stage.name)}</span><b>${cards.length}</b></header>
             <div class="pipe-lane-body">
               ${cards.map((job) => jobCard(job)).join('') || '<div class="lane-empty">No jobs</div>'}
@@ -5954,7 +6565,7 @@ function renderJobRecord(companyId, job) {
           <div class="sf-card"><div class="sf-card-head"><i class="ti ti-id-badge-2"></i>Job Details</div><div class="sf-card-body">
             ${fieldRow('Client', ed('client_name', { blue: true }), 'client_name')}
             ${fieldRow('Contact', ed('contact_name', { blue: true }), 'contact_name')}
-            ${fieldRow('Site Address', `${ed('site_address')}${job.site_address ? `<a class="sf-field-action" href="${h(googleMapsPlaceSearchUrl(job.site_address))}" target="_blank" rel="noreferrer"><i class="ti ti-map-pin"></i>Map pin</a>` : ''}`, 'site_address')}
+            ${fieldRow('Site Address', `${ed('site_address')}${job.site_address ? `<button class="sf-field-action" type="button" data-action="open-location-picker" data-location-kind="job" data-location-id="${h(job.id)}" data-location-field="site_address" data-address="${h(job.site_address)}"><i class="ti ti-map-pin"></i>Map pin</button>` : ''}`, 'site_address')}
             ${fieldRow('Job Type', `<span class="sf-pill">${h(job.job_type || '-')}</span>`, 'job_type')}
             ${fieldRow('Owner', ed('owner_name', { blue: true }), 'owner_name')}
             ${fieldRow('Priority', `<span class="sf-pill">${h(job.priority || 'Medium')}</span>`, 'priority')}
@@ -7590,6 +8201,13 @@ function renderWorkspaceSettings(companyId) {
         ['Installed plugins', availableWorkspacePlugins().filter((plugin) => isPluginInstalled(companyId, plugin.id)).length],
       ])}
     </article>
+    <article class="panel">
+      <div class="section-head"><div><h2>Appearance</h2><p>Choose the workspace color mode for this browser.</p></div></div>
+      <div class="theme-toggle-row">
+        <button class="btn ${getTheme() === 'light' ? 'btn-primary' : ''}" type="button" data-action="set-theme" data-theme="light"><i class="ti ti-sun"></i>Light</button>
+        <button class="btn ${getTheme() === 'dark' ? 'btn-primary' : ''}" type="button" data-action="set-theme" data-theme="dark"><i class="ti ti-moon"></i>Dark</button>
+      </div>
+    </article>
     <article class="panel settings-connection-card">
       <div class="section-head"><div><h2>Data connection</h2><p>Admin-only health check for where workspace changes are being saved.</p></div></div>
       <div class="settings-connection-status">
@@ -8814,7 +9432,7 @@ function renderDealBoard(companyId) {
       ${lanes.map((stage) => {
         const cards = rows.filter((deal) => resolvePipelineStage('deals', deal.stage, companyId) === stage.name);
         return `
-          <article class="pipe-lane">
+          <article class="pipe-lane" data-drop-stage="${h(stage.name)}" data-drag-kind="deal">
             <header class="pipe-lane-head">${pipelineDot(stage.color)}<span>${h(stage.name)}</span><b>${cards.length}</b></header>
             <div class="pipe-lane-sub">${money(sum(cards, 'value'))}</div>
             <div class="pipe-lane-body">
@@ -8827,7 +9445,7 @@ function renderDealBoard(companyId) {
 
 function dealCard(deal) {
   return `
-    <button class="pipe-card ${deal.id === state.selectedDealId ? 'active' : ''}" type="button" data-action="open-deal" data-deal-id="${h(deal.id)}">
+    <button class="pipe-card ${deal.id === state.selectedDealId ? 'active' : ''}" type="button" draggable="true" data-drag-kind="deal" data-drag-id="${h(deal.id)}" data-action="open-deal" data-deal-id="${h(deal.id)}">
       <strong>${h(deal.name)}</strong>
       <span>${h(accountName(deal.account_id) || 'No account')}</span>
       <em>${money(deal.value)}${deal.probability ? ` · ${deal.probability}%` : ''}</em>
@@ -8934,6 +9552,7 @@ function renderDealDetail(companyId, deal) {
         </div>
 
         <div class="sf-col">
+          ${renderDealLineItems(deal, companyId)}
           <div class="sf-card">
             <div class="sf-activity-tabs">${activityTabs.map(([label, ico]) => `<button class="sf-activity-tab ${activeTab === label ? 'active' : ''}" type="button" data-action="open-docked-activity" data-related-type="deal" data-related-id="${h(deal.id)}" data-kind="${h(label)}" data-tab="${h(label)}"><i class="ti ${ico}"></i>${label}</button>`).join('')}</div>
             <form class="sf-note-box" data-deal-note-form autocomplete="off">
@@ -9033,6 +9652,38 @@ function renderActivityFormModal(companyId) {
         <button class="btn" type="button" data-action="close-modal">Cancel</button>
       </div>
     </form>`, 'wide-modal');
+}
+
+function renderActivityDetailModal() {
+  const activity = state.activities.find((item) => item.id === state.selectedActivityId);
+  if (!activity) return renderModalShell('Activity', 'Activity detail', emptyState('That activity is no longer available.'));
+  const related = activity.related_type === 'contact' ? contactById(activity.related_id)
+    : activity.related_type === 'deal' ? dealById(activity.related_id)
+      : activity.related_type === 'job' ? jobById(activity.related_id)
+        : activity.related_type === 'account' ? accountById(activity.related_id)
+          : null;
+  return renderModalShell('Activity', activity.subject || titleCase(activity.type), `
+    <div class="activity-detail-modal">
+      <div class="activity-detail-top">
+        <span class="activity-ico activity-${h(activity.type)}"><i class="ti ${activityIcon(activity.type)}"></i></span>
+        <div>
+          <strong>${h(titleCase(activity.type))}</strong>
+          <span>${h(activity.owner_name || 'Quest HQ')} / ${h(formatDateTime(activity.completed_at || activity.created_at))}</span>
+        </div>
+      </div>
+      ${activity.body ? `<p class="activity-detail-body">${h(activity.body)}</p>` : '<p class="activity-detail-body muted-dash">No details were written.</p>'}
+      ${contractRows([
+        ['Related record', related?.name || related?.title || activity.related_id || '-'],
+        ['Account', accountName(activity.account_id) || '-'],
+        ['Due', activity.due_at ? formatDateTime(activity.due_at) : '-'],
+        ['Completed', activity.completed_at ? formatDateTime(activity.completed_at) : '-'],
+      ])}
+      <div class="form-actions">
+        <button class="btn danger" type="button" data-action="delete-activity" data-activity-id="${h(activity.id)}"><i class="ti ti-trash"></i>Delete</button>
+        <button class="btn" type="button" data-action="close-modal">Close</button>
+      </div>
+    </div>
+  `, 'task-modal activity-detail-panel');
 }
 
 function renderCrmAccountModal(companyId, accountKey) {
@@ -10681,6 +11332,11 @@ function renderActiveModal(route, session) {
   if (state.modal === 'proposal-builder') return renderProposalBuilderModal(activeCompanyId());
   if (state.modal === 'private-plugin-install') return renderPrivatePluginInstallModal();
   if (state.modal === 'activity-new') return renderActivityFormModal(activeCompanyId());
+  if (state.modal === 'activity-detail') return renderActivityDetailModal();
+  if (state.modal === 'location-picker') return renderLocationPickerModal();
+  if (state.modal === 'price-book-vendor') return renderPriceBookVendorModal();
+  if (state.modal === 'price-book-material') return renderPriceBookMaterialModal();
+  if (state.modal === 'price-book-import') return renderPriceBookImportModal();
   if (state.modal === 'stages-jobs') return renderStageManagerModal('jobs');
   if (state.modal === 'stages-contacts') return renderStageManagerModal('contacts');
   if (state.modal === 'stages-deals') return renderStageManagerModal('deals');
@@ -12253,6 +12909,102 @@ function handleAction(event, node) {
     render();
     return;
   }
+  if (action === 'set-theme') {
+    event.preventDefault();
+    setTheme(node.dataset.theme || 'light');
+    return;
+  }
+  if (action === 'open-activity') {
+    event.preventDefault();
+    state.selectedActivityId = node.dataset.activityId || '';
+    state.modal = 'activity-detail';
+    render();
+    return;
+  }
+  if (action === 'open-location-picker') {
+    event.preventDefault();
+    openLocationPicker(node);
+    return;
+  }
+  if (action === 'save-location-picker') {
+    event.preventDefault();
+    saveLocationPicker().catch((error) => showToast(error.message || 'Could not save that pin.', 'local', 'Map Pin'));
+    return;
+  }
+  if (action === 'pb-tab') {
+    event.preventDefault();
+    state.pricebookTab = node.dataset.tab || 'vendors';
+    state.pricebookVendorId = '';
+    state.pricebookQuery = '';
+    render();
+    return;
+  }
+  if (action === 'pb-open-vendor') {
+    event.preventDefault();
+    state.pricebookVendorId = node.dataset.vendorId || '';
+    state.pricebookTab = 'vendors';
+    state.pricebookQuery = '';
+    render();
+    return;
+  }
+  if (action === 'pb-back') {
+    event.preventDefault();
+    state.pricebookVendorId = '';
+    state.pricebookQuery = '';
+    render();
+    return;
+  }
+  if (action === 'pb-add-vendor' || action === 'pb-edit-vendor') {
+    event.preventDefault();
+    state.pbEditingVendor = action === 'pb-edit-vendor' ? node.dataset.vendorId || '' : '';
+    state.modal = 'price-book-vendor';
+    render();
+    return;
+  }
+  if (action === 'pb-delete-vendor') {
+    event.preventDefault();
+    deletePricebookVendor(node.dataset.vendorId || '').catch((error) => showToast(error.message || 'Vendor delete failed.', 'local', 'Price Book'));
+    return;
+  }
+  if (action === 'pb-add-material' || action === 'pb-edit-material') {
+    event.preventDefault();
+    state.pbMaterialEditId = action === 'pb-edit-material' ? node.dataset.priceId || '' : '';
+    state.pbMaterialVendorId = node.dataset.vendorId || state.pricebookVendorId || '';
+    state.modal = 'price-book-material';
+    render();
+    return;
+  }
+  if (action === 'pb-import') {
+    event.preventDefault();
+    pbImportFile = null;
+    state.modal = 'price-book-import';
+    render();
+    return;
+  }
+  if (action === 'pb-set-cat') {
+    event.preventDefault();
+    state.pricebookCategory = node.dataset.cat || 'All';
+    render();
+    return;
+  }
+  if (action === 'pb-sort') {
+    event.preventDefault();
+    const key = node.dataset.key || '';
+    state.pricebookSort = { key, dir: state.pricebookSort?.key === key && state.pricebookSort?.dir === 'asc' ? 'desc' : 'asc' };
+    render();
+    return;
+  }
+  if (action === 'pb-edit-cost') {
+    event.preventDefault();
+    state.pbCostEditId = node.dataset.priceId || '';
+    render();
+    return;
+  }
+  if (action === 'pb-delete-row') {
+    event.preventDefault();
+    deletePricebookRow(node.dataset.priceId || '').catch((error) => showToast(error.message || 'Price delete failed.', 'local', 'Price Book'));
+    return;
+  }
   if (action === 'pipeline-open') {
     event.preventDefault();
     const module = node.dataset.module;
@@ -12711,6 +13463,11 @@ function handleAction(event, node) {
   if (action === 'delete-deal') {
     event.preventDefault();
     deleteDeal(node.dataset.dealId);
+    return;
+  }
+  if (action === 'remove-quote-line-item') {
+    event.preventDefault();
+    removeQuoteLineItem(node.dataset.dealId || '', node.dataset.lineId || '').catch((error) => showToast(error.message || 'Line item remove failed.', 'local', 'Quotes'));
     return;
   }
   if (action === 'open-deal') {
@@ -13429,6 +14186,44 @@ function onDocumentSubmit(event) {
     return;
   }
 
+  if (event.target.matches('[data-quote-line-item-form]')) {
+    event.preventDefault();
+    addQuoteLineItem(event.target).catch((error) => {
+      showToast(error.message || 'Line item could not be saved.', 'local', 'Quotes');
+    });
+    return;
+  }
+
+  if (event.target.matches('[data-pb-vendor-form]')) {
+    event.preventDefault();
+    savePricebookVendor(event.target).catch((error) => showToast(error.message || 'Vendor save failed.', 'local', 'Price Book'));
+    return;
+  }
+
+  if (event.target.matches('[data-pb-material-form]')) {
+    event.preventDefault();
+    savePricebookMaterial(event.target).catch((error) => showToast(error.message || 'Material save failed.', 'local', 'Price Book'));
+    return;
+  }
+
+  if (event.target.matches('[data-pb-import-form]')) {
+    event.preventDefault();
+    importPricebookRows(event.target).catch((error) => showToast(error.message || 'Import failed.', 'local', 'Price Book'));
+    return;
+  }
+
+  if (event.target.matches('[data-pb-cost-form]')) {
+    event.preventDefault();
+    commitPricebookCost(event.target.dataset.priceId || '', new FormData(event.target).get('cost')).catch((error) => showToast(error.message || 'Cost update failed.', 'local', 'Price Book'));
+    return;
+  }
+
+  if (event.target.matches('[data-location-picker-form]')) {
+    event.preventDefault();
+    saveLocationPicker().catch((error) => showToast(error.message || 'Could not save that pin.', 'local', 'Map Pin'));
+    return;
+  }
+
   if (event.target.matches('[data-estimate-builder-form]')) {
     event.preventDefault();
     saveBuiltEstimate(event.target).catch((error) => {
@@ -13587,6 +14382,42 @@ function onDocumentSubmit(event) {
     event.preventDefault();
     saveFormResponse(event.target).catch((error) => showToast(error.message || 'Form response failed.', 'local', 'Forms'));
   }
+}
+
+function onPipeDragStart(event) {
+  const card = event.target.closest('[draggable="true"][data-drag-kind][data-drag-id]');
+  if (!card) return;
+  pipeDrag = { kind: card.dataset.dragKind || '', id: card.dataset.dragId || '' };
+  card.classList.add('dragging');
+  event.dataTransfer?.setData('text/plain', JSON.stringify(pipeDrag));
+  if (event.dataTransfer) event.dataTransfer.effectAllowed = 'move';
+}
+
+function onPipeDragEnd(event) {
+  event.target.closest('[data-drag-id]')?.classList.remove('dragging');
+  document.querySelectorAll('.pipe-lane.drag-over').forEach((lane) => lane.classList.remove('drag-over'));
+  pipeDrag = null;
+}
+
+function onPipeDragOver(event) {
+  const lane = event.target.closest('[data-drop-stage][data-drag-kind]');
+  if (!lane || !pipeDrag || lane.dataset.dragKind !== pipeDrag.kind) return;
+  event.preventDefault();
+  lane.classList.add('drag-over');
+  if (event.dataTransfer) event.dataTransfer.dropEffect = 'move';
+}
+
+function onPipeDrop(event) {
+  const lane = event.target.closest('[data-drop-stage][data-drag-kind]');
+  if (!lane || !pipeDrag || lane.dataset.dragKind !== pipeDrag.kind) return;
+  event.preventDefault();
+  const stage = lane.dataset.dropStage || '';
+  const { kind, id } = pipeDrag;
+  document.querySelectorAll('.pipe-lane.drag-over').forEach((item) => item.classList.remove('drag-over'));
+  pipeDrag = null;
+  if (kind === 'contact') setContactStage(id, stage);
+  if (kind === 'deal') setDealStage(id, stage);
+  if (kind === 'job') setJobStage(id, stage);
 }
 
 async function signOut() {
@@ -15144,6 +15975,16 @@ function onDocumentInput(event) {
   if (event.target.matches('[data-proposal-search]')) {
     state.proposalQuery = event.target.value;
     updateWorkspaceOnly();
+    return;
+  }
+  if (event.target.matches('[data-pb-search]')) {
+    state.pricebookQuery = event.target.value;
+    updateWorkspaceOnly();
+    return;
+  }
+  if (event.target.matches('[data-location-picker-search]')) {
+    state.locationPicker = { ...(state.locationPicker || {}), address: event.target.value };
+    refreshLocationPickerSuggestions(event.target).catch(() => {});
     return;
   }
   if (event.target.matches('[data-message-search]')) {
@@ -17885,7 +18726,7 @@ async function supabaseDelete(table, id) {
 
 const ACCOUNT_COLS = ['id', 'company_id', 'name', 'type', 'industry', 'website', 'phone', 'email', 'address', 'owner_name', 'status', 'notes', 'updated_at'];
 const SITE_COLS = ['id', 'company_id', 'contact_id', 'account_id', 'label', 'address', 'roof_system', 'secondary_roof_system', 'has_multiple_roof_systems', 'notes', 'updated_at'];
-const DEAL_COLS = ['id', 'company_id', 'account_id', 'primary_contact_id', 'site_id', 'name', 'stage', 'status', 'value', 'probability', 'close_date', 'owner_name', 'source', 'job_id', 'notes', 'updated_at'];
+const DEAL_COLS = ['id', 'company_id', 'account_id', 'primary_contact_id', 'site_id', 'name', 'stage', 'status', 'value', 'probability', 'close_date', 'owner_name', 'source', 'job_id', 'line_items', 'notes', 'updated_at'];
 const JOB_COLS = ['id', 'company_id', 'name', 'client_name', 'contact_name', 'site_address', 'job_type', 'stage', 'priority', 'owner_name', 'scope', 'notes', 'estimate_total', 'invoice_total', 'account_id', 'contact_id', 'deal_id', 'site_id', 'updated_at'];
 const PROPOSAL_COLS = ['id', 'company_id', 'proposal_no', 'title', 'status', 'related_type', 'related_id', 'contact_id', 'deal_id', 'job_id', 'client', 'draft', 'total', 'public_token', 'accepted_by', 'accepted_email', 'accepted_at', 'declined_at', 'viewed_at', 'sent_at', 'created_by', 'created_by_label', 'created_at', 'updated_at'];
 const ACTIVITY_COLS = ['id', 'company_id', 'type', 'subject', 'body', 'related_type', 'related_id', 'account_id', 'contact_id', 'site_id', 'deal_id', 'job_id', 'due_at', 'completed_at', 'owner_name', 'updated_at'];
@@ -17950,6 +18791,138 @@ async function persistDeal(deal, label = 'Quote saved.') {
   showToast(label, ok ? 'live' : 'local', 'Quotes');
   render();
   return payload;
+}
+
+function normalizeDealLineItems(raw) {
+  const rows = typeof raw === 'string' ? safeJson(raw, []) : raw;
+  return (Array.isArray(rows) ? rows : []).map((item) => {
+    const quantity = Math.max(0, number(item.quantity || item.qty || 1));
+    const unitCost = Math.max(0, number(item.unit_cost));
+    const margin = Math.max(0, number(item.margin_pct ?? item.margin ?? 30));
+    const manualSell = item.unit_sell === '' || item.unit_sell === null || item.unit_sell === undefined ? null : Math.max(0, number(item.unit_sell));
+    return {
+      id: String(item.id || `line-${crypto.randomUUID()}`),
+      material_id: String(item.material_id || ''),
+      vendor_price_id: String(item.vendor_price_id || ''),
+      name: String(item.name || 'Line item').trim() || 'Line item',
+      category: String(item.category || '').trim(),
+      sku: String(item.sku || '').trim(),
+      unit: String(item.unit || 'each').trim() || 'each',
+      quantity,
+      unit_cost: unitCost,
+      margin_pct: margin,
+      unit_sell: manualSell,
+      source: String(item.source || (item.vendor_price_id ? 'price_book' : 'manual')),
+    };
+  }).filter((item) => item.name);
+}
+
+function dealLineSell(item) {
+  if (item.unit_sell !== null && item.unit_sell !== undefined) return number(item.unit_sell);
+  return number(item.unit_cost) * (1 + number(item.margin_pct) / 100);
+}
+
+function dealLineItemsTotal(deal) {
+  const line_items = normalizeDealLineItems(deal?.line_items);
+  return line_items.reduce((total, item) => total + number(item.quantity) * dealLineSell(item), 0);
+}
+
+function quoteMaterialOptions(companyId) {
+  return pbRows(companyId)
+    .sort((a, b) => a.material.localeCompare(b.material) || a.cost - b.cost)
+    .map((row) => [`${row.id}`, `${row.material} - ${row.vendor} ($${pbMoney(row.cost)}/${row.unit})`]);
+}
+
+function pricebookLineItemFromPrice(priceId, quantity, marginPct) {
+  const row = pbRows(activeCompanyId()).find((item) => item.id === priceId);
+  if (!row) return null;
+  return {
+    id: `line-${crypto.randomUUID()}`,
+    material_id: row.materialId,
+    vendor_price_id: row.id,
+    name: row.material,
+    category: row.category,
+    sku: row.sku === '-' ? '' : row.sku,
+    unit: row.unit,
+    quantity,
+    unit_cost: row.cost,
+    margin_pct: marginPct,
+    unit_sell: null,
+    source: 'price_book',
+  };
+}
+
+function renderDealLineItems(deal, companyId) {
+  const lineItems = normalizeDealLineItems(deal.line_items);
+  const materialOptions = quoteMaterialOptions(companyId);
+  const total = dealLineItemsTotal(deal);
+  return `
+    <div class="sf-card quote-line-items">
+      <div class="sf-card-head"><i class="ti ti-receipt-2"></i>Quote line items <span>${money(total)}</span></div>
+      <div class="quote-line-table">
+        <div class="quote-line-head"><span>Item</span><span>Qty</span><span>Cost</span><span>Sell</span><span>Total</span><span></span></div>
+        ${lineItems.map((item) => `
+          <div class="quote-line-row">
+            <span><strong>${h(item.name)}</strong><small>${h([item.category, item.sku, item.source === 'price_book' ? 'Price Book' : 'Manual'].filter(Boolean).join(' / '))}</small></span>
+            <span>${h(String(item.quantity))} ${h(item.unit)}</span>
+            <span>${money(item.unit_cost)}</span>
+            <span>${money(dealLineSell(item))}</span>
+            <span>${money(number(item.quantity) * dealLineSell(item))}</span>
+            <button type="button" data-action="remove-quote-line-item" data-deal-id="${h(deal.id)}" data-line-id="${h(item.id)}" aria-label="Remove line item"><i class="ti ti-trash"></i></button>
+          </div>
+        `).join('') || '<div class="quote-line-empty">No line items yet. Add Price Book or manual items below.</div>'}
+      </div>
+      <form class="quote-line-add" data-quote-line-item-form>
+        <input type="hidden" name="deal_id" value="${h(deal.id)}" />
+        <select name="vendor_price_id">
+          <option value="">Manual line item</option>
+          ${materialOptions.map(([value, label]) => `<option value="${h(value)}">${h(label)}</option>`).join('')}
+        </select>
+        <input name="name" placeholder="Manual item name" />
+        <input name="quantity" type="number" min="0" step="0.01" value="1" aria-label="Quantity" />
+        <input name="unit" placeholder="unit" value="each" aria-label="Unit" />
+        <input name="unit_cost" type="number" min="0" step="0.01" placeholder="Cost" aria-label="Unit cost" />
+        <input name="margin_pct" type="number" min="0" step="1" value="30" aria-label="Margin percent" />
+        <button class="btn btn-primary" type="submit"><i class="ti ti-plus"></i>Add</button>
+      </form>
+    </div>
+  `;
+}
+
+async function addQuoteLineItem(form) {
+  const data = Object.fromEntries(new FormData(form).entries());
+  const deal = dealById(data.deal_id);
+  if (!deal) return;
+  const quantity = Math.max(0, number(data.quantity || 1));
+  const marginPct = Math.max(0, number(data.margin_pct || 30));
+  let nextItem = data.vendor_price_id ? pricebookLineItemFromPrice(String(data.vendor_price_id), quantity, marginPct) : null;
+  if (!nextItem) {
+    const name = String(data.name || '').trim();
+    if (!name) return showToast('Enter a line item name or choose a Price Book item.', 'local', 'Quotes');
+    nextItem = {
+      id: `line-${crypto.randomUUID()}`,
+      material_id: '',
+      vendor_price_id: '',
+      name,
+      category: 'Manual',
+      sku: '',
+      unit: String(data.unit || 'each').trim() || 'each',
+      quantity,
+      unit_cost: Math.max(0, number(data.unit_cost)),
+      margin_pct: marginPct,
+      unit_sell: null,
+      source: 'manual',
+    };
+  }
+  const line_items = normalizeDealLineItems(deal.line_items).concat(nextItem);
+  await persistDeal({ ...deal, line_items, value: dealLineItemsTotal({ line_items }) }, 'Quote line item added.');
+}
+
+async function removeQuoteLineItem(dealId, lineId) {
+  const deal = dealById(dealId);
+  if (!deal) return;
+  const line_items = normalizeDealLineItems(deal.line_items).filter((item) => item.id !== lineId);
+  await persistDeal({ ...deal, line_items, value: dealLineItemsTotal({ line_items }) }, 'Quote line item removed.');
 }
 
 async function persistProposal(proposal, label = 'Proposal saved.') {
@@ -19046,6 +20019,144 @@ function googleMapsPlaceSearchUrl(address) {
   return mapsSearchUrl(address);
 }
 
+function locationPickerDefaultPin(address = '') {
+  const text = String(address || '').toLowerCase();
+  if (/phoenix|arizona|az/.test(text)) return { lat: 33.4484, lng: -112.0740 };
+  if (/california|los angeles|san diego/.test(text)) return { lat: 34.0522, lng: -118.2437 };
+  if (/utah|salt lake/.test(text)) return { lat: 40.7608, lng: -111.8910 };
+  if (/texas|dallas|houston/.test(text)) return { lat: 32.7767, lng: -96.7970 };
+  return { lat: 33.4484, lng: -112.0740 };
+}
+
+function openLocationPicker(node) {
+  const sourceInput = node.closest('.address-lookup-control')?.querySelector('[data-address-lookup-input]');
+  const kind = node.dataset.locationKind || (sourceInput ? 'input' : '');
+  const id = node.dataset.locationId || '';
+  const field = node.dataset.locationField || sourceInput?.name || 'address';
+  const address = String(node.dataset.address || sourceInput?.value || '').trim();
+  const pin = locationPickerDefaultPin(address);
+  state.locationPicker = {
+    kind,
+    id,
+    field,
+    address,
+    lat: Number(node.dataset.lat || pin.lat),
+    lng: Number(node.dataset.lng || pin.lng),
+    inputName: sourceInput?.name || '',
+  };
+  state.modal = 'location-picker';
+  render();
+}
+
+function renderLocationPickerModal() {
+  const picker = state.locationPicker || {};
+  const pin = locationPickerDefaultPin(picker.address);
+  const lat = Number(picker.lat || pin.lat);
+  const lng = Number(picker.lng || pin.lng);
+  return renderModalShell('Map Pin', 'Set exact site pin', `
+    <form class="location-picker" data-location-picker-form>
+      <div class="address-lookup-field location-picker-search">
+        <span>Address</span>
+        <div class="address-lookup-control">
+          <input name="address" value="${h(picker.address || '')}" data-location-picker-search data-google-address-input data-address-lookup-input data-address-options="${h(JSON.stringify(contactAddressOptions(activeCompanyId())))}" autocomplete="street-address" placeholder="Type the full site address" />
+        </div>
+      </div>
+      <input type="hidden" name="lat" value="${h(String(lat))}" data-location-lat />
+      <input type="hidden" name="lng" value="${h(String(lng))}" data-location-lng />
+      <div class="location-map" data-location-map data-lat="${h(String(lat))}" data-lng="${h(String(lng))}"></div>
+      <p class="location-picker-hint">Search the address, drag the pin if needed, then save it to this customer record.</p>
+      <div class="form-actions">
+        <button class="btn btn-primary" type="submit" data-action="save-location-picker"><i class="ti ti-map-pin"></i>Save exact pin</button>
+        <button class="btn" type="button" data-action="close-modal">Cancel</button>
+      </div>
+    </form>
+  `, 'wide-modal location-picker-modal');
+}
+
+async function refreshLocationPickerSuggestions(input) {
+  await refreshAddressSuggestions(input);
+}
+
+function mountLocationPicker() {
+  const mapNode = document.querySelector('[data-location-map]');
+  if (!mapNode || mapNode.dataset.bound) return;
+  mapNode.dataset.bound = '1';
+  const lat = Number(mapNode.dataset.lat || 33.4484);
+  const lng = Number(mapNode.dataset.lng || -112.0740);
+  locationPickerMap = L.map(mapNode, { zoomControl: true }).setView([lat, lng], 14);
+  L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    maxZoom: 19,
+    attribution: '&copy; OpenStreetMap',
+  }).addTo(locationPickerMap);
+  locationPickerMarker = L.marker([lat, lng], {
+    draggable: true,
+    icon: L.divIcon({ className: 'quest-map-pin', html: '<i class="ti ti-map-pin-filled"></i>', iconSize: [34, 34], iconAnchor: [17, 34] }),
+  }).addTo(locationPickerMap);
+  const sync = () => {
+    const pos = locationPickerMarker.getLatLng();
+    const latInput = document.querySelector('[data-location-lat]');
+    const lngInput = document.querySelector('[data-location-lng]');
+    if (latInput) latInput.value = String(pos.lat);
+    if (lngInput) lngInput.value = String(pos.lng);
+    state.locationPicker = { ...(state.locationPicker || {}), lat: pos.lat, lng: pos.lng };
+  };
+  locationPickerMarker.on('dragend', sync);
+  locationPickerMap.on('click', (event) => {
+    locationPickerMarker.setLatLng(event.latlng);
+    sync();
+  });
+  setTimeout(() => locationPickerMap?.invalidateSize(), 80);
+}
+
+async function persistCrmSite(site) {
+  const payload = normalizeCrmSite({ ...site, updated_at: new Date().toISOString() });
+  const { ok, data } = await supabaseWrite('crm_sites', emptyToNull(supabaseRow(payload, SITE_COLS), ['contact_id', 'account_id']));
+  upsertCrmSite(ok && data ? normalizeCrmSite(data) : payload);
+  return ok && data ? normalizeCrmSite(data) : payload;
+}
+
+async function saveLocationPicker() {
+  const picker = state.locationPicker || {};
+  const form = document.querySelector('[data-location-picker-form]');
+  const formData = form ? Object.fromEntries(new FormData(form).entries()) : {};
+  const address = String(formData.address || picker.address || '').trim();
+  if (!address) return showToast('Enter an address before saving the pin.', 'local', 'Map Pin');
+  const pinNote = `Exact pin: ${Number(formData.lat || picker.lat).toFixed(6)}, ${Number(formData.lng || picker.lng).toFixed(6)}`;
+  if (picker.kind === 'input') {
+    const input = document.querySelector(`[name="${CSS.escape(picker.inputName || picker.field || 'address')}"][data-address-lookup-input]`);
+    if (input) {
+      input.value = address;
+      input.dispatchEvent(new Event('input', { bubbles: true }));
+      input.dispatchEvent(new Event('change', { bubbles: true }));
+    }
+  } else if (picker.kind === 'contact') {
+    const contact = contactById(picker.id);
+    if (contact) {
+      await persistContact({ ...contact, location: address });
+      const site = crmSitesForContact(contact.id)[0] || normalizeCrmSite({ id: `site-${crypto.randomUUID()}`, company_id: contact.company_id, contact_id: contact.id, account_id: contact.account_id, label: 'Primary site' });
+      await persistCrmSite({ ...site, address, notes: [site.notes, pinNote].filter(Boolean).join('\n') });
+    }
+  } else if (picker.kind === 'deal') {
+    const deal = dealById(picker.id);
+    if (deal) {
+      const site = crmSiteById(deal.site_id) || normalizeCrmSite({ id: `site-${crypto.randomUUID()}`, company_id: deal.company_id, contact_id: deal.primary_contact_id, account_id: deal.account_id, label: 'Quote site' });
+      const savedSite = await persistCrmSite({ ...site, address, notes: [site.notes, pinNote].filter(Boolean).join('\n') });
+      await persistDeal({ ...deal, site_id: savedSite.id }, 'Quote location saved.');
+    }
+  } else if (picker.kind === 'job') {
+    const job = jobById(picker.id);
+    if (job) {
+      const site = crmSiteById(job.site_id) || normalizeCrmSite({ id: `site-${crypto.randomUUID()}`, company_id: job.company_id, contact_id: job.contact_id, account_id: job.account_id, label: 'Job site' });
+      const savedSite = await persistCrmSite({ ...site, address, notes: [site.notes, pinNote].filter(Boolean).join('\n') });
+      await persistJob({ ...job, site_address: address, site_id: savedSite.id }, 'Job location saved.');
+    }
+  }
+  state.modal = '';
+  state.locationPicker = null;
+  showToast('Exact pin saved.', isLiveSupabaseSession() ? 'live' : 'local', 'Map Pin');
+  render();
+}
+
 function renderAddressLookupField(label, name, value = '', options = [], className = 'span-2', listId = '', inputAttrs = '') {
   const clean = String(value || '').trim();
   const classes = [className, 'address-lookup-field'].filter(Boolean).join(' ');
@@ -19054,11 +20165,11 @@ function renderAddressLookupField(label, name, value = '', options = [], classNa
       <span>${h(label)}</span>
       <div class="address-lookup-control">
         <input name="${h(name)}" type="text" value="${h(value)}" autocomplete="street-address" data-google-address-input data-address-lookup-input data-address-options="${h(JSON.stringify(options))}" placeholder="Start typing the site address" ${inputAttrs} />
-        <a class="address-pin-button ${clean ? '' : 'is-disabled'}" href="${clean ? h(googleMapsPlaceSearchUrl(clean)) : '#'}" data-address-map-link target="_blank" rel="noreferrer" aria-disabled="${clean ? 'false' : 'true'}" title="Open Google Maps pin">
+        <button class="address-pin-button ${clean ? '' : 'is-disabled'}" type="button" data-address-map-link data-action="open-location-picker" data-address="${h(clean)}" data-location-kind="input" data-location-field="${h(name)}" aria-disabled="${clean ? 'false' : 'true'}" title="Set exact map pin">
           <i class="ti ti-map-pin"></i><span>Map pin</span>
-        </a>
+        </button>
       </div>
-      <small class="field-hint">Pick a saved address or type the full site address, then verify the pin in Google Maps.</small>
+      <small class="field-hint">Pick a saved address or type the full site address, then set the exact map pin.</small>
     </label>
   `;
 }
@@ -19302,6 +20413,7 @@ function normalizeDeal(input) {
     owner_name: String(input.owner_name || '').trim(),
     source: String(input.source || '').trim(),
     job_id: input.job_id ? String(input.job_id) : '',
+    line_items: normalizeDealLineItems(input.line_items),
     notes: String(input.notes || '').trim(),
     created_at: input.created_at || new Date().toISOString(),
     updated_at: input.updated_at || new Date().toISOString(),
@@ -20283,7 +21395,7 @@ function taskQueueRow(task) {
 
 function jobCard(job) {
   return `
-    <button class="job-card priority-${h(job.priority.toLowerCase())} ${job.id === state.selectedJobId ? 'active' : ''}" type="button" data-select-job="${h(job.id)}">
+    <button class="job-card priority-${h(job.priority.toLowerCase())} ${job.id === state.selectedJobId ? 'active' : ''}" type="button" draggable="true" data-drag-kind="job" data-drag-id="${h(job.id)}" data-select-job="${h(job.id)}">
       <strong>${h(job.name)}</strong>
       <span>${h(job.client_name || 'No client')}</span>
       <small>${h(companyName(job.company_id))} - ${h(job.owner_name || 'Unassigned')}</small>
@@ -20461,6 +21573,9 @@ function persistAll() {
   writeJson(FINANCE_PAYMENT_CACHE_KEY, state.financePayments);
   writeJson(FINANCE_EXPENSE_CACHE_KEY, state.financeExpenses);
   writeJson(FINANCE_VENDOR_CACHE_KEY, state.financeVendors);
+  writeJson(PRICEBOOK_VENDOR_CACHE_KEY, state.pricebookVendors);
+  writeJson(PRICEBOOK_MATERIAL_CACHE_KEY, state.pricebookMaterials);
+  writeJson(PRICEBOOK_PRICE_CACHE_KEY, state.pricebookPrices);
   writeJson(TIME_ENTRY_CACHE_KEY, state.timeEntries);
   writeJson(ACTIVE_TIMER_KEY, state.activeTimer);
   writeJson(TEAM_CACHE_KEY, state.teamMembers);
@@ -22163,6 +23278,14 @@ function readJson(key, fallback) {
   try {
     const raw = localStorage.getItem(key);
     return raw ? JSON.parse(raw) : fallback;
+  } catch {
+    return fallback;
+  }
+}
+
+function safeJson(raw, fallback) {
+  try {
+    return JSON.parse(raw);
   } catch {
     return fallback;
   }
