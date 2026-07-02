@@ -68,6 +68,7 @@ const CLIENT_PORTAL_GUEST_NAME = 'Client';
 const WORKSPACE_BUILDER_STORAGE_PREFIX = 'qhq_workspace_builder_v1';
 const DASHBOARD_LAYOUT_CACHE_KEY = 'quest-hq-dashboard-layouts-v1';
 const DASHBOARD_ROLE_VIEW_CACHE_KEY = 'quest-hq-dashboard-role-views-v1';
+const SIDEBAR_SCROLL_KEY = 'quest-hq-sidebar-scroll';
 const LAUNCH_HIDE_FUTURE_MODULES = true;
 const LAUNCH_HIDE_UNREADY_DASHBOARD_WIDGETS = true;
 const ESTIMATE_TAX_RATE = 0.085;
@@ -1938,7 +1939,10 @@ init();
 
 function init() {
   normalizeLegacyLocation();
-  window.addEventListener('popstate', render);
+  window.addEventListener('popstate', () => {
+    rememberSidebarScroll();
+    render();
+  });
   document.addEventListener('click', onDocumentClick);
   document.addEventListener('submit', onDocumentSubmit);
   document.addEventListener('input', onDocumentInput);
@@ -2099,6 +2103,7 @@ function render() {
   if (state.route.params.get('account') === 'profile') state.modal = 'profile';
   document.title = `${routeTitle(state.route)} | ${companyName(activeCompanyId())} | Quest HQ`;
   app.innerHTML = shellTemplate(state.route, renderWorkspace(state.route));
+  queueMicrotask(restoreSidebarScroll);
   queueMicrotask(bindTimePickerInputs);
   queueMicrotask(bindGoogleAddressInputs);
 }
@@ -3328,7 +3333,7 @@ function navGroup(label, items) {
 function navItem(route, path, symbol, label, count = '') {
   const active = isActiveNav(route, path);
   return `
-    <a class="side-item ${active ? 'active' : ''}" href="${appHref(path)}" data-router title="${h(label)}" aria-label="${h(label)}">
+    <a class="side-item ${active ? 'active' : ''}" href="${appHref(path)}" data-router title="${h(label)}" aria-label="${h(label)}" aria-current="${active ? 'page' : 'false'}">
       ${svgIcon(symbol)}
       <span>${h(label)}</span>
       ${count !== '' ? `<b>${h(String(count))}</b>` : ''}
@@ -3359,7 +3364,7 @@ function navItemPipeline(route, module, companyId) {
   return `
     <div class="side-pipe ${expanded ? 'expanded' : ''}">
       <div class="side-pipe-head">
-        <a class="side-item ${active ? 'active' : ''}" href="${appHref(path)}" data-router data-action="pipeline-open" data-module="${kind}" title="${h(module.label)}" aria-label="${h(module.label)}">
+        <a class="side-item ${active ? 'active' : ''}" href="${appHref(path)}" data-router data-action="pipeline-open" data-module="${kind}" title="${h(module.label)}" aria-label="${h(module.label)}" aria-current="${active ? 'page' : 'false'}">
           ${svgIcon(module.symbol)}
           <span>${h(module.label)}</span>
           ${count !== '' ? `<b>${h(String(count))}</b>` : ''}
@@ -3370,13 +3375,13 @@ function navItemPipeline(route, module, companyId) {
       </div>
       ${expanded ? `
         <div class="side-sub">
-          <button class="side-sub-link ${onSection && filter === 'all' ? 'active' : ''}" type="button" data-action="pipeline-stage" data-module="${kind}" data-stage="all">
+          <button class="side-sub-link ${onSection && filter === 'all' ? 'active' : ''}" type="button" data-action="pipeline-stage" data-module="${kind}" data-stage="all" aria-current="${onSection && filter === 'all' ? 'page' : 'false'}">
             <span class="side-sub-dot all"></span>
             <span class="side-sub-name">All ${h(module.label.toLowerCase())}</span>
             <span class="side-sub-ct">${h(String(count || 0))}</span>
           </button>
           ${stages.map((stage) => `
-            <button class="side-sub-link ${onSection && filter === stage.name ? 'active' : ''}" type="button" data-action="pipeline-stage" data-module="${kind}" data-stage="${h(stage.name)}">
+            <button class="side-sub-link ${onSection && filter === stage.name ? 'active' : ''}" type="button" data-action="pipeline-stage" data-module="${kind}" data-stage="${h(stage.name)}" aria-current="${onSection && filter === stage.name ? 'page' : 'false'}">
               <span class="side-sub-dot" style="background:${h(stage.color)}"></span>
               <span class="side-sub-name">${h(stage.name)}</span>
               <span class="side-sub-ct">${h(String(counts[stage.name] || 0))}</span>
@@ -16409,6 +16414,18 @@ function updateWorkspaceOnly() {
   workspace.innerHTML = renderWorkspace(state.route);
 }
 
+function rememberSidebarScroll() {
+  const scrollTop = document.querySelector('.deck-scroll')?.scrollTop || 0;
+  sessionStorage.setItem(SIDEBAR_SCROLL_KEY, String(scrollTop));
+}
+
+function restoreSidebarScroll() {
+  const deckScroll = document.querySelector('.deck-scroll');
+  if (!deckScroll) return;
+  const scrollTop = Number(sessionStorage.getItem(SIDEBAR_SCROLL_KEY) || 0);
+  if (Number.isFinite(scrollTop) && scrollTop > 0) deckScroll.scrollTop = scrollTop;
+}
+
 function getRoute() {
   const path = appPathname();
   const params = new URLSearchParams(window.location.search);
@@ -16516,6 +16533,7 @@ function appHref(path) {
 }
 
 function navigate(path, options = {}) {
+  rememberSidebarScroll();
   const href = /^https?:\/\//i.test(path) || path.startsWith(BASE_PATH + '/') || (BASE_PATH === '' && path.startsWith('/')) ? path : appHref(path);
   if (options.replace) window.history.replaceState({}, '', href);
   else window.history.pushState({}, '', href);

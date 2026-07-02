@@ -150,6 +150,18 @@ test('workspace switcher lives in the sidebar workspace card, not the top nav', 
   assert.doesNotMatch(source, /<select data-company-switch aria-label="Active company">\s*\$\{companies\.map\(.*deckMode/s);
 });
 
+test('sidebar preserves scroll position and active state during navigation', () => {
+  assert.match(source, /const SIDEBAR_SCROLL_KEY = 'quest-hq-sidebar-scroll';/);
+  assert.match(source, /function rememberSidebarScroll\(\)/);
+  assert.match(source, /document\.querySelector\('\.deck-scroll'\)\?\.scrollTop/);
+  assert.match(source, /sessionStorage\.setItem\(SIDEBAR_SCROLL_KEY, String\(scrollTop\)\)/);
+  assert.match(source, /function restoreSidebarScroll\(\)/);
+  assert.match(source, /queueMicrotask\(restoreSidebarScroll\)/);
+  assert.match(source, /rememberSidebarScroll\(\);\s*const href =/);
+  assert.match(source, /aria-current="\$\{active \? 'page' : 'false'\}"/);
+  assert.match(source, /side-sub-link \$\{onSection && filter === 'all' \? 'active' : ''\}"[^>]*aria-current="\$\{onSection && filter === 'all' \? 'page' : 'false'\}"/);
+});
+
 test('technical data connection status lives in settings, not the topbar', () => {
   const shellTemplateBlock = source.match(/function shellTemplate\(route, workspace\) \{[\s\S]*?function renderDeck/)?.[0] || '';
   assert.ok(shellTemplateBlock, 'Expected shellTemplate block');
