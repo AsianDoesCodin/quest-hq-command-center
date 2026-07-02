@@ -17091,6 +17091,10 @@ textarea.wb-input { min-height: 70px; resize: vertical; }
   --shadow: 0 22px 70px rgba(0, 0, 0, .55);
   --soft-shadow: 0 14px 38px rgba(0, 0, 0, .4);
   --symbol-paper: #232a35;
+  /* Workspace Builder + a few modules read these aliases via var(--text, <light fallback>).
+     Without dark values they fell back to near-black and vanished on dark surfaces. */
+  --text: #e9ebef;
+  --text-muted: #96a0b0;
 }
 [data-theme="dark"] body,
 [data-theme="dark"] .app-body,
@@ -17191,3 +17195,98 @@ textarea.wb-input { min-height: 70px; resize: vertical; }
 [data-theme="dark"] .contract-rows > div { border-color: var(--border); }
 [data-theme="dark"] .modal-overlay { background: rgba(0, 0, 0, .6); }
 [data-theme="dark"] .file-policy-note { background: var(--surface-2); border-color: var(--border); color: var(--ink-2); }
+
+/* Contact "Edit location" modal (map picker) */
+.contact-location-modal .modal-body { min-width: min(640px, 92vw); display: flex; flex-direction: column; gap: 12px; }
+.cl-search-row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.cl-search-box { flex: 1; min-width: 180px; height: 38px; padding: 0 14px; border: 1px solid var(--border); border-radius: 9px; background: var(--surface); color: var(--ink); font-size: 14px; }
+.cl-search-box:focus { outline: none; border-color: var(--orange); box-shadow: 0 0 0 3px var(--ring, rgba(230, 106, 31, .22)); }
+.cl-map { height: 340px; width: 100%; border: 1px solid var(--border); border-radius: 10px; overflow: hidden; position: relative; z-index: 0; }
+.cl-coords { font-size: 12.5px; color: var(--muted); font-weight: 700; }
+[data-theme="dark"] .cl-map { border-color: var(--border); }
+[data-theme="dark"] .leaflet-container { background: #0f1319; }
+
+/* Dark theme: kanban boards, plugin cards, and the calendar grid hardcoded light
+   backgrounds (#fff / cream) that never had dark overrides — so lanes, cards, empty
+   states, and day cells stayed white. Background-only overrides keep var()-based
+   borders (incl. the orange card accent) intact. */
+[data-theme="dark"] .pipe-lane { background: var(--surface); }
+[data-theme="dark"] .pipe-card { background: var(--surface-3); }
+[data-theme="dark"] .pipe-lane-head { border-color: var(--border); }
+[data-theme="dark"] .pipe-lane-head b { background: var(--surface-2); color: var(--ink-2); border-color: var(--border); }
+[data-theme="dark"] .lane-empty { background: var(--surface-2); border-color: var(--border-strong); color: var(--muted); }
+
+[data-theme="dark"] .plugin-card,
+[data-theme="dark"] .plugin-card.installed,
+[data-theme="dark"] .plugin-card.disabled { background: var(--surface); border-color: var(--border); }
+[data-theme="dark"] .plugin-card.installed { border-color: rgba(52, 168, 128, .4); }
+[data-theme="dark"] .plugin-card-icon { background: var(--surface-2); border-color: var(--border); }
+
+[data-theme="dark"] .calendar-day { background: var(--surface); border-color: var(--border); }
+[data-theme="dark"] .calendar-day.today { border-color: var(--amber); }
+[data-theme="dark"] .calendar-day-head span { color: #e0a94a; }
+
+[data-theme="dark"] .wb-new-card:hover { background: rgba(230, 106, 31, .12); }
+
+/* Smart contact fields — roof system chips */
+.sf-roof-field { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.sf-roof-chip { display: inline-flex; align-items: center; gap: 4px; background: var(--surface-2, #f4ead6); border: 1px solid var(--border, #e2d5bf); border-radius: 999px; padding: 3px 5px 3px 10px; font-size: 12.5px; font-weight: 700; color: var(--ink, #17130f); }
+.sf-roof-x { border: 0; background: transparent; cursor: pointer; color: var(--muted, #72695d); display: grid; place-items: center; width: 18px; height: 18px; border-radius: 50%; }
+.sf-roof-x:hover { background: rgba(185, 28, 28, .12); color: #b91c1c; }
+.sf-roof-add { display: inline-flex; align-items: center; gap: 4px; border: 1px dashed var(--border-strong, #d3c1a7); background: transparent; border-radius: 999px; padding: 3px 10px; font-size: 12.5px; font-weight: 700; color: var(--orange, #e66a1f); cursor: pointer; }
+.sf-roof-add:hover { background: rgba(230, 106, 31, .08); }
+
+/* Task rows show their details + time */
+.sf-task-main { display: flex; flex-direction: column; gap: 1px; min-width: 0; flex: 1; }
+.sf-task-desc { font-size: 12px; color: var(--muted, #72695d); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.activity-dock-grid-3 { grid-template-columns: 1fr 1fr 1fr; }
+[data-theme="dark"] .sf-roof-chip { background: var(--surface-2); border-color: var(--border); color: var(--ink); }
+
+/* Activity feed row → clickable detail modal */
+.sf-feed-item[data-action="open-activity"] { cursor: pointer; border-radius: 8px; transition: background .12s; }
+.sf-feed-item[data-action="open-activity"]:hover { background: rgba(230, 106, 31, .06); }
+.activity-detail { display: flex; flex-direction: column; gap: 12px; }
+.activity-detail-meta { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 12.5px; color: var(--muted, #72695d); font-weight: 700; }
+.activity-detail-tag { text-transform: uppercase; letter-spacing: .03em; }
+.activity-detail-body { display: flex; flex-direction: column; gap: 8px; border-top: 1px solid var(--border, #e2d5bf); padding-top: 12px; }
+.activity-detail-row { display: grid; grid-template-columns: 130px minmax(0, 1fr); gap: 10px; align-items: baseline; }
+.activity-detail-row b { font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: .03em; color: var(--muted, #72695d); }
+.activity-detail-row span { font-size: 14px; color: var(--ink, #17130f); word-break: break-word; }
+.activity-detail-body p { margin: 0; font-size: 14px; color: var(--ink-2, #473f34); line-height: 1.5; }
+@media (max-width: 560px) { .activity-detail-row { grid-template-columns: 1fr; gap: 2px; } }
+
+/* Activity type shown as an icon badge instead of a text tag */
+.sf-feed-tag-icon { display: inline-grid; place-items: center; width: 22px; height: 22px; padding: 0; border-radius: 6px; flex: 0 0 auto; }
+.sf-feed-tag-icon i { font-size: 13px; line-height: 1; }
+.activity-type-badge { display: inline-grid; place-items: center; width: 30px; height: 30px; border-radius: 8px; flex: 0 0 auto; }
+.activity-type-badge i { font-size: 16px; line-height: 1; }
+
+/* Kanban drag-and-drop */
+.pipe-card[draggable="true"], .job-card[draggable="true"] { cursor: grab; }
+.pipe-card.pipe-dragging, .job-card.pipe-dragging { opacity: .45; cursor: grabbing; }
+.pipe-lane.drag-over { outline: 2px dashed var(--orange, #e66a1f); outline-offset: -4px; background: rgba(230, 106, 31, .06); border-radius: 10px; }
+
+/* Quote line items */
+.sf-li-list { display: flex; flex-direction: column; gap: 6px; }
+.sf-li-row { display: flex; align-items: center; gap: 8px; padding: 7px 0; border-bottom: 1px solid var(--border, #e2d5bf); }
+.sf-li-row:last-of-type { border-bottom: 0; }
+.sf-li-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.sf-li-main strong { font-size: 13px; color: var(--ink, #17130f); }
+.sf-li-main small { font-size: 11.5px; color: var(--muted, #72695d); }
+.sf-li-total { font-weight: 800; font-size: 13px; white-space: nowrap; }
+.sf-li-x { border: 0; background: transparent; color: var(--muted, #72695d); cursor: pointer; width: 22px; height: 22px; border-radius: 6px; display: grid; place-items: center; flex: 0 0 auto; }
+.sf-li-x:hover { background: rgba(185, 28, 28, .12); color: #b91c1c; }
+.sf-li-foot { display: flex; justify-content: space-between; align-items: center; padding-top: 8px; margin-top: 4px; border-top: 2px solid var(--border, #e2d5bf); font-weight: 700; }
+.sf-li-foot strong { font-size: 16px; }
+.sf-li-apply { margin-top: 8px; width: 100%; justify-content: center; }
+.sf-li-add { margin-left: auto; }
+
+/* Contact record: Notes / Email / Activity workspace panel */
+.sf-workspace-card { min-height: 390px; }
+.sf-email-panel { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 15px; border-top: 1px solid var(--border, #f0f0f0); background: var(--surface-2, #fbfcfe); }
+.sf-email-panel strong { display: block; font-size: 13px; color: var(--ink, #17130f); }
+.sf-email-panel small { display: block; margin-top: 2px; color: var(--muted, #72695d); font-size: 11.5px; }
+.sf-primary-mini { display: inline-flex; align-items: center; gap: 6px; height: 30px; padding: 0 12px; border: 0; border-radius: 6px; background: #0176D3; color: #fff; font-size: 12px; font-weight: 800; cursor: pointer; white-space: nowrap; }
+.sf-primary-mini:hover { background: #0b5cab; }
+.sf-btn.active { border-color: #2563eb; color: #2563eb; background: rgba(37, 99, 235, .08); }
+[data-theme="dark"] .sf-email-panel { background: var(--surface-2); border-color: var(--border); }

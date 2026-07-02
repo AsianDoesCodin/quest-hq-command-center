@@ -115,7 +115,8 @@ test('contact record pencils edit only the clicked field value', () => {
   assert.match(recordSource, /fieldRow\('Source', ed\('source'\), 'source'\)/);
   assert.match(recordSource, /fieldRow\('Stage', ed\('stage'\), 'stage'\)/);
   assert.match(recordSource, /fieldRow\('Pay Type', ed\('pay_type'\), 'pay_type'\)/);
-  assert.match(recordSource, /fieldRow\('Roof System', ed\('roof_system'\), 'roof_system'\)/);
+  // Roof System is now a smart field: only shown for roofing job types, rendered as chips.
+  assert.match(recordSource, /contactJobTypeIsRoof\(contact\.title\)[\s\S]*fieldRow\('Roof System', renderRoofSystemField\(contact\)/);
   ['title', 'value', 'temperature'].forEach((key) => assert.match(recordSource, new RegExp(`data-contact-edit="${key}"`)));
   assert.match(inlineSource, /closest\('\.sf-field'\)/);
   assert.match(inlineSource, /\.sf-field-value \[data-contact-edit\]/);

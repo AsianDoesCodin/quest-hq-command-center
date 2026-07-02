@@ -19,7 +19,9 @@ test('job record pencil controls trigger inline editing for editable fields', ()
   assert.match(source, /const fieldRow = \(label, content, editKey = ''\) =>/);
   assert.match(source, /data-job-edit="\$\{h\(editKey\)\}"/);
   assert.match(source, /aria-label="Edit \$\{h\(label\)\}"/);
-  assert.match(source, /fieldRow\('Site Address', ed\('site_address'\), 'site_address'\)/);
+  // Site Address keeps inline editing (ed) and adds a map-pin picker button.
+  assert.match(source, /fieldRow\('Site Address', `\$\{ed\('site_address'\)\}/);
+  assert.match(source, /data-action="open-location-picker" data-kind="job" data-id="\$\{h\(job\.id\)\}" data-field="site_address"/);
   assert.match(source, /fieldRow\('Owner', ed\('owner_name'/);
   assert.match(source, /fieldRow\('Stage', `<span>\$\{h\(job.stage\)\}<\/span>`, 'stage'\)/);
   assert.doesNotMatch(source, /<i class="ti ti-pencil sf-pencil"><\/i>/);
